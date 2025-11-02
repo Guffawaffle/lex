@@ -10,6 +10,10 @@ import { FrameStore } from "../../store/dist/framestore.js";
 import { MCP_TOOLS } from "./tools.js";
 // @ts-ignore - importing from compiled dist directories
 import { generateAtlasFrame, formatAtlasFrame } from "../../../shared/atlas/dist/atlas-frame.js";
+// @ts-ignore - importing from compiled dist directories
+import { validateModuleIds } from "../../../shared/module_ids/dist/module_ids/validator.js";
+// @ts-ignore - importing from compiled dist directories
+import { loadPolicy } from "../../../shared/policy/dist/policy/loader.js";
 import { randomUUID } from "crypto";
 
 export interface MCPRequest {
@@ -100,6 +104,8 @@ export class MCPServer {
 
   /**
    * Handle lex.remember tool - create new Frame
+   * 
+   * Validates module IDs against policy before creating Frame (THE CRITICAL RULE)
    */
   private handleRemember(args: any): MCPResponse {
     const {
@@ -127,6 +133,26 @@ export class MCPServer {
     // Validate status_snapshot structure
     if (!status_snapshot.next_action) {
       throw new Error("status_snapshot.next_action is required");
+    }
+
+    // THE CRITICAL RULE: Validate module IDs against policy
+    const policy = loadPolicy();
+    const validationResult = validateModuleIds(module_scope, policy);
+    
+    if (!validationResult.valid && validationResult.errors) {
+      // Format error message with suggestions
+      const errorMessages = validationResult.errors.map(error => {
+        const suggestions = error.suggestions.length > 0
+          ? `\n  Did you mean: ${error.suggestions.join(', ')}?`
+          : '';
+        return `  • ${error.message}${suggestions}`;
+      });
+      
+      throw new Error(
+        `Invalid module IDs in module_scope:\n${errorMessages.join('\n')}\n\n` +
+        `Module IDs must match those defined in lexmap.policy.json.\n` +
+        `Available modules: ${Object.keys(policy.modules).join(', ')}`
+      );
     }
 
     // Generate Frame ID and timestamp
