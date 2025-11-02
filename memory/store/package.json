@@ -6,7 +6,8 @@
   "main": "framestore.ts",
   "scripts": {
     "build": "tsc",
-    "test": "npm run build && node --test dist/images.test.js"
+    "test": "npm run build && node --test dist/images.test.js",
+    "test:perf": "npm run build && node --test dist/images.perf.test.js"
   },
   "dependencies": {
     "better-sqlite3": "^9.0.0"
