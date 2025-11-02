@@ -55,7 +55,7 @@ export class ImageManager {
    */
   storeImage(frameId: string, data: Buffer, mimeType: string): string {
     // Validate MIME type
-    if (!ALLOWED_MIME_TYPES.includes(mimeType as any)) {
+    if (!(ALLOWED_MIME_TYPES as readonly string[]).includes(mimeType)) {
       throw new Error(
         `Invalid MIME type: ${mimeType}. Allowed types: ${ALLOWED_MIME_TYPES.join(", ")}`
       );

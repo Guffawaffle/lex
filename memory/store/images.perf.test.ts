@@ -227,9 +227,8 @@ describe("Image Manager - Performance", () => {
 
       // Delete frames (should cascade to images)
       const startCascade = Date.now();
-      const db = frameStore.getDatabase();
       for (let f = 0; f < framesCount; f++) {
-        db.prepare("DELETE FROM frames WHERE id = ?").run(`cascade-frame-${f}`);
+        frameStore.deleteFrame(`cascade-frame-${f}`);
       }
       const cascadeTime = Date.now() - startCascade;
 

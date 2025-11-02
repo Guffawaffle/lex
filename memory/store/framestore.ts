@@ -248,6 +248,19 @@ export class FrameStore {
   }
 
   /**
+   * Delete a Frame by ID
+   * This will cascade to delete associated images via foreign key constraint
+   * 
+   * @param id - Frame ID to delete
+   * @returns True if Frame was deleted, false if not found
+   */
+  deleteFrame(id: string): boolean {
+    const stmt = this.db.prepare("DELETE FROM frames WHERE id = ?");
+    const result = stmt.run(id);
+    return result.changes > 0;
+  }
+
+  /**
    * Get database instance for use by other managers (e.g., ImageManager)
    */
   getDatabase(): Database.Database {

@@ -380,8 +380,7 @@ describe("Image Manager", () => {
       assert.ok(retrieved, "Image should exist");
 
       // Delete the Frame (this should cascade to images via foreign key)
-      const db = frameStore.getDatabase();
-      db.prepare("DELETE FROM frames WHERE id = ?").run(frame.id);
+      frameStore.deleteFrame(frame.id);
 
       // Verify image was deleted
       retrieved = imageManager.getImage(imageId);
