@@ -49,6 +49,14 @@ import * as ts from "typescript";
 import * as fs from "fs";
 import * as path from "path";
 import { glob } from "glob";
+import {
+  Policy,
+  ModuleEdge,
+  resolveFileToModule,
+  resolveImportToModule,
+  detectFeatureFlags,
+  detectPermissions,
+} from "./common.js";
 
 interface Declaration {
   type: string;
@@ -64,6 +72,7 @@ interface Import {
 
 interface FileData {
   path: string;
+  module_scope?: string;
   declarations: Declaration[];
   imports: Import[];
   feature_flags: string[];
@@ -74,18 +83,31 @@ interface FileData {
 interface ScannerOutput {
   language: string;
   files: FileData[];
+  module_edges?: ModuleEdge[];
 }
 
 class TypeScriptScanner {
   private rootDir: string;
   private output: ScannerOutput;
+  private policy?: Policy;
 
-  constructor(rootDir: string) {
+  constructor(rootDir: string, policyPath?: string) {
     this.rootDir = path.resolve(rootDir);
     this.output = {
       language: "typescript",
       files: [],
+      module_edges: [],
     };
+
+    // Load policy file if provided
+    if (policyPath && fs.existsSync(policyPath)) {
+      try {
+        const policyContent = fs.readFileSync(policyPath, "utf-8");
+        this.policy = JSON.parse(policyContent);
+      } catch (error) {
+        console.error(`Warning: Failed to load policy file: ${error}`);
+      }
+    }
   }
 
   async scan(): Promise<ScannerOutput> {
@@ -117,14 +139,40 @@ class TypeScriptScanner {
         true
       );
 
+      const imports = this.extractImports(sourceFile);
       const fileData: FileData = {
         path: relativePath,
         declarations: this.extractDeclarations(sourceFile),
-        imports: this.extractImports(sourceFile),
-        feature_flags: this.extractFeatureFlags(content),
-        permissions: this.extractPermissions(content),
+        imports,
+        feature_flags: detectFeatureFlags(content),
+        permissions: detectPermissions(content),
         warnings: [],
       };
+
+      // Resolve module ownership if policy is available
+      if (this.policy) {
+        const moduleId = resolveFileToModule(relativePath, this.policy);
+        if (moduleId) {
+          fileData.module_scope = moduleId;
+
+          // Detect cross-module calls
+          for (const imp of imports) {
+            const targetModuleId = resolveImportToModule(
+              imp.from,
+              relativePath,
+              this.policy
+            );
+            if (targetModuleId && targetModuleId !== moduleId) {
+              this.output.module_edges!.push({
+                from_module: moduleId,
+                to_module: targetModuleId,
+                from_file: relativePath,
+                import_statement: imp.from,
+              });
+            }
+          }
+        }
+      }
 
       return fileData;
     } catch (error) {
@@ -239,77 +287,35 @@ class TypeScriptScanner {
     return imports;
   }
 
-  private extractFeatureFlags(content: string): string[] {
-    const flags = new Set<string>();
 
-    // Pattern: featureFlags.isEnabled('flag_name')
-    const pattern1 = /featureFlags\.isEnabled\(['"](\w+)['"]\)/g;
-    let match;
-    while ((match = pattern1.exec(content)) !== null) {
-      flags.add(match[1]);
-    }
-
-    // Pattern: FeatureFlags.enabled('flag_name')
-    const pattern2 = /FeatureFlags\.enabled\(['"](\w+)['"]\)/g;
-    while ((match = pattern2.exec(content)) !== null) {
-      flags.add(match[1]);
-    }
-
-    // Pattern: useFeatureFlag('flag_name')
-    const pattern3 = /useFeatureFlag\(['"](\w+)['"]\)/g;
-    while ((match = pattern3.exec(content)) !== null) {
-      flags.add(match[1]);
-    }
-
-    return Array.from(flags).sort();
-  }
-
-  private extractPermissions(content: string): string[] {
-    const permissions = new Set<string>();
-
-    // Pattern: user.can('permission_name')
-    const pattern1 = /user\.can\(['"](\w+)['"]\)/g;
-    let match;
-    while ((match = pattern1.exec(content)) !== null) {
-      permissions.add(match[1]);
-    }
-
-    // Pattern: hasPermission('permission_name')
-    const pattern2 = /hasPermission\(['"](\w+)['"]\)/g;
-    while ((match = pattern2.exec(content)) !== null) {
-      permissions.add(match[1]);
-    }
-
-    // Pattern: usePermission('permission_name')
-    const pattern3 = /usePermission\(['"](\w+)['"]\)/g;
-    while ((match = pattern3.exec(content)) !== null) {
-      permissions.add(match[1]);
-    }
-
-    return Array.from(permissions).sort();
-  }
 }
 
 async function main() {
   const args = process.argv.slice(2);
 
   if (args.length < 1) {
-    console.error("Usage: node ts_scanner.ts <directory>");
+    console.error("Usage: node ts_scanner.ts <directory> [policy.json]");
     console.error("");
     console.error(
       "Outputs JSON conforming to ../docs/schemas/scanner-output.schema.json"
+    );
+    console.error("");
+    console.error("Options:");
+    console.error(
+      "  policy.json  Optional path to lexmap.policy.json for module resolution"
     );
     process.exit(1);
   }
 
   const directory = args[0];
+  const policyPath = args[1];
 
   if (!fs.existsSync(directory) || !fs.statSync(directory).isDirectory()) {
     console.error(`Error: ${directory} is not a directory`);
     process.exit(1);
   }
 
-  const scanner = new TypeScriptScanner(directory);
+  const scanner = new TypeScriptScanner(directory, policyPath);
   const output = await scanner.scan();
 
   // Output JSON to stdout
