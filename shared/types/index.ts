@@ -1,6 +1,6 @@
 /**
  * Shared Type Definitions
- * 
+ *
  * Central export point for all shared TypeScript types used across
  * memory/ and policy/ workspaces.
  */
