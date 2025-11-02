@@ -7,6 +7,8 @@
 
 // @ts-ignore - importing from compiled dist directories
 import { FrameStore } from "../../store/dist/framestore.js";
+// @ts-ignore - importing from compiled dist directories
+import { ImageManager } from "../../store/dist/images.js";
 import { MCP_TOOLS } from "./tools.js";
 // @ts-ignore - importing from compiled dist directories
 import { generateAtlasFrame, formatAtlasFrame } from "../../../shared/atlas/dist/atlas-frame.js";
@@ -36,9 +38,11 @@ export interface ToolCallParams {
  */
 export class MCPServer {
   private frameStore: FrameStore;
+  private imageManager: ImageManager;
 
   constructor(dbPath: string) {
     this.frameStore = new FrameStore(dbPath);
+    this.imageManager = new ImageManager(this.frameStore.getDatabase());
   }
 
   /**
@@ -111,6 +115,7 @@ export class MCPServer {
       jira,
       keywords,
       atlas_frame_id,
+      images,
     } = args;
 
     // Validate required fields
@@ -149,13 +154,43 @@ export class MCPServer {
       status_snapshot,
       keywords: keywords || undefined,
       atlas_frame_id: atlas_frame_id || null,
+      image_ids: [] as string[],
     };
 
     this.frameStore.insertFrame(frame);
 
+    // Process image attachments if provided
+    const imageIds: string[] = [];
+    if (images && Array.isArray(images) && images.length > 0) {
+      for (const img of images) {
+        try {
+          // Decode base64 image data
+          const imageBuffer = Buffer.from(img.data, "base64");
+          const imageId = this.imageManager.storeImage(
+            frameId,
+            imageBuffer,
+            img.mime_type
+          );
+          imageIds.push(imageId);
+        } catch (error: any) {
+          // If image storage fails, clean up the Frame and rethrow
+          this.frameStore.getDatabase().prepare("DELETE FROM frames WHERE id = ?").run(frameId);
+          throw new Error(`Failed to store image: ${error.message}`);
+        }
+      }
+
+      // Update frame with image IDs
+      frame.image_ids = imageIds;
+      this.frameStore.insertFrame(frame);
+    }
+
     // Generate Atlas Frame for the module scope
     const atlasFrame = generateAtlasFrame(module_scope);
     const atlasOutput = formatAtlasFrame(atlasFrame);
+
+    const imageInfo = imageIds.length > 0 
+      ? `🖼️  Images: ${imageIds.length} attached\n` 
+      : "";
 
     return {
       content: [
@@ -168,6 +203,7 @@ export class MCPServer {
             `📦 Modules: ${module_scope.join(", ")}\n` +
             `🌿 Branch: ${frameBranch}\n` +
             `${jira ? `🎫 Jira: ${jira}\n` : ""}` +
+            imageInfo +
             `📅 Timestamp: ${timestamp}\n` +
             atlasOutput,
         },
