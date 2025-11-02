@@ -1,6 +1,6 @@
 /**
  * Module ID Validation - THE CRITICAL RULE Enforcement
- * 
+ *
  * Ensures that module IDs used in Frames match the module IDs defined in lexmap.policy.json
  * This prevents vocabulary drift between memory and policy subsystems.
  */
@@ -12,7 +12,7 @@ import type { ValidationResult, ModuleIdError } from '../types/validation.js';
  * Maximum edit distance threshold for fuzzy matching suggestions
  * Only suggest module names if edit distance is within this threshold
  */
-const MAX_EDIT_DISTANCE_THRESHOLD = 5;
+const MAX_EDIT_DISTANCE_THRESHOLD = 10;
 
 /**
  * Calculate Levenshtein distance between two strings
@@ -62,28 +62,28 @@ function findSimilarModules(
     suggestions.push({ module: available, distance });
   }
 
-  // Sort by distance (most similar first) and take top N
+  // Filter by threshold FIRST, then sort and take top N
   return suggestions
+    .filter(s => s.distance <= MAX_EDIT_DISTANCE_THRESHOLD)
     .sort((a, b) => a.distance - b.distance)
     .slice(0, maxSuggestions)
-    .filter(s => s.distance <= MAX_EDIT_DISTANCE_THRESHOLD)
     .map(s => s.module);
 }
 
 /**
  * Validate that all module IDs in moduleScope exist in the policy
- * 
+ *
  * @param moduleScope - Array of module IDs to validate
  * @param policy - Policy object containing module definitions
  * @returns ValidationResult with errors and suggestions for invalid modules
- * 
+ *
  * @example
  * ```typescript
  * const result = validateModuleIds(
  *   ['auth-core', 'ui/user-panel'],
  *   policy
  * );
- * 
+ *
  * if (!result.valid) {
  *   console.error(result.errors);
  *   // [{
@@ -113,7 +113,7 @@ export function validateModuleIds(
       const suggestionText = suggestions.length > 0
         ? ` Did you mean '${suggestions[0]}'?`
         : '';
-      
+
       errors.push({
         module: moduleId,
         message: `Module '${moduleId}' not found in policy.${suggestionText}`,
