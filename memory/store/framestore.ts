@@ -14,6 +14,7 @@ export interface FrameRow {
   status_snapshot: string; // JSON stringified object
   keywords: string | null; // JSON stringified array
   atlas_frame_id: string | null;
+  image_ids: string | null; // JSON stringified array
 }
 
 /**
@@ -36,6 +37,7 @@ export class FrameStore {
     this.db.pragma("busy_timeout = 5000");
     this.db.pragma("synchronous = NORMAL");
     this.db.pragma("cache_size = 10000");
+    this.db.pragma("foreign_keys = ON");
 
     // Create frames table
     this.db.exec(`
@@ -49,7 +51,8 @@ export class FrameStore {
         reference_point TEXT NOT NULL,
         status_snapshot TEXT NOT NULL,
         keywords TEXT,
-        atlas_frame_id TEXT
+        atlas_frame_id TEXT,
+        image_ids TEXT
       );
     `);
 
@@ -100,6 +103,23 @@ export class FrameStore {
     this.db.exec(`
       CREATE INDEX IF NOT EXISTS idx_frames_jira ON frames(jira);
     `);
+
+    // Create images table for Frame attachments
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS images (
+        image_id TEXT PRIMARY KEY,
+        frame_id TEXT NOT NULL,
+        mime_type TEXT NOT NULL,
+        data BLOB NOT NULL,
+        created_at INTEGER NOT NULL,
+        FOREIGN KEY (frame_id) REFERENCES frames(id) ON DELETE CASCADE
+      );
+    `);
+
+    // Create index for frame_id to efficiently list images by frame
+    this.db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_images_frame_id ON images(frame_id);
+    `);
   }
 
   /**
@@ -109,8 +129,8 @@ export class FrameStore {
     const stmt = this.db.prepare(`
       INSERT OR REPLACE INTO frames (
         id, timestamp, branch, jira, module_scope, summary_caption,
-        reference_point, status_snapshot, keywords, atlas_frame_id
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        reference_point, status_snapshot, keywords, atlas_frame_id, image_ids
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const result = stmt.run(
@@ -123,7 +143,8 @@ export class FrameStore {
       frame.reference_point,
       JSON.stringify(frame.status_snapshot),
       frame.keywords ? JSON.stringify(frame.keywords) : null,
-      frame.atlas_frame_id || null
+      frame.atlas_frame_id || null,
+      frame.image_ids ? JSON.stringify(frame.image_ids) : null
     );
 
     return result.changes > 0;
@@ -149,6 +170,7 @@ export class FrameStore {
       status_snapshot: JSON.parse(row.status_snapshot),
       keywords: row.keywords ? JSON.parse(row.keywords) : undefined,
       atlas_frame_id: row.atlas_frame_id,
+      image_ids: row.image_ids ? JSON.parse(row.image_ids) : undefined,
     };
   }
 
@@ -221,7 +243,28 @@ export class FrameStore {
       status_snapshot: JSON.parse(row.status_snapshot),
       keywords: row.keywords ? JSON.parse(row.keywords) : undefined,
       atlas_frame_id: row.atlas_frame_id,
+      image_ids: row.image_ids ? JSON.parse(row.image_ids) : undefined,
     }));
+  }
+
+  /**
+   * Delete a Frame by ID
+   * This will cascade to delete associated images via foreign key constraint
+   * 
+   * @param id - Frame ID to delete
+   * @returns True if Frame was deleted, false if not found
+   */
+  deleteFrame(id: string): boolean {
+    const stmt = this.db.prepare("DELETE FROM frames WHERE id = ?");
+    const result = stmt.run(id);
+    return result.changes > 0;
+  }
+
+  /**
+   * Get database instance for use by other managers (e.g., ImageManager)
+   */
+  getDatabase(): Database.Database {
+    return this.db;
   }
 
   /**
