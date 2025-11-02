@@ -1,12 +1,20 @@
 # Dependencies
 node_modules/
 .pnpm-store/
+package-lock.json
 
 # Build artifacts
 dist/
 build/
 *.js.map
 *.d.ts.map
+
+# Generated TypeScript compilation outputs (source is .ts)
+# Keep only source .ts files, not compiled .js/.d.ts
+shared/**/*.js
+shared/**/*.d.ts
+!shared/**/*.test.mjs
+!shared/**/*.mjs
 
 # Python
 .venv/
@@ -44,3 +52,6 @@ coverage/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+.smartergpt/**
+.smartergpt.local/**

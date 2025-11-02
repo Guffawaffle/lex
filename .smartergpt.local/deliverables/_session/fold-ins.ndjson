@@ -1,0 +1,2 @@
+{"pr": "14", "branch": "copilot/add-typescript-definitions-frame-policy", "status": "folded", "at": "2025-11-02T13:20:57-06:00", "umbrella_pr": "21"}
+{"pr": "15", "branch": "copilot/implement-module-id-validation", "status": "folded", "at": "2025-11-02T13:24:02-06:00", "umbrella_pr": "21", "conflicts": "resolved"}
