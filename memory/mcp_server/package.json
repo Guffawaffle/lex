@@ -7,7 +7,8 @@
   "types": "./dist/server.d.ts",
   "scripts": {
     "build": "tsc",
-    "watch": "tsc --watch"
+    "watch": "tsc --watch",
+    "test": "npm run build && node --test dist/server.test.js"
   },
   "dependencies": {
     "@lex/store": "file:../store"
