@@ -35,6 +35,13 @@ export interface AtlasEdge {
  * Generate Atlas Frame for a set of seed modules
  * 
  * TODO: Integrate with lexmap.policy.json for actual policy graph traversal
+ * Full implementation will:
+ * - Load policy graph from lexmap.policy.json
+ * - Start with seed modules
+ * - Expand N hops via allowed_callers/forbidden_callers edges
+ * - Include full policy metadata for all discovered modules
+ * - Return complete neighborhood with edges
+ * 
  * For now, returns a minimal Atlas Frame with just the seed modules
  * 
  * @param seedModules - Module IDs from Frame.module_scope

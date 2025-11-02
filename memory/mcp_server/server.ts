@@ -132,7 +132,11 @@ export class MCPServer {
     // Generate Frame ID and timestamp
     const frameId = `frame-${Date.now()}-${randomUUID()}`;
     const timestamp = new Date().toISOString();
-    const frameBranch = branch || "main"; // TODO: exec git rev-parse --abbrev-ref HEAD
+    
+    // Get current git branch if not provided
+    // TODO: exec git rev-parse --abbrev-ref HEAD to auto-detect
+    // For now, default to 'main' as a safe fallback
+    const frameBranch = branch || "main";
 
     const frame = {
       id: frameId,
