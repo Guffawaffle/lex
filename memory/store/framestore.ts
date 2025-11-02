@@ -9,6 +9,9 @@ import {
   getFrameById as getById,
   searchFrames as search,
   deleteFrame as remove,
+  getFramesByBranch,
+  getFramesByJira,
+  getAllFrames,
 } from "./queries.js";
 import type { Frame } from "../frames/types.js";
 
@@ -38,7 +41,7 @@ export interface FrameRow {
  * // New API (recommended)
  * import { getDb, saveFrame } from '@lex/store';
  * const db = getDb('/path/to/db');
- * await saveFrame(db, frame);
+ * saveFrame(db, frame);
  * ```
  *
  * Frames are stored locally with full-text search on reference_point for fuzzy recall.
@@ -55,11 +58,12 @@ export class FrameStore {
    * Insert or update a Frame
    * @deprecated Use saveFrame from the modular API
    */
-  async insertFrame(frame: any): Promise<boolean> {
+  insertFrame(frame: any): boolean {
     try {
-      await save(this.db, frame as Frame);
+      save(this.db, frame as Frame);
       return true;
-    } catch (e) {
+    } catch (error) {
+      console.error("Failed to insert frame:", error);
       return false;
     }
   }
@@ -68,44 +72,41 @@ export class FrameStore {
    * Retrieve Frame by ID
    * @deprecated Use getFrameById from the modular API
    */
-  async getFrameById(id: string): Promise<any | null> {
-    return await getById(this.db, id);
+  getFrameById(id: string): any | null {
+    return getById(this.db, id);
   }
 
   /**
    * Search Frames with FTS and optional filters
    * @deprecated Use searchFrames, getFramesByBranch, or getFramesByJira from the modular API
    */
-  async searchFrames(query: {
+  searchFrames(query: {
     reference_point?: string;
     jira?: string;
     branch?: string;
     limit?: number;
-  }): Promise<any[]> {
+  }): any[] {
     if (query.reference_point) {
-      return await search(this.db, query.reference_point);
+      return search(this.db, query.reference_point);
     }
     
-    // For other query types, use the new modular API
-    const { getFramesByBranch, getFramesByJira, getAllFrames } = await import("./queries.js");
-    
     if (query.jira) {
-      return await getFramesByJira(this.db, query.jira);
+      return getFramesByJira(this.db, query.jira);
     }
     
     if (query.branch) {
-      return await getFramesByBranch(this.db, query.branch);
+      return getFramesByBranch(this.db, query.branch);
     }
     
-    return await getAllFrames(this.db, query.limit);
+    return getAllFrames(this.db, query.limit);
   }
 
   /**
    * Delete Frame by ID
    * @deprecated Use deleteFrame from the modular API
    */
-  async deleteFrame(id: string): Promise<boolean> {
-    return await remove(this.db, id);
+  deleteFrame(id: string): boolean {
+    return remove(this.db, id);
   }
 
   /**

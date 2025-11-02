@@ -51,7 +51,7 @@ function rowToFrame(row: FrameRow): Frame {
 /**
  * Save a Frame to the database (insert or update)
  */
-export async function saveFrame(db: Database.Database, frame: Frame): Promise<void> {
+export function saveFrame(db: Database.Database, frame: Frame): void {
   const row = frameToRow(frame);
   
   const stmt = db.prepare(`
@@ -81,7 +81,7 @@ export async function saveFrame(db: Database.Database, frame: Frame): Promise<vo
 /**
  * Get a Frame by ID
  */
-export async function getFrameById(db: Database.Database, id: string): Promise<Frame | null> {
+export function getFrameById(db: Database.Database, id: string): Frame | null {
   const stmt = db.prepare("SELECT * FROM frames WHERE id = ?");
   const row = stmt.get(id) as FrameRow | undefined;
 
@@ -94,7 +94,7 @@ export async function getFrameById(db: Database.Database, id: string): Promise<F
  * Search Frames using FTS5 full-text search
  * @param query Natural language query string (searches reference_point, summary_caption, keywords)
  */
-export async function searchFrames(db: Database.Database, query: string): Promise<Frame[]> {
+export function searchFrames(db: Database.Database, query: string): Frame[] {
   const stmt = db.prepare(`
     SELECT f.*
     FROM frames f
@@ -110,7 +110,7 @@ export async function searchFrames(db: Database.Database, query: string): Promis
 /**
  * Get all Frames for a specific branch
  */
-export async function getFramesByBranch(db: Database.Database, branch: string): Promise<Frame[]> {
+export function getFramesByBranch(db: Database.Database, branch: string): Frame[] {
   const stmt = db.prepare(`
     SELECT * FROM frames
     WHERE branch = ?
@@ -124,7 +124,7 @@ export async function getFramesByBranch(db: Database.Database, branch: string): 
 /**
  * Get all Frames for a specific Jira/ticket ID
  */
-export async function getFramesByJira(db: Database.Database, jiraId: string): Promise<Frame[]> {
+export function getFramesByJira(db: Database.Database, jiraId: string): Frame[] {
   const stmt = db.prepare(`
     SELECT * FROM frames
     WHERE jira = ?
@@ -139,20 +139,17 @@ export async function getFramesByJira(db: Database.Database, jiraId: string): Pr
  * Get all Frames that touch a specific module
  * @param moduleId Module ID to search for in module_scope arrays
  */
-export async function getFramesByModuleScope(db: Database.Database, moduleId: string): Promise<Frame[]> {
-  // SQLite doesn't have native JSON array contains, so we use LIKE with JSON array format
-  // This searches for the module ID within the JSON array string
+export function getFramesByModuleScope(db: Database.Database, moduleId: string): Frame[] {
+  // Get all frames and filter in JavaScript to avoid SQL injection
+  // This is safe because module_scope is stored as JSON array
   const stmt = db.prepare(`
     SELECT * FROM frames
-    WHERE module_scope LIKE ?
     ORDER BY timestamp DESC
   `);
 
-  // Search pattern: the module ID should appear as a quoted string in the JSON array
-  const searchPattern = `%"${moduleId}"%`;
-  const rows = stmt.all(searchPattern) as FrameRow[];
+  const rows = stmt.all() as FrameRow[];
   
-  // Filter to ensure exact match (LIKE might have false positives)
+  // Filter frames that contain the moduleId in their module_scope array
   return rows
     .map(rowToFrame)
     .filter(frame => frame.module_scope.includes(moduleId));
@@ -161,7 +158,7 @@ export async function getFramesByModuleScope(db: Database.Database, moduleId: st
 /**
  * Get all Frames (with optional limit)
  */
-export async function getAllFrames(db: Database.Database, limit?: number): Promise<Frame[]> {
+export function getAllFrames(db: Database.Database, limit?: number): Frame[] {
   const stmt = db.prepare(`
     SELECT * FROM frames
     ORDER BY timestamp DESC
@@ -175,7 +172,7 @@ export async function getAllFrames(db: Database.Database, limit?: number): Promi
 /**
  * Delete a Frame by ID
  */
-export async function deleteFrame(db: Database.Database, id: string): Promise<boolean> {
+export function deleteFrame(db: Database.Database, id: string): boolean {
   const stmt = db.prepare("DELETE FROM frames WHERE id = ?");
   const result = stmt.run(id);
   return result.changes > 0;
@@ -184,7 +181,7 @@ export async function deleteFrame(db: Database.Database, id: string): Promise<bo
 /**
  * Get count of all Frames
  */
-export async function getFrameCount(db: Database.Database): Promise<number> {
+export function getFrameCount(db: Database.Database): number {
   const stmt = db.prepare("SELECT COUNT(*) as count FROM frames");
   const result = stmt.get() as { count: number };
   return result.count;
