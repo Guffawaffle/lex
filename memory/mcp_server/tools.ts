@@ -77,6 +77,25 @@ export const MCP_TOOLS: MCPTool[] = [
           type: "string",
           description: "Reference to Atlas Frame (fold radius snapshot)",
         },
+        images: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              data: {
+                type: "string",
+                description: "Base64-encoded image data",
+              },
+              mime_type: {
+                type: "string",
+                description: 'MIME type (e.g., "image/png", "image/jpeg")',
+              },
+            },
+            required: ["data", "mime_type"],
+          },
+          description:
+            "Optional array of image attachments (base64-encoded with MIME type)",
+        },
       },
     },
   },

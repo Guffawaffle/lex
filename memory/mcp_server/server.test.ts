@@ -366,4 +366,162 @@ describe("MCP Server - Protocol", () => {
       teardown();
     }
   });
+
+  test("lex.remember stores Frame with image attachments", async () => {
+    const srv = setup();
+    try {
+      // Create a small test image (base64-encoded PNG)
+      const testImageData = Buffer.from("fake-png-data").toString("base64");
+      
+      const args = {
+        reference_point: "test with images",
+        summary_caption: "Testing image attachment",
+        status_snapshot: {
+          next_action: "Verify image storage",
+        },
+        module_scope: ["test/module"],
+        images: [
+          {
+            data: testImageData,
+            mime_type: "image/png",
+          },
+        ],
+      };
+
+      const response = await srv.handleRequest({
+        method: "tools/call",
+        params: {
+          name: "lex.remember",
+          arguments: args,
+        },
+      });
+
+      assert.ok(response.content, "Response should have content");
+      assert.ok(
+        response.content[0].text.includes("✅ Frame stored"),
+        "Should confirm Frame storage"
+      );
+      assert.ok(
+        response.content[0].text.includes("🖼️  Images: 1 attached"),
+        "Should indicate image attachment"
+      );
+    } finally {
+      teardown();
+    }
+  });
+
+  test("lex.remember stores Frame with multiple image attachments", async () => {
+    const srv = setup();
+    try {
+      const image1 = Buffer.from("png-data").toString("base64");
+      const image2 = Buffer.from("jpeg-data").toString("base64");
+      
+      const args = {
+        reference_point: "test with multiple images",
+        summary_caption: "Testing multiple image attachments",
+        status_snapshot: {
+          next_action: "Verify multi-image storage",
+        },
+        module_scope: ["test/module"],
+        images: [
+          { data: image1, mime_type: "image/png" },
+          { data: image2, mime_type: "image/jpeg" },
+        ],
+      };
+
+      const response = await srv.handleRequest({
+        method: "tools/call",
+        params: {
+          name: "lex.remember",
+          arguments: args,
+        },
+      });
+
+      assert.ok(response.content, "Response should have content");
+      assert.ok(
+        response.content[0].text.includes("🖼️  Images: 2 attached"),
+        "Should indicate 2 images attached"
+      );
+    } finally {
+      teardown();
+    }
+  });
+
+  test("lex.remember fails with invalid image MIME type", async () => {
+    const srv = setup();
+    try {
+      const testImageData = Buffer.from("fake-data").toString("base64");
+      
+      const args = {
+        reference_point: "test with invalid image",
+        summary_caption: "Testing invalid image type",
+        status_snapshot: {
+          next_action: "Should fail",
+        },
+        module_scope: ["test/module"],
+        images: [
+          {
+            data: testImageData,
+            mime_type: "application/pdf", // Invalid MIME type
+          },
+        ],
+      };
+
+      const response = await srv.handleRequest({
+        method: "tools/call",
+        params: {
+          name: "lex.remember",
+          arguments: args,
+        },
+      });
+
+      assert.ok(response.error, "Should return error");
+      assert.ok(
+        response.error.message.includes("Failed to store image"),
+        "Error should mention image storage failure"
+      );
+    } finally {
+      teardown();
+    }
+  });
+
+  test("lex.remember fails with oversized image", async () => {
+    const srv = setup();
+    try {
+      // Create base64 of a buffer larger than 10MB
+      const largeBuffer = Buffer.alloc(11 * 1024 * 1024);
+      const testImageData = largeBuffer.toString("base64");
+      
+      const args = {
+        reference_point: "test with oversized image",
+        summary_caption: "Testing oversized image",
+        status_snapshot: {
+          next_action: "Should fail",
+        },
+        module_scope: ["test/module"],
+        images: [
+          {
+            data: testImageData,
+            mime_type: "image/png",
+          },
+        ],
+      };
+
+      const response = await srv.handleRequest({
+        method: "tools/call",
+        params: {
+          name: "lex.remember",
+          arguments: args,
+        },
+      });
+
+      assert.ok(response.error, "Should return error");
+      assert.ok(
+        response.error.message.includes("exceeds maximum"),
+        "Error should mention size limit"
+      );
+    } finally {
+      teardown();
+    }
+  });
 });
