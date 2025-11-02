@@ -7,5 +7,10 @@
   },
   "include": [
     "*.ts"
+  ],
+  "exclude": [
+    "demo.ts",
+    "perf-test.ts",
+    "verify-format.ts"
   ]
 }

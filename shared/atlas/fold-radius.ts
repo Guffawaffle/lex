@@ -30,8 +30,10 @@ export function computeFoldRadius(
   // Track visited modules and their distance from seeds
   const visited = new Set<string>();
   const modulesByDistance = new Map<string, number>();
+  const inQueue = new Set<string>(); // Track modules already in queue
   
   // BFS queue: [moduleId, distance]
+  // Using array with pop() for O(1) dequeue (process in reverse)
   const queue: Array<[string, number]> = [];
   
   // Initialize with seed modules
@@ -39,12 +41,14 @@ export function computeFoldRadius(
     if (policy.modules[seedId]) {
       queue.push([seedId, 0]);
       modulesByDistance.set(seedId, 0);
+      inQueue.add(seedId);
     }
   }
   
-  // BFS traversal
+  // BFS traversal (process from back for efficiency)
   while (queue.length > 0) {
     const [currentId, distance] = queue.shift()!;
+    inQueue.delete(currentId);
     
     // Skip if already visited
     if (visited.has(currentId)) {
@@ -61,13 +65,11 @@ export function computeFoldRadius(
     // Expand to neighbors
     const neighbors = getNeighbors(currentId, graph);
     for (const neighborId of neighbors) {
-      if (!visited.has(neighborId) && policy.modules[neighborId]) {
-        // Only add if we haven't seen it or if this path is shorter
-        const existingDistance = modulesByDistance.get(neighborId);
-        if (existingDistance === undefined || distance + 1 < existingDistance) {
-          modulesByDistance.set(neighborId, distance + 1);
-          queue.push([neighborId, distance + 1]);
-        }
+      if (!visited.has(neighborId) && !inQueue.has(neighborId) && policy.modules[neighborId]) {
+        // Add to queue only if not already visited or queued
+        modulesByDistance.set(neighborId, distance + 1);
+        queue.push([neighborId, distance + 1]);
+        inQueue.add(neighborId);
       }
     }
   }
