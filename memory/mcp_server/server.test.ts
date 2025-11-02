@@ -13,8 +13,8 @@ import { join } from "path";
 import { tmpdir } from "os";
 
 describe("MCP Server - Protocol", () => {
-  let server;
-  let testDbPath;
+  let server: MCPServer;
+  let testDbPath: string;
 
   // Setup: create test database in temp directory
   function setup() {
