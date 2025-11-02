@@ -1,0 +1,23 @@
+{
+  "name": "lex",
+  "version": "0.1.0-alpha",
+  "description": "Policy-aware work continuity with receipts. Unified LexBrain + LexMap.",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "memory/*",
+    "policy/*",
+    "shared/*"
+  ],
+  "scripts": {
+    "remember": "node memory/mcp_server/frame-mcp.mjs",
+    "check": "node policy/check/lexmap-check.ts",
+    "build": "echo 'Build step not yet configured'"
+  },
+  "keywords": ["memory", "policy", "continuity", "mcp"],
+  "author": "Guffawaffle",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

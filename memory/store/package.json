@@ -1,0 +1,11 @@
+{
+  "name": "@lex/store",
+  "version": "0.1.0-alpha",
+  "description": "Frame storage layer (SQLite + FTS5)",
+  "type": "module",
+  "main": "framestore.ts",
+  "dependencies": {
+    "better-sqlite3": "^9.0.0"
+  },
+  "license": "MIT"
+}
