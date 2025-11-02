@@ -45,6 +45,7 @@ interface Import {
 
 interface FileData {
   path: string;
+  module_scope?: string;
   declarations: Declaration[];
   imports: Import[];
   feature_flags: string[];
@@ -52,19 +53,29 @@ interface FileData {
   warnings: string[];
 }
 
+interface ModuleEdge {
+  from_module: string;
+  to_module: string;
+  from_file: string;
+  import_statement: string;
+}
+
 interface ScannerOutput {
   language: string;
   files: FileData[];
+  module_edges?: ModuleEdge[];
 }
 
 interface MergedOutput {
   sources: string[];
   files: FileData[];
+  module_edges: ModuleEdge[];
 }
 
 class LexMapMerge {
   private scannerOutputs: ScannerOutput[] = [];
   private fileMap: Map<string, FileData> = new Map();
+  private moduleEdges: ModuleEdge[] = [];
 
   loadScanner(filePath: string): void {
     try {
@@ -96,6 +107,11 @@ class LexMapMerge {
     for (const scanner of this.scannerOutputs) {
       sources.push(scanner.language);
 
+      // Merge module edges
+      if (scanner.module_edges) {
+        this.moduleEdges.push(...scanner.module_edges);
+      }
+
       for (const file of scanner.files) {
         const existingFile = this.fileMap.get(file.path);
 
@@ -106,6 +122,11 @@ class LexMapMerge {
           console.error(
             `Warning: File ${file.path} appears in multiple scanner outputs`
           );
+
+          // Prefer module_scope from scanner if it exists
+          if (file.module_scope && !existingFile.module_scope) {
+            existingFile.module_scope = file.module_scope;
+          }
 
           // Merge arrays (deduplicate)
           existingFile.feature_flags = [
@@ -124,11 +145,21 @@ class LexMapMerge {
       }
     }
 
+    // Deduplicate module edges based on from_module, to_module, and import_statement
+    const edgeMap = new Map<string, ModuleEdge>();
+    for (const edge of this.moduleEdges) {
+      const key = `${edge.from_module}:${edge.to_module}:${edge.import_statement}`;
+      if (!edgeMap.has(key)) {
+        edgeMap.set(key, edge);
+      }
+    }
+
     return {
       sources,
       files: Array.from(this.fileMap.values()).sort((a, b) =>
         a.path.localeCompare(b.path)
       ),
+      module_edges: Array.from(edgeMap.values()),
     };
   }
 }
