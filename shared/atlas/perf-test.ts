@@ -2,11 +2,11 @@
  * Performance test for fold radius algorithm with large graphs
  */
 
-import { computeFoldRadius, Policy } from './index.js';
+import { computeFoldRadius, Policy, PolicyModule } from './index.js';
 
 // Generate a large policy with 150 modules
 function generateLargePolicy(numModules: number): Policy {
-  const modules: Record<string, any> = {};
+  const modules: Record<string, PolicyModule> = {};
   
   for (let i = 0; i < numModules; i++) {
     const moduleId = `module-${i}`;
