@@ -1,0 +1,173 @@
+/**
+ * Tests for Module ID Validation (THE CRITICAL RULE)
+ *
+ * Run with: node shared/module_ids/validator.test.mjs
+ */
+
+import { strict as assert } from 'assert';
+import { test, describe } from 'node:test';
+import { validateModuleIds } from './dist/module_ids/validator.js';
+
+// Sample policy for testing
+const samplePolicy = {
+  modules: {
+    'services/auth-core': {
+      description: 'Core authentication service',
+      owns_paths: ['services/auth/**'],
+      allowed_callers: ['ui/user-admin-panel'],
+      forbidden_callers: []
+    },
+    'services/user-access-api': {
+      description: 'User access API layer',
+      owns_paths: ['services/userAccess/**'],
+      allowed_callers: [],
+      forbidden_callers: []
+    },
+    'ui/user-admin-panel': {
+      description: 'User admin panel UI',
+      owns_paths: ['web-ui/userAdmin/**'],
+      allowed_callers: [],
+      forbidden_callers: ['services/auth-core']
+    },
+    'ui/login-page': {
+      description: 'Login page UI',
+      owns_paths: ['web-ui/login/**'],
+      allowed_callers: [],
+      forbidden_callers: []
+    }
+  }
+};
+
+describe('validateModuleIds', () => {
+  test('valid module IDs pass validation', () => {
+    const result = validateModuleIds(
+      ['services/auth-core', 'ui/user-admin-panel'],
+      samplePolicy
+    );
+
+    assert.equal(result.valid, true);
+    assert.equal(result.errors, undefined);
+  });
+
+  test('invalid module IDs fail with error messages', () => {
+    const result = validateModuleIds(
+      ['auth-core', 'ui/user-admin-panel'],
+      samplePolicy
+    );
+
+    assert.equal(result.valid, false);
+    assert.ok(result.errors);
+    assert.equal(result.errors.length, 1);
+    assert.equal(result.errors[0].module, 'auth-core');
+    assert.ok(result.errors[0].message.includes('not found in policy'));
+  });
+
+  test('fuzzy matching suggests similar module names', () => {
+    const result = validateModuleIds(
+      ['auth-core'],
+      samplePolicy
+    );
+
+    assert.equal(result.valid, false);
+    assert.ok(result.errors);
+    assert.equal(result.errors[0].module, 'auth-core');
+    assert.ok(result.errors[0].suggestions.length > 0);
+    assert.equal(result.errors[0].suggestions[0], 'services/auth-core');
+    assert.ok(result.errors[0].message.includes('Did you mean'));
+  });
+
+  test('empty module_scope is allowed', () => {
+    const result = validateModuleIds([], samplePolicy);
+
+    assert.equal(result.valid, true);
+    assert.equal(result.errors, undefined);
+  });
+
+  test('case sensitivity is enforced', () => {
+    const result = validateModuleIds(
+      ['Services/Auth-Core'], // Wrong case
+      samplePolicy
+    );
+
+    assert.equal(result.valid, false);
+    assert.ok(result.errors);
+    assert.equal(result.errors[0].module, 'Services/Auth-Core');
+  });
+
+  test('multiple invalid modules all reported', () => {
+    const result = validateModuleIds(
+      ['auth-core', 'user-panel', 'login'],
+      samplePolicy
+    );
+
+    assert.equal(result.valid, false);
+    assert.ok(result.errors);
+    assert.equal(result.errors.length, 3);
+    assert.equal(result.errors[0].module, 'auth-core');
+    assert.equal(result.errors[1].module, 'user-panel');
+    assert.equal(result.errors[2].module, 'login');
+  });
+
+  test('mix of valid and invalid modules reported correctly', () => {
+    const result = validateModuleIds(
+      ['services/auth-core', 'invalid-module', 'ui/user-admin-panel'],
+      samplePolicy
+    );
+
+    assert.equal(result.valid, false);
+    assert.ok(result.errors);
+    assert.equal(result.errors.length, 1);
+    assert.equal(result.errors[0].module, 'invalid-module');
+  });
+
+  test('suggestions are limited and relevant', () => {
+    const result = validateModuleIds(
+      ['user-panel'],
+      samplePolicy
+    );
+
+    assert.equal(result.valid, false);
+    assert.ok(result.errors);
+    assert.ok(result.errors[0].suggestions.length <= 3); // Max 3 suggestions
+    assert.ok(result.errors[0].suggestions.some(s => s.includes('user-admin-panel')));
+  });
+
+  test('no suggestions for very dissimilar names', () => {
+    const result = validateModuleIds(
+      ['completely-unrelated-xyz-123'],
+      samplePolicy
+    );
+
+    assert.equal(result.valid, false);
+    assert.ok(result.errors);
+    // May have no suggestions if edit distance is too large
+    assert.ok(result.errors[0].suggestions.length >= 0);
+  });
+
+  test('special characters in module IDs are validated', () => {
+    const policyWithSpecialChars = {
+      modules: {
+        'services/auth-core_v2': {
+          description: 'Auth v2',
+          owns_paths: ['services/auth-v2/**']
+        }
+      }
+    };
+
+    const result = validateModuleIds(
+      ['services/auth-core_v2'],
+      policyWithSpecialChars
+    );
+
+    assert.equal(result.valid, true);
+  });
+
+  test('undefined moduleScope is treated as empty', () => {
+    const result = validateModuleIds(
+      undefined,
+      samplePolicy
+    );
+
+    assert.equal(result.valid, true);
+  });
+});

@@ -1,0 +1,23 @@
+{
+  "name": "@lex/types",
+  "version": "0.1.0-alpha",
+  "description": "Shared TypeScript type definitions for Lex (Policy, Frame, Validation)",
+  "type": "module",
+  "main": "index.ts",
+  "exports": {
+    ".": {
+      "types": "./index.ts",
+      "import": "./index.js"
+    },
+    "./policy": {
+      "types": "./policy.ts",
+      "import": "./policy.js"
+    },
+    "./validation": {
+      "types": "./validation.ts",
+      "import": "./validation.js"
+    }
+  },
+  "keywords": ["types", "typescript", "policy", "frames", "validation"],
+  "license": "MIT"
+}
