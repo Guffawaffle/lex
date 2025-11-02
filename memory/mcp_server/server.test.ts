@@ -487,9 +487,13 @@ describe("MCP Server - Protocol", () => {
         response.error.message.includes("invalid-module"),
         "Error should mention the invalid module"
       );
+      // Valid modules should only appear in "Available modules" list, not as errors
+      const errorLines = response.error.message.split('\n').filter(line => line.includes('•'));
+      const hasValidModuleError = errorLines.some(line => 
+        line.includes("indexer") || line.includes("ts")
+      );
       assert.ok(
-        !response.error.message.includes("indexer") || 
-        response.error.message.includes("Available modules: indexer"),
+        !hasValidModuleError,
         "Error should not flag valid modules as invalid"
       );
     } finally {
