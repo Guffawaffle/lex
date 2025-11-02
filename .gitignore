@@ -9,6 +9,13 @@ build/
 *.js.map
 *.d.ts.map
 
+# Generated TypeScript compilation outputs (source is .ts)
+# Keep only source .ts files, not compiled .js/.d.ts
+shared/**/*.js
+shared/**/*.d.ts
+!shared/**/*.test.mjs
+!shared/**/*.mjs
+
 # Python
 .venv/
 venv/
