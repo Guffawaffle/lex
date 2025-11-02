@@ -5,9 +5,10 @@ This umbrella PR consolidates **7 open pull requests** implementing Atlas Frame 
 ## Folded PRs
 
 ### Level 0: Foundation
-- [ ] #14 - Add TypeScript type definitions for Frame and Policy schemas
+- [x] #14 - Add TypeScript type definitions for Frame and Policy schemas ✅
   - Branch: `copilot/add-typescript-definitions-frame-policy`
   - Fixes #3
+  - Folded at: 2025-11-02T19:20:49Z
 
 ### Level 1: Core Utilities
 - [ ] #15 - Implement module ID validation with fuzzy matching

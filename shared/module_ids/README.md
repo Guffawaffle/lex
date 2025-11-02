@@ -47,31 +47,88 @@ This will let humans use shorthand during `/remember` while still maintaining vo
 
 ## Implementation
 
-This will become executable validation (not just documentation):
+**Status: ✅ IMPLEMENTED**
+
+The validation is now executable and available for use:
 
 ```typescript
-// shared/module_ids/validate.ts
-export function validateModuleScope(
-  moduleScope: string[],
-  policy: Policy
-): ValidationResult {
-  const policyModuleIds = new Set(Object.keys(policy.modules));
-  const missing = moduleScope.filter(id => !policyModuleIds.has(id));
+import { validateModuleIds, ModuleNotFoundError } from 'shared/module_ids/index.js';
+import type { ValidationResult } from 'shared/module_ids/index.js';
 
-  if (missing.length > 0) {
-    return {
-      valid: false,
-      errors: missing.map(id => ({
-        module: id,
-        message: `Module "${id}" not found in policy`,
-        suggestions: findSimilar(id, policyModuleIds)
-      }))
-    };
-  }
+// Example: Validate module IDs before creating a Frame
+const result = validateModuleIds(
+  ['services/auth-core', 'ui/user-admin-panel'],
+  policy
+);
 
-  return { valid: true };
+if (!result.valid) {
+  console.error('Validation failed:', result.errors);
+  // [{
+  //   module: 'auth-core',
+  //   message: "Module 'auth-core' not found in policy. Did you mean 'services/auth-core'?",
+  //   suggestions: ['services/auth-core']
+  // }]
 }
 ```
+
+### API
+
+#### `validateModuleIds(moduleScope: string[], policy: Policy): ValidationResult`
+
+Validates that all module IDs in `moduleScope` exist in the policy.
+
+**Parameters:**
+- `moduleScope`: Array of module IDs to validate (from Frame metadata)
+- `policy`: Policy object loaded from `lexmap.policy.json`
+
+**Returns:**
+- `ValidationResult` with `valid: boolean` and optional `errors` array
+
+**Features:**
+- ✅ Case-sensitive exact matching
+- ✅ Fuzzy matching with Levenshtein distance for suggestions
+- ✅ Clear, human-readable error messages
+- ✅ Up to 3 suggestions per invalid module
+- ✅ Empty `module_scope` is allowed
+
+### Error Types
+
+```typescript
+class ModuleNotFoundError extends Error {
+  module: string;
+  suggestions: string[];
+}
+
+interface ValidationResult {
+  valid: boolean;
+  errors?: ModuleIdError[];
+}
+
+interface ModuleIdError {
+  module: string;
+  message: string;
+  suggestions: string[];
+}
+```
+
+### Example Integration
+
+See `examples/frame-validation-example.mjs` for a complete example of how to use this in Frame creation.
+
+### Tests
+
+Run tests with:
+```bash
+node shared/module_ids/validator.test.mjs
+```
+
+11 test cases covering:
+- Valid module IDs
+- Invalid module IDs with suggestions
+- Empty module scope
+- Case sensitivity
+- Multiple errors
+- Edge cases
 
 ---
 
