@@ -9,6 +9,12 @@ import type { Policy } from '../types/policy.js';
 import type { ValidationResult, ModuleIdError } from '../types/validation.js';
 
 /**
+ * Maximum edit distance threshold for fuzzy matching suggestions
+ * Only suggest module names if edit distance is within this threshold
+ */
+const MAX_EDIT_DISTANCE_THRESHOLD = 5;
+
+/**
  * Calculate Levenshtein distance between two strings
  * Used for fuzzy matching to suggest similar module names
  */
@@ -60,7 +66,7 @@ function findSimilarModules(
   return suggestions
     .sort((a, b) => a.distance - b.distance)
     .slice(0, maxSuggestions)
-    .filter(s => s.distance <= Math.max(moduleId.length, 5)) // Only suggest if reasonably close
+    .filter(s => s.distance <= Math.max(moduleId.length, MAX_EDIT_DISTANCE_THRESHOLD))
     .map(s => s.module);
 }
 

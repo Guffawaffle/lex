@@ -18,8 +18,7 @@ function createFrame(frameData, policyPath = './policy/policy_spec/lexmap.policy
   const validationResult = validateModuleIds(frameData.module_scope, policy);
   
   if (!validationResult.valid) {
-    // Construct detailed error message
-    const errorMessages = validationResult.errors.map(error => error.message);
+    // Throw error with first invalid module
     throw new ModuleNotFoundError(
       validationResult.errors[0].module,
       validationResult.errors[0].suggestions

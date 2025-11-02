@@ -16,7 +16,7 @@ export class ModuleNotFoundError extends Error {
 
   constructor(module: string, suggestions: string[] = []) {
     const suggestionText = suggestions.length > 0 
-      ? ` Did you mean: ${suggestions.map(s => `'${s}'`).join(', ')}?`
+      ? ` Did you mean '${suggestions[0]}'?`
       : '';
     super(`Module '${module}' not found in policy.${suggestionText}`);
     this.name = 'ModuleNotFoundError';
