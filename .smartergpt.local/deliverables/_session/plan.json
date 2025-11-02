@@ -1,0 +1,70 @@
+{
+  "session_id": "01830f84-d7e4-47c5-82eb-743284ac9987",
+  "created_at": "2025-11-02T00:00:00Z",
+  "default_branch": "main",
+  "nodes": [
+    {
+      "id": "pr-14",
+      "pr_number": 14,
+      "branch": "copilot/add-typescript-definitions-frame-policy",
+      "title": "Add TypeScript type definitions for Frame and Policy schemas",
+      "fixes_issue": 3,
+      "dependsOn": [],
+      "gates": ["lint", "typecheck", "unit-test"]
+    },
+    {
+      "id": "pr-15",
+      "pr_number": 15,
+      "branch": "copilot/implement-module-id-validation",
+      "title": "Implement module ID validation with fuzzy matching",
+      "fixes_issue": 4,
+      "dependsOn": ["pr-14"],
+      "gates": ["lint", "typecheck", "unit-test"]
+    },
+    {
+      "id": "pr-16",
+      "pr_number": 16,
+      "branch": "copilot/implement-fold-radius-algorithm",
+      "title": "Implement fold radius algorithm for policy graph spatial neighborhoods",
+      "fixes_issue": 5,
+      "dependsOn": ["pr-14"],
+      "gates": ["lint", "typecheck", "unit-test"]
+    },
+    {
+      "id": "pr-17",
+      "pr_number": 17,
+      "branch": "copilot/implement-frame-storage-sqlite",
+      "title": "Implement Frame storage with SQLite + FTS5",
+      "fixes_issue": 6,
+      "dependsOn": ["pr-14"],
+      "gates": ["lint", "typecheck", "unit-test", "determinism"]
+    },
+    {
+      "id": "pr-18",
+      "pr_number": 18,
+      "branch": "copilot/implement-frame-mcp-server",
+      "title": "Implement Frame MCP server for AI assistant integration",
+      "fixes_issue": 9,
+      "dependsOn": ["pr-14", "pr-16", "pr-17"],
+      "gates": ["lint", "typecheck", "unit-test"]
+    },
+    {
+      "id": "pr-19",
+      "pr_number": 19,
+      "branch": "copilot/enhance-language-scanners",
+      "title": "Add module_scope and cross-module edge detection to language scanners",
+      "fixes_issue": 10,
+      "dependsOn": ["pr-14"],
+      "gates": ["lint", "typecheck", "unit-test"]
+    },
+    {
+      "id": "pr-20",
+      "pr_number": 20,
+      "branch": "copilot/implement-memory-card-rendering",
+      "title": "Implement memory card visual rendering for Frame snapshots",
+      "fixes_issue": 8,
+      "dependsOn": ["pr-14"],
+      "gates": ["lint", "typecheck", "unit-test", "determinism"]
+    }
+  ]
+}
