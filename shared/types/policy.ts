@@ -61,13 +61,16 @@ export type PolicyEdge = {
 export interface PolicyModule {
   /** 
    * Glob patterns for files this module owns (e.g., ["web-ui/userAdmin/**"])
-   * Can also use owns_namespaces for language-specific package/module names
+   * Note: Either owns_paths or owns_namespaces (or both) should be specified
+   * to define what this module owns.
    */
   owns_paths?: string[];
   
   /**
    * Language-specific package/module namespace patterns this module owns
    * (e.g., ["App\\UserAdmin\\*"] for PHP, ["com.example.useradmin.*"] for Java)
+   * Note: Either owns_paths or owns_namespaces (or both) should be specified
+   * to define what this module owns.
    */
   owns_namespaces?: string[];
   

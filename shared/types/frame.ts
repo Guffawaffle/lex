@@ -182,16 +182,34 @@ export function validateFrameMetadata(frame: unknown): frame is Frame {
   if (typeof status.next_action !== 'string') return false;
   
   // Optional status fields
-  if (status.blockers !== undefined && !Array.isArray(status.blockers)) return false;
-  if (status.merge_blockers !== undefined && !Array.isArray(status.merge_blockers)) return false;
-  if (status.tests_failing !== undefined && !Array.isArray(status.tests_failing)) return false;
+  if (status.blockers !== undefined) {
+    if (!Array.isArray(status.blockers)) return false;
+    if (!status.blockers.every((b: unknown) => typeof b === 'string')) return false;
+  }
+  if (status.merge_blockers !== undefined) {
+    if (!Array.isArray(status.merge_blockers)) return false;
+    if (!status.merge_blockers.every((b: unknown) => typeof b === 'string')) return false;
+  }
+  if (status.tests_failing !== undefined) {
+    if (!Array.isArray(status.tests_failing)) return false;
+    if (!status.tests_failing.every((t: unknown) => typeof t === 'string')) return false;
+  }
   
   // Check optional Frame fields
   if (f.jira !== undefined && typeof f.jira !== 'string') return false;
-  if (f.keywords !== undefined && !Array.isArray(f.keywords)) return false;
+  if (f.keywords !== undefined) {
+    if (!Array.isArray(f.keywords)) return false;
+    if (!f.keywords.every((k: unknown) => typeof k === 'string')) return false;
+  }
   if (f.atlas_frame_id !== undefined && typeof f.atlas_frame_id !== 'string') return false;
-  if (f.feature_flags !== undefined && !Array.isArray(f.feature_flags)) return false;
-  if (f.permissions !== undefined && !Array.isArray(f.permissions)) return false;
+  if (f.feature_flags !== undefined) {
+    if (!Array.isArray(f.feature_flags)) return false;
+    if (!f.feature_flags.every((flag: unknown) => typeof flag === 'string')) return false;
+  }
+  if (f.permissions !== undefined) {
+    if (!Array.isArray(f.permissions)) return false;
+    if (!f.permissions.every((p: unknown) => typeof p === 'string')) return false;
+  }
   
   return true;
 }
