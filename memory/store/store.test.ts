@@ -1,8 +1,8 @@
 /**
  * Tests for Frame storage
  * 
- * Run with: node --test memory/store/store.test.ts
- * Or with tsx: npx tsx --test memory/store/store.test.ts
+ * Run with: npm test
+ * Or directly with tsx: npx tsx --test store.test.ts
  */
 
 import { test, describe, before, after } from "node:test";
@@ -124,13 +124,13 @@ describe("Frame Storage Tests", () => {
 
   describe("CRUD Operations", () => {
     test("should save a Frame successfully", async () => {
-      await saveFrame(db, testFrame1);
-      const count = await getFrameCount(db);
+      saveFrame(db, testFrame1);
+      const count = getFrameCount(db);
       assert.strictEqual(count, 1, "Frame count should be 1 after insert");
     });
 
     test("should retrieve Frame by ID", async () => {
-      const frame = await getFrameById(db, "frame-001");
+      const frame = getFrameById(db, "frame-001");
       assert.ok(frame, "Frame should be found");
       assert.strictEqual(frame!.id, testFrame1.id);
       assert.strictEqual(frame!.reference_point, testFrame1.reference_point);
@@ -139,7 +139,7 @@ describe("Frame Storage Tests", () => {
     });
 
     test("should return null for non-existent Frame ID", async () => {
-      const frame = await getFrameById(db, "non-existent");
+      const frame = getFrameById(db, "non-existent");
       assert.strictEqual(frame, null, "Should return null for non-existent ID");
     });
 
@@ -148,18 +148,18 @@ describe("Frame Storage Tests", () => {
         ...testFrame1,
         summary_caption: "Updated caption",
       };
-      await saveFrame(db, updatedFrame);
-      const frame = await getFrameById(db, "frame-001");
+      saveFrame(db, updatedFrame);
+      const frame = getFrameById(db, "frame-001");
       assert.strictEqual(frame!.summary_caption, "Updated caption");
-      const count = await getFrameCount(db);
+      const count = getFrameCount(db);
       assert.strictEqual(count, 1, "Frame count should still be 1 after update");
     });
 
     test("should delete Frame by ID", async () => {
-      await saveFrame(db, testFrame2);
-      const deleted = await deleteFrame(db, "frame-002");
+      saveFrame(db, testFrame2);
+      const deleted = deleteFrame(db, "frame-002");
       assert.strictEqual(deleted, true, "Delete should return true");
-      const frame = await getFrameById(db, "frame-002");
+      const frame = getFrameById(db, "frame-002");
       assert.strictEqual(frame, null, "Frame should not exist after delete");
     });
 
@@ -175,31 +175,31 @@ describe("Frame Storage Tests", () => {
           next_action: "nothing",
         },
       };
-      await saveFrame(db, minimalFrame);
-      const retrieved = await getFrameById(db, "frame-minimal");
+      saveFrame(db, minimalFrame);
+      const retrieved = getFrameById(db, "frame-minimal");
       assert.ok(retrieved);
       assert.strictEqual(retrieved!.jira, undefined);
       assert.strictEqual(retrieved!.keywords, undefined);
       assert.strictEqual(retrieved!.atlas_frame_id, undefined);
-      await deleteFrame(db, "frame-minimal");
+      deleteFrame(db, "frame-minimal");
     });
   });
 
   describe("Search and Query Operations", () => {
     before(async () => {
       // Clean slate for search tests
-      const frames = await getAllFrames(db);
+      const frames = getAllFrames(db);
       for (const frame of frames) {
-        await deleteFrame(db, frame.id);
+        deleteFrame(db, frame.id);
       }
       // Insert test frames
-      await saveFrame(db, testFrame1);
-      await saveFrame(db, testFrame2);
-      await saveFrame(db, testFrame3);
+      saveFrame(db, testFrame1);
+      saveFrame(db, testFrame2);
+      saveFrame(db, testFrame3);
     });
 
     test("should search Frames with FTS5 (reference_point match)", async () => {
-      const results = await searchFrames(db, "auth deadlock");
+      const results = searchFrames(db, "auth deadlock");
       assert.ok(results.length > 0, "Should find frames matching 'auth deadlock'");
       assert.ok(
         results.some((f) => f.id === "frame-001"),
@@ -208,7 +208,7 @@ describe("Frame Storage Tests", () => {
     });
 
     test("should search Frames with FTS5 (keywords match)", async () => {
-      const results = await searchFrames(db, "payment");
+      const results = searchFrames(db, "payment");
       assert.ok(results.length > 0, "Should find frames matching 'payment'");
       assert.ok(
         results.some((f) => f.id === "frame-002"),
@@ -217,7 +217,7 @@ describe("Frame Storage Tests", () => {
     });
 
     test("should search Frames with FTS5 (summary_caption match)", async () => {
-      const results = await searchFrames(db, "Stripe");
+      const results = searchFrames(db, "Stripe");
       assert.ok(results.length > 0, "Should find frames matching 'Stripe'");
       assert.ok(
         results.some((f) => f.id === "frame-002"),
@@ -226,7 +226,7 @@ describe("Frame Storage Tests", () => {
     });
 
     test("should get Frames by branch", async () => {
-      const results = await getFramesByBranch(db, "feature/auth-fix");
+      const results = getFramesByBranch(db, "feature/auth-fix");
       assert.strictEqual(results.length, 2, "Should find 2 frames on feature/auth-fix");
       assert.ok(
         results.some((f) => f.id === "frame-001"),
@@ -239,13 +239,13 @@ describe("Frame Storage Tests", () => {
     });
 
     test("should get Frames by Jira ID", async () => {
-      const results = await getFramesByJira(db, "TICKET-123");
+      const results = getFramesByJira(db, "TICKET-123");
       assert.strictEqual(results.length, 1, "Should find 1 frame for TICKET-123");
       assert.strictEqual(results[0].id, "frame-001");
     });
 
     test("should get Frames by module scope", async () => {
-      const results = await getFramesByModuleScope(db, "services/auth-core");
+      const results = getFramesByModuleScope(db, "services/auth-core");
       assert.ok(results.length >= 2, "Should find at least 2 frames touching services/auth-core");
       assert.ok(
         results.some((f) => f.id === "frame-001"),
@@ -258,7 +258,7 @@ describe("Frame Storage Tests", () => {
     });
 
     test("should get all Frames in descending timestamp order", async () => {
-      const results = await getAllFrames(db);
+      const results = getAllFrames(db);
       assert.strictEqual(results.length, 3, "Should get all 3 frames");
       // Frames should be ordered newest first
       assert.ok(
@@ -272,12 +272,12 @@ describe("Frame Storage Tests", () => {
     });
 
     test("should limit results when requested", async () => {
-      const results = await getAllFrames(db, 2);
+      const results = getAllFrames(db, 2);
       assert.strictEqual(results.length, 2, "Should return only 2 frames");
     });
 
     test("should return empty array for non-matching searches", async () => {
-      const results = await searchFrames(db, "zzzznonexistent");
+      const results = searchFrames(db, "zzzznonexistent");
       assert.strictEqual(results.length, 0, "Should return empty array for no matches");
     });
   });
@@ -299,24 +299,24 @@ describe("Frame Storage Tests", () => {
       // Save all frames concurrently
       await Promise.all(concurrentFrames.map((f) => saveFrame(db, f)));
 
-      const count = await getFrameCount(db);
+      const count = getFrameCount(db);
       assert.ok(count >= 10, "All concurrent frames should be saved");
 
       // Clean up
       for (const frame of concurrentFrames) {
-        await deleteFrame(db, frame.id);
+        deleteFrame(db, frame.id);
       }
     });
   });
 
   describe("FTS5 Fuzzy Search", () => {
     test("should support fuzzy matching with wildcards", async () => {
-      const results = await searchFrames(db, "auth*");
+      const results = searchFrames(db, "auth*");
       assert.ok(results.length > 0, "Should find frames with auth prefix");
     });
 
     test("should support multiple search terms", async () => {
-      const results = await searchFrames(db, "auth timeout");
+      const results = searchFrames(db, "auth timeout");
       assert.ok(results.length > 0, "Should find frames matching multiple terms");
     });
   });

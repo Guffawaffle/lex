@@ -28,7 +28,7 @@ import { getDb, saveFrame, getFrameById, deleteFrame } from '@lex/store';
 const db = getDb(); // Uses ~/.lex/frames.db by default
 
 // Save a Frame
-await saveFrame(db, {
+saveFrame(db, {
   id: "frame-001",
   timestamp: "2025-11-01T16:04:12-05:00",
   branch: "feature/auth-fix",
@@ -44,10 +44,10 @@ await saveFrame(db, {
 });
 
 // Retrieve by ID
-const frame = await getFrameById(db, "frame-001");
+const frame = getFrameById(db, "frame-001");
 
 // Delete
-await deleteFrame(db, "frame-001");
+deleteFrame(db, "frame-001");
 ```
 
 ### Full-Text Search
@@ -56,9 +56,9 @@ await deleteFrame(db, "frame-001");
 import { searchFrames } from '@lex/store';
 
 // Natural language search across reference_point, keywords, summary_caption
-const results = await searchFrames(db, "auth deadlock");
-const results2 = await searchFrames(db, "auth*"); // Wildcard search
-const results3 = await searchFrames(db, "auth timeout"); // Multiple terms
+const results = searchFrames(db, "auth deadlock");
+const results2 = searchFrames(db, "auth*"); // Wildcard search
+const results3 = searchFrames(db, "auth timeout"); // Multiple terms
 ```
 
 ### Query by Filters
@@ -71,13 +71,13 @@ import {
 } from '@lex/store';
 
 // Get all Frames for a branch
-const branchFrames = await getFramesByBranch(db, "feature/auth-fix");
+const branchFrames = getFramesByBranch(db, "feature/auth-fix");
 
 // Get all Frames for a Jira ticket
-const jiraFrames = await getFramesByJira(db, "TICKET-123");
+const jiraFrames = getFramesByJira(db, "TICKET-123");
 
 // Get all Frames touching a specific module
-const moduleFrames = await getFramesByModuleScope(db, "services/auth-core");
+const moduleFrames = getFramesByModuleScope(db, "services/auth-core");
 ```
 
 ### Custom Database Path
