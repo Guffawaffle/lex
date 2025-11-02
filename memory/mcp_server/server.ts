@@ -1,6 +1,6 @@
 /**
  * Lex Memory MCP Server
- * 
+ *
  * Handles MCP protocol requests for Frame storage and recall.
  * Integrates with FrameStore (SQLite + FTS5) and Atlas Frame generation.
  */
@@ -12,6 +12,10 @@ import { ImageManager } from "../../store/dist/images.js";
 import { MCP_TOOLS } from "./tools.js";
 // @ts-ignore - importing from compiled dist directories
 import { generateAtlasFrame, formatAtlasFrame } from "../../../shared/atlas/dist/atlas-frame.js";
+// @ts-ignore - importing from compiled dist directories
+import { validateModuleIds } from "../../../shared/module_ids/dist/module_ids/validator.js";
+// @ts-ignore - importing from compiled dist directories
+import { loadPolicy } from "../../../shared/policy/dist/policy/loader.js";
 import { randomUUID } from "crypto";
 
 export interface MCPRequest {
@@ -39,10 +43,13 @@ export interface ToolCallParams {
 export class MCPServer {
   private frameStore: FrameStore;
   private imageManager: ImageManager;
+  private policy: any; // Cached policy for validation
 
   constructor(dbPath: string) {
     this.frameStore = new FrameStore(dbPath);
     this.imageManager = new ImageManager(this.frameStore.getDatabase());
+    // Load policy once at initialization for better performance
+    this.policy = loadPolicy();
   }
 
   /**
@@ -55,10 +62,10 @@ export class MCPServer {
       switch (method) {
         case "tools/list":
           return this.handleToolsList();
-        
+
         case "tools/call":
           return await this.handleToolsCall(params as ToolCallParams);
-        
+
         default:
           throw new Error(`Unknown method: ${method}`);
       }
@@ -90,13 +97,13 @@ export class MCPServer {
     switch (name) {
       case "lex.remember":
         return this.handleRemember(args);
-      
+
       case "lex.recall":
         return this.handleRecall(args);
-      
+
       case "lex.list_frames":
         return this.handleListFrames(args);
-      
+
       default:
         throw new Error(`Unknown tool: ${name}`);
     }
@@ -104,6 +111,8 @@ export class MCPServer {
 
   /**
    * Handle lex.remember tool - create new Frame
+   *
+   * Validates module IDs against policy before creating Frame (THE CRITICAL RULE)
    */
   private handleRemember(args: any): MCPResponse {
     const {
@@ -134,10 +143,29 @@ export class MCPServer {
       throw new Error("status_snapshot.next_action is required");
     }
 
+    // THE CRITICAL RULE: Validate module IDs against policy
+    const validationResult = validateModuleIds(module_scope, this.policy);
+
+    if (!validationResult.valid && validationResult.errors) {
+      // Format error message with suggestions
+      const errorMessages = validationResult.errors.map(error => {
+        const suggestions = error.suggestions.length > 0
+          ? `\n  Did you mean: ${error.suggestions.join(', ')}?`
+          : '';
+        return `  • ${error.message}${suggestions}`;
+      });
+
+      throw new Error(
+        `Invalid module IDs in module_scope:\n${errorMessages.join('\n')}\n\n` +
+        `Module IDs must match those defined in lexmap.policy.json.\n` +
+        `Available modules: ${Object.keys(this.policy.modules).join(', ')}`
+      );
+    }
+
     // Generate Frame ID and timestamp
     const frameId = `frame-${Date.now()}-${randomUUID()}`;
     const timestamp = new Date().toISOString();
-    
+
     // Get current git branch if not provided
     // TODO: exec git rev-parse --abbrev-ref HEAD to auto-detect
     // For now, default to 'main' as a safe fallback
@@ -188,8 +216,8 @@ export class MCPServer {
     const atlasFrame = generateAtlasFrame(module_scope);
     const atlasOutput = formatAtlasFrame(atlasFrame);
 
-    const imageInfo = imageIds.length > 0 
-      ? `🖼️  Images: ${imageIds.length} attached\n` 
+    const imageInfo = imageIds.length > 0
+      ? `🖼️  Images: ${imageIds.length} attached\n`
       : "";
 
     return {

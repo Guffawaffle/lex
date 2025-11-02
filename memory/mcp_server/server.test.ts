@@ -1,6 +1,6 @@
 /**
  * Tests for Frame MCP Server
- * 
+ *
  * Tests the MCP protocol implementation for Frame storage and recall.
  * Uses Node.js built-in test runner (node:test) - no external dependencies.
  */
@@ -42,10 +42,10 @@ describe("MCP Server - Protocol", () => {
     const srv = setup();
     try {
       const response = await srv.handleRequest({ method: "tools/list" });
-      
+
       assert.ok(response.tools, "Response should have tools array");
       assert.strictEqual(response.tools.length, 3, "Should have 3 tools");
-      
+
       const toolNames = response.tools.map((t) => t.name);
       assert.ok(toolNames.includes("lex.remember"), "Should include lex.remember");
       assert.ok(toolNames.includes("lex.recall"), "Should include lex.recall");
@@ -65,7 +65,7 @@ describe("MCP Server - Protocol", () => {
           next_action: "Verify storage",
           blockers: [],
         },
-        module_scope: ["test/module"],
+        module_scope: ["indexer"],
       };
 
       const response = await srv.handleRequest({
@@ -133,7 +133,7 @@ describe("MCP Server - Protocol", () => {
               next_action: "Add unit tests",
               blockers: [],
             },
-            module_scope: ["auth/core"],
+            module_scope: ["ts"],
           },
         },
       });
@@ -223,7 +223,7 @@ describe("MCP Server - Protocol", () => {
             reference_point: "frame one",
             summary_caption: "First test frame",
             status_snapshot: { next_action: "Test" },
-            module_scope: ["test/module1"],
+            module_scope: ["indexer"],
           },
         },
       });
@@ -236,7 +236,7 @@ describe("MCP Server - Protocol", () => {
             reference_point: "frame two",
             summary_caption: "Second test frame",
             status_snapshot: { next_action: "Test" },
-            module_scope: ["test/module2"],
+            module_scope: ["ts"],
           },
         },
       });
@@ -284,7 +284,7 @@ describe("MCP Server - Protocol", () => {
             reference_point: "auth work",
             summary_caption: "Auth module work",
             status_snapshot: { next_action: "Test" },
-            module_scope: ["auth/core"],
+            module_scope: ["php"],
           },
         },
       });
@@ -297,7 +297,7 @@ describe("MCP Server - Protocol", () => {
             reference_point: "ui work",
             summary_caption: "UI module work",
             status_snapshot: { next_action: "Test" },
-            module_scope: ["ui/components"],
+            module_scope: ["mcp"],
           },
         },
       });
@@ -307,7 +307,7 @@ describe("MCP Server - Protocol", () => {
         method: "tools/call",
         params: {
           name: "lex.list_frames",
-          arguments: { module: "auth/core", limit: 10 },
+          arguments: { module: "php", limit: 10 },
         },
       });
 
@@ -367,19 +367,20 @@ describe("MCP Server - Protocol", () => {
     }
   });
 
+  // Image attachment tests (PR #27)
   test("lex.remember stores Frame with image attachments", async () => {
     const srv = setup();
     try {
       // Create a small test image (base64-encoded PNG)
       const testImageData = Buffer.from("fake-png-data").toString("base64");
-      
+
       const args = {
         reference_point: "test with images",
         summary_caption: "Testing image attachment",
         status_snapshot: {
           next_action: "Verify image storage",
         },
-        module_scope: ["test/module"],
+        module_scope: ["indexer"], // Use valid module from policy
         images: [
           {
             data: testImageData,
@@ -415,14 +416,14 @@ describe("MCP Server - Protocol", () => {
     try {
       const image1 = Buffer.from("png-data").toString("base64");
       const image2 = Buffer.from("jpeg-data").toString("base64");
-      
+
       const args = {
         reference_point: "test with multiple images",
         summary_caption: "Testing multiple image attachments",
         status_snapshot: {
           next_action: "Verify multi-image storage",
         },
-        module_scope: ["test/module"],
+        module_scope: ["ts"], // Use valid module from policy
         images: [
           { data: image1, mime_type: "image/png" },
           { data: image2, mime_type: "image/jpeg" },
@@ -451,14 +452,14 @@ describe("MCP Server - Protocol", () => {
     const srv = setup();
     try {
       const testImageData = Buffer.from("fake-data").toString("base64");
-      
+
       const args = {
         reference_point: "test with invalid image",
         summary_caption: "Testing invalid image type",
         status_snapshot: {
           next_action: "Should fail",
         },
-        module_scope: ["test/module"],
+        module_scope: ["php"], // Use valid module from policy
         images: [
           {
             data: testImageData,
@@ -491,14 +492,14 @@ describe("MCP Server - Protocol", () => {
       // Create base64 of a buffer larger than 10MB
       const largeBuffer = Buffer.alloc(11 * 1024 * 1024);
       const testImageData = largeBuffer.toString("base64");
-      
+
       const args = {
         reference_point: "test with oversized image",
         summary_caption: "Testing oversized image",
         status_snapshot: {
           next_action: "Should fail",
         },
-        module_scope: ["test/module"],
+        module_scope: ["mcp"], // Use valid module from policy
         images: [
           {
             data: testImageData,
@@ -519,6 +520,170 @@ describe("MCP Server - Protocol", () => {
       assert.ok(
         response.error.message.includes("exceeds maximum"),
         "Error should mention size limit"
+      );
+    } finally {
+      teardown();
+    }
+  });
+
+  // Integration tests for module ID validation (THE CRITICAL RULE) - PR #28
+  test("lex.remember validates module IDs - rejects invalid module", async () => {
+    const srv = setup();
+    try {
+      const response = await srv.handleRequest({
+        method: "tools/call",
+        params: {
+          name: "lex.remember",
+          arguments: {
+            reference_point: "invalid module test",
+            summary_caption: "Testing validation",
+            status_snapshot: { next_action: "Test" },
+            module_scope: ["invalid-module"],
+          },
+        },
+      });
+
+      assert.ok(response.error, "Should return error for invalid module");
+      assert.ok(
+        response.error.message.includes("Invalid module IDs"),
+        "Error should mention invalid module IDs"
+      );
+      assert.ok(
+        response.error.message.includes("invalid-module"),
+        "Error should mention the specific invalid module"
+      );
+      assert.ok(
+        response.error.message.includes("Available modules"),
+        "Error should list available modules"
+      );
+    } finally {
+      teardown();
+    }
+  });
+
+  test("lex.remember validates module IDs - suggests similar modules", async () => {
+    const srv = setup();
+    try {
+      const response = await srv.handleRequest({
+        method: "tools/call",
+        params: {
+          name: "lex.remember",
+          arguments: {
+            reference_point: "typo test",
+            summary_caption: "Testing fuzzy matching",
+            status_snapshot: { next_action: "Test" },
+            module_scope: ["indexr"], // Typo: should be "indexer"
+          },
+        },
+      });
+
+      assert.ok(response.error, "Should return error for typo");
+      assert.ok(
+        response.error.message.includes("indexr"),
+        "Error should mention the typo"
+      );
+      assert.ok(
+        response.error.message.includes("Did you mean"),
+        "Error should provide suggestions"
+      );
+    } finally {
+      teardown();
+    }
+  });
+
+  test("lex.remember validates module IDs - reports multiple invalid modules", async () => {
+    const srv = setup();
+    try {
+      const response = await srv.handleRequest({
+        method: "tools/call",
+        params: {
+          name: "lex.remember",
+          arguments: {
+            reference_point: "multiple errors test",
+            summary_caption: "Testing multiple validation errors",
+            status_snapshot: { next_action: "Test" },
+            module_scope: ["invalid1", "invalid2", "invalid3"],
+          },
+        },
+      });
+
+      assert.ok(response.error, "Should return error for invalid modules");
+      assert.ok(
+        response.error.message.includes("invalid1"),
+        "Error should mention first invalid module"
+      );
+      assert.ok(
+        response.error.message.includes("invalid2"),
+        "Error should mention second invalid module"
+      );
+      assert.ok(
+        response.error.message.includes("invalid3"),
+        "Error should mention third invalid module"
+      );
+    } finally {
+      teardown();
+    }
+  });
+
+  test("lex.remember validates module IDs - mix of valid and invalid", async () => {
+    const srv = setup();
+    try {
+      const response = await srv.handleRequest({
+        method: "tools/call",
+        params: {
+          name: "lex.remember",
+          arguments: {
+            reference_point: "mixed validity test",
+            summary_caption: "Testing mixed valid/invalid modules",
+            status_snapshot: { next_action: "Test" },
+            module_scope: ["indexer", "invalid-module", "ts"],
+          },
+        },
+      });
+
+      assert.ok(response.error, "Should return error when any module is invalid");
+      assert.ok(
+        response.error.message.includes("invalid-module"),
+        "Error should mention the invalid module"
+      );
+      // Valid modules should only appear in "Available modules" list, not as errors
+      const errorLines = response.error.message.split('\n').filter(line => line.includes('•'));
+      const hasValidModuleError = errorLines.some(line =>
+        line.includes("indexer") || line.includes("ts")
+      );
+      assert.ok(
+        !hasValidModuleError,
+        "Error should not flag valid modules as invalid"
+      );
+    } finally {
+      teardown();
+    }
+  });
+
+  test("lex.remember validates module IDs - accepts all valid modules", async () => {
+    const srv = setup();
+    try {
+      const response = await srv.handleRequest({
+        method: "tools/call",
+        params: {
+          name: "lex.remember",
+          arguments: {
+            reference_point: "all valid modules",
+            summary_caption: "Testing with all policy modules",
+            status_snapshot: { next_action: "Test" },
+            module_scope: ["indexer", "ts", "php", "mcp"],
+          },
+        },
+      });
+
+      assert.ok(response.content, "Should succeed with all valid modules");
+      assert.ok(
+        response.content[0].text.includes("✅ Frame stored"),
+        "Should confirm Frame storage"
+      );
+      assert.ok(
+        response.content[0].text.includes("indexer, ts, php, mcp"),
+        "Should include all modules"
       );
     } finally {
       teardown();
