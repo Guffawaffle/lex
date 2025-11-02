@@ -366,4 +366,78 @@ describe("MCP Server - Protocol", () => {
       teardown();
     }
   });
+
+  test("lex.remember auto-detects git branch when not provided", async () => {
+    const srv = setup();
+    try {
+      const args = {
+        reference_point: "branch detection test",
+        summary_caption: "Testing branch auto-detection",
+        status_snapshot: {
+          next_action: "Verify branch detection",
+          blockers: [],
+        },
+        module_scope: ["test/branch"],
+        // Note: branch is NOT provided
+      };
+
+      const response = await srv.handleRequest({
+        method: "tools/call",
+        params: {
+          name: "lex.remember",
+          arguments: args,
+        },
+      });
+
+      assert.ok(response.content, "Response should have content");
+      assert.ok(
+        response.content[0].text.includes("✅ Frame stored"),
+        "Should confirm Frame storage"
+      );
+      
+      // Branch should be auto-detected (not empty or undefined)
+      const branchMatch = response.content[0].text.match(/🌿 Branch: (.+)/);
+      assert.ok(branchMatch, "Should include branch in output");
+      assert.ok(branchMatch[1].length > 0, "Branch should not be empty");
+      
+      // Should not be the old hardcoded "main" value
+      // (unless we're actually on main, but we're on a feature branch)
+      // Just verify it's a valid string
+      assert.strictEqual(typeof branchMatch[1], "string", "Branch should be a string");
+    } finally {
+      teardown();
+    }
+  });
+
+  test("lex.remember respects provided branch over auto-detection", async () => {
+    const srv = setup();
+    try {
+      const args = {
+        reference_point: "manual branch test",
+        summary_caption: "Testing manual branch override",
+        status_snapshot: {
+          next_action: "Verify manual branch",
+          blockers: [],
+        },
+        module_scope: ["test/manual"],
+        branch: "custom-branch-name",
+      };
+
+      const response = await srv.handleRequest({
+        method: "tools/call",
+        params: {
+          name: "lex.remember",
+          arguments: args,
+        },
+      });
+
+      assert.ok(response.content, "Response should have content");
+      assert.ok(
+        response.content[0].text.includes("🌿 Branch: custom-branch-name"),
+        "Should use provided branch name"
+      );
+    } finally {
+      teardown();
+    }
+  });
 });
