@@ -66,7 +66,7 @@ function findSimilarModules(
   return suggestions
     .sort((a, b) => a.distance - b.distance)
     .slice(0, maxSuggestions)
-    .filter(s => s.distance <= Math.max(moduleId.length, MAX_EDIT_DISTANCE_THRESHOLD))
+    .filter(s => s.distance <= MAX_EDIT_DISTANCE_THRESHOLD)
     .map(s => s.module);
 }
 

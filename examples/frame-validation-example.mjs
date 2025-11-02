@@ -36,7 +36,7 @@ function createFrame(frameData, policyPath = './policy/policy_spec/lexmap.policy
 // Example usage
 try {
   // This should fail - 'auth-core' doesn't exist
-  const frame1 = createFrame({
+  createFrame({
     id: 'frame-001',
     timestamp: '2025-11-01T16:04:12-05:00',
     branch: 'feature/auth-fix',
