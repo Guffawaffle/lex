@@ -174,7 +174,7 @@ export class MCPServer {
           imageIds.push(imageId);
         } catch (error: any) {
           // If image storage fails, clean up the Frame and rethrow
-          this.frameStore.getDatabase().prepare("DELETE FROM frames WHERE id = ?").run(frameId);
+          this.frameStore.deleteFrame(frameId);
           throw new Error(`Failed to store image: ${error.message}`);
         }
       }
