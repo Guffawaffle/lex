@@ -40,14 +40,14 @@ import * as fs from "fs";
 import * as path from "path";
 
 interface PolicyModule {
-  owns_namespaces: string[];
-  owns_paths: string[];
-  exposes: string[];
-  allowed_callers: string[];
-  forbidden_callers: string[];
-  feature_flags: string[];
-  requires_permissions: string[];
-  kill_patterns: string[];
+  owns_namespaces?: string[];
+  owns_paths?: string[];
+  exposes?: string[];
+  allowed_callers?: string[];
+  forbidden_callers?: string[];
+  feature_flags?: string[];
+  requires_permissions?: string[];
+  kill_patterns?: string[];
 }
 
 interface Policy {
@@ -60,6 +60,7 @@ interface Policy {
 
 interface FileData {
   path: string;
+  module_scope?: string;
   declarations: Array<{ type: string; name: string; namespace?: string }>;
   imports: Array<{ from: string; type: string }>;
   feature_flags: string[];
@@ -67,9 +68,17 @@ interface FileData {
   warnings: string[];
 }
 
+interface ModuleEdge {
+  from_module: string;
+  to_module: string;
+  from_file: string;
+  import_statement: string;
+}
+
 interface MergedScannerOutput {
   sources: string[];
   files: FileData[];
+  module_edges?: ModuleEdge[];
 }
 
 interface Violation {
@@ -91,7 +100,8 @@ class LexMapChecker {
 
   check(scannerOutput: MergedScannerOutput): void {
     for (const file of scannerOutput.files) {
-      const moduleId = this.resolveFileToModule(file.path);
+      // Use module_scope from scanner if available, otherwise resolve
+      const moduleId = file.module_scope || this.resolveFileToModule(file.path);
 
       if (!moduleId) {
         // File doesn't belong to any known module - skip
@@ -135,14 +145,37 @@ class LexMapChecker {
         });
       }
     }
+
+    // Check module_edges if available
+    if (scannerOutput.module_edges) {
+      for (const edge of scannerOutput.module_edges) {
+        const toModule = this.policy.modules[edge.to_module];
+        
+        if (toModule && toModule.forbidden_callers) {
+          for (const forbidden of toModule.forbidden_callers) {
+            if (this.matchPattern(edge.from_module, forbidden)) {
+              this.violations.push({
+                file: edge.from_file,
+                module: edge.from_module,
+                type: "forbidden_caller",
+                message: `Module ${edge.from_module} calls ${edge.to_module} but is forbidden`,
+                details: `Import: ${edge.import_statement}, Policy forbids: ${forbidden}`,
+              });
+            }
+          }
+        }
+      }
+    }
   }
 
   private resolveFileToModule(filePath: string): string | null {
     // Find which module owns this file path
     for (const [moduleId, module] of Object.entries(this.policy.modules)) {
-      for (const pathPattern of module.owns_paths) {
-        if (this.matchPath(filePath, pathPattern)) {
-          return moduleId;
+      if (module.owns_paths) {
+        for (const pathPattern of module.owns_paths) {
+          if (this.matchPath(filePath, pathPattern)) {
+            return moduleId;
+          }
         }
       }
     }
@@ -152,18 +185,22 @@ class LexMapChecker {
   private resolveImportToModule(importPath: string): string | null {
     // Try to match by namespace first (PHP style)
     for (const [moduleId, module] of Object.entries(this.policy.modules)) {
-      for (const namespace of module.owns_namespaces) {
-        if (importPath.startsWith(namespace)) {
-          return moduleId;
+      if (module.owns_namespaces) {
+        for (const namespace of module.owns_namespaces) {
+          if (importPath.startsWith(namespace)) {
+            return moduleId;
+          }
         }
       }
     }
 
     // Try to match by file path pattern (TypeScript/JS style)
     for (const [moduleId, module] of Object.entries(this.policy.modules)) {
-      for (const pathPattern of module.owns_paths) {
-        if (this.matchPath(importPath, pathPattern)) {
-          return moduleId;
+      if (module.owns_paths) {
+        for (const pathPattern of module.owns_paths) {
+          if (this.matchPath(importPath, pathPattern)) {
+            return moduleId;
+          }
         }
       }
     }
