@@ -18,8 +18,9 @@
     "build:atlas": "cd shared/atlas && npx tsc",
     "build:store": "cd memory/store && npx tsc",
     "build:mcp-server": "cd memory/mcp_server && npm run build",
-    "test": "npm run test:module-ids && npm run test:mcp-server",
+    "test": "npm run test:module-ids && npm run test:store && npm run test:mcp-server",
     "test:module-ids": "cd shared/module_ids && node validator.test.mjs",
+    "test:store": "cd memory/store && npm test",
     "test:mcp-server": "cd memory/mcp_server && npm test"
   },
   "keywords": ["memory", "policy", "continuity", "mcp"],

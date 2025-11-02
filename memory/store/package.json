@@ -4,11 +4,17 @@
   "description": "Frame storage layer (SQLite + FTS5)",
   "type": "module",
   "main": "framestore.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "npm run build && node --test dist/images.test.js"
+  },
   "dependencies": {
     "better-sqlite3": "^9.0.0"
   },
   "license": "MIT",
   "devDependencies": {
-    "@types/better-sqlite3": "^7.6.13"
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^24.9.2",
+    "typescript": "^5.9.3"
   }
 }
