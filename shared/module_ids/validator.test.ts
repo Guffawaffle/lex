@@ -164,8 +164,9 @@ describe('validateModuleIds', () => {
   });
 
   test('undefined moduleScope is treated as empty', () => {
+    // Test that validator handles undefined gracefully
     const result = validateModuleIds(
-      undefined as any,
+      null as unknown as string[],
       samplePolicy
     );
     
