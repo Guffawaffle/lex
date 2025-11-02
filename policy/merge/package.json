@@ -1,0 +1,19 @@
+{
+  "name": "@lex/merge",
+  "version": "0.1.0-alpha",
+  "description": "Scanner output merge logic",
+  "type": "module",
+  "main": "./dist/merge.js",
+  "types": "./dist/merge.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "npm run build && node merge.test.mjs"
+  },
+  "dependencies": {
+    "typescript": "^5.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^18.0.0"
+  },
+  "license": "MIT"
+}
