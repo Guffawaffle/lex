@@ -4,6 +4,11 @@
 
 import { computeFoldRadius, Policy, PolicyModule } from './index.js';
 
+// Configuration constants
+const MIN_CALLERS = 2;
+const CALLER_RANGE = 3;
+const FORBIDDEN_CALLER_PROBABILITY = 0.8;
+
 // Generate a large policy with 150 modules
 function generateLargePolicy(numModules: number): Policy {
   const modules: Record<string, PolicyModule> = {};
@@ -15,11 +20,11 @@ function generateLargePolicy(numModules: number): Policy {
     
     // Create connections to create a reasonably connected graph
     // Each module can be called by 2-5 other modules
-    const numCallers = 2 + Math.floor(Math.random() * 3);
+    const numCallers = MIN_CALLERS + Math.floor(Math.random() * CALLER_RANGE);
     for (let j = 0; j < numCallers; j++) {
       const callerId = `module-${Math.floor(Math.random() * numModules)}`;
       if (callerId !== moduleId && !allowedCallers.includes(callerId)) {
-        if (Math.random() > 0.8) {
+        if (Math.random() > FORBIDDEN_CALLER_PROBABILITY) {
           forbiddenCallers.push(callerId);
         } else {
           allowedCallers.push(callerId);

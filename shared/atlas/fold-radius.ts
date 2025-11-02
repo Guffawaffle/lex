@@ -33,7 +33,6 @@ export function computeFoldRadius(
   const inQueue = new Set<string>(); // Track modules already in queue
   
   // BFS queue: [moduleId, distance]
-  // Using array with pop() for O(1) dequeue (process in reverse)
   const queue: Array<[string, number]> = [];
   
   // Initialize with seed modules
@@ -45,8 +44,10 @@ export function computeFoldRadius(
     }
   }
   
-  // BFS traversal (process from back for efficiency)
+  // BFS traversal
   while (queue.length > 0) {
+    // Using shift() for proper FIFO queue behavior (BFS requirement)
+    // Performance note: O(n) per operation, but acceptable for typical graphs (<100 modules)
     const [currentId, distance] = queue.shift()!;
     inQueue.delete(currentId);
     
