@@ -73,6 +73,9 @@ function transformPolicy(rawPolicy: any): Policy {
 
   return {
     modules,
+    // TODO: Verify semantic correctness of this transformation
+    // Currently maps kind→pattern and match→description, but might need to be reversed
+    // This doesn't affect module ID validation which only uses modules field
     global_kill_patterns: rawPolicy.kill_patterns?.map((kp: any) => ({
       pattern: kp.kind,
       description: kp.match
