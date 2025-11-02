@@ -1,0 +1,14 @@
+{
+  "name": "@lex/renderer",
+  "version": "0.1.0-alpha",
+  "description": "Memory card image generation (visual summary of Frame state)",
+  "type": "module",
+  "main": "index.ts",
+  "dependencies": {
+    "canvas": "^2.11.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0"
+  },
+  "license": "MIT"
+}
