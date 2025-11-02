@@ -1,12 +1,12 @@
 /**
  * Tests for Module ID Validation (THE CRITICAL RULE)
- * 
+ *
  * Run with: node shared/module_ids/validator.test.mjs
  */
 
 import { strict as assert } from 'assert';
 import { test, describe } from 'node:test';
-import { validateModuleIds } from './validator.js';
+import { validateModuleIds } from './dist/module_ids/validator.js';
 
 // Sample policy for testing
 const samplePolicy = {
@@ -44,7 +44,7 @@ describe('validateModuleIds', () => {
       ['services/auth-core', 'ui/user-admin-panel'],
       samplePolicy
     );
-    
+
     assert.equal(result.valid, true);
     assert.equal(result.errors, undefined);
   });
@@ -54,7 +54,7 @@ describe('validateModuleIds', () => {
       ['auth-core', 'ui/user-admin-panel'],
       samplePolicy
     );
-    
+
     assert.equal(result.valid, false);
     assert.ok(result.errors);
     assert.equal(result.errors.length, 1);
@@ -67,7 +67,7 @@ describe('validateModuleIds', () => {
       ['auth-core'],
       samplePolicy
     );
-    
+
     assert.equal(result.valid, false);
     assert.ok(result.errors);
     assert.equal(result.errors[0].module, 'auth-core');
@@ -78,7 +78,7 @@ describe('validateModuleIds', () => {
 
   test('empty module_scope is allowed', () => {
     const result = validateModuleIds([], samplePolicy);
-    
+
     assert.equal(result.valid, true);
     assert.equal(result.errors, undefined);
   });
@@ -88,7 +88,7 @@ describe('validateModuleIds', () => {
       ['Services/Auth-Core'], // Wrong case
       samplePolicy
     );
-    
+
     assert.equal(result.valid, false);
     assert.ok(result.errors);
     assert.equal(result.errors[0].module, 'Services/Auth-Core');
@@ -99,7 +99,7 @@ describe('validateModuleIds', () => {
       ['auth-core', 'user-panel', 'login'],
       samplePolicy
     );
-    
+
     assert.equal(result.valid, false);
     assert.ok(result.errors);
     assert.equal(result.errors.length, 3);
@@ -113,7 +113,7 @@ describe('validateModuleIds', () => {
       ['services/auth-core', 'invalid-module', 'ui/user-admin-panel'],
       samplePolicy
     );
-    
+
     assert.equal(result.valid, false);
     assert.ok(result.errors);
     assert.equal(result.errors.length, 1);
@@ -125,7 +125,7 @@ describe('validateModuleIds', () => {
       ['user-panel'],
       samplePolicy
     );
-    
+
     assert.equal(result.valid, false);
     assert.ok(result.errors);
     assert.ok(result.errors[0].suggestions.length <= 3); // Max 3 suggestions
@@ -137,7 +137,7 @@ describe('validateModuleIds', () => {
       ['completely-unrelated-xyz-123'],
       samplePolicy
     );
-    
+
     assert.equal(result.valid, false);
     assert.ok(result.errors);
     // May have no suggestions if edit distance is too large
@@ -153,12 +153,12 @@ describe('validateModuleIds', () => {
         }
       }
     };
-    
+
     const result = validateModuleIds(
       ['services/auth-core_v2'],
       policyWithSpecialChars
     );
-    
+
     assert.equal(result.valid, true);
   });
 
@@ -167,7 +167,7 @@ describe('validateModuleIds', () => {
       undefined,
       samplePolicy
     );
-    
+
     assert.equal(result.valid, true);
   });
 });

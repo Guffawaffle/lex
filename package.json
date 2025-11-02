@@ -12,7 +12,15 @@
   "scripts": {
     "remember": "node memory/mcp_server/frame-mcp.mjs",
     "check": "node policy/check/lexmap-check.ts",
-    "build": "echo 'Build step not yet configured'"
+    "build": "npm run build:types && npm run build:module-ids && npm run build:atlas && npm run build:store && npm run build:mcp-server",
+    "build:types": "cd shared/types && npx tsc",
+    "build:module-ids": "cd shared/module_ids && npx tsc",
+    "build:atlas": "cd shared/atlas && npx tsc",
+    "build:store": "cd memory/store && npx tsc",
+    "build:mcp-server": "cd memory/mcp_server && npm run build",
+    "test": "npm run test:module-ids && npm run test:mcp-server",
+    "test:module-ids": "cd shared/module_ids && node validator.test.mjs",
+    "test:mcp-server": "cd memory/mcp_server && npm test"
   },
   "keywords": ["memory", "policy", "continuity", "mcp"],
   "author": "Guffawaffle",
