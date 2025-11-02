@@ -140,7 +140,7 @@ export class MCPServer {
     
     // Log branch detection for debugging
     if (!branch) {
-      console.error(`[lex.remember] Auto-detected branch: ${frameBranch}`);
+      console.log(`[lex.remember] Auto-detected branch: ${frameBranch}`);
     }
 
     const frame = {
