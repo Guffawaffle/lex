@@ -13,6 +13,9 @@ import {
   FileConflict,
 } from './types.js';
 
+/** Current version of the merged output format */
+export const MERGE_FORMAT_VERSION = '1.0.0';
+
 /**
  * Merges multiple scanner outputs into a single unified result
  * 
@@ -21,7 +24,7 @@ import {
  * @throws Error if file conflicts are detected (same file claimed by multiple scanners)
  */
 export function mergeScans(scanOutputs: ScanResult[]): MergedScanResult {
-  const version = '1.0.0';
+  const version = MERGE_FORMAT_VERSION;
   const sources: string[] = [];
   const fileMap = new Map<string, { file: FileData; language: string }>();
   const edgeSet = new Set<string>();
@@ -141,7 +144,9 @@ export function mergeScans(scanOutputs: ScanResult[]): MergedScanResult {
 }
 
 /**
- * Deduplicates edges by creating a canonical key for each edge
+ * Deduplicates edges by creating a canonical key for each edge.
+ * This is a standalone utility function that can be used to deduplicate
+ * edges from other sources or in post-processing scenarios.
  * 
  * @param edges - Array of edges to deduplicate
  * @returns Deduplicated array of edges
