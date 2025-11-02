@@ -97,6 +97,9 @@ export interface Frame {
   
   /** Permissions required for this work */
   permissions?: string[];
+  
+  /** Image attachment IDs (references to images table) */
+  image_ids?: string[];
 }
 
 /**
