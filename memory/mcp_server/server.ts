@@ -40,9 +40,12 @@ export interface ToolCallParams {
  */
 export class MCPServer {
   private frameStore: FrameStore;
+  private policy: any; // Cached policy for validation
 
   constructor(dbPath: string) {
     this.frameStore = new FrameStore(dbPath);
+    // Load policy once at initialization for better performance
+    this.policy = loadPolicy();
   }
 
   /**
@@ -136,8 +139,7 @@ export class MCPServer {
     }
 
     // THE CRITICAL RULE: Validate module IDs against policy
-    const policy = loadPolicy();
-    const validationResult = validateModuleIds(module_scope, policy);
+    const validationResult = validateModuleIds(module_scope, this.policy);
     
     if (!validationResult.valid && validationResult.errors) {
       // Format error message with suggestions
@@ -151,7 +153,7 @@ export class MCPServer {
       throw new Error(
         `Invalid module IDs in module_scope:\n${errorMessages.join('\n')}\n\n` +
         `Module IDs must match those defined in lexmap.policy.json.\n` +
-        `Available modules: ${Object.keys(policy.modules).join(', ')}`
+        `Available modules: ${Object.keys(this.policy.modules).join(', ')}`
       );
     }
 
