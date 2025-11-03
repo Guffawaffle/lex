@@ -1,0 +1,38 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ES2022",
+    "moduleResolution": "node",
+    "lib": ["ES2022"],
+    "outDir": "./dist",
+    "rootDir": "../..",
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "noEmit": false,
+    "allowSyntheticDefaultImports": true
+  },
+  "include": [
+    "*.ts",
+    "../types/**/*.ts",
+    "../module_ids/**/*.ts",
+    "../policy/**/*.ts",
+    "../atlas/**/*.ts",
+    "../git/**/*.ts",
+    "../../memory/store/**/*.ts",
+    "../../memory/frames/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "**/*.test.mjs",
+    "**/*.test.js",
+    "../../memory/store/images.perf.test.ts",
+    "../../memory/store/images.test.ts",
+    "../../memory/store/store.test.ts"
+  ]
+}

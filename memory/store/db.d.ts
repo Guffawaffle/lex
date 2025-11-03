@@ -1,0 +1,34 @@
+/**
+ * Database initialization and schema management for Frame storage
+ *
+ * Creates SQLite database with FTS5 virtual table for full-text search
+ * on reference_point, keywords, and summary_caption.
+ */
+import Database from "better-sqlite3";
+export interface FrameRow {
+    id: string;
+    timestamp: string;
+    branch: string;
+    jira: string | null;
+    module_scope: string;
+    summary_caption: string;
+    reference_point: string;
+    status_snapshot: string;
+    keywords: string | null;
+    atlas_frame_id: string | null;
+    feature_flags: string | null;
+    permissions: string | null;
+}
+/**
+ * Get default database path: ~/.lex/frames.db
+ */
+export declare function getDefaultDbPath(): string;
+/**
+ * Initialize database with schema and indexes
+ */
+export declare function initializeDatabase(db: Database.Database): void;
+/**
+ * Create and initialize a database connection
+ */
+export declare function createDatabase(dbPath?: string): Database.Database;
+//# sourceMappingURL=db.d.ts.map
