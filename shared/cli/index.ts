@@ -18,7 +18,8 @@ const __dirname = dirname(__filename);
 // Read version from package.json
 function getVersion(): string {
   try {
-    const packagePath = join(__dirname, '..', 'package.json');
+    // From dist/shared/cli/index.js, package.json is at ../../../package.json (root)
+    const packagePath = join(__dirname, '..', '..', '..', 'package.json');
     const packageJson = JSON.parse(readFileSync(packagePath, 'utf-8'));
     return packageJson.version;
   } catch {

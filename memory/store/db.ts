@@ -27,8 +27,14 @@ export interface FrameRow {
 
 /**
  * Get default database path: ~/.lex/frames.db
+ * Can be overridden with LEX_DB_PATH environment variable
  */
 export function getDefaultDbPath(): string {
+  // Check for environment variable override
+  if (process.env.LEX_DB_PATH) {
+    return process.env.LEX_DB_PATH;
+  }
+  
   const lexDir = join(homedir(), ".lex");
   if (!existsSync(lexDir)) {
     mkdirSync(lexDir, { recursive: true });
