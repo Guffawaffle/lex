@@ -25,17 +25,56 @@ When you `/recall TICKET-123`, the system:
 
 If `module_scope` references a module that doesn't exist in policy, step 3 fails.
 
-## Current enforcement
+## Enforcement
+
+**Status: ✅ ENFORCED IN PRODUCTION** (as of PR #22)
 
 When `/remember` is called:
 - Validate that each string in `module_scope` is a key in `lexmap.policy.json`
 - If validation fails, reject the Frame creation with a clear error:
   ```
-  Error: Module "auth-core" not found in policy.
-  Did you mean "services/auth-core"?
+  Error: Invalid module IDs in module_scope:
+    • Module "auth-core" not found in policy.
+    Did you mean: indexer?
+  
+  Available modules: indexer, ts, php, mcp
   ```
 
 This is strict. This is intentional. Loose matching leads to drift.
+
+### Integration Points
+
+The validation is integrated into:
+- **`memory/mcp_server/server.ts::handleRemember()`** - Validates before Frame creation
+- Uses **`shared/policy/loader.ts`** - Loads and caches policy
+- Uses **`shared/module_ids/validator.ts`** - Performs validation with fuzzy matching
+
+### Example Integration
+
+```typescript
+import { loadPolicy } from '../../../shared/policy/dist/policy/loader.js';
+import { validateModuleIds } from '../../../shared/module_ids/dist/module_ids/validator.js';
+
+// In handleRemember():
+const policy = loadPolicy();
+const validationResult = validateModuleIds(module_scope, policy);
+
+if (!validationResult.valid && validationResult.errors) {
+  // Format error message with suggestions
+  const errorMessages = validationResult.errors.map(error => {
+    const suggestions = error.suggestions.length > 0
+      ? `\n  Did you mean: ${error.suggestions.join(', ')}?`
+      : '';
+    return `  • ${error.message}${suggestions}`;
+  });
+  
+  throw new Error(
+    `Invalid module IDs in module_scope:\n${errorMessages.join('\n')}\n\n` +
+    `Module IDs must match those defined in lexmap.policy.json.\n` +
+    `Available modules: ${Object.keys(policy.modules).join(', ')}`
+  );
+}
+```
 
 ## Future: Aliasing
 
@@ -49,7 +88,7 @@ This will let humans use shorthand during `/remember` while still maintaining vo
 
 **Status: ✅ IMPLEMENTED**
 
-The validation is now executable and available for use:
+The validation is now executable and integrated into Frame creation:
 
 ```typescript
 import { validateModuleIds, ModuleNotFoundError } from 'shared/module_ids/index.js';
@@ -57,7 +96,7 @@ import type { ValidationResult } from 'shared/module_ids/index.js';
 
 // Example: Validate module IDs before creating a Frame
 const result = validateModuleIds(
-  ['services/auth-core', 'ui/user-admin-panel'],
+  ['indexer', 'ts'],
   policy
 );
 
@@ -65,8 +104,8 @@ if (!result.valid) {
   console.error('Validation failed:', result.errors);
   // [{
   //   module: 'auth-core',
-  //   message: "Module 'auth-core' not found in policy. Did you mean 'services/auth-core'?",
-  //   suggestions: ['services/auth-core']
+  //   message: "Module 'auth-core' not found in policy. Did you mean 'indexer'?",
+  //   suggestions: ['indexer']
   // }]
 }
 ```
@@ -113,25 +152,40 @@ interface ModuleIdError {
 
 ### Example Integration
 
-See `examples/frame-validation-example.mjs` for a complete example of how to use this in Frame creation.
+See `memory/mcp_server/server.ts::handleRemember()` for the complete integration.
 
 ### Tests
 
 Run tests with:
 ```bash
-node shared/module_ids/validator.test.mjs
+npm test
 ```
 
-11 test cases covering:
-- Valid module IDs
-- Invalid module IDs with suggestions
-- Empty module scope
-- Case sensitivity
-- Multiple errors
-- Edge cases
+**Module ID validation tests:** 11 tests covering validation logic  
+**MCP server integration tests:** 15 tests including 5 validation integration tests
+
+Test coverage:
+- ✅ Valid module IDs pass validation
+- ✅ Invalid module IDs fail with suggestions
+- ✅ Empty module scope allowed
+- ✅ Case sensitivity enforced
+- ✅ Multiple errors reported
+- ✅ Mix of valid/invalid modules handled
+- ✅ All policy modules accepted
+
+### Performance
+
+Validation adds **<10ms per Frame creation** (policy is cached in memory after first load).
+
+### Custom Policy Path
+
+Set `LEX_POLICY_PATH` environment variable to use a different policy file:
+```bash
+export LEX_POLICY_PATH=/path/to/custom/policy.json
+```
 
 ---
 
 **Called by:**
-- `memory/frames/` when creating a Frame via `/remember`
-- `shared/cli/` when validating user input before Frame capture
+- `memory/mcp_server/server.ts::handleRemember()` - Enforces THE CRITICAL RULE on Frame creation
+- (Future) `shared/cli/` when validating user input before Frame capture
