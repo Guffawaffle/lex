@@ -5,12 +5,7 @@
  * Enforces architectural policy by checking scanner output against lexmap.policy.json.
  *
  * Usage:
- *     lexmap check <merged.json> <policy.json> [options]
- *
- * Options:
- *     --strict              Fail on any violation (same as default)
- *     --report-format       Output format: text, json, or markdown (default: text)
- *     --ticket              Optional ticket number for tracking
+ *     lexmap check <merged.json> <policy.json> [--ticket WEB-23621]
  *
  * What it does:
  *     1. Loads merged scanner output (from lexmap merge)
@@ -18,10 +13,8 @@
  *     3. For each file:
  *        - Resolves file path → module_scope using owns_paths
  *        - Checks imports against allowed_callers/forbidden_callers
- *        - Detects feature flag violations
- *        - Detects permission violations
  *        - Detects kill_patterns in code
- *     4. Reports violations with Atlas Frame context
+ *     4. Reports violations
  *
  * Exit codes:
  *     0 - No violations
@@ -29,102 +22,253 @@
  *     2 - Error (file not found, schema invalid, etc.)
  *
  * Example:
- *     lexmap check merged.json lexmap.policy.json
- *     lexmap check merged.json lexmap.policy.json --report-format markdown
- *     lexmap check merged.json lexmap.policy.json --strict
+ *     lexmap check merged.json lexmap.policy.json --ticket WEB-23621
+ *
+ *     Output:
+ *     ❌ VIOLATION: ui/provider-endpoints/CreateEndpointModal.tsx
+ *        Module: ui/provider-endpoints
+ *        Imports: App\HIE\Surescripts\SurescriptsAdapter
+ *        Problem: UI modules MUST NOT import HIE adapters directly
+ *        Policy: forbidden_callers includes "ui/**"
+ *        Fix: Use api/provider-endpoints-service instead
  *
  * Author: LexMap
  * License: MIT
  */
 
 import * as fs from "fs";
-import { Policy } from "@lex/types/policy";
-import { MergedScanResult } from "@lex/merge/types";
-import { detectViolations } from "./violations.js";
-import { printReport, getExitCode, ReportFormat } from "./reporter.js";
+import * as path from "path";
 
-/**
- * Parse command line arguments
- */
-interface CliArgs {
-  scannerFile: string;
-  policyFile: string;
-  strict: boolean;
-  reportFormat: ReportFormat;
-  ticket?: string;
+interface PolicyModule {
+  owns_namespaces?: string[];
+  owns_paths?: string[];
+  exposes?: string[];
+  allowed_callers?: string[];
+  forbidden_callers?: string[];
+  feature_flags?: string[];
+  requires_permissions?: string[];
+  kill_patterns?: string[];
 }
 
-function parseArgs(): CliArgs | null {
+interface Policy {
+  modules: Record<string, PolicyModule>;
+  global_kill_patterns: Array<{
+    pattern: string;
+    description: string;
+  }>;
+}
+
+interface FileData {
+  path: string;
+  module_scope?: string;
+  declarations: Array<{ type: string; name: string; namespace?: string }>;
+  imports: Array<{ from: string; type: string }>;
+  feature_flags: string[];
+  permissions: string[];
+  warnings: string[];
+}
+
+interface ModuleEdge {
+  from_module: string;
+  to_module: string;
+  from_file: string;
+  import_statement: string;
+}
+
+interface MergedScannerOutput {
+  sources: string[];
+  files: FileData[];
+  module_edges?: ModuleEdge[];
+}
+
+interface Violation {
+  file: string;
+  module: string;
+  type: "forbidden_caller" | "kill_pattern" | "missing_permission";
+  message: string;
+  details: string;
+}
+
+class LexMapChecker {
+  private policy: Policy;
+  private violations: Violation[] = [];
+
+  constructor(policyPath: string) {
+    const content = fs.readFileSync(policyPath, "utf-8");
+    this.policy = JSON.parse(content);
+  }
+
+  check(scannerOutput: MergedScannerOutput): void {
+    for (const file of scannerOutput.files) {
+      // Use module_scope from scanner if available, otherwise resolve
+      const moduleId = file.module_scope || this.resolveFileToModule(file.path);
+
+      if (!moduleId) {
+        // File doesn't belong to any known module - skip
+        continue;
+      }
+
+      const module = this.policy.modules[moduleId];
+
+      // Check imports against forbidden_callers
+      for (const imp of file.imports) {
+        const importedModuleId = this.resolveImportToModule(imp.from);
+
+        if (importedModuleId) {
+          const importedModule = this.policy.modules[importedModuleId];
+
+          if (importedModule && importedModule.forbidden_callers) {
+            // Check if current module matches any forbidden_caller pattern
+            for (const forbidden of importedModule.forbidden_callers) {
+              if (this.matchPattern(moduleId, forbidden)) {
+                this.violations.push({
+                  file: file.path,
+                  module: moduleId,
+                  type: "forbidden_caller",
+                  message: `Module ${moduleId} imports ${importedModuleId} but is forbidden`,
+                  details: `Policy forbids: ${forbidden}`,
+                });
+              }
+            }
+          }
+        }
+      }
+
+      // Check for kill patterns
+      for (const warning of file.warnings) {
+        this.violations.push({
+          file: file.path,
+          module: moduleId,
+          type: "kill_pattern",
+          message: `Kill pattern detected: ${warning}`,
+          details: "",
+        });
+      }
+    }
+
+    // Check module_edges if available
+    if (scannerOutput.module_edges) {
+      for (const edge of scannerOutput.module_edges) {
+        const toModule = this.policy.modules[edge.to_module];
+        
+        if (toModule && toModule.forbidden_callers) {
+          for (const forbidden of toModule.forbidden_callers) {
+            if (this.matchPattern(edge.from_module, forbidden)) {
+              this.violations.push({
+                file: edge.from_file,
+                module: edge.from_module,
+                type: "forbidden_caller",
+                message: `Module ${edge.from_module} calls ${edge.to_module} but is forbidden`,
+                details: `Import: ${edge.import_statement}, Policy forbids: ${forbidden}`,
+              });
+            }
+          }
+        }
+      }
+    }
+  }
+
+  private resolveFileToModule(filePath: string): string | null {
+    // Find which module owns this file path
+    for (const [moduleId, module] of Object.entries(this.policy.modules)) {
+      if (module.owns_paths) {
+        for (const pathPattern of module.owns_paths) {
+          if (this.matchPath(filePath, pathPattern)) {
+            return moduleId;
+          }
+        }
+      }
+    }
+    return null;
+  }
+
+  private resolveImportToModule(importPath: string): string | null {
+    // Try to match by namespace first (PHP style)
+    for (const [moduleId, module] of Object.entries(this.policy.modules)) {
+      if (module.owns_namespaces) {
+        for (const namespace of module.owns_namespaces) {
+          if (importPath.startsWith(namespace)) {
+            return moduleId;
+          }
+        }
+      }
+    }
+
+    // Try to match by file path pattern (TypeScript/JS style)
+    for (const [moduleId, module] of Object.entries(this.policy.modules)) {
+      if (module.owns_paths) {
+        for (const pathPattern of module.owns_paths) {
+          if (this.matchPath(importPath, pathPattern)) {
+            return moduleId;
+          }
+        }
+      }
+    }
+
+    return null;
+  }
+
+  private matchPath(filePath: string, pattern: string): boolean {
+    // Simple glob matching (** means any nested path)
+    const regexPattern = pattern
+      .replace(/\*\*/g, ".*")
+      .replace(/\*/g, "[^/]*")
+      .replace(/\//g, "\\/");
+    const regex = new RegExp(`^${regexPattern}$`);
+    return regex.test(filePath);
+  }
+
+  private matchPattern(value: string, pattern: string): boolean {
+    // Simple pattern matching (supports ** and * wildcards)
+    const regexPattern = pattern.replace(/\*\*/g, ".*").replace(/\*/g, "[^/]*");
+    const regex = new RegExp(`^${regexPattern}$`);
+    return regex.test(value);
+  }
+
+  report(): void {
+    if (this.violations.length === 0) {
+      console.log("✅ No violations found");
+      return;
+    }
+
+    console.log(`❌ Found ${this.violations.length} violation(s):\n`);
+
+    for (const violation of this.violations) {
+      console.log(`File: ${violation.file}`);
+      console.log(`Module: ${violation.module}`);
+      console.log(`Type: ${violation.type}`);
+      console.log(`Message: ${violation.message}`);
+      if (violation.details) {
+        console.log(`Details: ${violation.details}`);
+      }
+      console.log("");
+    }
+  }
+
+  hasViolations(): boolean {
+    return this.violations.length > 0;
+  }
+}
+
+function main() {
   const args = process.argv.slice(2);
 
   if (args.length < 2) {
-    return null;
+    console.error(
+      "Usage: lexmap check <merged.json> <policy.json> [--ticket WEB-23621]"
+    );
+    console.error("");
+    console.error("Checks scanner output against architectural policy.");
+    console.error("");
+    console.error("Example:");
+    console.error("  lexmap merge php.json ts.json > merged.json");
+    console.error("  lexmap check merged.json lexmap.policy.json");
+    process.exit(2);
   }
 
   const scannerFile = args[0];
   const policyFile = args[1];
-  
-  let strict = false;
-  let reportFormat: ReportFormat = 'text';
-  let ticket: string | undefined;
 
-  // Parse optional flags
-  for (let i = 2; i < args.length; i++) {
-    const arg = args[i];
-    
-    if (arg === '--strict') {
-      strict = true;
-    } else if (arg === '--report-format' && i + 1 < args.length) {
-      const format = args[i + 1];
-      if (format === 'text' || format === 'json' || format === 'markdown') {
-        reportFormat = format;
-        i++; // Skip next arg
-      } else {
-        console.error(`Error: Invalid report format '${format}'. Use: text, json, or markdown`);
-        return null;
-      }
-    } else if (arg === '--ticket' && i + 1 < args.length) {
-      ticket = args[i + 1];
-      i++; // Skip next arg
-    }
-  }
-
-  return {
-    scannerFile,
-    policyFile,
-    strict,
-    reportFormat,
-    ticket,
-  };
-}
-
-function printUsage(): void {
-  console.error("Usage: lexmap check <merged.json> <policy.json> [options]");
-  console.error("");
-  console.error("Options:");
-  console.error("  --strict              Fail on any violation (default behavior)");
-  console.error("  --report-format FMT   Output format: text, json, or markdown (default: text)");
-  console.error("  --ticket TICKET       Optional ticket number for tracking");
-  console.error("");
-  console.error("Checks scanner output against architectural policy.");
-  console.error("");
-  console.error("Examples:");
-  console.error("  lexmap check merged.json lexmap.policy.json");
-  console.error("  lexmap check merged.json lexmap.policy.json --report-format markdown");
-  console.error("  lexmap check merged.json lexmap.policy.json --ticket WEB-23621");
-}
-
-function main() {
-  const cliArgs = parseArgs();
-
-  if (!cliArgs) {
-    printUsage();
-    process.exit(2);
-  }
-
-  const { scannerFile, policyFile, reportFormat, ticket } = cliArgs;
-
-  // Validate file existence
   if (!fs.existsSync(scannerFile)) {
     console.error(`Error: Scanner output not found: ${scannerFile}`);
     process.exit(2);
@@ -135,28 +279,19 @@ function main() {
     process.exit(2);
   }
 
-  try {
-    // Load scanner output
-    const scannerContent = fs.readFileSync(scannerFile, "utf-8");
-    const scannerOutput: MergedScanResult = JSON.parse(scannerContent);
+  // Load scanner output
+  const scannerContent = fs.readFileSync(scannerFile, "utf-8");
+  const scannerOutput: MergedScannerOutput = JSON.parse(scannerContent);
 
-    // Load policy
-    const policyContent = fs.readFileSync(policyFile, "utf-8");
-    const policy: Policy = JSON.parse(policyContent);
+  // Create checker and run
+  const checker = new LexMapChecker(policyFile);
+  checker.check(scannerOutput);
 
-    // Detect violations
-    const violations = detectViolations(scannerOutput, policy);
+  // Report results
+  checker.report();
 
-    // Print report
-    printReport(violations, policy, reportFormat);
-
-    // Exit with appropriate code
-    const exitCode = getExitCode(violations);
-    process.exit(exitCode);
-  } catch (error) {
-    console.error(`Error: ${error instanceof Error ? error.message : String(error)}`);
-    process.exit(2);
-  }
+  // Exit with appropriate code
+  process.exit(checker.hasViolations() ? 1 : 0);
 }
 
 main();

@@ -7,7 +7,7 @@ Scans Python files and extracts architectural facts.
 Contract: Outputs JSON conforming to ../docs/schemas/scanner-output.schema.json
 
 Usage:
-    python3 python_scanner.py <directory> > output.json
+    python3 python_scanner.py <directory> [policy.json] > output.json
 
 Philosophy:
     This scanner is DUMB BY DESIGN.
@@ -29,11 +29,20 @@ Output Schema:
       "files": [
         {
           "path": "relative/path/to/file.py",
+          "module_scope": "services/auth-core",
           "declarations": [...],
           "imports": [...],
           "feature_flags": [...],
           "permissions": [...],
           "warnings": []
+        }
+      ],
+      "module_edges": [
+        {
+          "from_module": "ui/admin",
+          "to_module": "services/auth",
+          "from_file": "ui/admin/view.py",
+          "import_statement": "services.auth"
         }
       ]
     }
@@ -50,19 +59,30 @@ import json
 import os
 import ast
 import re
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from pathlib import Path
+from fnmatch import fnmatch
 
 
 class PythonScanner:
     """Scans Python files for architectural facts."""
 
-    def __init__(self, root_dir: str):
+    def __init__(self, root_dir: str, policy_path: Optional[str] = None):
         self.root_dir = Path(root_dir).resolve()
         self.output = {
             "language": "python",
-            "files": []
+            "files": [],
+            "module_edges": []
         }
+        self.policy = None
+
+        # Load policy file if provided
+        if policy_path and os.path.exists(policy_path):
+            try:
+                with open(policy_path, 'r') as f:
+                    self.policy = json.load(f)
+            except Exception as e:
+                print(f"Warning: Failed to load policy file: {e}", file=sys.stderr)
 
     def scan(self) -> Dict[str, Any]:
         """Scan all Python files in directory tree."""
@@ -91,7 +111,7 @@ class PythonScanner:
         except Exception as e:
             return None
 
-        relative_path = filepath.relative_to(self.root_dir)
+        relative_path = str(filepath.relative_to(self.root_dir))
 
         # Parse the Python AST
         try:
@@ -100,14 +120,34 @@ class PythonScanner:
             # Skip files with syntax errors
             return None
 
+        imports = self.extract_imports(tree)
         file_data = {
-            "path": str(relative_path),
+            "path": relative_path,
             "declarations": self.extract_declarations(tree),
-            "imports": self.extract_imports(tree),
+            "imports": imports,
             "feature_flags": self.extract_feature_flags(content),
             "permissions": self.extract_permissions(content),
             "warnings": []
         }
+
+        # Resolve module ownership if policy is available
+        if self.policy:
+            module_id = self.resolve_file_to_module(relative_path)
+            if module_id:
+                file_data["module_scope"] = module_id
+
+                # Detect cross-module imports
+                for imp in imports:
+                    target_module_id = self.resolve_import_to_module(
+                        imp.get("from"), relative_path
+                    )
+                    if target_module_id and target_module_id != module_id:
+                        self.output["module_edges"].append({
+                            "from_module": module_id,
+                            "to_module": target_module_id,
+                            "from_file": relative_path,
+                            "import_statement": imp.get("from")
+                        })
 
         return file_data
 
@@ -220,22 +260,70 @@ class PythonScanner:
 
         return sorted(list(permissions))
 
+    def resolve_file_to_module(self, file_path: str) -> Optional[str]:
+        """
+        Find which module owns a given file path based on policy owns_paths.
+        """
+        if not self.policy or "modules" not in self.policy:
+            return None
+
+        # Normalize path to use forward slashes
+        normalized_path = file_path.replace('\\', '/')
+
+        for module_id, module_config in self.policy["modules"].items():
+            owns_paths = module_config.get("owns_paths", [])
+            for pattern in owns_paths:
+                # Normalize pattern
+                normalized_pattern = pattern.replace('\\', '/')
+                # Convert glob pattern to fnmatch compatible
+                if fnmatch(normalized_path, normalized_pattern):
+                    return module_id
+
+        return None
+
+    def resolve_import_to_module(self, import_path: str, current_file: str) -> Optional[str]:
+        """
+        Resolve an import statement to a module ID.
+
+        This is a simplified heuristic for Python imports.
+        """
+        if not import_path or not self.policy:
+            return None
+
+        # Convert dotted import to path (e.g., 'services.auth' -> 'services/auth')
+        import_as_path = import_path.replace('.', '/')
+
+        # Try to match against module owns_paths
+        for module_id, module_config in self.policy["modules"].items():
+            owns_paths = module_config.get("owns_paths", [])
+            for pattern in owns_paths:
+                # Remove wildcards for prefix matching
+                path_prefix = pattern.replace('/**', '').replace('/*', '')
+                if import_as_path.startswith(path_prefix):
+                    return module_id
+
+        return None
+
 
 def main():
     """Main entry point."""
     if len(sys.argv) < 2:
-        print("Usage: python3 python_scanner.py <directory>", file=sys.stderr)
+        print("Usage: python3 python_scanner.py <directory> [policy.json]", file=sys.stderr)
         print("", file=sys.stderr)
         print("Outputs JSON conforming to ../docs/schemas/scanner-output.schema.json", file=sys.stderr)
+        print("", file=sys.stderr)
+        print("Options:", file=sys.stderr)
+        print("  policy.json  Optional path to lexmap.policy.json for module resolution", file=sys.stderr)
         sys.exit(1)
 
     directory = sys.argv[1]
+    policy_path = sys.argv[2] if len(sys.argv) > 2 else None
 
     if not os.path.isdir(directory):
         print(f"Error: {directory} is not a directory", file=sys.stderr)
         sys.exit(1)
 
-    scanner = PythonScanner(directory)
+    scanner = PythonScanner(directory, policy_path)
     output = scanner.scan()
 
     # Output JSON to stdout

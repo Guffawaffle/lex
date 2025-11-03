@@ -5,9 +5,7 @@
  * Combines scanner outputs from multiple language scanners into a single unified view.
  *
  * Usage:
- *     node lexmap-merge.ts <scanner1.json> <scanner2.json> ... [-o output.json]
- *     node lexmap-merge.ts scan1.json scan2.json > merged.json
- *     node lexmap-merge.ts scan1.json scan2.json -o merged.json
+ *     lexmap merge scanner1.json scanner2.json ... > merged.json
  *
  * Philosophy:
  *     This tool MERGES scanner outputs, it does NOT enforce policy.
@@ -15,11 +13,9 @@
  *
  * Flow:
  *     1. Read all scanner output JSON files
- *     2. Validate each against expected structure
+ *     2. Validate each against scanner-output.schema.json
  *     3. Merge file lists (deduplicating by path)
- *     4. Deduplicate cross-module call edges
- *     5. Aggregate feature flag and permission observations
- *     6. Output unified merged.json
+ *     4. Output unified scanner-output.json
  *
  * Next Step:
  *     Feed merged output to policy checker which:
@@ -33,64 +29,138 @@
 
 import * as fs from "fs";
 import * as path from "path";
-import { mergeScans, validateScanOutputs } from "./merge.js";
-import type { ScanResult } from "./types.js";
 
-function parseArgs(args: string[]): { inputs: string[]; output?: string } {
-  const inputs: string[] = [];
-  let output: string | undefined;
-  let i = 0;
+interface Declaration {
+  type: string;
+  name: string;
+  namespace?: string;
+}
 
-  while (i < args.length) {
-    const arg = args[i];
-    
-    if (arg === '-o' || arg === '--output') {
-      // Next argument is output file
-      if (i + 1 >= args.length) {
-        console.error(`Error: ${arg} flag requires a filename argument`);
+interface Import {
+  from: string;
+  type: string;
+  imported?: string[];
+  alias?: string | null;
+}
+
+interface FileData {
+  path: string;
+  module_scope?: string;
+  declarations: Declaration[];
+  imports: Import[];
+  feature_flags: string[];
+  permissions: string[];
+  warnings: string[];
+}
+
+interface ModuleEdge {
+  from_module: string;
+  to_module: string;
+  from_file: string;
+  import_statement: string;
+}
+
+interface ScannerOutput {
+  language: string;
+  files: FileData[];
+  module_edges?: ModuleEdge[];
+}
+
+interface MergedOutput {
+  sources: string[];
+  files: FileData[];
+  module_edges: ModuleEdge[];
+}
+
+class LexMapMerge {
+  private scannerOutputs: ScannerOutput[] = [];
+  private fileMap: Map<string, FileData> = new Map();
+  private moduleEdges: ModuleEdge[] = [];
+
+  loadScanner(filePath: string): void {
+    try {
+      const content = fs.readFileSync(filePath, "utf-8");
+      const data: ScannerOutput = JSON.parse(content);
+
+      // Basic validation
+      if (!data.language || !Array.isArray(data.files)) {
+        console.error(
+          `Error: ${filePath} does not conform to scanner-output.schema.json`
+        );
         process.exit(1);
       }
-      output = args[i + 1];
-      i += 2;
-    } else if (arg.startsWith('-')) {
-      console.error(`Error: Unknown flag: ${arg}`);
+
+      this.scannerOutputs.push(data);
+      console.error(
+        `Loaded scanner output: ${filePath} (${data.language}, ${data.files.length} files)`
+      );
+    } catch (error) {
+      console.error(`Error loading ${filePath}:`, error);
       process.exit(1);
-    } else {
-      // Input file
-      inputs.push(arg);
-      i++;
     }
   }
 
-  return { inputs, output };
-}
+  merge(): MergedOutput {
+    const sources: string[] = [];
 
-function loadScannerOutput(filePath: string): ScanResult {
-  try {
-    const content = fs.readFileSync(filePath, "utf-8");
-    const data: ScanResult = JSON.parse(content);
+    // Collect all files, deduplicating by path
+    for (const scanner of this.scannerOutputs) {
+      sources.push(scanner.language);
 
-    // Basic validation
-    if (!data.language || !Array.isArray(data.files)) {
-      console.error(
-        `Error: ${filePath} does not conform to expected scanner output format`
-      );
-      console.error(`Expected: { "language": "...", "files": [...] }`);
-      process.exit(1);
+      // Merge module edges
+      if (scanner.module_edges) {
+        this.moduleEdges.push(...scanner.module_edges);
+      }
+
+      for (const file of scanner.files) {
+        const existingFile = this.fileMap.get(file.path);
+
+        if (existingFile) {
+          // File already seen - merge metadata
+          // This shouldn't happen often (different scanners for different languages)
+          // but handle it gracefully
+          console.error(
+            `Warning: File ${file.path} appears in multiple scanner outputs`
+          );
+
+          // Prefer module_scope from scanner if it exists
+          if (file.module_scope && !existingFile.module_scope) {
+            existingFile.module_scope = file.module_scope;
+          }
+
+          // Merge arrays (deduplicate)
+          existingFile.feature_flags = [
+            ...new Set([...existingFile.feature_flags, ...file.feature_flags]),
+          ].sort();
+          existingFile.permissions = [
+            ...new Set([...existingFile.permissions, ...file.permissions]),
+          ].sort();
+          existingFile.warnings = [
+            ...new Set([...existingFile.warnings, ...file.warnings]),
+          ];
+        } else {
+          // New file - add to map
+          this.fileMap.set(file.path, file);
+        }
+      }
     }
 
-    console.error(
-      `Loaded scanner output: ${filePath} (${data.language}, ${data.files.length} files)`
-    );
-    
-    return data;
-  } catch (error) {
-    if (error instanceof Error) {
-      console.error(`Error loading ${filePath}: ${error.message}`);
-    } else {
-      console.error(`Error loading ${filePath}:`, error);
+    // Deduplicate module edges based on from_module, to_module, and import_statement
+    const edgeMap = new Map<string, ModuleEdge>();
+    for (const edge of this.moduleEdges) {
+      const key = `${edge.from_module}:${edge.to_module}:${edge.import_statement}`;
+      if (!edgeMap.has(key)) {
+        edgeMap.set(key, edge);
+      }
     }
-    process.exit(1);
+
+    return {
+      sources,
+      files: Array.from(this.fileMap.values()).sort((a, b) =>
+        a.path.localeCompare(b.path)
+      ),
+      module_edges: Array.from(edgeMap.values()),
+    };
   }
 }
 
@@ -98,95 +168,38 @@ function main() {
   const args = process.argv.slice(2);
 
   if (args.length < 1) {
-    console.error("Usage: node lexmap-merge.ts <scanner1.json> <scanner2.json> ... [-o output.json]");
+    console.error(
+      "Usage: lexmap merge <scanner1.json> <scanner2.json> ... > merged.json"
+    );
     console.error("");
     console.error("Combines scanner outputs from multiple language scanners.");
-    console.error("Output format is versioned and includes deduplicated edges.");
+    console.error("Output conforms to scanner-output.schema.json structure.");
     console.error("");
-    console.error("Options:");
-    console.error("  -o, --output FILE    Write output to FILE instead of stdout");
-    console.error("");
-    console.error("Examples:");
-    console.error("  # Merge to stdout");
-    console.error("  node lexmap-merge.ts php.json ts.json > merged.json");
-    console.error("");
-    console.error("  # Merge to file");
-    console.error("  node lexmap-merge.ts php.json ts.json -o merged.json");
-    console.error("");
-    console.error("  # Full workflow");
+    console.error("Example:");
     console.error("  python3 php_scanner.py app/ > php.json");
     console.error("  node ts_scanner.ts ui/ > ts.json");
-    console.error("  node lexmap-merge.ts php.json ts.json -o merged.json");
+    console.error("  lexmap merge php.json ts.json > merged.json");
     process.exit(1);
   }
 
-  const { inputs, output } = parseArgs(args);
-
-  if (inputs.length === 0) {
-    console.error("Error: No input files specified");
-    process.exit(1);
-  }
+  const merger = new LexMapMerge();
 
   // Load all scanner outputs
-  const scannerOutputs: ScanResult[] = [];
-  for (const scannerFile of inputs) {
+  for (const scannerFile of args) {
     if (!fs.existsSync(scannerFile)) {
       console.error(`Error: File not found: ${scannerFile}`);
       process.exit(1);
     }
-    scannerOutputs.push(loadScannerOutput(scannerFile));
+    merger.loadScanner(scannerFile);
   }
 
-  // Validate scanner outputs
-  const validation = validateScanOutputs(scannerOutputs);
-  if (!validation.valid) {
-    console.error("Error: Invalid scanner outputs:");
-    for (const error of validation.errors) {
-      console.error(`  - ${error}`);
-    }
-    process.exit(1);
-  }
+  // Merge and output
+  const merged = merger.merge();
 
-  // Merge scanner outputs
-  try {
-    const merged = mergeScans(scannerOutputs);
-
-    // Output result
-    const outputJson = JSON.stringify(merged, null, 2);
-    
-    if (output) {
-      // Write to file
-      fs.writeFileSync(output, outputJson, "utf-8");
-      console.error(
-        `\nMerged ${merged.files.length} files from ${merged.sources.length} scanners → ${output}`
-      );
-      if (merged.warnings.length > 0) {
-        console.error(`\nWarnings:`);
-        for (const warning of merged.warnings) {
-          console.error(`  - ${warning}`);
-        }
-      }
-    } else {
-      // Write to stdout
-      console.log(outputJson);
-      console.error(
-        `\nMerged ${merged.files.length} files from ${merged.sources.length} scanners`
-      );
-      if (merged.warnings.length > 0) {
-        console.error(`\nWarnings:`);
-        for (const warning of merged.warnings) {
-          console.error(`  - ${warning}`);
-        }
-      }
-    }
-  } catch (error) {
-    if (error instanceof Error) {
-      console.error(`\nError during merge: ${error.message}`);
-    } else {
-      console.error(`\nError during merge:`, error);
-    }
-    process.exit(1);
-  }
+  console.log(JSON.stringify(merged, null, 2));
+  console.error(
+    `\nMerged ${merged.files.length} files from ${merged.sources.length} scanners`
+  );
 }
 
 main();

@@ -4,8 +4,9 @@
   "description": "Code scanners (TypeScript, Python, PHP)",
   "type": "module",
   "dependencies": {
-    "typescript": "^5.0.0",
-    "glob": "^10.0.0"
+    "glob": "^10.0.0",
+    "minimatch": "^10.1.1",
+    "typescript": "^5.0.0"
   },
   "license": "MIT"
 }
