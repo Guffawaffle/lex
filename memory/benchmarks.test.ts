@@ -298,7 +298,7 @@ describe("Performance Benchmarks", () => {
   });
 
   describe("Memory Card Rendering Benchmark", () => {
-    test(`should render memory card in <${THRESHOLDS.MEMORY_CARD_RENDER}ms`, () => {
+    test(`should render memory card in <${THRESHOLDS.MEMORY_CARD_RENDER}ms`, async () => {
       const complexFrame: Frame = {
         id: "render-001",
         timestamp: new Date().toISOString(),
@@ -334,8 +334,8 @@ describe("Performance Benchmarks", () => {
         permissions: ["can_render", "can_benchmark"],
       };
 
-      const time = measureTime(() => {
-        renderMemoryCard(complexFrame);
+      const time = await measureTimeAsync(async () => {
+        await renderMemoryCard(complexFrame);
       });
 
       console.log(`  Memory card rendering time: ${time.toFixed(2)}ms`);
@@ -345,7 +345,7 @@ describe("Performance Benchmarks", () => {
       );
     });
 
-    test("should render multiple cards efficiently", () => {
+    test("should render multiple cards efficiently", async () => {
       const frames = Array.from({ length: 10 }, (_, i) => {
         const frame = createTestFrame(`render-batch-${i}`);
         return {
@@ -358,8 +358,10 @@ describe("Performance Benchmarks", () => {
         };
       });
 
-      const time = measureTime(() => {
-        frames.forEach((f) => renderMemoryCard(f));
+      const time = await measureTimeAsync(async () => {
+        for (const f of frames) {
+          await renderMemoryCard(f);
+        }
       });
 
       const avgTime = time / frames.length;
@@ -372,7 +374,7 @@ describe("Performance Benchmarks", () => {
       );
     });
 
-    test("should handle minimal frame rendering", () => {
+    test("should handle minimal frame rendering", async () => {
       const minimalFrame: Frame = {
         id: "render-minimal",
         timestamp: new Date().toISOString(),
@@ -385,8 +387,8 @@ describe("Performance Benchmarks", () => {
         },
       };
 
-      const time = measureTime(() => {
-        renderMemoryCard(minimalFrame);
+      const time = await measureTimeAsync(async () => {
+        await renderMemoryCard(minimalFrame);
       });
 
       console.log(`  Minimal frame rendering time: ${time.toFixed(2)}ms`);
@@ -398,7 +400,7 @@ describe("Performance Benchmarks", () => {
   });
 
   describe("Combined Operations Benchmark", () => {
-    test("should handle full lifecycle (create → store → search → render) efficiently", () => {
+    test("should handle full lifecycle (create → store → search → render) efficiently", async () => {
       const frame = createTestFrame("lifecycle-bench");
 
       let totalTime = 0;
@@ -419,8 +421,8 @@ describe("Performance Benchmarks", () => {
       });
 
       // Render
-      totalTime += measureTime(() => {
-        renderMemoryCard(frame);
+      totalTime += await measureTimeAsync(async () => {
+        await renderMemoryCard(frame);
       });
 
       console.log(`  Full lifecycle time: ${totalTime.toFixed(2)}ms`);
@@ -433,12 +435,12 @@ describe("Performance Benchmarks", () => {
       deleteFrame(db, frame.id);
     });
 
-    test("should handle batch operations efficiently", () => {
+    test("should handle batch operations efficiently", async () => {
       const frames = Array.from({ length: 50 }, (_, i) =>
         createTestFrame(`batch-${i}`)
       );
 
-      const time = measureTime(() => {
+      const time = await measureTimeAsync(async () => {
         // Store all
         frames.forEach((f) => saveFrame(db, f));
 
@@ -449,7 +451,9 @@ describe("Performance Benchmarks", () => {
         getAllFrames(db, 10);
 
         // Render subset
-        frames.slice(0, 5).forEach((f) => renderMemoryCard(f));
+        for (const f of frames.slice(0, 5)) {
+          await renderMemoryCard(f);
+        }
       });
 
       console.log(`  Batch operations time (50 frames): ${time.toFixed(2)}ms`);
