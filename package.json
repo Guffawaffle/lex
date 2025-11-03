@@ -12,7 +12,7 @@
   "scripts": {
     "remember": "node memory/mcp_server/frame-mcp.mjs",
     "check": "node policy/check/lexmap-check.ts",
-    "build": "npm run build:types && npm run build:module-ids && npm run build:policy && npm run build:atlas && npm run build:git && npm run build:merge && npm run build:check && npm run build:store && npm run build:renderer && npm run build:mcp-server",
+    "build": "npm run build:types && npm run build:module-ids && npm run build:policy && npm run build:atlas && npm run build:git && npm run build:merge && npm run build:check && npm run build:store && npm run build:renderer && npm run build:mcp-server && npm run build:cli",
     "build:types": "cd shared/types && npx tsc",
     "build:module-ids": "cd shared/module_ids && npx tsc",
     "build:policy": "cd shared/policy && npx tsc",
@@ -23,7 +23,8 @@
     "build:store": "cd memory/store && npx tsc",
     "build:renderer": "cd memory/renderer && npm run build",
     "build:mcp-server": "cd memory/mcp_server && npm run build",
-    "test": "npm run test:module-ids && npm run test:policy && npm run test:atlas && npm run test:git && npm run test:merge && npm run test:check && npm run test:store && npm run test:renderer && npm run test:mcp-server",
+    "build:cli": "cd shared/cli && npx tsc",
+    "test": "npm run test:module-ids && npm run test:policy && npm run test:atlas && npm run test:git && npm run test:merge && npm run test:check && npm run test:store && npm run test:renderer && npm run test:mcp-server && npm run test:cli",
     "test:module-ids": "cd shared/module_ids && node validator.test.mjs",
     "test:policy": "cd shared/policy && node loader.test.mjs",
     "test:atlas": "cd shared/atlas && node atlas-frame.test.mjs",
@@ -33,16 +34,28 @@
     "test:store": "cd memory/store && npm test",
     "test:renderer": "cd memory/renderer && npm test",
     "test:mcp-server": "cd memory/mcp_server && npm test",
+    "test:cli": "cd shared/cli && npm test",
     "test:integration": "npm run test:integration:memory && npm run test:integration:policy",
     "test:integration:memory": "cd memory && npx tsx --test integration.test.ts",
     "test:integration:policy": "cd policy && node integration.test.mjs",
     "test:benchmarks": "cd memory && npx tsx --test benchmarks.test.ts",
     "test:all": "npm test && npm run test:integration"
   },
-  "keywords": ["memory", "policy", "continuity", "mcp"],
+  "bin": {
+    "lex": "./shared/cli/dist/shared/cli/lex.js"
+  },
+  "keywords": [
+    "memory",
+    "policy",
+    "continuity",
+    "mcp"
+  ],
   "author": "Guffawaffle",
   "license": "MIT",
   "engines": {
     "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "zod": "^4.1.12"
   }
 }
