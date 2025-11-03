@@ -1,0 +1,18 @@
+{
+  "name": "@lex/git",
+  "version": "0.1.0-alpha",
+  "description": "Git utilities for Lex",
+  "type": "module",
+  "main": "./dist/branch.js",
+  "types": "./dist/branch.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "test": "npm run build && node --test dist/branch.test.js"
+  },
+  "devDependencies": {
+    "@types/node": "^24.9.2",
+    "typescript": "^5.9.3"
+  },
+  "license": "MIT"
+}
