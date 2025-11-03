@@ -41,6 +41,9 @@
     "test:benchmarks": "cd memory && npx tsx --test benchmarks.test.ts",
     "test:all": "npm test && npm run test:integration"
   },
+  "bin": {
+    "lex": "./shared/cli/dist/shared/cli/lex.js"
+  },
   "keywords": [
     "memory",
     "policy",
