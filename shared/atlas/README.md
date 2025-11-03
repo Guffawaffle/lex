@@ -183,6 +183,43 @@ All 16 tests passing.
 - Optimize coordinate generation for very large graphs (> 100 modules)
 - Support different layout algorithms (hierarchical, circular, etc.)
 
+## Usage
+
+```typescript
+import { computeFoldRadius, Policy } from './shared/atlas/index.js';
+
+// Load your policy
+const policy: Policy = {
+  modules: {
+    "ui/user-admin-panel": {
+      coords: [0, 2],
+      allowed_callers: [],
+      forbidden_callers: ["services/auth-core"],
+      feature_flags: ["beta_user_admin"],
+      requires_permissions: ["can_manage_users"],
+    },
+    "services/user-access-api": {
+      coords: [1, 2],
+      allowed_callers: ["ui/user-admin-panel"],
+    },
+    // ... more modules
+  },
+};
+
+// Compute fold radius
+const atlasFrame = computeFoldRadius(
+  ["ui/user-admin-panel"],  // seed modules
+  1,                         // fold radius
+  policy
+);
+
+// Use the result
+console.log(`Found ${atlasFrame.modules.length} modules in neighborhood`);
+console.log(`With ${atlasFrame.edges.length} edges`);
+```
+
+See `demo.ts` for more examples.
+
 ---
 
 **Status:** ✅ **Fully Implemented** (as of PR #31)
