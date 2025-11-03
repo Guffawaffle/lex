@@ -1,8 +1,19 @@
-// NOTE: This implementation conforms to shared/types/FRAME.md schema
-// FrameRow interface maps all canonical Frame fields to SQLite storage
-// This file originated from LexBrain packages/server/src/db.ts (pre-merge)
+// Legacy class-based API for Frame storage
+// Wraps the new modular implementation (db.ts, queries.ts, index.ts)
+// This provides backward compatibility while using the new modular code internally
 
 import Database from "better-sqlite3";
+import { createDatabase } from "./db.js";
+import {
+  saveFrame as save,
+  getFrameById as getById,
+  searchFrames as search,
+  deleteFrame as remove,
+  getFramesByBranch,
+  getFramesByJira,
+  getAllFrames,
+} from "./queries.js";
+import type { Frame } from "../frames/types.js";
 
 export interface FrameRow {
   id: string;
@@ -15,11 +26,23 @@ export interface FrameRow {
   status_snapshot: string; // JSON stringified object
   keywords: string | null; // JSON stringified array
   atlas_frame_id: string | null;
-  image_ids: string | null; // JSON stringified array
 }
 
 /**
  * Frame storage manager using SQLite
+ *
+ * @deprecated Use the modular API from index.ts instead
+ * @example
+ * ```typescript
+ * // Old API (still works)
+ * const store = new FrameStore('/path/to/db');
+ * store.insertFrame(frame);
+ * 
+ * // New API (recommended)
+ * import { getDb, saveFrame } from '@lex/store';
+ * const db = getDb('/path/to/db');
+ * saveFrame(db, frame);
+ * ```
  *
  * Frames are stored locally with full-text search on reference_point for fuzzy recall.
  * No telemetry. No cloud sync.
@@ -28,155 +51,34 @@ export class FrameStore {
   private db: Database.Database;
 
   constructor(dbPath: string) {
-    this.db = new Database(dbPath);
-    this.initialize();
-  }
-
-  private initialize() {
-    // Set SQLite pragmas for performance
-    this.db.pragma("journal_mode = WAL");
-    this.db.pragma("busy_timeout = 5000");
-    this.db.pragma("synchronous = NORMAL");
-    this.db.pragma("cache_size = 10000");
-    this.db.pragma("foreign_keys = ON");
-
-    // Create frames table
-    this.db.exec(`
-      CREATE TABLE IF NOT EXISTS frames (
-        id TEXT PRIMARY KEY,
-        timestamp TEXT NOT NULL,
-        branch TEXT NOT NULL,
-        jira TEXT,
-        module_scope TEXT NOT NULL,
-        summary_caption TEXT NOT NULL,
-        reference_point TEXT NOT NULL,
-        status_snapshot TEXT NOT NULL,
-        keywords TEXT,
-        atlas_frame_id TEXT,
-        image_ids TEXT
-      );
-    `);
-
-    // Create FTS5 virtual table for fuzzy search on reference_point
-    this.db.exec(`
-      CREATE VIRTUAL TABLE IF NOT EXISTS frames_fts USING fts5(
-        reference_point,
-        summary_caption,
-        keywords,
-        content='frames',
-        content_rowid='rowid'
-      );
-    `);
-
-    // Create triggers to keep FTS index in sync
-    this.db.exec(`
-      CREATE TRIGGER IF NOT EXISTS frames_ai AFTER INSERT ON frames BEGIN
-        INSERT INTO frames_fts(rowid, reference_point, summary_caption, keywords)
-        VALUES (new.rowid, new.reference_point, new.summary_caption, new.keywords);
-      END;
-    `);
-
-    this.db.exec(`
-      CREATE TRIGGER IF NOT EXISTS frames_ad AFTER DELETE ON frames BEGIN
-        DELETE FROM frames_fts WHERE rowid = old.rowid;
-      END;
-    `);
-
-    this.db.exec(`
-      CREATE TRIGGER IF NOT EXISTS frames_au AFTER UPDATE ON frames BEGIN
-        UPDATE frames_fts
-        SET reference_point = new.reference_point,
-            summary_caption = new.summary_caption,
-            keywords = new.keywords
-        WHERE rowid = new.rowid;
-      END;
-    `);
-
-    // Create indexes
-    this.db.exec(`
-      CREATE INDEX IF NOT EXISTS idx_frames_timestamp ON frames(timestamp DESC);
-    `);
-
-    this.db.exec(`
-      CREATE INDEX IF NOT EXISTS idx_frames_branch ON frames(branch);
-    `);
-
-    this.db.exec(`
-      CREATE INDEX IF NOT EXISTS idx_frames_jira ON frames(jira);
-    `);
-
-    // Create images table for Frame attachments
-    this.db.exec(`
-      CREATE TABLE IF NOT EXISTS images (
-        image_id TEXT PRIMARY KEY,
-        frame_id TEXT NOT NULL,
-        mime_type TEXT NOT NULL,
-        data BLOB NOT NULL,
-        created_at INTEGER NOT NULL,
-        FOREIGN KEY (frame_id) REFERENCES frames(id) ON DELETE CASCADE
-      );
-    `);
-
-    // Create index for frame_id to efficiently list images by frame
-    this.db.exec(`
-      CREATE INDEX IF NOT EXISTS idx_images_frame_id ON images(frame_id);
-    `);
+    this.db = createDatabase(dbPath);
   }
 
   /**
    * Insert or update a Frame
+   * @deprecated Use saveFrame from the modular API
    */
   insertFrame(frame: any): boolean {
-    const stmt = this.db.prepare(`
-      INSERT OR REPLACE INTO frames (
-        id, timestamp, branch, jira, module_scope, summary_caption,
-        reference_point, status_snapshot, keywords, atlas_frame_id, image_ids
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-
-    const result = stmt.run(
-      frame.id,
-      frame.timestamp,
-      frame.branch,
-      frame.jira || null,
-      JSON.stringify(frame.module_scope),
-      frame.summary_caption,
-      frame.reference_point,
-      JSON.stringify(frame.status_snapshot),
-      frame.keywords ? JSON.stringify(frame.keywords) : null,
-      frame.atlas_frame_id || null,
-      frame.image_ids ? JSON.stringify(frame.image_ids) : null
-    );
-
-    return result.changes > 0;
+    try {
+      save(this.db, frame as Frame);
+      return true;
+    } catch (error) {
+      console.error("Failed to insert frame:", error);
+      return false;
+    }
   }
 
   /**
    * Retrieve Frame by ID
+   * @deprecated Use getFrameById from the modular API
    */
   getFrameById(id: string): any | null {
-    const stmt = this.db.prepare("SELECT * FROM frames WHERE id = ?");
-    const row = stmt.get(id) as FrameRow | undefined;
-
-    if (!row) return null;
-
-    return {
-      id: row.id,
-      timestamp: row.timestamp,
-      branch: row.branch,
-      jira: row.jira,
-      module_scope: JSON.parse(row.module_scope),
-      summary_caption: row.summary_caption,
-      reference_point: row.reference_point,
-      status_snapshot: JSON.parse(row.status_snapshot),
-      keywords: row.keywords ? JSON.parse(row.keywords) : undefined,
-      atlas_frame_id: row.atlas_frame_id,
-      image_ids: row.image_ids ? JSON.parse(row.image_ids) : undefined,
-    };
+    return getById(this.db, id);
   }
 
   /**
    * Search Frames with FTS and optional filters
+   * @deprecated Use searchFrames, getFramesByBranch, or getFramesByJira from the modular API
    */
   searchFrames(query: {
     reference_point?: string;
@@ -184,88 +86,27 @@ export class FrameStore {
     branch?: string;
     limit?: number;
   }): any[] {
-    let sql: string;
-    const params: any[] = [];
-
     if (query.reference_point) {
-      // FTS fuzzy search on reference_point
-      sql = `
-        SELECT f.*
-        FROM frames f
-        JOIN frames_fts fts ON f.rowid = fts.rowid
-        WHERE frames_fts MATCH ?
-      `;
-      params.push(query.reference_point);
-
-      if (query.jira) {
-        sql += " AND f.jira = ?";
-        params.push(query.jira);
-      }
-
-      if (query.branch) {
-        sql += " AND f.branch = ?";
-        params.push(query.branch);
-      }
-
-      sql += " ORDER BY f.timestamp DESC";
-    } else {
-      // Non-FTS query
-      sql = "SELECT * FROM frames WHERE 1=1";
-
-      if (query.jira) {
-        sql += " AND jira = ?";
-        params.push(query.jira);
-      }
-
-      if (query.branch) {
-        sql += " AND branch = ?";
-        params.push(query.branch);
-      }
-
-      sql += " ORDER BY timestamp DESC";
+      return search(this.db, query.reference_point);
     }
-
-    if (query.limit) {
-      sql += " LIMIT ?";
-      params.push(query.limit);
+    
+    if (query.jira) {
+      return getFramesByJira(this.db, query.jira);
     }
-
-    const stmt = this.db.prepare(sql);
-    const rows = stmt.all(...params) as FrameRow[];
-
-    return rows.map((row) => ({
-      id: row.id,
-      timestamp: row.timestamp,
-      branch: row.branch,
-      jira: row.jira,
-      module_scope: JSON.parse(row.module_scope),
-      summary_caption: row.summary_caption,
-      reference_point: row.reference_point,
-      status_snapshot: JSON.parse(row.status_snapshot),
-      keywords: row.keywords ? JSON.parse(row.keywords) : undefined,
-      atlas_frame_id: row.atlas_frame_id,
-      image_ids: row.image_ids ? JSON.parse(row.image_ids) : undefined,
-    }));
+    
+    if (query.branch) {
+      return getFramesByBranch(this.db, query.branch);
+    }
+    
+    return getAllFrames(this.db, query.limit);
   }
 
   /**
-   * Delete a Frame by ID
-   * This will cascade to delete associated images via foreign key constraint
-   *
-   * @param id - Frame ID to delete
-   * @returns True if Frame was deleted, false if not found
+   * Delete Frame by ID
+   * @deprecated Use deleteFrame from the modular API
    */
   deleteFrame(id: string): boolean {
-    const stmt = this.db.prepare("DELETE FROM frames WHERE id = ?");
-    const result = stmt.run(id);
-    return result.changes > 0;
-  }
-
-  /**
-   * Get database instance for use by other managers (e.g., ImageManager)
-   */
-  getDatabase(): Database.Database {
-    return this.db;
+    return remove(this.db, id);
   }
 
   /**
@@ -275,3 +116,4 @@ export class FrameStore {
     this.db.close();
   }
 }
+
