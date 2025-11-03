@@ -1,12 +1,12 @@
 /**
  * Policy Violation Reporting
- * 
+ *
  * Formats and outputs policy violations for human reading and CI/CD integration.
  */
 
 import { Violation } from './violations.js';
-import { Policy } from '@lex/types/policy';
-import { generateAtlasFrame, formatAtlasFrame } from '@lex/atlas';
+import type { Policy } from '../../shared/types/policy.js';
+import { generateAtlasFrame, formatAtlasFrame } from '../../shared/atlas/atlas-frame.js';
 
 /**
  * Report format options
@@ -19,14 +19,14 @@ export type ReportFormat = 'text' | 'json' | 'markdown';
 export interface ReportResult {
   /** Exit code: 0=clean, 1=violations, 2=error */
   exitCode: 0 | 1 | 2;
-  
+
   /** Formatted report content */
   content: string;
 }
 
 /**
  * Generate a violation report
- * 
+ *
  * @param violations - List of violations to report
  * @param policy - Policy for Atlas Frame context
  * @param format - Output format (text, json, or markdown)
@@ -40,7 +40,7 @@ export function generateReport(
   strict: boolean = false
 ): ReportResult {
   const exitCode = violations.length > 0 ? 1 : 0;
-  
+
   let content: string;
   switch (format) {
     case 'json':
@@ -54,7 +54,7 @@ export function generateReport(
       content = formatAsText(violations, policy);
       break;
   }
-  
+
   return {
     exitCode,
     content,
@@ -68,15 +68,15 @@ function formatAsText(violations: Violation[], policy: Policy): string {
   if (violations.length === 0) {
     return '✅ No violations found\n';
   }
-  
+
   let output = `❌ Found ${violations.length} violation(s):\n\n`;
-  
+
   // Group violations by module for better context
   const byModule = groupViolationsByModule(violations);
-  
+
   for (const [moduleId, moduleViolations] of Object.entries(byModule)) {
     output += `📦 Module: ${moduleId}\n`;
-    
+
     // Include Atlas Frame context with error handling
     try {
       const atlasFrame = generateAtlasFrame([moduleId], 1);
@@ -86,7 +86,7 @@ function formatAsText(violations: Violation[], policy: Policy): string {
       // If Atlas Frame generation fails, continue without it
       output += `\n⚠️  Atlas Frame context unavailable\n`;
     }
-    
+
     for (const violation of moduleViolations) {
       output += `\n  ❌ ${formatViolationType(violation.type)}\n`;
       output += `     File: ${violation.file}\n`;
@@ -101,10 +101,10 @@ function formatAsText(violations: Violation[], policy: Policy): string {
         output += `     Import: ${violation.import_from}\n`;
       }
     }
-    
+
     output += '\n';
   }
-  
+
   return output;
 }
 
@@ -126,13 +126,13 @@ function formatAsMarkdown(violations: Violation[], policy: Policy): string {
   if (violations.length === 0) {
     return '# Policy Check Report\n\n✅ **No violations found**\n';
   }
-  
+
   let output = '# Policy Check Report\n\n';
   output += `**Status:** ❌ ${violations.length} violation(s) found\n\n`;
-  
+
   // Group violations by type
   const byType = groupViolationsByType(violations);
-  
+
   output += '## Summary\n\n';
   output += '| Violation Type | Count |\n';
   output += '|----------------|-------|\n';
@@ -140,14 +140,14 @@ function formatAsMarkdown(violations: Violation[], policy: Policy): string {
     output += `| ${formatViolationType(type)} | ${typeViolations.length} |\n`;
   }
   output += '\n';
-  
+
   // Detailed violations by module
   output += '## Violations by Module\n\n';
   const byModule = groupViolationsByModule(violations);
-  
+
   for (const [moduleId, moduleViolations] of Object.entries(byModule)) {
     output += `### 📦 Module: \`${moduleId}\`\n\n`;
-    
+
     // Include Atlas Frame context with error handling
     try {
       const atlasFrame = generateAtlasFrame([moduleId], 1);
@@ -158,7 +158,7 @@ function formatAsMarkdown(violations: Violation[], policy: Policy): string {
     } catch (error) {
       output += '**Atlas Frame Context:** ⚠️ Unavailable\n\n';
     }
-    
+
     // List violations
     for (const violation of moduleViolations) {
       output += `- **${formatViolationType(violation.type)}**\n`;
@@ -176,13 +176,13 @@ function formatAsMarkdown(violations: Violation[], policy: Policy): string {
       output += '\n';
     }
   }
-  
+
   output += '## Recommendations\n\n';
   output += '1. Review each violation and update code to comply with policy\n';
   output += '2. Update `lexmap.policy.json` if architectural boundaries have changed\n';
   output += '3. Run `lexmap check` again after fixes\n';
   output += '\n';
-  
+
   return output;
 }
 
@@ -191,14 +191,14 @@ function formatAsMarkdown(violations: Violation[], policy: Policy): string {
  */
 function groupViolationsByModule(violations: Violation[]): Record<string, Violation[]> {
   const groups: Record<string, Violation[]> = {};
-  
+
   for (const violation of violations) {
     if (!groups[violation.module]) {
       groups[violation.module] = [];
     }
     groups[violation.module].push(violation);
   }
-  
+
   return groups;
 }
 
@@ -207,14 +207,14 @@ function groupViolationsByModule(violations: Violation[]): Record<string, Violat
  */
 function groupViolationsByType(violations: Violation[]): Record<string, Violation[]> {
   const groups: Record<string, Violation[]> = {};
-  
+
   for (const violation of violations) {
     if (!groups[violation.type]) {
       groups[violation.type] = [];
     }
     groups[violation.type].push(violation);
   }
-  
+
   return groups;
 }
 
@@ -229,13 +229,13 @@ function formatViolationType(type: string): string {
     permission: 'Permission Violation',
     kill_pattern: 'Kill Pattern Violation',
   };
-  
+
   return typeMap[type] || type;
 }
 
 /**
  * Print a report to console
- * 
+ *
  * @param violations - List of violations
  * @param policy - Policy for context
  * @param format - Output format
@@ -251,7 +251,7 @@ export function printReport(
 
 /**
  * Get exit code for violations
- * 
+ *
  * @param violations - List of violations
  * @returns Exit code: 0=clean, 1=violations
  */
