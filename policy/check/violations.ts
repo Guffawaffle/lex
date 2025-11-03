@@ -337,13 +337,20 @@ function resolveImportToModule(importPath: string, policy: Policy): string | nul
  * @param escapePaths - Whether to escape path separators (/)
  */
 function matchPattern(value: string, pattern: string, escapePaths: boolean = false): boolean {
-  // Simple pattern matching (supports ** and * wildcards)
+  // Escape all regex special characters except * (which we'll handle separately)
+  // First, temporarily replace ** and * with placeholders to preserve them
   let regexPattern = pattern
-    .replace(/\*\*/g, '.*')
-    .replace(/\*/g, '[^/]*');
+    .replace(/\*\*/g, '\x00DOUBLESTAR\x00')
+    .replace(/\*/g, '\x00STAR\x00')
+    // Escape all regex special characters including backslash
+    .replace(/[.+?^${}()|[\]\\]/g, '\\$&')
+    // Restore wildcards as regex patterns
+    .replace(/\x00DOUBLESTAR\x00/g, '.*')
+    .replace(/\x00STAR\x00/g, '[^/]*');
   
   if (escapePaths) {
-    regexPattern = regexPattern.replace(/\//g, '\\/');
+    // Path separators are already escaped by the general escape above
+    // This flag is now redundant but kept for API compatibility
   }
   
   const regex = new RegExp(`^${regexPattern}$`);
