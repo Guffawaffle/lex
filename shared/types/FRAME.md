@@ -25,6 +25,7 @@ A Frame is a timestamped record of what you were doing, stored locally with stru
 - **`feature_flags`** (array of strings): Flags that were active during this session
 - **`permissions`** (array of strings): Permissions required for this work
 - **`tests_failing`** (array of strings): Test names that were failing
+- **`image_ids`** (array of strings): Image attachment IDs (references to stored images)
 
 ## Example
 
