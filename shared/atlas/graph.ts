@@ -243,10 +243,14 @@ export function generateCoordinates(
         
         const dx = x2 - x1;
         const dy = y2 - y1;
-        const distance = Math.sqrt(dx * dx + dy * dy) || 1;
+        const distanceSquared = dx * dx + dy * dy;
+        const distance = Math.sqrt(distanceSquared);
+        
+        // Prevent division by zero for overlapping nodes
+        if (distance < 0.01) continue;
         
         // Apply inverse-square repulsion
-        const force = repulsionStrength / (distance * distance);
+        const force = repulsionStrength / distanceSquared;
         const fx = (dx / distance) * force;
         const fy = (dy / distance) * force;
         
@@ -267,7 +271,10 @@ export function generateCoordinates(
       
       const dx = x2 - x1;
       const dy = y2 - y1;
-      const distance = Math.sqrt(dx * dx + dy * dy) || 1;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      
+      // Skip if nodes are at the same position
+      if (distance < 0.01) continue;
       
       // Spring force proportional to distance
       const force = distance * attractionStrength;

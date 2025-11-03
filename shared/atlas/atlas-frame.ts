@@ -5,7 +5,9 @@
  * Implements full policy graph traversal with N-hop neighborhood extraction.
  */
 
-// @ts-ignore - importing from compiled dist directory
+// @ts-ignore - importing from compiled dist directory (follows mcp_server pattern)
+// TypeScript compilation of cross-package dependencies is complex due to rootDir constraints.
+// The policy loader is pre-compiled to shared/policy/dist/policy/loader.js at build time.
 import { loadPolicy } from '../../../policy/dist/policy/loader.js';
 import type { PolicyModule } from '../types/policy.js';
 import { extractNeighborhood, generateCoordinates } from './graph.js';
