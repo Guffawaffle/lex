@@ -77,10 +77,15 @@ function formatAsText(violations: Violation[], policy: Policy): string {
   for (const [moduleId, moduleViolations] of Object.entries(byModule)) {
     output += `📦 Module: ${moduleId}\n`;
     
-    // Include Atlas Frame context
-    const atlasFrame = generateAtlasFrame([moduleId], 1);
-    const atlasContext = formatAtlasFrame(atlasFrame);
-    output += atlasContext;
+    // Include Atlas Frame context with error handling
+    try {
+      const atlasFrame = generateAtlasFrame([moduleId], 1);
+      const atlasContext = formatAtlasFrame(atlasFrame);
+      output += atlasContext;
+    } catch (error) {
+      // If Atlas Frame generation fails, continue without it
+      output += `\n⚠️  Atlas Frame context unavailable\n`;
+    }
     
     for (const violation of moduleViolations) {
       output += `\n  ❌ ${formatViolationType(violation.type)}\n`;
@@ -143,12 +148,16 @@ function formatAsMarkdown(violations: Violation[], policy: Policy): string {
   for (const [moduleId, moduleViolations] of Object.entries(byModule)) {
     output += `### 📦 Module: \`${moduleId}\`\n\n`;
     
-    // Include Atlas Frame context
-    const atlasFrame = generateAtlasFrame([moduleId], 1);
-    output += '**Atlas Frame Context:**\n';
-    output += '```\n';
-    output += formatAtlasFrame(atlasFrame);
-    output += '```\n\n';
+    // Include Atlas Frame context with error handling
+    try {
+      const atlasFrame = generateAtlasFrame([moduleId], 1);
+      output += '**Atlas Frame Context:**\n';
+      output += '```\n';
+      output += formatAtlasFrame(atlasFrame);
+      output += '```\n\n';
+    } catch (error) {
+      output += '**Atlas Frame Context:** ⚠️ Unavailable\n\n';
+    }
     
     // List violations
     for (const violation of moduleViolations) {

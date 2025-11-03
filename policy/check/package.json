@@ -11,7 +11,11 @@
     "build": "npx tsc",
     "test": "node check.test.mjs"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@lex/types": "0.1.0-alpha",
+    "@lex/merge": "0.1.0-alpha",
+    "@lex/atlas": "0.1.0-alpha"
+  },
   "devDependencies": {
     "typescript": "^5.0.0"
   }

@@ -330,26 +330,29 @@ function resolveImportToModule(importPath: string, policy: Policy): string | nul
 }
 
 /**
- * Match a file path against a glob pattern
+ * Match a value against a pattern (supports wildcards)
+ * 
+ * @param value - Value to match
+ * @param pattern - Pattern with wildcards (* and **)
+ * @param escapePaths - Whether to escape path separators (/)
  */
-function matchPath(filePath: string, pattern: string): boolean {
-  // Simple glob matching (** means any nested path, * means any single segment)
-  const regexPattern = pattern
+function matchPattern(value: string, pattern: string, escapePaths: boolean = false): boolean {
+  // Simple pattern matching (supports ** and * wildcards)
+  let regexPattern = pattern
     .replace(/\*\*/g, '.*')
-    .replace(/\*/g, '[^/]*')
-    .replace(/\//g, '\\/');
+    .replace(/\*/g, '[^/]*');
+  
+  if (escapePaths) {
+    regexPattern = regexPattern.replace(/\//g, '\\/');
+  }
+  
   const regex = new RegExp(`^${regexPattern}$`);
-  return regex.test(filePath);
+  return regex.test(value);
 }
 
 /**
- * Match a value against a pattern (supports wildcards)
+ * Match a file path against a glob pattern
  */
-function matchPattern(value: string, pattern: string): boolean {
-  // Simple pattern matching (supports ** and * wildcards)
-  const regexPattern = pattern
-    .replace(/\*\*/g, '.*')
-    .replace(/\*/g, '[^/]*');
-  const regex = new RegExp(`^${regexPattern}$`);
-  return regex.test(value);
+function matchPath(filePath: string, pattern: string): boolean {
+  return matchPattern(filePath, pattern, true);
 }
