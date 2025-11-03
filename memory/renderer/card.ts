@@ -1,11 +1,11 @@
 /**
  * Memory Card Renderer
- * 
+ *
  * Generates visual memory cards for Frames with embedded images.
  * Supports PNG output with inline image rendering and multiple image layouts.
  */
 
-import { createCanvas, loadImage, Canvas, Image } from "canvas";
+import { createCanvas, loadImage, Image } from "canvas";
 // @ts-ignore - importing type from compiled dist
 import type { ImageManager } from "../store/dist/images.js";
 
@@ -76,7 +76,7 @@ export class MemoryCardRenderer {
 
   /**
    * Render a Frame as a PNG memory card
-   * 
+   *
    * @param frame - Frame data to render
    * @param options - Rendering options
    * @returns PNG image buffer
@@ -280,8 +280,7 @@ export class MemoryCardRenderer {
             maxRowHeight = 0;
           }
         }
-
-        y = rowY + maxRowHeight;
+        // Note: y position not updated for grid layout as it's pre-calculated in height
       }
     }
 
@@ -292,7 +291,7 @@ export class MemoryCardRenderer {
   /**
    * Render a simple text-based memory card (no images)
    * Useful for testing without canvas dependency
-   * 
+   *
    * @param frame - Frame data to render
    * @returns Text representation
    */

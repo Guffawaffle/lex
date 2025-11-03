@@ -1,6 +1,6 @@
 /**
  * Tests for Image Manager
- * 
+ *
  * Tests image storage, retrieval, validation, and management operations.
  * Uses Node.js built-in test runner (node:test) - no external dependencies.
  */
@@ -8,7 +8,7 @@
 import { test, describe } from "node:test";
 import assert from "node:assert";
 import { FrameStore } from "./framestore.js";
-import { ImageManager, ALLOWED_MIME_TYPES, MAX_IMAGE_SIZE } from "./images.js";
+import { ImageManager, MAX_IMAGE_SIZE } from "./images.js";
 import { mkdtempSync, rmSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
