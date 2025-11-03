@@ -1,6 +1,6 @@
 /**
  * Tests for Memory Card Renderer
- * 
+ *
  * Tests visual memory card generation with embedded images.
  */
 
@@ -11,7 +11,7 @@ import { MemoryCardRenderer, type FrameData } from "./card.js";
 import { FrameStore } from "../../store/dist/framestore.js";
 // @ts-ignore - importing from compiled dist
 import { ImageManager } from "../../store/dist/images.js";
-import { mkdtempSync, rmSync, writeFileSync } from "fs";
+import { mkdtempSync, rmSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
 
@@ -138,7 +138,7 @@ describe("Memory Card Renderer", () => {
     const { renderer } = setup();
     try {
       const frame = createTestFrame();
-      
+
       const defaultCard = await renderer.renderCard(frame);
       const customCard = await renderer.renderCard(frame, {
         width: 1000,

@@ -1,4 +1,5 @@
-// TODO(merge): Adapt this to use shared/types/FRAME.md schema
+// NOTE: This implementation conforms to shared/types/FRAME.md schema
+// FrameRow interface maps all canonical Frame fields to SQLite storage
 // This file originated from LexBrain packages/server/src/db.ts (pre-merge)
 
 import Database from "better-sqlite3";
@@ -250,7 +251,7 @@ export class FrameStore {
   /**
    * Delete a Frame by ID
    * This will cascade to delete associated images via foreign key constraint
-   * 
+   *
    * @param id - Frame ID to delete
    * @returns True if Frame was deleted, false if not found
    */
