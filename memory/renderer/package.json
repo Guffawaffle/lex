@@ -1,21 +1,14 @@
 {
   "name": "@lex/renderer",
   "version": "0.1.0-alpha",
-  "description": "Memory card renderer for Frame visualization",
+  "description": "Memory card image generation (visual summary of Frame state)",
   "type": "module",
-  "main": "./dist/card.js",
-  "types": "./dist/card.d.ts",
-  "scripts": {
-    "build": "tsc",
-    "test": "npm run build && node --test dist/card.test.js"
-  },
+  "main": "index.ts",
   "dependencies": {
-    "@lex/store": "file:../store",
     "canvas": "^2.11.2"
   },
   "devDependencies": {
-    "@types/node": "^24.9.2",
-    "typescript": "^5.9.3"
+    "@types/node": "^20.0.0"
   },
   "license": "MIT"
 }
