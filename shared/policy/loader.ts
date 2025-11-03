@@ -1,13 +1,12 @@
 /**
  * Policy Loading Utility
- * 
+ *
  * Loads and caches policy from lexmap.policy.json
  * Supports custom policy path via environment variable
  */
 
 import { readFileSync, existsSync } from 'fs';
 import { resolve, dirname, join } from 'path';
-import { fileURLToPath } from 'url';
 import type { Policy } from '../types/policy.js';
 
 /**
@@ -30,7 +29,7 @@ let cachedPolicy: Policy | null = null;
  */
 function findRepoRoot(startPath: string): string {
   let currentPath = startPath;
-  
+
   while (currentPath !== dirname(currentPath)) {
     const packageJsonPath = join(currentPath, 'package.json');
     if (existsSync(packageJsonPath)) {
@@ -42,13 +41,13 @@ function findRepoRoot(startPath: string): string {
     }
     currentPath = dirname(currentPath);
   }
-  
+
   throw new Error('Could not find repository root (looking for package.json with name "lex")');
 }
 
 /**
  * Transform lexmap.policy.json format to Policy type format
- * 
+ *
  * lexmap.policy.json uses a "patterns" array, but the Policy type expects
  * modules to be a Record<string, PolicyModule>
  */
@@ -60,7 +59,7 @@ function transformPolicy(rawPolicy: any): Policy {
 
   // Transform patterns format to modules format
   const modules: Record<string, any> = {};
-  
+
   if (rawPolicy.modules?.patterns) {
     for (const pattern of rawPolicy.modules.patterns) {
       modules[pattern.name] = {
@@ -73,9 +72,9 @@ function transformPolicy(rawPolicy: any): Policy {
 
   return {
     modules,
-    // TODO: Verify semantic correctness of this transformation
-    // Currently maps kind→pattern and match→description, but might need to be reversed
-    // This doesn't affect module ID validation which only uses modules field
+    // NOTE: global_kill_patterns transformation is not currently used by module validation
+    // The kind/match fields may need verification if this feature is enabled in the future
+    // For now, this maps kind→pattern and match→description as a placeholder
     global_kill_patterns: rawPolicy.kill_patterns?.map((kp: any) => ({
       pattern: kp.kind,
       description: kp.match
@@ -85,22 +84,22 @@ function transformPolicy(rawPolicy: any): Policy {
 
 /**
  * Load policy from lexmap.policy.json
- * 
+ *
  * @param path - Optional custom policy path (defaults to policy/policy_spec/lexmap.policy.json)
  * @returns Policy object
  * @throws Error if policy file cannot be read or parsed
- * 
+ *
  * @example
  * ```typescript
  * const policy = loadPolicy();
  * console.log(Object.keys(policy.modules)); // ['indexer', 'ts', 'php', 'mcp']
  * ```
- * 
+ *
  * @example With custom path
  * ```typescript
  * const policy = loadPolicy('/custom/path/policy.json');
  * ```
- * 
+ *
  * @example With environment variable
  * ```typescript
  * process.env.LEX_POLICY_PATH = '/custom/path/policy.json';
@@ -118,7 +117,7 @@ export function loadPolicy(path?: string): Policy {
 
   try {
     let resolvedPath: string;
-    
+
     if (policyPath) {
       // Use provided path (can be absolute or relative to cwd)
       resolvedPath = resolve(policyPath);
@@ -127,7 +126,7 @@ export function loadPolicy(path?: string): Policy {
       const repoRoot = findRepoRoot(process.cwd());
       resolvedPath = join(repoRoot, DEFAULT_POLICY_PATH);
     }
-    
+
     // Read and parse policy file
     const policyContent = readFileSync(resolvedPath, 'utf-8');
     const rawPolicy = JSON.parse(policyContent);
