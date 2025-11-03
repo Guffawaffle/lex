@@ -46,6 +46,7 @@ Thumbs.db
 coverage/
 .nyc_output/
 *.coverage
+**/test-*.json
 
 # Logs
 *.log

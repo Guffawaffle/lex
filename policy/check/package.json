@@ -1,0 +1,22 @@
+{
+  "name": "@lex/policy-check",
+  "version": "0.1.0-alpha",
+  "description": "LexMap policy violation checker",
+  "type": "module",
+  "main": "dist/lexmap-check.js",
+  "bin": {
+    "lexmap-check": "./dist/lexmap-check.js"
+  },
+  "scripts": {
+    "build": "npx tsc",
+    "test": "node check.test.mjs"
+  },
+  "dependencies": {
+    "@lex/types": "0.1.0-alpha",
+    "@lex/merge": "0.1.0-alpha",
+    "@lex/atlas": "0.1.0-alpha"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}
