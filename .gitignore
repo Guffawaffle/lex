@@ -15,6 +15,8 @@ shared/**/*.js
 shared/**/*.d.ts
 !shared/**/*.test.mjs
 !shared/**/*.mjs
+memory/frames/*.js
+memory/frames/*.d.ts
 
 # Python
 .venv/
