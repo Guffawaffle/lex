@@ -16,6 +16,8 @@ import { generateAtlasFrame, formatAtlasFrame } from "../../../shared/atlas/dist
 import { validateModuleIds } from "../../../shared/module_ids/dist/module_ids/validator.js";
 // @ts-ignore - importing from compiled dist directories
 import { loadPolicy } from "../../../shared/policy/dist/policy/loader.js";
+// @ts-ignore - importing from compiled dist directories
+import { getCurrentBranch } from "../../../shared/git/dist/branch.js";
 import { randomUUID } from "crypto";
 
 export interface MCPRequest {
@@ -166,10 +168,13 @@ export class MCPServer {
     const frameId = `frame-${Date.now()}-${randomUUID()}`;
     const timestamp = new Date().toISOString();
 
-    // Get current git branch if not provided
-    // TODO: exec git rev-parse --abbrev-ref HEAD to auto-detect
-    // For now, default to 'main' as a safe fallback
-    const frameBranch = branch || "main";
+    // Get current git branch if not provided - auto-detect using git
+    const frameBranch = branch || getCurrentBranch();
+
+    // Log branch detection for debugging
+    if (!branch) {
+      console.log(`[lex.remember] Auto-detected branch: ${frameBranch}`);
+    }
 
     const frame = {
       id: frameId,

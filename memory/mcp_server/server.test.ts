@@ -689,4 +689,67 @@ describe("MCP Server - Protocol", () => {
       teardown();
     }
   });
+
+  // Branch detection tests (PR #29)
+  test("lex.remember auto-detects git branch when not provided", async () => {
+    const srv = setup();
+    try {
+      const args = {
+        reference_point: "branch detection test",
+        summary_caption: "Testing auto-detection",
+        status_snapshot: {
+          next_action: "Verify branch detection",
+          blockers: [],
+        },
+        module_scope: ["indexer"],
+      };
+
+      const response = await srv.handleRequest({
+        method: "tools/call",
+        params: {
+          name: "lex.remember",
+          arguments: args,
+        },
+      });
+
+      assert.ok(response.content, "Response should have content");
+      const text = response.content[0].text;
+      assert.ok(text.includes("🌿 Branch:"), "Should include branch info");
+      assert.ok(!text.includes("Branch: main"), "Should not hardcode main");
+    } finally {
+      teardown();
+    }
+  });
+
+  test("lex.remember respects provided branch over auto-detection", async () => {
+    const srv = setup();
+    try {
+      const args = {
+        reference_point: "manual branch test",
+        summary_caption: "Testing manual branch override",
+        status_snapshot: {
+          next_action: "Verify manual branch",
+          blockers: [],
+        },
+        module_scope: ["indexer"],
+        branch: "custom-branch-name",
+      };
+
+      const response = await srv.handleRequest({
+        method: "tools/call",
+        params: {
+          name: "lex.remember",
+          arguments: args,
+        },
+      });
+
+      assert.ok(response.content, "Response should have content");
+      assert.ok(
+        response.content[0].text.includes("🌿 Branch: custom-branch-name"),
+        "Should use provided branch name"
+      );
+    } finally {
+      teardown();
+    }
+  });
 });
