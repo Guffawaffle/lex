@@ -214,6 +214,11 @@ function resolveFileToModule(filePath: string, policy: Policy): string | null {
  * Resolve import path to module ID
  */
 function resolveImportToModule(importPath: string, policy: Policy): string | null {
+  // Try exact module ID match first (for test compatibility)
+  if (policy.modules[importPath]) {
+    return importPath;
+  }
+  
   // Try to match by namespace first (PHP style)
   for (const [moduleId, module] of Object.entries(policy.modules)) {
     if (module.owns_namespaces) {

@@ -118,22 +118,23 @@ async function displayFrame(frame: Frame, foldRadius: number): Promise<void> {
   }
   
   if (atlasFrame) {
-    console.log(`\n   Neighborhood (${atlasFrame.neighbors.length} modules within radius):`);
+    console.log(`\n   Neighborhood (${atlasFrame.modules.length} modules within radius):`);
     
-    // Group neighbors by distance
-    const byDistance = new Map<number, string[]>();
-    for (const neighbor of atlasFrame.neighbors) {
-      if (!byDistance.has(neighbor.distance)) {
-        byDistance.set(neighbor.distance, []);
-      }
-      byDistance.get(neighbor.distance)!.push(neighbor.module_id);
+    // Just list all modules in the atlas
+    for (const module of atlasFrame.modules) {
+      console.log(`     • ${module.id}`);
     }
     
-    // Display by distance
-    const distances = Array.from(byDistance.keys()).sort((a, b) => a - b);
-    for (const distance of distances) {
-      const modules = byDistance.get(distance)!;
-      console.log(`     Distance ${distance}: ${modules.join(', ')}`);
+    // Show edges if any
+    if (atlasFrame.edges && atlasFrame.edges.length > 0) {
+      console.log(`\n   Edges (${atlasFrame.edges.length}):`);
+      for (const edge of atlasFrame.edges.slice(0, 5)) { // Show max 5 edges
+        const symbol = edge.reason === 'allowed' ? '✓' : '✗';
+        console.log(`     ${symbol} ${edge.from} → ${edge.to} (${edge.reason})`);
+      }
+      if (atlasFrame.edges.length > 5) {
+        console.log(`     ... and ${atlasFrame.edges.length - 5} more`);
+      }
     }
   }
   
