@@ -1,0 +1,75 @@
+{
+  "modules": {
+    "ui/admin-panel": {
+      "owns_paths": [
+        "ui/admin/**"
+      ],
+      "allowed_callers": [],
+      "forbidden_callers": [
+        "backend/auth"
+      ],
+      "feature_flags": [
+        "admin_ui"
+      ],
+      "requires_permissions": [
+        "admin_access"
+      ],
+      "notes": "Admin UI module"
+    },
+    "api/user-service": {
+      "owns_paths": [
+        "api/users/**"
+      ],
+      "allowed_callers": [
+        "ui/admin-panel",
+        "api/admin-service"
+      ],
+      "forbidden_callers": [],
+      "notes": "User management API"
+    },
+    "api/admin-service": {
+      "owns_paths": [
+        "api/admin/**"
+      ],
+      "allowed_callers": [
+        "ui/admin-panel"
+      ],
+      "forbidden_callers": [],
+      "requires_permissions": [
+        "admin_access"
+      ],
+      "notes": "Admin operations API"
+    },
+    "backend/auth": {
+      "owns_paths": [
+        "backend/auth/**"
+      ],
+      "allowed_callers": [
+        "api/user-service",
+        "api/admin-service"
+      ],
+      "forbidden_callers": [
+        "ui/admin-panel"
+      ],
+      "notes": "Authentication backend"
+    },
+    "backend/database": {
+      "owns_paths": [
+        "backend/db/**"
+      ],
+      "allowed_callers": [
+        "backend/auth"
+      ],
+      "forbidden_callers": [],
+      "notes": "Database layer"
+    },
+    "isolated/module": {
+      "owns_paths": [
+        "isolated/**"
+      ],
+      "allowed_callers": [],
+      "forbidden_callers": [],
+      "notes": "Disconnected module for testing"
+    }
+  }
+}
