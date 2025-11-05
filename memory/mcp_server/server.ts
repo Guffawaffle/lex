@@ -134,7 +134,7 @@ export class MCPServer {
 
     switch (name) {
       case "lex.remember":
-        return this.handleRemember(args);
+        return await this.handleRemember(args);
 
       case "lex.recall":
         return this.handleRecall(args);
@@ -150,9 +150,9 @@ export class MCPServer {
   /**
    * Handle lex.remember tool - create new Frame
    *
-   * Validates module IDs against policy before creating Frame (THE CRITICAL RULE)
+   * Validates module IDs against policy with alias resolution before creating Frame (THE CRITICAL RULE)
    */
-  private handleRemember(args: any): MCPResponse {
+  private async handleRemember(args: any): Promise<MCPResponse> {
     const {
       reference_point,
       summary_caption,
@@ -181,9 +181,10 @@ export class MCPServer {
       throw new Error("status_snapshot.next_action is required");
     }
 
-    // THE CRITICAL RULE: Validate module IDs against policy (if available)
+    // THE CRITICAL RULE: Resolve aliases and validate module IDs against policy (if available)
+    let canonicalModuleScope = module_scope;
     if (this.policy) {
-      const validationResult = validateModuleIds(module_scope, this.policy);
+      const validationResult = await validateModuleIds(module_scope, this.policy);
 
       if (!validationResult.valid && validationResult.errors) {
         // Format error message with suggestions
@@ -199,6 +200,11 @@ export class MCPServer {
           `Module IDs must match those defined in lexmap.policy.json.\n` +
           `Available modules: ${Object.keys(this.policy.modules).join(', ')}`
         );
+      }
+
+      // Use canonical IDs for storage (never store aliases)
+      if (validationResult.canonical) {
+        canonicalModuleScope = validationResult.canonical;
       }
     } else if (process.env.LEX_DEBUG) {
       console.error(`[LEX] Skipping module validation (no policy loaded)`);
@@ -221,7 +227,7 @@ export class MCPServer {
       timestamp,
       branch: frameBranch,
       jira: jira || null,
-      module_scope,
+      module_scope: canonicalModuleScope,  // Store canonical IDs only
       summary_caption,
       reference_point,
       status_snapshot,
@@ -258,7 +264,7 @@ export class MCPServer {
     }
 
     // Generate Atlas Frame for the module scope
-    const atlasFrame = generateAtlasFrame(module_scope);
+    const atlasFrame = generateAtlasFrame(canonicalModuleScope);
     const atlasOutput = formatAtlasFrame(atlasFrame);
 
     const imageInfo = imageIds.length > 0
@@ -273,7 +279,7 @@ export class MCPServer {
             `✅ Frame stored: ${frameId}\n` +
             `📍 Reference: ${reference_point}\n` +
             `💬 Summary: ${summary_caption}\n` +
-            `📦 Modules: ${module_scope.join(", ")}\n` +
+            `📦 Modules: ${canonicalModuleScope.join(", ")}\n` +
             `🌿 Branch: ${frameBranch}\n` +
             `${jira ? `🎫 Jira: ${jira}\n` : ""}` +
             imageInfo +

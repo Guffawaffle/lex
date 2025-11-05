@@ -28,4 +28,6 @@ export class ModuleNotFoundError extends Error {
 export interface ValidationResult {
   valid: boolean;
   errors?: ModuleIdError[];
+  /** Canonical module IDs to store (after alias resolution). Only present when valid=true. */
+  canonical?: string[];
 }

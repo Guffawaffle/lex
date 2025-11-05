@@ -1,8 +1,20 @@
-# Module ID Aliasing (Future Work)
+# Module ID Aliasing
 
-**Relaxed matching for recall, strict enforcement for CI**
+**✅ Phase 1: Explicit Alias Table - IMPLEMENTED**
 
-This module will provide fuzzy matching and historical name resolution for module IDs, allowing humans to use shorthand during `/remember` while maintaining vocabulary alignment with `lexmap.policy.json`.
+This module provides alias resolution for module IDs, allowing humans to use shorthand during `/remember` while maintaining vocabulary alignment with `lexmap.policy.json`.
+
+## Current Status
+
+**Phase 1 (COMPLETE):** Explicit alias table with 1.0 confidence
+- ✅ Alias table schema (`aliases.json`)
+- ✅ Resolution API (`resolveModuleId()`)
+- ✅ Integration with validation
+- ✅ MCP server integration
+- ✅ Canonical ID storage (aliases never stored)
+
+**Phase 2 (PLANNED):** Auto-correction with confidence scoring  
+**Phase 3 (PLANNED):** Substring and fuzzy matching
 
 ## Problem
 
@@ -11,21 +23,20 @@ THE CRITICAL RULE (in `shared/module_ids/`) currently requires exact matches bet
 1. **Fat-fingering:** Developer types `auth-core` instead of `services/auth-core` during `/remember`
 2. **Refactoring:** Module is renamed from `services/user-access-api` to `api/user-access`, orphaning old Frames
 
-## Planned solution: Two-mode system
+## Phase 1 Solution: Explicit Alias Table
 
-### Strict mode (CI / policy enforcement)
-- Used by `policy/check/` when enforcing boundaries
-- Module IDs must match `lexmap.policy.json` exactly
-- No fuzzy matching, no aliases
-- Exit code 1 on violation
+### How It Works
 
-### Loose mode (recall / human-facing)
-- Used by `memory/recall` when finding Frames and exporting Atlas Frames
-- Allows fuzzy matching via alias table
-- Returns confidence scores
-- Warns user if confidence < 0.8
+1. Developer runs `/remember` and types `auth-core` in module list
+2. `shared/aliases/resolver.ts` checks if input matches policy exactly (fast path)
+3. If no exact match, checks `aliases.json` for an alias entry
+4. If alias found, resolves to canonical ID with confidence 1.0
+5. Frame is saved with **canonical ID only** (never stores aliases)
+6. Later `/recall` works because Frame has canonical ID
 
-## Alias table format
+### Alias Table Format
+
+Located at `shared/aliases/aliases.json`:
 
 ```json
 {
@@ -49,27 +60,136 @@ THE CRITICAL RULE (in `shared/module_ids/`) currently requires exact matches bet
 }
 ```
 
-## Workflow
+### API Usage
 
-1. Developer runs `/remember` and types `auth-core` in module list
-2. `shared/module_ids/validate.ts` checks policy → not found
-3. `shared/aliases/resolve.ts` checks alias table → finds `services/auth-core`
-4. Frame is saved with canonical ID, but original input is logged for audit
-5. Later `/recall` works because Frame has canonical ID
+```typescript
+import { resolveModuleId } from '@lex/aliases';
 
-## Confidence scoring
+// Exact match (fast path) - no alias lookup
+const result1 = await resolveModuleId('services/auth-core', policy);
+// { canonical: 'services/auth-core', confidence: 1.0, source: 'exact' }
 
-- **1.0** — Explicit alias (defined in table)
-- **0.9** — Fuzzy match on substring (e.g., "auth" → "services/auth-core" if only one match)
-- **0.7** — Edit distance match (e.g., "auth-cor" → "services/auth-core")
+// Alias resolution
+const result2 = await resolveModuleId('auth-core', policy);
+// { canonical: 'services/auth-core', confidence: 1.0, source: 'alias' }
+
+// Unknown module
+const result3 = await resolveModuleId('unknown-module', policy);
+// { canonical: 'unknown-module', confidence: 0, source: 'fuzzy' }
+```
+
+### Integration with Validation
+
+The `validateModuleIds()` function now:
+1. Resolves all aliases first
+2. Validates canonical IDs against policy
+3. Returns canonical IDs for storage
+
+```typescript
+import { validateModuleIds } from '@lex/module-ids';
+
+const result = await validateModuleIds(
+  ['auth-core', 'services/user-access-api'],  // Input with alias
+  policy
+);
+
+if (result.valid) {
+  console.log(result.canonical);  
+  // ['services/auth-core', 'services/user-access-api']
+  // Store these in Frame.module_scope
+}
+```
+
+### MCP Server Integration
+
+The `/remember` tool in `memory/mcp_server/server.ts` now:
+1. Accepts module IDs (including aliases) from user
+2. Resolves all aliases via `validateModuleIds()`
+3. Stores only canonical IDs in `Frame.module_scope`
+4. Displays canonical IDs in the response
+
+```typescript
+// User input: ['auth-core', 'user-api']
+// Frame stores: ['services/auth-core', 'services/user-access-api']
+// Never stores the aliases themselves
+```
+
+## Future Phases
+
+### Phase 2: Auto-Correction (Planned)
+- Edit distance matching with confidence scores
+- Suggest corrections for typos
+- Confidence threshold for auto-correction
+
+### Phase 3: Substring Matching (Planned)  
+- Match partial module IDs
+- Handle ambiguous cases
+- Return multiple suggestions
+
+## Confidence Scoring
+
+Current implementation:
+- **1.0** — Exact match or explicit alias (defined in table)
+- **0.0** — Unknown module (no match found)
+
+Future phases will add:
+- **0.9** — Fuzzy match on substring (Phase 3)
+- **0.7** — Edit distance match (Phase 2)
 - **< 0.6** — Multiple possible matches, require user clarification
 
-## Implementation plan
+## Configuration
 
-1. Define alias table schema (JSON or inline in policy file)
-2. Build `resolve(input: string) -> { canonical: string, confidence: number }`
-3. Integrate into `memory/frames/` during Frame creation
-4. Add CLI flag: `lex recall --strict` to disable fuzzy matching if needed
+### Default Alias Table
+
+The default `aliases.json` is empty. To add aliases:
+
+```bash
+# Edit shared/aliases/aliases.json
+{
+  "aliases": {
+    "your-alias": {
+      "canonical": "your/canonical/module-id",
+      "confidence": 1.0,
+      "reason": "explanation"
+    }
+  }
+}
+```
+
+### Caching
+
+The alias table is loaded once and cached for performance. To reload:
+```typescript
+import { clearAliasTableCache } from '@lex/aliases';
+clearAliasTableCache();  // Force reload on next use
+```
+
+## Testing
+
+Run tests with:
+```bash
+npm run test:aliases
+```
+
+Tests cover:
+- Exact match bypass (performance)
+- Alias resolution with confidence 1.0
+- Unknown input handling
+- Integration with `/remember` flow
+
+## Files
+
+```
+shared/aliases/
+├── README.md           # This file
+├── aliases.json        # Default alias table (empty)
+├── package.json        # Package metadata
+├── tsconfig.json       # TypeScript config
+├── types.ts           # Type definitions
+├── resolver.ts        # Resolution logic
+├── resolver.test.mjs  # Tests
+└── index.ts           # Public API
+```
 
 ## Trade-offs
 
@@ -77,15 +197,12 @@ THE CRITICAL RULE (in `shared/module_ids/`) currently requires exact matches bet
 - Humans can use shorthand without memorizing exact IDs
 - Old Frames survive refactoring
 - Onboarding friction reduced
+- Performance optimized (exact matches bypass alias lookup)
 
 **Cons:**
-- Ambiguous names could surface wrong modules (mitigated by confidence threshold)
-- Alias table becomes another thing to maintain (could auto-generate from policy history)
+- Alias table requires manual maintenance
+- Could auto-generate from policy history in future
 
 ---
 
-**Status:** Not yet implemented. This is placeholder documentation for future work.
-
-**Depends on:**
-- `shared/module_ids/` validation must work strictly first
-- `lexmap.policy.json` versioning (to track historical names)
+**Status:** ✅ Phase 1 complete. Phases 2 and 3 planned for future implementation.
