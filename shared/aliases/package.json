@@ -1,0 +1,15 @@
+{
+  "name": "@lex/aliases",
+  "version": "0.1.0",
+  "description": "Module ID resolution with substring matching and aliasing",
+  "type": "module",
+  "main": "dist/aliases/index.js",
+  "types": "dist/aliases/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "node resolver.test.mjs"
+  },
+  "keywords": ["lex", "module-id", "resolver", "aliases"],
+  "author": "Guffawaffle",
+  "license": "MIT"
+}
