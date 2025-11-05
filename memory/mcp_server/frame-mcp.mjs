@@ -8,17 +8,22 @@ import { fileURLToPath } from "url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
+// Repository root is two directories up from this script
+const repoRoot = join(__dirname, "../..");
+
 // Configuration
 const config = {
   dbPath: process.env.LEX_MEMORY_DB || join(__dirname, "../../lex-memory.db"),
+  repoRoot: repoRoot,
 };
 
 // Initialize MCP server
 let mcpServer;
 try {
-  mcpServer = new MCPServer(config.dbPath);
+  mcpServer = new MCPServer(config.dbPath, config.repoRoot);
   if (process.env.LEX_DEBUG) {
     console.error(`[LEX] Memory MCP server initialized: ${config.dbPath}`);
+    console.error(`[LEX] Repository root: ${config.repoRoot}`);
   }
 } catch (error) {
   console.error(`[LEX] Failed to initialize MCP server: ${error.message}`);
@@ -37,13 +42,32 @@ process.stdin.on("data", async (chunk) => {
   for (const line of lines) {
     if (!line.trim()) continue;
 
+    let request;
     try {
-      const request = JSON.parse(line);
+      request = JSON.parse(line);
       const response = await mcpServer.handleRequest(request);
-      console.log(JSON.stringify(response));
+
+      // MCP protocol response format
+      if (response.error) {
+        // Error response
+        console.log(JSON.stringify({
+          jsonrpc: "2.0",
+          id: request.id,
+          error: response.error
+        }));
+      } else {
+        // Success response - wrap in result
+        console.log(JSON.stringify({
+          jsonrpc: "2.0",
+          id: request.id,
+          result: response
+        }));
+      }
     } catch (error) {
       console.log(
         JSON.stringify({
+          jsonrpc: "2.0",
+          id: request?.id || null,
           error: {
             message: error.message,
             code: error.code || "PARSE_ERROR",
@@ -52,9 +76,7 @@ process.stdin.on("data", async (chunk) => {
       );
     }
   }
-});
-
-// Graceful shutdown
+});// Graceful shutdown
 process.on("SIGINT", () => {
   if (mcpServer) {
     mcpServer.close();
