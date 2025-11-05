@@ -1,0 +1,22 @@
+{
+  "$schema": "../alias-schema.json",
+  "version": "1.0",
+  "description": "Minimal alias table for a single project with common shorthands",
+  "aliases": {
+    "auth": {
+      "canonical": "services/auth-core",
+      "confidence": 1.0,
+      "reason": "shorthand"
+    },
+    "ui": {
+      "canonical": "ui/main-panel",
+      "confidence": 1.0,
+      "reason": "shorthand"
+    },
+    "api": {
+      "canonical": "api/user-access",
+      "confidence": 1.0,
+      "reason": "shorthand"
+    }
+  }
+}
