@@ -30,7 +30,8 @@ export {
 // Validation types
 export type {
   ModuleIdError,
-  ValidationResult
+  ValidationResult,
+  ResolutionResult
 } from './validation.js';
 
 export {

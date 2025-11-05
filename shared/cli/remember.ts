@@ -7,7 +7,8 @@
 import inquirer from 'inquirer';
 import { v4 as uuidv4 } from 'uuid';
 import type { Frame } from '../types/frame.js';
-import { validateModuleIds } from '../module_ids/validator.js';
+import { resolveModuleId } from '../module_ids/validator.js';
+import type { ResolutionResult } from '../types/validation.js';
 import { loadPolicy } from '../policy/loader.js';
 import { getDb, saveFrame } from '../../memory/store/index.js';
 import { getCurrentBranch } from '../git/branch.js';
@@ -26,6 +27,7 @@ export interface RememberOptions {
   permissions?: string[];
   interactive?: boolean;
   json?: boolean;
+  strict?: boolean;
 }
 
 /**
@@ -42,18 +44,31 @@ export async function remember(options: RememberOptions = {}): Promise<void> {
       ? await promptForFrameData(options, branch)
       : options;
 
-    // Validate module_scope against policy (THE CRITICAL RULE)
+    // Resolve and validate module_scope against policy (THE CRITICAL RULE + auto-correction)
     const policy = loadPolicy();
-    const validationResult = validateModuleIds(answers.modules || [], policy);
-
-    if (!validationResult.valid && validationResult.errors) {
-      console.error('\n❌ Module validation failed:\n');
-      for (const error of validationResult.errors) {
-        console.error(`  • ${error.message}`);
-        if (error.suggestions.length > 0) {
-          console.error(`    Suggestions: ${error.suggestions.join(', ')}`);
+    const strictMode = options.strict || false;
+    const resolvedModules: string[] = [];
+    const resolutions: ResolutionResult[] = [];
+    
+    try {
+      for (const moduleId of answers.modules || []) {
+        const resolution = resolveModuleId(moduleId, policy, strictMode);
+        resolvedModules.push(resolution.resolved);
+        resolutions.push(resolution);
+        
+        // Emit warning for auto-corrections
+        if (resolution.corrected && !options.json) {
+          const typoType = resolution.editDistance === 1 ? '1 char typo' : `${resolution.editDistance} char typo`;
+          console.warn(`⚠️  Auto-corrected '${resolution.original}' → '${resolution.resolved}' (${typoType})`);
+        }
+        
+        // Log original input for audit trail (in non-JSON mode)
+        if (resolution.corrected && !options.json) {
+          console.log(`   Original input: '${resolution.original}' (confidence: ${resolution.confidence})`);
         }
       }
+    } catch (error: any) {
+      console.error(`\n❌ Module resolution failed: ${error.message}\n`);
       process.exit(1);
     }
 
@@ -62,7 +77,7 @@ export async function remember(options: RememberOptions = {}): Promise<void> {
       id: uuidv4(),
       timestamp: new Date().toISOString(),
       branch: branch,
-      module_scope: answers.modules || [],
+      module_scope: resolvedModules, // Use resolved (potentially auto-corrected) module IDs
       summary_caption: answers.summary || '',
       reference_point: answers.referencePoint || '',
       status_snapshot: {
