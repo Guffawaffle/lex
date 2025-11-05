@@ -56,14 +56,10 @@ export async function remember(options: RememberOptions = {}): Promise<void> {
         resolvedModules.push(resolution.resolved);
         resolutions.push(resolution);
         
-        // Emit warning for auto-corrections
+        // Emit warning and log for auto-corrections
         if (resolution.corrected && !options.json) {
           const typoType = resolution.editDistance === 1 ? '1 char typo' : `${resolution.editDistance} char typo`;
           console.warn(`⚠️  Auto-corrected '${resolution.original}' → '${resolution.resolved}' (${typoType})`);
-        }
-        
-        // Log original input for audit trail (in non-JSON mode)
-        if (resolution.corrected && !options.json) {
           console.log(`   Original input: '${resolution.original}' (confidence: ${resolution.confidence})`);
         }
       }
