@@ -1,0 +1,42 @@
+{
+  "$schema": "../alias-schema.json",
+  "version": "1.0",
+  "description": "Team-wide alias table with shorthands and historical renames",
+  "aliases": {
+    "auth": {
+      "canonical": "services/auth-core",
+      "confidence": 1.0,
+      "reason": "team shorthand"
+    },
+    "auth-core": {
+      "canonical": "services/auth-core",
+      "confidence": 1.0,
+      "reason": "alternate shorthand"
+    },
+    "user-api": {
+      "canonical": "api/user-access",
+      "confidence": 1.0,
+      "reason": "team shorthand"
+    },
+    "user-access-api": {
+      "canonical": "api/user-access",
+      "confidence": 1.0,
+      "reason": "historical name (renamed 2025-10-15)"
+    },
+    "ui-admin": {
+      "canonical": "ui/admin-panel",
+      "confidence": 1.0,
+      "reason": "shorthand"
+    },
+    "db": {
+      "canonical": "infrastructure/database",
+      "confidence": 1.0,
+      "reason": "common abbreviation"
+    },
+    "cache": {
+      "canonical": "infrastructure/redis-cache",
+      "confidence": 1.0,
+      "reason": "common abbreviation"
+    }
+  }
+}

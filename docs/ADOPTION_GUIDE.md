@@ -243,6 +243,21 @@ This rule is the bridge.
 
    Those module IDs should match what's in `lexmap.policy.json`.
 
+   **Important:** Module IDs are validated strictly. If you make a typo, you'll get a helpful error:
+   
+   ```bash
+   lexbrain remember --jira TICKET-123 \
+     --summary "Auth work" \
+     --modules "auth-cor"  # Typo!
+   
+   # Error: Module 'auth-cor' not found in policy.
+   # Did you mean: services/auth-core?
+   ```
+   
+   Always use exact module IDs from your policy. Fuzzy matching provides suggestions but doesn't auto-correct.
+   
+   **Future:** Alias tables will support team shorthand (e.g., `auth` → `services/auth-core`). See `shared/aliases/README.md`.
+
 4. **Test policy-aware reasoning**
 
    Ask your assistant:

@@ -9,9 +9,10 @@ Exposes Frame episodic memory to AI assistants (Copilot, Claude, etc.) via stdio
 - ✅ MCP protocol over stdio (line-delimited JSON)
 - ✅ SQLite + FTS5 for fuzzy Frame recall
 - ✅ Atlas Frame generation (spatial neighborhood context)
+- ✅ Module ID validation with fuzzy suggestions (THE CRITICAL RULE)
 - ✅ Three tools: `lex.remember`, `lex.recall`, `lex.list_frames`
 - ✅ Local-first (no cloud sync, no telemetry)
-- ✅ Comprehensive test suite (10 tests)
+- ✅ Comprehensive test suite (integration + alias resolution)
 
 ## Tools
 
@@ -23,7 +24,7 @@ Store a new Frame (episodic memory snapshot).
 - `reference_point` - What you were working on (human-memorable phrase)
 - `summary_caption` - One-line summary of progress
 - `status_snapshot.next_action` - What needs to happen next
-- `module_scope` - Array of module IDs from `lexmap.policy.json`
+- `module_scope` - Array of module IDs from `lexmap.policy.json` (validated strictly)
 
 **Optional Parameters:**
 - `status_snapshot.blockers` - General blockers
@@ -157,11 +158,31 @@ npm test
 ```
 
 **Test Coverage:**
-- MCP protocol (tools/list)
-- Frame creation (lex.remember - success and error cases)
-- Frame recall (lex.recall - fuzzy search, empty results, error handling)
-- Frame listing (lex.list_frames - all frames, filtered by module)
-- Error handling (unknown methods and tools)
+- **Integration tests** (`integration.test.ts`) - Full MCP protocol flow
+  - MCP protocol (tools/list)
+  - Frame creation with validation
+  - Frame recall (fuzzy search, empty results)
+  - Frame listing with filters
+  - Error handling (unknown methods and tools)
+- **Alias resolution tests** (`alias-integration.test.ts`) - Module validation flow
+  - Exact matches (baseline)
+  - Typo correction with suggestions
+  - Substring/shorthand rejection
+  - Ambiguous match handling
+  - Performance validation
+- **Performance benchmarks** (`alias-benchmarks.test.ts`) - Validation performance
+  - Exact match path performance (<0.5ms)
+  - Fuzzy match path performance (<2ms)
+  - Policy size scaling tests
+  - Memory overhead measurements
+
+**Run specific test suites:**
+```bash
+npm run build
+node --test dist/integration.test.js
+node --test dist/alias-integration.test.js
+node --test dist/alias-benchmarks.test.js
+```
 
 ## Architecture
 
@@ -184,11 +205,84 @@ Every recall/list response includes an Atlas Frame - the spatial neighborhood ar
 
 Currently a stub implementation (returns seed modules only). Full policy graph integration pending.
 
-## The Critical Rule
+## Module ID Validation (THE CRITICAL RULE)
 
-Every string in `module_scope` MUST be a module ID that exists in `lexmap.policy.json`. This is enforced by `shared/module_ids/` validation (future work).
+Every string in `module_scope` MUST be a module ID that exists in `lexmap.policy.json`. This prevents vocabulary drift between memory and policy subsystems.
 
-If vocabulary drifts, recall will fail. Future: `shared/aliases/` will allow fuzzy matching with confidence scores.
+### How Validation Works
+
+1. When you call `lex.remember` with `module_scope: ["auth-core"]`
+2. The server validates each ID against the loaded policy
+3. If validation fails, you get a helpful error with suggestions:
+
+```json
+{
+  "error": {
+    "message": "Invalid module IDs in module_scope:\n  • Module 'auth-core' not found in policy. Did you mean 'services/auth-core'?\n\nAvailable modules: indexer, ts, php, mcp, services/auth-core",
+    "code": "INTERNAL_ERROR"
+  }
+}
+```
+
+4. You correct the typo and retry with the exact module ID
+
+### Fuzzy Matching & Suggestions
+
+The validator uses Levenshtein distance to suggest similar module names:
+
+- **Edit distance ≤ 10** → Suggest up to 3 closest matches
+- **No close matches** → Show list of all available modules
+- **Exact match** → Validation passes instantly (<0.5ms)
+
+### Example Validation Scenarios
+
+#### Scenario 1: Exact Match (Success)
+```json
+{
+  "module_scope": ["services/auth-core", "ui/main-panel"]
+}
+```
+✅ Validation passes, Frame stored
+
+#### Scenario 2: Typo (Helpful Error)
+```json
+{
+  "module_scope": ["servcies/auth-core"]
+}
+```
+❌ Error: "Module 'servcies/auth-core' not found. Did you mean 'services/auth-core'?"
+
+#### Scenario 3: Shorthand Not Allowed (Yet)
+```json
+{
+  "module_scope": ["auth"]
+}
+```
+❌ Error: "Module 'auth' not found."
+
+> **Future:** Explicit alias tables will support `auth` → `services/auth-core` mappings. See `shared/aliases/README.md`.
+
+### Performance
+
+- **Exact match:** ~0.5ms (O(1) hash table lookup)
+- **Fuzzy suggestions:** ~2ms (only on validation failure)
+- **Policy cache:** ~10KB in memory
+
+### Strict Mode (CI)
+
+For CI pipelines, set `LEX_STRICT_MODE=1` to disable fuzzy suggestions:
+
+```bash
+export LEX_STRICT_MODE=1
+npm test
+```
+
+In strict mode:
+- Only exact matches pass
+- No fuzzy matching or suggestions
+- Exit code 1 on any validation failure
+
+This prevents "close enough" matches from sneaking into production.
 
 ## License
 
