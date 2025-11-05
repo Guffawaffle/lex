@@ -31,3 +31,19 @@ export interface ValidationResult {
   /** Canonical module IDs to store (after alias resolution). Only present when valid=true. */
   canonical?: string[];
 }
+
+/**
+ * Result of module ID resolution (validation + auto-correction)
+ */
+export interface ResolutionResult {
+  /** The resolved (potentially auto-corrected) module ID */
+  resolved: string;
+  /** The original input module ID */
+  original: string;
+  /** Confidence score (0-1) where 1.0 is exact match */
+  confidence: number;
+  /** Whether auto-correction was applied */
+  corrected: boolean;
+  /** Edit distance from original to resolved (0 for exact match) */
+  editDistance: number;
+}

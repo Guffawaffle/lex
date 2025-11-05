@@ -184,8 +184,113 @@ Set `LEX_POLICY_PATH` environment variable to use a different policy file:
 export LEX_POLICY_PATH=/path/to/custom/policy.json
 ```
 
+## Auto-Correction for High-Confidence Typos
+
+**Status: ✅ IMPLEMENTED** (Phase 2)
+
+The module resolution system now includes intelligent auto-correction for small typos when there's a single high-confidence match.
+
+### How It Works
+
+When you use `lex remember` and specify module IDs, the system:
+
+1. **Exact Match**: First tries exact match (case-sensitive)
+2. **Fuzzy Match**: If no exact match, finds modules within edit distance ≤ 2 (case-insensitive)
+3. **Auto-Correct**: Accepts the match if:
+   - Exactly 1 candidate found (unambiguous)
+   - Edit distance ≤ 2
+   - Confidence ≥ 0.8
+
+### Confidence Scoring
+
+```typescript
+if (distance === 0) return 1.0;  // Exact match
+if (distance === 1) return 0.9;  // 1 char off
+if (distance === 2) return 0.8;  // 2 chars off
+return 0;                        // Too far, reject
+```
+
+### Auto-Correction Threshold
+
+- **Accept**: distance ≤ 2, exactly 1 match, confidence ≥ 0.8
+- **Reject**: distance > 2, or multiple matches (ambiguous), or confidence < 0.8
+- **Strict Mode**: Only accept confidence === 1.0 (exact match only)
+
+### Warning Output
+
+When auto-correction occurs, you'll see:
+
+```
+⚠️  Auto-corrected 'servcies/auth-core' → 'services/auth-core' (1 char typo)
+   Original input: 'servcies/auth-core' (confidence: 0.9)
+```
+
+### Strict Mode (for CI)
+
+Use `--strict` flag to disable auto-correction:
+
+```bash
+# Auto-correction enabled (default)
+lex remember --modules "servcies/auth-core" --summary "..." --next "..."
+
+# Strict mode - only exact matches accepted (for CI)
+lex remember --strict --modules "services/auth-core" --summary "..." --next "..."
+```
+
+In strict mode, typos will cause the command to fail with suggestions:
+
+```
+❌ Module resolution failed: Module 'servcies/auth-core' not found in policy. Did you mean 'services/auth-core'?
+```
+
+### API Usage
+
+```typescript
+import { resolveModuleId } from 'shared/module_ids/index.js';
+import type { ResolutionResult } from 'shared/module_ids/index.js';
+
+// Auto-correct single-char typo
+const result = resolveModuleId('servcies/auth-core', policy, false);
+// {
+//   resolved: 'services/auth-core',
+//   original: 'servcies/auth-core',
+//   confidence: 0.9,
+//   corrected: true,
+//   editDistance: 1
+// }
+
+// Exact match
+const result = resolveModuleId('services/auth-core', policy, false);
+// {
+//   resolved: 'services/auth-core',
+//   original: 'services/auth-core',
+//   confidence: 1.0,
+//   corrected: false,
+//   editDistance: 0
+// }
+
+// Strict mode rejects typos
+const result = resolveModuleId('servcies/auth-core', policy, true);
+// throws Error: Module 'servcies/auth-core' not found in policy...
+```
+
+### Edge Cases
+
+**Ambiguous corrections** are rejected:
+```
+❌ Module 'ath-core' is ambiguous. Multiple close matches found: auth-core, path-core
+```
+
+**Case sensitivity**: Case differences are auto-corrected with confidence 1.0:
+```
+Input: 'services/auth-Core'
+Output: 'services/auth-core' (auto-corrected)
+```
+
+**Audit trail**: All auto-corrections log the original input for transparency.
+
 ---
 
 **Called by:**
 - `memory/mcp_server/server.ts::handleRemember()` - Enforces THE CRITICAL RULE on Frame creation
-- (Future) `shared/cli/` when validating user input before Frame capture
+- `shared/cli/remember.ts` - Uses `resolveModuleId()` with auto-correction for user input
