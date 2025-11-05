@@ -37,7 +37,8 @@ export function createProgram(): Command {
     .name('lex')
     .description('Policy-aware work continuity with receipts')
     .version(getVersion())
-    .option('--json', 'Output results in JSON format');
+    .option('--json', 'Output results in JSON format')
+    .option('--no-substring', 'Disable substring matching for module IDs (strict mode)');
 
   // lex remember command
   program
@@ -71,6 +72,7 @@ export function createProgram(): Command {
         permissions: cmdOptions.permissions,
         interactive: cmdOptions.interactive || false,
         json: globalOptions.json || false,
+        noSubstring: globalOptions.substring === false, // --no-substring sets substring to false
       };
       await remember(options);
     });

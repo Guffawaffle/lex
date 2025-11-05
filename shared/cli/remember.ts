@@ -26,6 +26,7 @@ export interface RememberOptions {
   permissions?: string[];
   interactive?: boolean;
   json?: boolean;
+  noSubstring?: boolean;
 }
 
 /**
@@ -43,6 +44,29 @@ export async function remember(options: RememberOptions = {}): Promise<void> {
       : options;
 
     // Validate module_scope against policy (THE CRITICAL RULE)
+    // 
+    // Note: For Phase 3 substring matching integration, replace validateModuleIds
+    // with resolveModuleId for each module when noSubstring is false:
+    //
+    // import { resolveModuleId } from '../aliases/resolver.js';
+    // 
+    // const resolvedModules = [];
+    // for (const moduleId of answers.modules || []) {
+    //   try {
+    //     const result = resolveModuleId(moduleId, policy, { 
+    //       noSubstring: options.noSubstring 
+    //     });
+    //     if (result.warning) {
+    //       console.warn(result.warning);
+    //     }
+    //     resolvedModules.push(result.canonical);
+    //   } catch (err) {
+    //     console.error(`❌ ${err.message}`);
+    //     process.exit(1);
+    //   }
+    // }
+    // answers.modules = resolvedModules;
+    //
     const policy = loadPolicy();
     const validationResult = validateModuleIds(answers.modules || [], policy);
 
