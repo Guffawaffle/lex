@@ -1,0 +1,23 @@
+{
+  "name": "@lex/aliases",
+  "version": "0.1.0-alpha",
+  "description": "Module ID alias resolution for fuzzy matching and historical name resolution",
+  "type": "module",
+  "main": "index.ts",
+  "exports": {
+    ".": {
+      "types": "./index.ts",
+      "import": "./index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "npm run build && node resolver.test.mjs"
+  },
+  "keywords": ["aliases", "fuzzy-matching", "module-ids", "resolution"],
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^24.9.2",
+    "typescript": "^5.9.3"
+  }
+}
