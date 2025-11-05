@@ -19,6 +19,7 @@ import { loadPolicy } from "../../../shared/policy/dist/policy/loader.js";
 // @ts-ignore - importing from compiled dist directories
 import { getCurrentBranch } from "../../../shared/git/dist/branch.js";
 import { randomUUID } from "crypto";
+import { join } from "path";
 
 export interface MCPRequest {
   method: string;
@@ -45,13 +46,29 @@ export interface ToolCallParams {
 export class MCPServer {
   private frameStore: FrameStore;
   private imageManager: ImageManager;
-  private policy: any; // Cached policy for validation
+  private policy: any | null; // Cached policy for validation (null if not available)
+  private repoRoot: string | null; // Repository root path
 
-  constructor(dbPath: string) {
+  constructor(dbPath: string, repoRoot?: string) {
     this.frameStore = new FrameStore(dbPath);
     this.imageManager = new ImageManager(this.frameStore.getDatabase());
+    this.repoRoot = repoRoot || null;
+
     // Load policy once at initialization for better performance
-    this.policy = loadPolicy();
+    // If policy is not found, operate without policy enforcement
+    try {
+      // If repoRoot is provided, construct the policy path directly
+      const policyPath = this.repoRoot
+        ? join(this.repoRoot, 'policy/policy_spec/lexmap.policy.json')
+        : undefined;
+      this.policy = loadPolicy(policyPath);
+    } catch (error: any) {
+      if (process.env.LEX_DEBUG) {
+        console.error(`[LEX] Policy not available: ${error.message}`);
+        console.error(`[LEX] Operating without policy enforcement`);
+      }
+      this.policy = null;
+    }
   }
 
   /**
@@ -62,6 +79,9 @@ export class MCPServer {
 
     try {
       switch (method) {
+        case "initialize":
+          return this.handleInitialize();
+
         case "tools/list":
           return this.handleToolsList();
 
@@ -79,6 +99,22 @@ export class MCPServer {
         },
       };
     }
+  }
+
+  /**
+   * Handle initialize request (MCP protocol handshake)
+   */
+  private handleInitialize(): MCPResponse {
+    return {
+      protocolVersion: "2024-11-05",
+      capabilities: {
+        tools: {}
+      },
+      serverInfo: {
+        name: "lex-memory-mcp-server",
+        version: "0.1.0"
+      }
+    } as any;
   }
 
   /**
@@ -145,23 +181,27 @@ export class MCPServer {
       throw new Error("status_snapshot.next_action is required");
     }
 
-    // THE CRITICAL RULE: Validate module IDs against policy
-    const validationResult = validateModuleIds(module_scope, this.policy);
+    // THE CRITICAL RULE: Validate module IDs against policy (if available)
+    if (this.policy) {
+      const validationResult = validateModuleIds(module_scope, this.policy);
 
-    if (!validationResult.valid && validationResult.errors) {
-      // Format error message with suggestions
-      const errorMessages = validationResult.errors.map(error => {
-        const suggestions = error.suggestions.length > 0
-          ? `\n  Did you mean: ${error.suggestions.join(', ')}?`
-          : '';
-        return `  • ${error.message}${suggestions}`;
-      });
+      if (!validationResult.valid && validationResult.errors) {
+        // Format error message with suggestions
+        const errorMessages = validationResult.errors.map(error => {
+          const suggestions = error.suggestions.length > 0
+            ? `\n  Did you mean: ${error.suggestions.join(', ')}?`
+            : '';
+          return `  • ${error.message}${suggestions}`;
+        });
 
-      throw new Error(
-        `Invalid module IDs in module_scope:\n${errorMessages.join('\n')}\n\n` +
-        `Module IDs must match those defined in lexmap.policy.json.\n` +
-        `Available modules: ${Object.keys(this.policy.modules).join(', ')}`
-      );
+        throw new Error(
+          `Invalid module IDs in module_scope:\n${errorMessages.join('\n')}\n\n` +
+          `Module IDs must match those defined in lexmap.policy.json.\n` +
+          `Available modules: ${Object.keys(this.policy.modules).join(', ')}`
+        );
+      }
+    } else if (process.env.LEX_DEBUG) {
+      console.error(`[LEX] Skipping module validation (no policy loaded)`);
     }
 
     // Generate Frame ID and timestamp
