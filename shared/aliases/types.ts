@@ -61,7 +61,6 @@ export class AmbiguousSubstringError extends Error {
   public readonly matches: string[];
   
   constructor(substring: string, matches: string[]) {
-    const matchList = matches.join(', ');
     super(
       `Ambiguous substring '${substring}' matches:\n` +
       matches.map(m => `   - ${m}`).join('\n') + '\n' +
