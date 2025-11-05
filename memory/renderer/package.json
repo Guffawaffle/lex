@@ -4,11 +4,16 @@
   "description": "Memory card image generation (visual summary of Frame state)",
   "type": "module",
   "main": "index.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "npm run build && node --test dist/card.test.js"
+  },
   "dependencies": {
-    "canvas": "^2.11.2"
+    "sharp": "^0.33.5"
   },
   "devDependencies": {
-    "@types/node": "^20.0.0"
+    "@types/node": "^20.0.0",
+    "typescript": "^5.9.3"
   },
   "license": "MIT"
 }
