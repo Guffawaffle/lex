@@ -3,10 +3,14 @@
  *
  * Ensures that module IDs used in Frames match the module IDs defined in lexmap.policy.json
  * This prevents vocabulary drift between memory and policy subsystems.
+ * 
+ * Now integrates with alias resolution to support shorthand and historical names.
  */
 
 import type { Policy } from '../types/policy.js';
 import type { ValidationResult, ModuleIdError } from '../types/validation.js';
+import type { AliasTable } from '../aliases/types.js';
+import { resolveModuleId } from '../aliases/resolver.js';
 
 /**
  * Maximum edit distance threshold for fuzzy matching suggestions
@@ -72,29 +76,88 @@ function findSimilarModules(
 
 /**
  * Validate that all module IDs in moduleScope exist in the policy
+ * NOW WITH ALIAS RESOLUTION SUPPORT
  *
- * @param moduleScope - Array of module IDs to validate
+ * This function resolves aliases first, then validates canonical IDs against policy.
+ * Returns canonical IDs for storage in Frame.module_scope.
+ * 
+ * @param moduleScope - Array of module IDs to validate (may include aliases)
  * @param policy - Policy object containing module definitions
- * @returns ValidationResult with errors and suggestions for invalid modules
+ * @param aliasTable - Optional pre-loaded alias table
+ * @returns ValidationResult with errors, suggestions, and canonical IDs for storage
  *
  * @example
  * ```typescript
- * const result = validateModuleIds(
- *   ['auth-core', 'ui/user-panel'],
+ * const result = await validateModuleIds(
+ *   ['auth-core', 'ui/user-panel'],  // 'auth-core' is an alias
  *   policy
  * );
  *
- * if (!result.valid) {
+ * if (result.valid) {
+ *   console.log(result.canonical);  // ['services/auth-core', 'ui/user-panel']
+ *   // Store result.canonical in Frame.module_scope
+ * } else {
  *   console.error(result.errors);
- *   // [{
- *   //   module: 'auth-core',
- *   //   message: "Module 'auth-core' not found in policy. Did you mean 'services/auth-core'?",
- *   //   suggestions: ['services/auth-core']
- *   // }]
  * }
  * ```
  */
-export function validateModuleIds(
+export async function validateModuleIds(
+  moduleScope: string[],
+  policy: Policy,
+  aliasTable?: AliasTable
+): Promise<ValidationResult> {
+  // Empty module_scope is allowed
+  if (!moduleScope || moduleScope.length === 0) {
+    return { valid: true, canonical: [] };
+  }
+
+  // Step 1: Resolve all aliases
+  const resolutions = await Promise.all(
+    moduleScope.map(id => resolveModuleId(id, policy, aliasTable))
+  );
+
+  // Step 2: Validate all canonical IDs exist in policy
+  const policyModuleIds = new Set(Object.keys(policy.modules));
+  const errors: ModuleIdError[] = [];
+  const canonicalIds: string[] = [];
+
+  for (const resolution of resolutions) {
+    // Check if canonical ID exists in policy
+    if (!policyModuleIds.has(resolution.canonical)) {
+      const suggestions = findSimilarModules(resolution.canonical, policyModuleIds);
+      const suggestionText = suggestions.length > 0
+        ? ` Did you mean '${suggestions[0]}'?`
+        : '';
+
+      errors.push({
+        module: resolution.original,
+        message: `Module '${resolution.original}' resolved to '${resolution.canonical}' which is not found in policy.${suggestionText}`,
+        suggestions
+      });
+    } else {
+      // Valid - add canonical ID to result
+      canonicalIds.push(resolution.canonical);
+    }
+  }
+
+  if (errors.length > 0) {
+    return {
+      valid: false,
+      errors
+    };
+  }
+
+  return { valid: true, canonical: canonicalIds };
+}
+
+/**
+ * DEPRECATED: Use async validateModuleIds instead
+ * 
+ * Synchronous validation without alias resolution (legacy support)
+ * 
+ * @deprecated This function does not support alias resolution. Use async validateModuleIds.
+ */
+export function validateModuleIdsSync(
   moduleScope: string[],
   policy: Policy
 ): ValidationResult {
