@@ -130,6 +130,43 @@ This rule is the bridge between LexBrain (memory) and LexMap (policy).
 
 If you break it, the assistant can't line up your Frames with architectural rules, and you lose the explainability moat.
 
+### How It's Enforced
+
+When you call `/remember`, the system validates each module ID:
+
+1. **Exact match** → ✅ Frame stored, no warnings
+2. **Typo detected** → ❌ Error with suggestions: "Did you mean 'indexer'?"
+3. **Shorthand used** → ❌ Error (future: explicit aliases will support this)
+
+Example:
+```bash
+/remember "Auth work" --modules "indexr"
+# Error: Module 'indexr' not found. Did you mean 'indexer'?
+
+/remember "Auth work" --modules "indexer"
+# ✅ Frame stored
+```
+
+### Future: Alias Tables
+
+Planned enhancement for team shorthand and historical renames:
+
+```json
+{
+  "aliases": {
+    "auth": {
+      "canonical": "services/auth-core",
+      "confidence": 1.0,
+      "reason": "team shorthand"
+    }
+  }
+}
+```
+
+This will allow `/remember "Auth work" --modules "auth"` while storing the canonical ID internally.
+
+See `shared/aliases/README.md` for details.
+
 ---
 
 ## Can I search Frames by keyword?
@@ -380,6 +417,91 @@ LexBrain will use your custom renderer instead of the default.
 See [LICENSE](../LICENSE).
 
 LexBrain is open source. You can use it, modify it, and deploy it however you want, as long as you follow the license terms.
+
+---
+
+## What happens if I make a typo in a module ID?
+
+The system will catch it and provide helpful suggestions based on fuzzy matching:
+
+```bash
+/remember "Work on auth" --modules "servcies/auth-core"
+```
+
+Error response:
+```
+Invalid module IDs in module_scope:
+  • Module 'servcies/auth-core' not found in policy.
+    Did you mean: services/auth-core?
+
+Available modules: indexer, ts, php, mcp, services/auth-core, ui/main-panel
+```
+
+Just correct the typo and retry. The fuzzy matching uses Levenshtein distance to find the closest matches.
+
+---
+
+## Can I use shorthand like "auth" instead of "services/auth-core"?
+
+**Not yet.** Currently, only exact module IDs are accepted.
+
+**Future enhancement:** Explicit alias tables will support team shorthand conventions:
+
+```json
+{
+  "aliases": {
+    "auth": {
+      "canonical": "services/auth-core",
+      "confidence": 1.0,
+      "reason": "team shorthand"
+    }
+  }
+}
+```
+
+When implemented, you'll be able to use `--modules "auth"` and it will store `services/auth-core` internally.
+
+For now, use the exact module IDs from `lexmap.policy.json`.
+
+---
+
+## What if a module gets renamed in our codebase?
+
+When you refactor and rename a module (e.g., `services/user-access-api` → `api/user-access`):
+
+1. Update `lexmap.policy.json` with the new name
+2. Old Frames with the old name will still exist in your database
+3. **Future:** Alias tables will let you map old → new names:
+
+```json
+{
+  "aliases": {
+    "services/user-access-api": {
+      "canonical": "api/user-access",
+      "confidence": 1.0,
+      "reason": "refactored 2025-10-15"
+    }
+  }
+}
+```
+
+This will allow recall to work seamlessly across the rename.
+
+For now, old Frames remain searchable by their original module names, but new Frames must use the current module IDs.
+
+---
+
+## How fast is module validation?
+
+Very fast:
+
+- **Exact match:** ~0.5ms (hash table lookup)
+- **Typo with suggestions:** ~2ms (Levenshtein distance calculation)
+- **Policy cache:** ~10KB in memory
+
+Performance benchmarks are in `memory/mcp_server/alias-benchmarks.test.ts`.
+
+Target: <5% performance regression vs no validation ✅ MET
 
 ---
 

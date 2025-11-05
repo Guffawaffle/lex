@@ -1,0 +1,33 @@
+{
+  "$schema": "../alias-schema.json",
+  "version": "1.0",
+  "description": "Common typos and misspellings with auto-correction (optional)",
+  "note": "This is an OPTIONAL enhancement. Explicit aliases are safer than auto-typo-correction.",
+  "aliases": {
+    "athentication": {
+      "canonical": "services/auth-core",
+      "confidence": 0.9,
+      "reason": "common typo of 'authentication'"
+    },
+    "atuh": {
+      "canonical": "services/auth-core",
+      "confidence": 0.9,
+      "reason": "common typo"
+    },
+    "servcies": {
+      "canonical": "services",
+      "confidence": 0.9,
+      "reason": "common typo of 'services'"
+    },
+    "databse": {
+      "canonical": "infrastructure/database",
+      "confidence": 0.9,
+      "reason": "common typo of 'database'"
+    }
+  },
+  "recommendations": {
+    "use_with_warnings": true,
+    "min_confidence_for_auto_apply": 0.95,
+    "always_prompt_if_below": 0.95
+  }
+}
