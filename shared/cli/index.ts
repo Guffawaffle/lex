@@ -55,6 +55,7 @@ export function createProgram(): Command {
     .option('--feature-flags <list>', 'Comma-separated feature flags', parseList)
     .option('--permissions <list>', 'Comma-separated permissions', parseList)
     .option('-i, --interactive', 'Interactive mode (prompt for all fields)')
+    .option('--strict', 'Disable auto-correction for typos (for CI)')
     .action(async (cmdOptions) => {
       const globalOptions = program.opts();
       const options: RememberOptions = {
@@ -71,6 +72,7 @@ export function createProgram(): Command {
         permissions: cmdOptions.permissions,
         interactive: cmdOptions.interactive || false,
         json: globalOptions.json || false,
+        strict: cmdOptions.strict || false,
       };
       await remember(options);
     });
