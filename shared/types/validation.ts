@@ -46,4 +46,6 @@ export interface ResolutionResult {
   corrected: boolean;
   /** Edit distance from original to resolved (0 for exact match) */
   editDistance: number;
+  /** Source of the resolution */
+  source?: 'exact' | 'alias' | 'fuzzy' | 'substring';
 }

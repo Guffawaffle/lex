@@ -88,9 +88,14 @@ describe('resolveModuleId', () => {
     assert.equal(result.source, 'fuzzy');
   });
 
-  test('empty alias table returns unknowns with confidence 0', async () => {
+  test('empty alias table returns unknowns with confidence 0 (substring disabled)', async () => {
     const emptyAliasTable = { aliases: {} };
-    const result = await resolveModuleId('auth-core', samplePolicy, emptyAliasTable);
+    const result = await resolveModuleId(
+      'auth-core',
+      samplePolicy,
+      emptyAliasTable,
+      { noSubstring: true }
+    );
 
     assert.equal(result.canonical, 'auth-core');
     assert.equal(result.confidence, 0);
@@ -98,8 +103,13 @@ describe('resolveModuleId', () => {
     assert.equal(result.source, 'fuzzy');
   });
 
-  test('case sensitivity is preserved', async () => {
-    const result = await resolveModuleId('Auth-Core', samplePolicy, sampleAliasTable);
+  test('case sensitivity is preserved in aliases', async () => {
+    const result = await resolveModuleId(
+      'Auth-Core',
+      samplePolicy,
+      sampleAliasTable,
+      { noSubstring: true }
+    );
 
     // 'Auth-Core' doesn't match 'auth-core' in alias table
     assert.equal(result.canonical, 'Auth-Core');
@@ -191,5 +201,84 @@ describe('integration with /remember flow', () => {
     const unknowns = resolved.filter(r => r.confidence === 0);
     assert.equal(unknowns.length, 1);
     assert.equal(unknowns[0].original, 'invalid-module');
+  });
+});
+
+describe('Phase 3: Substring matching', () => {
+  test('unique substring resolves with confidence 0.9', async () => {
+    const result = await resolveModuleId('auth-core', samplePolicy);
+
+    assert.equal(result.canonical, 'services/auth-core');
+    assert.equal(result.confidence, 0.9);
+    assert.equal(result.original, 'auth-core');
+    assert.equal(result.source, 'substring');
+  });
+
+  test('substring matching is case-insensitive', async () => {
+    const result = await resolveModuleId('AUTH-CORE', samplePolicy);
+
+    assert.equal(result.canonical, 'services/auth-core');
+    assert.equal(result.confidence, 0.9);
+    assert.equal(result.source, 'substring');
+  });
+
+  test('ambiguous substring returns confidence 0', async () => {
+    // 'user' matches both 'services/user-access-api' and 'ui/user-admin-panel'
+    const result = await resolveModuleId('user', samplePolicy);
+
+    assert.equal(result.confidence, 0);
+    assert.equal(result.original, 'user');
+    assert.equal(result.source, 'fuzzy');
+  });
+
+  test('substring shorter than minLength returns confidence 0', async () => {
+    // Default minSubstringLength is 3, so 'au' should not match
+    const result = await resolveModuleId('au', samplePolicy);
+
+    assert.equal(result.confidence, 0);
+    assert.equal(result.original, 'au');
+  });
+
+  test('noSubstring option disables substring matching', async () => {
+    const result = await resolveModuleId(
+      'auth-core',
+      samplePolicy,
+      undefined,
+      { noSubstring: true }
+    );
+
+    // Should not find substring match
+    assert.equal(result.confidence, 0);
+    assert.equal(result.source, 'fuzzy');
+  });
+
+  test('custom minSubstringLength is respected', async () => {
+    const result = await resolveModuleId(
+      'se',
+      samplePolicy,
+      undefined,
+      { minSubstringLength: 2 }
+    );
+
+    // With minLength 2, 'se' should match (ambiguous: services/auth-core and services/user-access-api)
+    // But since both matches start with 'se', it's ambiguous
+    assert.equal(result.confidence, 0);
+  });
+
+  test('exact match has higher priority than substring', async () => {
+    // Even though 'services/auth-core' contains 'auth', exact match wins
+    const result = await resolveModuleId('services/auth-core', samplePolicy);
+
+    assert.equal(result.confidence, 1.0);
+    assert.equal(result.source, 'exact');
+  });
+
+  test('alias has higher priority than substring', async () => {
+    // If 'auth-core' is in alias table, alias wins over substring
+    const result = await resolveModuleId('auth-core', samplePolicy, sampleAliasTable);
+
+    assert.equal(result.confidence, 1.0);
+    assert.equal(result.source, 'alias');
+    assert.equal(result.canonical, 'services/auth-core');
   });
 });
