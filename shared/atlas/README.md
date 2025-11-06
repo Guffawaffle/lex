@@ -160,7 +160,9 @@ Called by:
 Run tests with:
 ```bash
 cd shared/atlas
-node atlas-frame.test.mjs
+node atlas-frame.test.mjs  # Atlas Frame generation tests (16 tests)
+node cache.test.mjs        # Cache functionality tests (8 tests)
+node auto-tune.test.mjs    # Auto-tuning tests (12 tests)
 ```
 
 Test coverage includes:
@@ -172,8 +174,11 @@ Test coverage includes:
 - ✅ Edge cases (empty seeds, unknown modules, fold radius 0)
 - ✅ Full policy metadata inclusion
 - ✅ Large graph performance
+- ✅ LRU cache with hit/miss tracking
+- ✅ Token estimation and auto-tuning
+- ✅ Radius reduction based on token limits
 
-All 16 tests passing.
+All 36 tests passing (16 + 8 + 12).
 
 ## Caching
 
