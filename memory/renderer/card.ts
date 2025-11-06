@@ -19,7 +19,7 @@ import {
   type ColorScheme,
   type FontConfig,
 } from './templates.js';
-import { highlightDiff, detectLanguageFromExtension } from './syntax.js';
+import { highlightDiff } from './syntax.js';
 import { renderDiff, getDiffStats, type TruncationOptions } from './diff.js';
 import type { BundledLanguage } from 'shiki';
 
@@ -40,35 +40,49 @@ function extractDiffs(rawContext: string): Array<{
 }> {
   const diffs: Array<{ diff: string; language: BundledLanguage }> = [];
   
-  // Simple pattern to detect code blocks or diff sections
-  // Look for lines starting with +/- which indicate diffs
+  // Detect unified diff format: lines starting with +, -, or space (for context)
+  // Must have at least one + or - line to be considered a diff
   const lines = rawContext.split('\n');
   let currentDiff: string[] = [];
   let inDiff = false;
+  let hasChanges = false; // Track if current block has actual changes
   
   for (const line of lines) {
-    const trimmedLine = line.trim();
+    const firstChar = line[0];
     
-    if (trimmedLine.startsWith('+') || trimmedLine.startsWith('-') || trimmedLine.startsWith(' ')) {
-      // Likely a diff line
+    // Check for diff markers at the start of the line (not trimmed)
+    const isDiffLine = firstChar === '+' || firstChar === '-' || 
+                       (firstChar === ' ' && inDiff); // Space only counts if already in diff
+    
+    if (isDiffLine) {
       if (!inDiff) {
         inDiff = true;
         currentDiff = [];
+        hasChanges = false;
       }
+      
+      // Track if we have actual changes (not just context)
+      if (firstChar === '+' || firstChar === '-') {
+        hasChanges = true;
+      }
+      
       currentDiff.push(line);
     } else if (inDiff && currentDiff.length > 0) {
-      // End of diff block
-      diffs.push({
-        diff: currentDiff.join('\n'),
-        language: 'typescript', // Default to TypeScript
-      });
+      // End of diff block - only add if it has actual changes
+      if (hasChanges) {
+        diffs.push({
+          diff: currentDiff.join('\n'),
+          language: 'typescript', // Default to TypeScript
+        });
+      }
       currentDiff = [];
       inDiff = false;
+      hasChanges = false;
     }
   }
   
-  // Add remaining diff if any
-  if (currentDiff.length > 0) {
+  // Add remaining diff if any and has changes
+  if (currentDiff.length > 0 && hasChanges) {
     diffs.push({
       diff: currentDiff.join('\n'),
       language: 'typescript',
