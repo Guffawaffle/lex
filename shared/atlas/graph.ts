@@ -5,7 +5,8 @@
  * Used by Atlas Frame generation to extract module neighborhoods.
  */
 
-import type { Policy, PolicyModule } from '../types/policy.js';
+// @ts-ignore - importing from compiled dist directory
+import type { Policy, PolicyModule } from '../types/dist/policy.js';
 
 export interface GraphEdge {
   from: string;
