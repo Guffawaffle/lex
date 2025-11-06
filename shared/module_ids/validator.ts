@@ -7,10 +7,17 @@
  * Now integrates with alias resolution to support shorthand and historical names.
  */
 
-import type { Policy } from '../types/policy.js';
-import type { ValidationResult, ModuleIdError } from '../types/validation.js';
-import type { AliasTable } from '../aliases/types.js';
-import { resolveModuleId } from '../aliases/resolver.js';
+// @ts-ignore - importing from compiled dist directories
+import type { Policy } from '../../types/dist/policy.js';
+// @ts-ignore - importing from compiled dist directories
+import type { ValidationResult, ModuleIdError } from '../../types/dist/validation.js';
+// @ts-ignore - importing from compiled dist directories
+import type { AliasTable } from '../../aliases/dist/types.js';
+// @ts-ignore - importing from compiled dist directories
+import { resolveModuleId } from '../../aliases/dist/resolver.js';
+
+// Re-export for use by other packages
+export { resolveModuleId };
 
 /**
  * Maximum edit distance threshold for fuzzy matching suggestions
