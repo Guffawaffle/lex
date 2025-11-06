@@ -8,9 +8,9 @@
  */
 
 import type { Policy } from '../types/policy.js';
-import type { ValidationResult, ModuleIdError } from '../types/validation.js';
+import type { ValidationResult, ModuleIdError, ResolutionResult } from '../types/validation.js';
 import type { AliasTable } from '../aliases/types.js';
-import { resolveModuleId } from '../aliases/resolver.js';
+import { loadAliasTable } from '../aliases/resolver.js';
 
 /**
  * Maximum edit distance threshold for fuzzy matching suggestions
@@ -75,15 +75,115 @@ function findSimilarModules(
 }
 
 /**
+ * Resolve a module ID with Phase 2 fuzzy matching and auto-correction
+ * 
+ * Resolution order:
+ * 1. Exact match (confidence 1.0)
+ * 2. Alias table (confidence 1.0) [Phase 1]
+ * 3. Fuzzy typo correction (confidence 0.8-0.9) [Phase 2]
+ * 4. Reject with error
+ * 
+ * @param moduleId - The module ID to resolve (may be an alias or contain typos)
+ * @param policy - The policy containing canonical module IDs
+ * @param strict - If true, only accept exact matches (confidence 1.0)
+ * @param aliasTable - Optional pre-loaded alias table (for testing)
+ * @returns ResolutionResult with resolved ID and metadata
+ * @throws Error if module not found or ambiguous
+ */
+export function resolveModuleId(
+  moduleId: string,
+  policy: Policy,
+  strict: boolean = false,
+  aliasTable?: AliasTable
+): ResolutionResult {
+  const policyModuleIds = new Set(Object.keys(policy.modules));
+
+  // Phase 1: Exact match (case-sensitive)
+  if (policyModuleIds.has(moduleId)) {
+    return {
+      resolved: moduleId,
+      original: moduleId,
+      confidence: 1.0,
+      corrected: false,
+      editDistance: 0
+    };
+  }
+
+  // Load alias table if not provided
+  const table = aliasTable || loadAliasTable();
+
+  // Phase 2: Alias table lookup
+  if (table.aliases[moduleId]) {
+    const aliasEntry = table.aliases[moduleId];
+    return {
+      resolved: aliasEntry.canonical,
+      original: moduleId,
+      confidence: aliasEntry.confidence,
+      corrected: true,
+      editDistance: 0
+    };
+  }
+
+  // If strict mode, reject now (no fuzzy matching)
+  if (strict) {
+    const suggestions = findSimilarModules(moduleId, policyModuleIds);
+    const suggestionText = suggestions.length > 0 ? ` Did you mean '${suggestions[0]}'?` : '';
+    throw new Error(`Module '${moduleId}' not found in policy.${suggestionText}`);
+  }
+
+  // Phase 3: Fuzzy matching (edit distance ≤ 2)
+  const candidates: Array<{ module: string; distance: number }> = [];
+  
+  for (const available of policyModuleIds) {
+    const distance = levenshteinDistance(moduleId.toLowerCase(), available.toLowerCase());
+    if (distance <= 2 && distance > 0) {
+      candidates.push({ module: available, distance });
+    }
+  }
+
+  // Sort by distance
+  candidates.sort((a, b) => a.distance - b.distance);
+
+  // Check if we have exactly one candidate (unambiguous)
+  if (candidates.length === 1) {
+    const candidate = candidates[0];
+    const confidence = candidate.distance === 1 ? 0.9 : 0.8;
+    
+    return {
+      resolved: candidate.module,
+      original: moduleId,
+      confidence,
+      corrected: true,
+      editDistance: candidate.distance
+    };
+  }
+
+  // Ambiguous or no match
+  if (candidates.length > 1) {
+    const matches = candidates.map(c => c.module).join(', ');
+    throw new Error(`Module '${moduleId}' is ambiguous. Multiple close matches found: ${matches}`);
+  }
+
+  // No fuzzy match found
+  const suggestions = findSimilarModules(moduleId, policyModuleIds);
+  const suggestionText = suggestions.length > 0 ? ` Did you mean '${suggestions[0]}'?` : '';
+  throw new Error(`Module '${moduleId}' not found in policy.${suggestionText}`);
+}
+
+/**
  * Validate that all module IDs in moduleScope exist in the policy
- * NOW WITH ALIAS RESOLUTION SUPPORT
+ * NOW WITH ALIAS RESOLUTION AND AUTO-CORRECTION SUPPORT
  *
- * This function resolves aliases first, then validates canonical IDs against policy.
+ * This function uses resolveModuleId which handles:
+ * - Exact match checking
+ * - Alias table lookup
+ * - Fuzzy matching for typo correction
+ * 
  * Returns canonical IDs for storage in Frame.module_scope.
  * 
- * @param moduleScope - Array of module IDs to validate (may include aliases)
+ * @param moduleScope - Array of module IDs to validate (may include aliases or typos)
  * @param policy - Policy object containing module definitions
- * @param aliasTable - Optional pre-loaded alias table
+ * @param aliasTable - Optional pre-loaded alias table (deprecated, not used)
  * @returns ValidationResult with errors, suggestions, and canonical IDs for storage
  *
  * @example
@@ -111,32 +211,35 @@ export async function validateModuleIds(
     return { valid: true, canonical: [] };
   }
 
-  // Step 1: Resolve all aliases
-  const resolutions = await Promise.all(
-    moduleScope.map(id => resolveModuleId(id, policy, aliasTable))
-  );
-
-  // Step 2: Validate all canonical IDs exist in policy
   const policyModuleIds = new Set(Object.keys(policy.modules));
-  const errors: ModuleIdError[] = [];
   const canonicalIds: string[] = [];
+  const errors: ModuleIdError[] = [];
 
-  for (const resolution of resolutions) {
-    // Check if canonical ID exists in policy
-    if (!policyModuleIds.has(resolution.canonical)) {
-      const suggestions = findSimilarModules(resolution.canonical, policyModuleIds);
-      const suggestionText = suggestions.length > 0
-        ? ` Did you mean '${suggestions[0]}'?`
-        : '';
-
+  for (const moduleId of moduleScope) {
+    try {
+      const resolution = resolveModuleId(moduleId, policy, false, aliasTable);
+      
+      // Validate that the resolved canonical ID exists in policy
+      if (!policyModuleIds.has(resolution.resolved)) {
+        const suggestions = findSimilarModules(resolution.resolved, policyModuleIds);
+        const suggestionText = suggestions.length > 0 ? ` Did you mean '${suggestions[0]}'?` : '';
+        
+        errors.push({
+          module: moduleId,
+          message: `Module '${moduleId}' resolved to '${resolution.resolved}' which is not found in policy.${suggestionText}`,
+          suggestions
+        });
+      } else {
+        canonicalIds.push(resolution.resolved);
+      }
+    } catch (error: any) {
+      // resolveModuleId throws on errors, collect them
+      const suggestions = findSimilarModules(moduleId, policyModuleIds);
       errors.push({
-        module: resolution.original,
-        message: `Module '${resolution.original}' resolved to '${resolution.canonical}' which is not found in policy.${suggestionText}`,
+        module: moduleId,
+        message: error.message,
         suggestions
       });
-    } else {
-      // Valid - add canonical ID to result
-      canonicalIds.push(resolution.canonical);
     }
   }
 
