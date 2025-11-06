@@ -6,7 +6,7 @@
 
 import { strict as assert } from 'assert';
 import { test, describe } from 'node:test';
-import { resolveModuleId, loadAliasTable, clearAliasTableCache } from './dist/aliases/resolver.js';
+import { resolveModuleId, loadAliasTable, clearAliasTableCache } from './dist/resolver.js';
 import { writeFileSync, mkdirSync, rmSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
