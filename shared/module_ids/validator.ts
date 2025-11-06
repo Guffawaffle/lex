@@ -16,6 +16,9 @@ import type { AliasTable } from '../aliases/dist/types.js';
 // @ts-ignore - importing from compiled dist directories
 import { resolveModuleId } from '../aliases/dist/resolver.js';
 
+// Re-export for use by other packages
+export { resolveModuleId };
+
 /**
  * Maximum edit distance threshold for fuzzy matching suggestions
  * Only suggest module names if edit distance is within this threshold
