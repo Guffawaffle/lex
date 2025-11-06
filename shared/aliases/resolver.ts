@@ -8,7 +8,7 @@
 
 export { AmbiguousSubstringError, NoMatchFoundError } from "./types.js";
 // @ts-ignore - importing from compiled dist directories
-import type { Policy } from "../../types/dist/policy.js";
+import type { Policy } from "../types/dist/policy.js";
 import type { AliasTable, AliasResolution, ResolverOptions } from "./types.js";
 import { AmbiguousSubstringError, NoMatchFoundError } from "./types.js";
 import { readFileSync } from "fs";
