@@ -7,7 +7,8 @@
 
 import { readFileSync, existsSync } from 'fs';
 import { resolve, dirname, join } from 'path';
-import type { Policy } from '../types/policy.js';
+// @ts-ignore - importing from compiled dist directory
+import type { Policy } from '../types/dist/policy.js';
 
 /**
  * Default policy path (from repository root)
