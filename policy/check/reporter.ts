@@ -5,8 +5,10 @@
  */
 
 import { Violation } from './violations.js';
-import type { Policy } from '../../shared/types/policy.js';
-import { generateAtlasFrame, formatAtlasFrame } from '../../shared/atlas/atlas-frame.js';
+// @ts-ignore - importing from compiled dist directories
+import type { Policy } from '../../shared/types/dist/policy.js';
+// @ts-ignore - importing from compiled dist directories
+import { generateAtlasFrame, formatAtlasFrame } from '../../shared/atlas/dist/atlas-frame.js';
 
 /**
  * Report format options
