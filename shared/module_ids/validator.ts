@@ -7,23 +7,23 @@
  * Now integrates with alias resolution to support shorthand and historical names.
  */
 
-// @ts-ignore - importing from compiled dist directories
-import type { Policy } from "../../types/dist/policy.js";
-// @ts-ignore - importing from compiled dist directories
+// @ts-ignore - cross-package import from compiled dist
+import type { Policy } from "../types/dist/policy.js";
+// @ts-ignore - cross-package import from compiled dist
 import type {
   ValidationResult,
   ModuleIdError,
   ResolutionResult,
-} from "../../types/dist/validation.js";
-// @ts-ignore - importing from compiled dist directories
-import type { AliasTable, ResolverOptions } from "../../aliases/dist/types.js";
-// @ts-ignore - importing from compiled dist directories
+} from "../types/dist/validation.js";
+// Import from aliases package using package name (resolved via exports)
+import type { AliasTable, ResolverOptions } from "@lex/aliases/types";
+// Import from aliases package using package name (resolved via exports)
 import {
   resolveModuleId,
   loadAliasTable,
   findSubstringMatches,
   AmbiguousSubstringError,
-} from "../../aliases/dist/resolver.js";
+} from "@lex/aliases/resolver";
 
 // Re-export for use by other packages
 export { resolveModuleId };
