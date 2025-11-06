@@ -8,6 +8,7 @@ import { Command } from 'commander';
 import { remember, type RememberOptions } from './remember.js';
 import { recall, type RecallOptions } from './recall.js';
 import { check, type CheckOptions } from './check.js';
+import { timeline, type TimelineCommandOptions } from './timeline.js';
 import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -118,6 +119,26 @@ export function createProgram(): Command {
         json: globalOptions.json || false,
       };
       await check(mergedJson, policyJson, options);
+    });
+
+  // lex timeline command
+  program
+    .command('timeline <ticket-or-branch>')
+    .description('Show visual timeline of Frame evolution for a ticket or branch')
+    .option('--since <date>', 'Filter frames since this date (ISO 8601)')
+    .option('--until <date>', 'Filter frames until this date (ISO 8601)')
+    .option('--format <type>', 'Output format: text, json, or html', /^(text|json|html)$/, 'text')
+    .option('--output <file>', 'Write output to file instead of stdout')
+    .action(async (ticketOrBranch, cmdOptions) => {
+      const globalOptions = program.opts();
+      const options: TimelineCommandOptions = {
+        since: cmdOptions.since,
+        until: cmdOptions.until,
+        format: cmdOptions.format,
+        output: cmdOptions.output,
+        json: globalOptions.json || false,
+      };
+      await timeline(ticketOrBranch, options);
     });
 
   return program;
