@@ -56,6 +56,7 @@ export function createProgram(): Command {
     .option('--permissions <list>', 'Comma-separated permissions', parseList)
     .option('-i, --interactive', 'Interactive mode (prompt for all fields)')
     .option('--strict', 'Disable auto-correction for typos (for CI)')
+    .option('--no-substring', 'Disable substring matching for module IDs (for CI)')
     .action(async (cmdOptions) => {
       const globalOptions = program.opts();
       const options: RememberOptions = {
@@ -73,6 +74,7 @@ export function createProgram(): Command {
         interactive: cmdOptions.interactive || false,
         json: globalOptions.json || false,
         strict: cmdOptions.strict || false,
+        noSubstring: cmdOptions.noSubstring || false,
       };
       await remember(options);
     });
