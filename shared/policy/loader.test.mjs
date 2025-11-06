@@ -6,7 +6,7 @@
 
 import { strict as assert } from 'assert';
 import { test, describe } from 'node:test';
-import { loadPolicy, clearPolicyCache } from './dist/policy/loader.js';
+import { loadPolicy, clearPolicyCache } from './dist/loader.js';
 import { fileURLToPath } from 'url';
 import { dirname, resolve } from 'path';
 

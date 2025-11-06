@@ -1,17 +1,26 @@
 # memory/renderer
 
-**Memory card image generation for visual Frame summaries**
+**Memory card image generation and timeline visualization for Frame summaries**
 
-This module provides functionality to render Frame metadata as high-contrast visual images, optimized for LLM vision input. Based on research showing 7-20× token reduction through vision-token compression (see `docs/research/adjacency-constrained-episodic-memory.pdf`, Section 3.1).
+This module provides functionality to render Frame metadata as high-contrast visual images, optimized for LLM vision input, and to visualize Frame evolution over time as timelines. Based on research showing 7-20× token reduction through vision-token compression (see `docs/research/adjacency-constrained-episodic-memory.pdf`, Section 3.1).
 
 ## Features
 
+### Memory Card Rendering
 - **High-contrast rendering**: Dark background with light text for optimal readability
 - **Monospace font**: Technical content displayed in monospace for clarity
 - **Smart text handling**: Automatic truncation and wrapping for long text
 - **Dynamic sizing**: Card height adjusts based on content
 - **PNG output**: Standard PNG format for broad compatibility
 - **Customizable**: Template system for different layouts and color schemes
+
+### Timeline Visualization
+- **Frame evolution tracking**: Shows progression of work on a ticket or branch
+- **Module scope evolution**: Visualizes which modules were touched when
+- **Blocker tracking**: Highlights when blockers were introduced vs resolved
+- **Multiple formats**: Text, JSON, and HTML output options
+- **Date filtering**: Filter frames by date range (--since, --until)
+- **Status indicators**: Shows frame status (in progress, blocked, tests failing)
 
 ## Usage
 
@@ -60,6 +69,87 @@ Diff snippet:
 `;
 
 const pngBuffer = await renderMemoryCard(frame, rawContext);
+```
+
+## Timeline Visualization
+
+### Basic timeline rendering
+
+```typescript
+import { buildTimeline, renderTimelineText } from '@lex/renderer';
+import type { Frame } from '@lex/frames/types';
+
+// Get frames for a ticket or branch (from store)
+const frames: Frame[] = getFramesByJira(db, 'TICKET-123');
+
+// Build timeline with change tracking
+const timeline = buildTimeline(frames);
+
+// Render as text
+const textOutput = renderTimelineText(timeline, 'TICKET-123: Add user authentication');
+console.log(textOutput);
+```
+
+### Module scope evolution
+
+```typescript
+import { renderModuleScopeEvolution } from '@lex/renderer';
+
+// Show which modules were touched in each frame
+const evolution = renderModuleScopeEvolution(timeline);
+console.log(evolution);
+
+// Output:
+// services/auth-core   ███  (3/4 frames)
+// ui/login-form       ████  (4/4 frames)
+```
+
+### Blocker tracking
+
+```typescript
+import { renderBlockerTracking } from '@lex/renderer';
+
+// Track when blockers were introduced and resolved
+const tracking = renderBlockerTracking(timeline);
+console.log(tracking);
+
+// Output:
+// Frame 1: No blockers
+// Frame 2: + CORS configuration issue
+// Frame 3: - CORS configuration issue (resolved)
+```
+
+### Date filtering
+
+```typescript
+import { filterTimeline } from '@lex/renderer';
+
+// Filter timeline by date range
+const filtered = filterTimeline(timeline, {
+  since: new Date('2025-11-02T00:00:00Z'),
+  until: new Date('2025-11-03T23:59:59Z'),
+});
+```
+
+### HTML output
+
+```typescript
+import { renderTimelineHTML } from '@lex/renderer';
+import { writeFileSync } from 'fs';
+
+// Generate interactive HTML timeline
+const html = renderTimelineHTML(timeline, 'TICKET-123: Timeline');
+writeFileSync('timeline.html', html, 'utf-8');
+```
+
+### JSON output
+
+```typescript
+import { renderTimelineJSON } from '@lex/renderer';
+
+// Export timeline as JSON for programmatic use
+const json = renderTimelineJSON(timeline);
+console.log(json);
 ```
 
 ### Custom rendering options
@@ -153,6 +243,26 @@ npx tsx memory/renderer/card.test.ts
 ```
 
 This generates sample images in `/tmp/memory-card-tests/` for visual inspection.
+
+### Timeline Tests
+
+Run the timeline test suite:
+
+```bash
+cd memory/renderer
+npm test
+```
+
+This tests timeline building, rendering, filtering, and change tracking.
+
+### Timeline Example
+
+See a working example of timeline visualization:
+
+```bash
+cd memory/renderer
+npx tsx timeline.example.ts
+```
 
 ## Dependencies
 
