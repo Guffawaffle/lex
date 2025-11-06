@@ -1,17 +1,17 @@
 /**
  * CLI Command: lex remember
- * 
+ *
  * Prompts user for Frame metadata, validates module_scope, creates Frame.
  */
 
-import inquirer from 'inquirer';
-import { v4 as uuidv4 } from 'uuid';
-import type { Frame } from '../types/frame.js';
-import { resolveModuleId } from '../module_ids/validator.js';
-import type { ResolutionResult } from '../types/validation.js';
-import { loadPolicy } from '../policy/loader.js';
-import { getDb, saveFrame } from '../../memory/store/index.js';
-import { getCurrentBranch } from '../git/branch.js';
+import inquirer from "inquirer";
+import { v4 as uuidv4 } from "uuid";
+import type { Frame } from "../types/frame.js";
+import { resolveModuleId } from "../module_ids/validator.js";
+import type { AliasResolution } from "@lex/aliases/types";
+import { loadPolicy } from "../policy/loader.js";
+import { getDb, saveFrame } from "../../memory/store/index.js";
+import { getCurrentBranch } from "../git/branch.js";
 
 export interface RememberOptions {
   jira?: string;
@@ -28,6 +28,7 @@ export interface RememberOptions {
   interactive?: boolean;
   json?: boolean;
   strict?: boolean;
+  noSubstring?: boolean;
 }
 
 /**
@@ -38,33 +39,63 @@ export async function remember(options: RememberOptions = {}): Promise<void> {
   try {
     // Get current git branch
     const branch = await getCurrentBranch();
-    
+
     // If interactive mode or missing required fields, prompt for input
-    const answers = options.interactive || !options.summary || !options.next || !options.modules
-      ? await promptForFrameData(options, branch)
-      : options;
+    const answers =
+      options.interactive ||
+      !options.summary ||
+      !options.next ||
+      !options.modules
+        ? await promptForFrameData(options, branch)
+        : options;
 
     // Resolve and validate module_scope against policy (THE CRITICAL RULE + auto-correction)
     const policy = loadPolicy();
     const strictMode = options.strict || false;
+    const noSubstring = options.noSubstring || false;
     const resolvedModules: string[] = [];
-    const resolutions: ResolutionResult[] = [];
-    
+    const resolutions: AliasResolution[] = [];
+
     try {
       for (const moduleId of answers.modules || []) {
-        const resolution = resolveModuleId(moduleId, policy, strictMode);
-        resolvedModules.push(resolution.resolved);
+        const resolution = await resolveModuleId(
+          moduleId,
+          policy,
+          undefined,
+          { noSubstring }
+        );
+
+        // In default mode, reject unknown modules (confidence 0)
+        // In non-strict mode (future), could allow with warning
+        if (resolution.confidence === 0) {
+          throw new Error(
+            `Unknown module: '${resolution.original}'. Not found in lexmap.policy.json.`
+          );
+        }
+
+        resolvedModules.push(resolution.canonical);
         resolutions.push(resolution);
-        
-        // Emit warning and log for auto-corrections
-        if (resolution.corrected && !options.json) {
-          const typoType = resolution.editDistance === 1 ? '1 char typo' : `${resolution.editDistance} char typo`;
-          console.warn(`⚠️  Auto-corrected '${resolution.original}' → '${resolution.resolved}' (${typoType})`);
-          console.log(`   Original input: '${resolution.original}' (confidence: ${resolution.confidence})`);
+
+        // Emit warning and log for auto-corrections and substring matches
+        if (resolution.source !== 'exact' && !options.json) {
+          if (resolution.source === "fuzzy" && resolution.confidence < 1.0) {
+            console.warn(
+              `⚠️  Fuzzy match: '${resolution.original}' → '${resolution.canonical}' (confidence: ${resolution.confidence})`
+            );
+          } else if (resolution.source === "substring") {
+            console.warn(
+              `ℹ️  Expanded substring '${resolution.original}' → '${resolution.canonical}' (unique match)`
+            );
+          } else if (resolution.source === "alias") {
+            // Alias resolution - optionally log but don't warn
+          }
+          console.log(
+            `   Original input: '${resolution.original}' (confidence: ${resolution.confidence})`
+          );
         }
       }
     } catch (error: any) {
-      console.error(`\n❌ Module resolution failed: ${error.message}\n`);
+      console.error(`\n❌ Module validation failed: ${error.message}\n`);
       process.exit(1);
     }
 
@@ -74,10 +105,10 @@ export async function remember(options: RememberOptions = {}): Promise<void> {
       timestamp: new Date().toISOString(),
       branch: branch,
       module_scope: resolvedModules, // Use resolved (potentially auto-corrected) module IDs
-      summary_caption: answers.summary || '',
-      reference_point: answers.referencePoint || '',
+      summary_caption: answers.summary || "",
+      reference_point: answers.referencePoint || "",
       status_snapshot: {
-        next_action: answers.next || '',
+        next_action: answers.next || "",
         blockers: answers.blockers,
         merge_blockers: answers.mergeBlockers,
         tests_failing: answers.testsFailing,
@@ -94,9 +125,11 @@ export async function remember(options: RememberOptions = {}): Promise<void> {
 
     // Output result
     if (options.json) {
-      console.log(JSON.stringify({ id: frame.id, timestamp: frame.timestamp }, null, 2));
+      console.log(
+        JSON.stringify({ id: frame.id, timestamp: frame.timestamp }, null, 2)
+      );
     } else {
-      console.log('\n✅ Frame created successfully!\n');
+      console.log("\n✅ Frame created successfully!\n");
       console.log(`Frame ID: ${frame.id}`);
       console.log(`Timestamp: ${frame.timestamp}`);
       console.log(`Branch: ${frame.branch}`);
@@ -104,7 +137,7 @@ export async function remember(options: RememberOptions = {}): Promise<void> {
         console.log(`Jira: ${frame.jira}`);
       }
       console.log(`Reference: ${frame.reference_point}`);
-      console.log(`Modules: ${frame.module_scope.join(', ')}`);
+      console.log(`Modules: ${frame.module_scope.join(", ")}`);
     }
   } catch (error: any) {
     console.error(`\n❌ Error: ${error.message}\n`);
@@ -123,69 +156,83 @@ async function promptForFrameData(
 
   if (!options.jira) {
     questions.push({
-      type: 'input',
-      name: 'jira',
-      message: 'Jira ticket (optional):',
+      type: "input",
+      name: "jira",
+      message: "Jira ticket (optional):",
     });
   }
 
   if (!options.referencePoint) {
     questions.push({
-      type: 'input',
-      name: 'referencePoint',
-      message: 'Reference point (memorable phrase):',
-      validate: (input: string) => input.trim().length > 0 || 'Reference point is required',
+      type: "input",
+      name: "referencePoint",
+      message: "Reference point (memorable phrase):",
+      validate: (input: string) =>
+        input.trim().length > 0 || "Reference point is required",
     });
   }
 
   if (!options.summary) {
     questions.push({
-      type: 'input',
-      name: 'summary',
-      message: 'Summary (one-line description):',
-      validate: (input: string) => input.trim().length > 0 || 'Summary is required',
+      type: "input",
+      name: "summary",
+      message: "Summary (one-line description):",
+      validate: (input: string) =>
+        input.trim().length > 0 || "Summary is required",
     });
   }
 
   if (!options.next) {
     questions.push({
-      type: 'input',
-      name: 'next',
-      message: 'Next action:',
-      validate: (input: string) => input.trim().length > 0 || 'Next action is required',
+      type: "input",
+      name: "next",
+      message: "Next action:",
+      validate: (input: string) =>
+        input.trim().length > 0 || "Next action is required",
     });
   }
 
   if (!options.modules) {
     questions.push({
-      type: 'input',
-      name: 'modules',
-      message: 'Module scope (comma-separated):',
-      filter: (input: string) => input.split(',').map(m => m.trim()).filter(m => m.length > 0),
-      validate: (input: string[]) => input.length > 0 || 'At least one module is required',
+      type: "input",
+      name: "modules",
+      message: "Module scope (comma-separated):",
+      filter: (input: string) =>
+        input
+          .split(",")
+          .map((m) => m.trim())
+          .filter((m) => m.length > 0),
+      validate: (input: string[]) =>
+        input.length > 0 || "At least one module is required",
     });
   }
 
   if (!options.blockers) {
     questions.push({
-      type: 'input',
-      name: 'blockers',
-      message: 'Blockers (comma-separated, optional):',
+      type: "input",
+      name: "blockers",
+      message: "Blockers (comma-separated, optional):",
       filter: (input: string) => {
         if (!input.trim()) return undefined;
-        return input.split(',').map(b => b.trim()).filter(b => b.length > 0);
+        return input
+          .split(",")
+          .map((b) => b.trim())
+          .filter((b) => b.length > 0);
       },
     });
   }
 
   if (!options.mergeBlockers) {
     questions.push({
-      type: 'input',
-      name: 'mergeBlockers',
-      message: 'Merge blockers (comma-separated, optional):',
+      type: "input",
+      name: "mergeBlockers",
+      message: "Merge blockers (comma-separated, optional):",
       filter: (input: string) => {
         if (!input.trim()) return undefined;
-        return input.split(',').map(b => b.trim()).filter(b => b.length > 0);
+        return input
+          .split(",")
+          .map((b) => b.trim())
+          .filter((b) => b.length > 0);
       },
     });
   }

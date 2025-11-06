@@ -160,7 +160,9 @@ Called by:
 Run tests with:
 ```bash
 cd shared/atlas
-node atlas-frame.test.mjs
+node atlas-frame.test.mjs  # Atlas Frame generation tests (16 tests)
+node cache.test.mjs        # Cache functionality tests (8 tests)
+node auto-tune.test.mjs    # Auto-tuning tests (12 tests)
 ```
 
 Test coverage includes:
@@ -172,13 +174,87 @@ Test coverage includes:
 - ✅ Edge cases (empty seeds, unknown modules, fold radius 0)
 - ✅ Full policy metadata inclusion
 - ✅ Large graph performance
+- ✅ LRU cache with hit/miss tracking
+- ✅ Token estimation and auto-tuning
+- ✅ Radius reduction based on token limits
 
-All 16 tests passing.
+All 36 tests passing (16 + 8 + 12).
+
+## Caching
+
+Atlas Frames are automatically cached by `(module_scope, radius)` key to avoid redundant graph traversals.
+
+**Features:**
+- **LRU Eviction**: When cache is full, least recently used entries are evicted
+- **Normalized Keys**: Module order doesn't matter - `['a', 'b']` and `['b', 'a']` use same cache
+- **Statistics**: Track hits, misses, evictions, and hit rate
+- **Configurable Size**: Default 100 entries, adjustable via `AtlasFrameCache(maxSize)`
+
+**Usage:**
+
+```typescript
+import { getCacheStats, resetCache, setEnableCache } from './shared/atlas/index.js';
+
+// Get cache statistics
+const stats = getCacheStats();
+console.log(`Hit rate: ${(stats.hits / (stats.hits + stats.misses) * 100).toFixed(1)}%`);
+
+// Clear cache
+resetCache();
+
+// Disable caching
+setEnableCache(false);
+```
+
+**CLI Support:**
+
+```bash
+# Show cache statistics after recall
+lex recall TICKET-123 --cache-stats
+```
+
+## Auto-Tuning
+
+Automatically adjust fold radius to fit within token limits for LLM context windows.
+
+**Features:**
+- **Token Estimation**: Estimates tokens in Atlas Frame (1 token ≈ 4 chars JSON)
+- **Adaptive Radius**: Starts at requested radius, reduces until fits in limit
+- **Logging**: Reports adjustments when radius is reduced
+
+**Usage:**
+
+```typescript
+import { autoTuneRadius, estimateTokens } from './shared/atlas/index.js';
+
+// Auto-tune radius to fit token limit
+const result = autoTuneRadius(
+  (radius) => generateAtlasFrame(seedModules, radius),
+  3,      // requested radius
+  5000,   // max tokens
+  (oldRadius, newRadius, tokens, limit) => {
+    console.log(`Reduced radius ${oldRadius} → ${newRadius}`);
+  }
+);
+
+console.log(`Used radius ${result.radiusUsed} (${result.tokensUsed} tokens)`);
+```
+
+**CLI Support:**
+
+```bash
+# Auto-tune radius based on token limit
+lex recall TICKET-123 --auto-radius --max-tokens 5000
+
+# Combines with manual radius (starts from that radius)
+lex recall TICKET-123 --fold-radius 3 --auto-radius --max-tokens 3000
+```
 
 ## Future work
 
-- Cache Atlas Frames by `(module_scope, fold_radius)` key to avoid recomputation
-- Support variable fold radius (radius 2 for deeper context, radius 0 for just seed modules)
+- ~~Cache Atlas Frames by `(module_scope, fold_radius)` key to avoid recomputation~~ ✅ **Implemented**
+- ~~Support variable fold radius (radius 2 for deeper context, radius 0 for just seed modules)~~ ✅ **Implemented**
+- ~~Auto-tune radius based on context window limits~~ ✅ **Implemented**
 - Render Atlas Frame as visual graph (SVG/Canvas) for memory card inclusion
 - Optimize coordinate generation for very large graphs (> 100 modules)
 - Support different layout algorithms (hierarchical, circular, etc.)
@@ -222,6 +298,12 @@ See `demo.ts` for more examples.
 
 ---
 
-**Status:** ✅ **Fully Implemented** (as of PR #31)
+**Status:** ✅ **Fully Implemented** (as of this PR)
 
-The fold radius algorithm is now complete with full policy graph traversal, coordinate generation, and comprehensive test coverage.
+The fold radius algorithm is now complete with:
+- Full policy graph traversal
+- Coordinate generation
+- Comprehensive test coverage
+- **Caching by (module_scope, radius) key with LRU eviction**
+- **Auto-tuning based on token limits**
+- **CLI support for all features**
