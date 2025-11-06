@@ -7,7 +7,7 @@
  */
 
 // @ts-ignore - importing from compiled dist directories
-import type { Policy } from '../types/dist/policy.js';
+import type { Policy } from '../../types/dist/policy.js';
 import type { AliasTable, AliasResolution } from './types.js';
 import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
