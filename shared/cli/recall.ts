@@ -7,11 +7,14 @@
 import type { Frame } from '../types/frame.js';
 import { getDb, searchFrames, getFramesByJira, getFrameById } from '../../memory/store/index.js';
 import { loadPolicy } from '../policy/loader.js';
-import { computeFoldRadius } from '../atlas/index.js';
+import { computeFoldRadius, autoTuneRadius, estimateTokens, getCacheStats } from '../atlas/index.js';
 
 export interface RecallOptions {
   json?: boolean;
   foldRadius?: number;
+  autoRadius?: boolean;
+  maxTokens?: number;
+  showCacheStats?: boolean;
 }
 
 /**
@@ -62,7 +65,18 @@ export async function recall(query: string, options: RecallOptions = {}): Promis
         if (i > 0) {
           console.log('\n' + '─'.repeat(80) + '\n');
         }
-        await displayFrame(frames[i], options.foldRadius || 1);
+        await displayFrame(frames[i], options);
+      }
+      
+      // Show cache stats if requested
+      if (options.showCacheStats) {
+        const stats = getCacheStats();
+        console.log(`\n📊 Cache Statistics:`);
+        console.log(`   Hits: ${stats.hits}`);
+        console.log(`   Misses: ${stats.misses}`);
+        console.log(`   Hit Rate: ${(stats.hits / (stats.hits + stats.misses) * 100).toFixed(1)}%`);
+        console.log(`   Cache Size: ${stats.size} entries`);
+        console.log(`   Evictions: ${stats.evictions}`);
       }
     }
   } catch (error: any) {
@@ -74,7 +88,7 @@ export async function recall(query: string, options: RecallOptions = {}): Promis
 /**
  * Display a Frame with Atlas Frame context
  */
-async function displayFrame(frame: Frame, foldRadius: number): Promise<void> {
+async function displayFrame(frame: Frame, options: RecallOptions): Promise<void> {
   console.log(`\n📋 Frame: ${frame.jira || frame.id}`);
   console.log(`   Timestamp: ${new Date(frame.timestamp).toLocaleString()}`);
   console.log(`   Branch: ${frame.branch}`);
@@ -108,8 +122,15 @@ async function displayFrame(frame: Frame, foldRadius: number): Promise<void> {
     console.log(`\n   Keywords: ${frame.keywords.join(', ')}`);
   }
 
-  // Generate and display Atlas Frame
-  const atlasFrame = await generateAtlasFrame(frame, foldRadius);
+  // Generate Atlas Frame with auto-tuning if enabled
+  const atlasResult = await generateAtlasFrame(frame, options);
+  
+  if (atlasResult.autoTuned) {
+    console.log(`\n⚙️  Auto-tuned radius: ${atlasResult.requestedRadius} → ${atlasResult.actualRadius} (${atlasResult.tokens} tokens)`);
+  }
+  
+  const atlasFrame = atlasResult.atlasFrame;
+  const foldRadius = atlasResult.actualRadius;
   
   console.log(`\n🗺️  Atlas Frame (fold radius ${foldRadius}):`);
   console.log(`\n   Modules in scope:`);
@@ -136,6 +157,11 @@ async function displayFrame(frame: Frame, foldRadius: number): Promise<void> {
         console.log(`     ... and ${atlasFrame.edges.length - 5} more`);
       }
     }
+    
+    // Show token estimate
+    if (options.autoRadius || options.maxTokens) {
+      console.log(`\n   Token estimate: ${atlasResult.tokens} tokens`);
+    }
   }
   
   console.log('');
@@ -144,21 +170,74 @@ async function displayFrame(frame: Frame, foldRadius: number): Promise<void> {
 /**
  * Generate Atlas Frame for a given Frame
  */
-async function generateAtlasFrame(frame: Frame, foldRadius: number): Promise<any> {
+async function generateAtlasFrame(
+  frame: Frame,
+  options: RecallOptions
+): Promise<{
+  atlasFrame: any;
+  actualRadius: number;
+  requestedRadius: number;
+  tokens: number;
+  autoTuned: boolean;
+}> {
   try {
     const policy = loadPolicy();
     
     // For now, use all modules in scope as seeds
     if (frame.module_scope.length === 0) {
-      return null;
+      return {
+        atlasFrame: null,
+        actualRadius: 0,
+        requestedRadius: options.foldRadius || 1,
+        tokens: 0,
+        autoTuned: false,
+      };
     }
     
-    const atlasFrame = computeFoldRadius(frame.module_scope, foldRadius, policy);
+    const requestedRadius = options.foldRadius || 1;
     
-    return atlasFrame;
+    // Auto-tune radius if enabled
+    if (options.autoRadius && options.maxTokens) {
+      const result = autoTuneRadius(
+        (radius) => computeFoldRadius(frame.module_scope, radius, policy),
+        requestedRadius,
+        options.maxTokens,
+        (oldRadius, newRadius, tokens, limit) => {
+          if (!options.json) {
+            console.log(`\n⚙️  Auto-tuning: radius ${oldRadius} → ${newRadius} (${tokens} tokens exceeded ${limit} limit)`);
+          }
+        }
+      );
+      
+      return {
+        atlasFrame: result.atlasFrame,
+        actualRadius: result.radiusUsed,
+        requestedRadius,
+        tokens: result.tokensUsed,
+        autoTuned: result.radiusUsed !== requestedRadius,
+      };
+    }
+    
+    // Normal generation without auto-tuning
+    const atlasFrame = computeFoldRadius(frame.module_scope, requestedRadius, policy);
+    const tokens = estimateTokens(atlasFrame);
+    
+    return {
+      atlasFrame,
+      actualRadius: requestedRadius,
+      requestedRadius,
+      tokens,
+      autoTuned: false,
+    };
   } catch (error) {
     // If Atlas Frame generation fails, continue without it
     console.warn(`   Warning: Could not generate Atlas Frame: ${error}`);
-    return null;
+    return {
+      atlasFrame: null,
+      actualRadius: 0,
+      requestedRadius: options.foldRadius || 1,
+      tokens: 0,
+      autoTuned: false,
+    };
   }
 }
