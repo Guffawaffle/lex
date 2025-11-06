@@ -37,7 +37,7 @@ export async function timeline(
   try {
     const db = getDb();
     let frames: Frame[] = [];
-    let title = `${ticketOrBranch}: Timeline`;
+    let title: string;
 
     // Try to find frames by Jira ticket first, then by branch
     const framesByJira = getFramesByJira(db, ticketOrBranch);
@@ -49,6 +49,9 @@ export async function timeline(
       if (framesByBranch.length > 0) {
         frames = framesByBranch;
         title = `Branch ${ticketOrBranch}: Timeline`;
+      } else {
+        // No frames found
+        title = `${ticketOrBranch}: Timeline`;
       }
     }
 
