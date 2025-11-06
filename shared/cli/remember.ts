@@ -28,6 +28,7 @@ export interface RememberOptions {
   interactive?: boolean;
   json?: boolean;
   strict?: boolean;
+  noSubstring?: boolean;
 }
 
 /**
@@ -47,24 +48,31 @@ export async function remember(options: RememberOptions = {}): Promise<void> {
     // Resolve and validate module_scope against policy (THE CRITICAL RULE + auto-correction)
     const policy = loadPolicy();
     const strictMode = options.strict || false;
+    const noSubstring = options.noSubstring || false;
     const resolvedModules: string[] = [];
     const resolutions: ResolutionResult[] = [];
     
     try {
       for (const moduleId of answers.modules || []) {
-        const resolution = resolveModuleId(moduleId, policy, strictMode);
+        const resolution = resolveModuleId(moduleId, policy, strictMode, undefined, { noSubstring });
         resolvedModules.push(resolution.resolved);
         resolutions.push(resolution);
         
-        // Emit warning and log for auto-corrections
+        // Emit warning and log for auto-corrections and substring matches
         if (resolution.corrected && !options.json) {
-          const typoType = resolution.editDistance === 1 ? '1 char typo' : `${resolution.editDistance} char typo`;
-          console.warn(`⚠️  Auto-corrected '${resolution.original}' → '${resolution.resolved}' (${typoType})`);
+          if (resolution.source === 'fuzzy' && resolution.editDistance > 0) {
+            const typoType = resolution.editDistance === 1 ? '1 char typo' : `${resolution.editDistance} char typo`;
+            console.warn(`⚠️  Auto-corrected '${resolution.original}' → '${resolution.resolved}' (${typoType})`);
+          } else if (resolution.source === 'substring') {
+            console.warn(`ℹ️  Expanded substring '${resolution.original}' → '${resolution.resolved}' (unique match)`);
+          } else if (resolution.source === 'alias') {
+            // Alias resolution - optionally log but don't warn
+          }
           console.log(`   Original input: '${resolution.original}' (confidence: ${resolution.confidence})`);
         }
       }
     } catch (error: any) {
-      console.error(`\n❌ Module resolution failed: ${error.message}\n`);
+      console.error(`\n❌ Module validation failed: ${error.message}\n`);
       process.exit(1);
     }
 
