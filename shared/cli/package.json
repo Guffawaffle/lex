@@ -6,12 +6,12 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "lex": "./dist/lex.js"
+    "lex": "./dist/shared/cli/lex.js"
   },
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "types": "./dist/shared/cli/index.d.ts",
+      "import": "./dist/shared/cli/index.js"
     }
   },
   "scripts": {
