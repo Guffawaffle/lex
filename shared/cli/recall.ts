@@ -71,10 +71,13 @@ export async function recall(query: string, options: RecallOptions = {}): Promis
       // Show cache stats if requested
       if (options.showCacheStats) {
         const stats = getCacheStats();
+        const total = stats.hits + stats.misses;
+        const hitRate = total === 0 ? 0 : (stats.hits / total * 100);
+        
         console.log(`\n📊 Cache Statistics:`);
         console.log(`   Hits: ${stats.hits}`);
         console.log(`   Misses: ${stats.misses}`);
-        console.log(`   Hit Rate: ${(stats.hits / (stats.hits + stats.misses) * 100).toFixed(1)}%`);
+        console.log(`   Hit Rate: ${hitRate.toFixed(1)}%`);
         console.log(`   Cache Size: ${stats.size} entries`);
         console.log(`   Evictions: ${stats.evictions}`);
       }
@@ -203,6 +206,7 @@ async function generateAtlasFrame(
         requestedRadius,
         options.maxTokens,
         (oldRadius, newRadius, tokens, limit) => {
+          // Only log adjustments when not in JSON mode
           if (!options.json) {
             console.log(`\n⚙️  Auto-tuning: radius ${oldRadius} → ${newRadius} (${tokens} tokens exceeded ${limit} limit)`);
           }

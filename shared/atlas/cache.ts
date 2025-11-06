@@ -58,7 +58,7 @@ export class AtlasFrameCache {
    * regardless of input order.
    */
   private getCacheKey(moduleScope: string[], radius: number): string {
-    const sortedModules = [...moduleScope].sort();
+    const sortedModules = Array.from(moduleScope).sort();
     return `${sortedModules.join(',')}:${radius}`;
   }
 
