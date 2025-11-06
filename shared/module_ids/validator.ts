@@ -8,21 +8,21 @@
  */
 
 // @ts-ignore - importing from compiled dist directories
-import type { Policy } from "../../types/dist/policy.js";
+import type { Policy } from "../types/dist/policy.js";
 // @ts-ignore - importing from compiled dist directories
 import type {
   ValidationResult,
   ModuleIdError,
   ResolutionResult,
-} from "../../types/dist/validation.js";
+} from "../types/dist/validation.js";
 // @ts-ignore - importing from compiled dist directories
-import type { AliasTable, ResolverOptions } from "../../aliases/dist/types.js";
+import type { AliasTable, ResolverOptions } from "../aliases/dist/types.js";
 // @ts-ignore - importing from compiled dist directories
 import {
   loadAliasTable,
   findSubstringMatches,
   AmbiguousSubstringError,
-} from "../../aliases/dist/resolver.js";
+} from "../aliases/dist/resolver.js";
 
 /**
  * Maximum edit distance threshold for fuzzy matching suggestions
