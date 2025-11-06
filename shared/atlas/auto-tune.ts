@@ -111,9 +111,14 @@ export function estimateTokensBeforeGeneration(
   let estimatedModules = seedCount;
   
   if (radius > 0) {
-    // Geometric series sum for graph expansion
-    const expansionFactor = (Math.pow(avgDegree, radius + 1) - 1) / (avgDegree - 1);
-    estimatedModules = seedCount * expansionFactor;
+    // Handle special case where avgDegree is 1 (linear graph)
+    if (avgDegree === 1) {
+      estimatedModules = seedCount * (radius + 1);
+    } else {
+      // Geometric series sum for graph expansion
+      const expansionFactor = (Math.pow(avgDegree, radius + 1) - 1) / (avgDegree - 1);
+      estimatedModules = seedCount * expansionFactor;
+    }
   }
 
   // Estimate edge count (roughly degree * modules / 2)
