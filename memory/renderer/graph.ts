@@ -91,6 +91,12 @@ const MODULE_TYPE_COLORS: Record<string, string> = {
   default: '#607D8B',
 };
 
+// Constants for rendering
+const MAX_LABEL_LENGTH = 20;
+const LABEL_TRUNCATE_AT = 17;
+const MIN_DISTANCE_THRESHOLD = 0.1;
+const WARNING_ICON = '\u26A0\uFE0F'; // ⚠️ as Unicode
+
 /**
  * Calculate node size based on number of dependencies
  */
@@ -305,7 +311,7 @@ function renderEdge(edge: GraphEdgeRenderable): string {
   if (!allowed) {
     const midX = (x1 + x2) / 2;
     const midY = (y1 + y2) / 2;
-    svg += `<text x="${midX}" y="${midY}" font-size="14" fill="#F44336" text-anchor="middle">⚠️</text>`;
+    svg += `<text x="${midX}" y="${midY}" font-size="14" fill="#F44336" text-anchor="middle">${WARNING_ICON}</text>`;
   }
   
   return svg;
@@ -329,7 +335,9 @@ function renderNode(node: GraphNode, color: string, showTooltips: boolean): stri
   svg += '</circle>';
   
   // Label (truncate if too long)
-  const label = module.id.length > 20 ? module.id.substring(0, 17) + '...' : module.id;
+  const label = module.id.length > MAX_LABEL_LENGTH 
+    ? module.id.substring(0, LABEL_TRUNCATE_AT) + '...' 
+    : module.id;
   svg += `<text x="${x}" y="${y + radius + 15}" class="node-label">${escapeXml(label)}</text>`;
   
   // Tooltip (if enabled)

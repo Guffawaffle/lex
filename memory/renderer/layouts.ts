@@ -37,6 +37,9 @@ const DEFAULT_FORCE_CONFIG: Required<LayoutConfig> = {
   nodeSpacing: 100,
 };
 
+// Constants for layout calculations
+const MIN_DISTANCE_THRESHOLD = 0.1;
+
 /**
  * Force-directed graph layout (Fruchterman-Reingold algorithm)
  * Creates organic-looking layouts where connected nodes attract and all nodes repel
@@ -95,7 +98,7 @@ export function forceDirectedLayout(
         const distSq = dx * dx + dy * dy;
         const dist = Math.sqrt(distSq);
         
-        if (dist < 0.1) continue;
+        if (dist < MIN_DISTANCE_THRESHOLD) continue;
         
         // Coulomb's law: F = k / r^2
         const force = cfg.repulsion / distSq;
@@ -125,7 +128,7 @@ export function forceDirectedLayout(
       const dy = n2.y - n1.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
       
-      if (dist < 0.1) continue;
+      if (dist < MIN_DISTANCE_THRESHOLD) continue;
       
       // Hooke's law: F = k * d
       const force = dist * cfg.attraction;
