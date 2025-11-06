@@ -6,10 +6,11 @@
   "main": "index.ts",
   "scripts": {
     "build": "tsc",
-    "test": "npm run build && node --test dist/card.test.js"
+    "test": "npm run build && node --test dist/renderer/card.test.js dist/renderer/syntax.test.js dist/renderer/diff.test.js"
   },
   "dependencies": {
-    "sharp": "^0.33.5"
+    "sharp": "^0.33.5",
+    "shiki": "^1.22.2"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
