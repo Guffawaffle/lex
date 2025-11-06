@@ -71,7 +71,7 @@ export async function remember(options: RememberOptions = {}): Promise<void> {
         }
       }
     } catch (error: any) {
-      console.error(`\n❌ Module resolution failed: ${error.message}\n`);
+      console.error(`\n❌ Module validation failed: ${error.message}\n`);
       process.exit(1);
     }
 
