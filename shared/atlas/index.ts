@@ -25,3 +25,20 @@ export {
 export {
   computeFoldRadius,
 } from './fold-radius.js';
+
+// Export cache utilities
+export {
+  AtlasFrameCache,
+  getCache,
+  setEnableCache,
+  resetCache,
+  getCacheStats,
+  type CacheStats,
+} from './cache.js';
+
+// Export auto-tuning utilities
+export {
+  estimateTokens,
+  autoTuneRadius,
+  estimateTokensBeforeGeneration,
+} from './auto-tune.js';

@@ -56,12 +56,15 @@ Frames are stored locally (SQLite, local-only). This is by design (no telemetry,
 
 Future: Optional self-hosted sync server for teams (still no SaaS dependency).
 
-### Fold Radius Fixed at 1
+### ~~Fold Radius Fixed at 1~~ ✅ **Implemented**
 
-Currently, fold radius is hardcoded to 1 hop. Future:
-- Allow variable radius (0 for just seed modules, 2 for deeper context)
-- Auto-tune radius based on context window limits
-- Cache computed Atlas Frames by `(module_scope, radius)` key
+**Update (2025-11-06):** Fold radius is now fully configurable with caching and auto-tuning:
+- ✅ Variable radius (0 for just seed modules, 1-3 for deeper context)
+- ✅ Auto-tune radius based on context window limits (`--auto-radius --max-tokens`)
+- ✅ Cache computed Atlas Frames by `(module_scope, radius)` key with LRU eviction
+- ✅ CLI support: `lex recall --fold-radius N --auto-radius --max-tokens N --cache-stats`
+
+See `shared/atlas/README.md` for full documentation.
 
 ## Planned Enhancements
 

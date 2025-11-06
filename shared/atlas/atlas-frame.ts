@@ -12,6 +12,7 @@ import { loadPolicy } from '../../policy/dist/loader.js';
 // @ts-ignore - importing from compiled dist directory
 import type { PolicyModule } from '../../types/dist/policy.js';
 import { extractNeighborhood, generateCoordinates } from './graph.js';
+import { getCache } from './cache.js';
 
 export interface AtlasFrame {
   atlas_timestamp: string;
@@ -52,12 +53,19 @@ export interface AtlasEdge {
  * - Includes full policy metadata for all discovered modules
  * - Returns complete neighborhood with edges and coordinates
  * 
+ * Caching:
+ * - Caches results by (module_scope, radius) key
+ * - Cache is keyed on sorted module IDs for consistency
+ * - Cache can be disabled via setEnableCache(false)
+ * 
  * Algorithm:
- * 1. Load policy from lexmap.policy.json
- * 2. Use BFS to extract N-hop neighborhood from seed modules
- * 3. Generate 2D coordinates for visualization
- * 4. Include full PolicyModule metadata for each module
- * 5. Include all edges (allowed + forbidden) between modules
+ * 1. Check cache for existing result
+ * 2. Load policy from lexmap.policy.json
+ * 3. Use BFS to extract N-hop neighborhood from seed modules
+ * 4. Generate 2D coordinates for visualization
+ * 5. Include full PolicyModule metadata for each module
+ * 6. Include all edges (allowed + forbidden) between modules
+ * 7. Store result in cache
  * 
  * @param seedModules - Module IDs from Frame.module_scope
  * @param foldRadius - How many hops to expand (default: 1)
@@ -69,6 +77,16 @@ export function generateAtlasFrame(
   foldRadius: number = 1,
   policyPath?: string
 ): AtlasFrame {
+  // Check cache first (if enabled)
+  const cache = getCache();
+  if (cache && !policyPath) {
+    // Only use cache if using default policy path
+    const cached = cache.get(seedModules, foldRadius);
+    if (cached) {
+      return cached;
+    }
+  }
+  
   const timestamp = new Date().toISOString();
   
   // Load policy graph
@@ -140,7 +158,7 @@ export function generateAtlasFrame(
     reason: edge.type === 'forbidden' ? 'forbidden_caller' : undefined,
   }));
 
-  return {
+  const atlasFrame: AtlasFrame = {
     atlas_timestamp: timestamp,
     seed_modules: seedModules,
     fold_radius: foldRadius,
@@ -149,6 +167,13 @@ export function generateAtlasFrame(
     critical_rule:
       "Every module name MUST match the IDs in lexmap.policy.json. No ad hoc naming.",
   };
+
+  // Cache the result if using default policy path
+  if (cache && !policyPath) {
+    cache.set(seedModules, foldRadius, atlasFrame);
+  }
+
+  return atlasFrame;
 }
 
 /**
