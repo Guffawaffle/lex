@@ -84,12 +84,25 @@ export function createProgram(): Command {
     .command('recall <query>')
     .description('Retrieve a Frame by reference point, ticket ID, or Frame ID')
     .option('--fold-radius <number>', 'Fold radius for Atlas Frame neighborhood', parseInt)
+    .option('--auto-radius', 'Auto-tune radius based on token limits')
+    .option('--max-tokens <number>', 'Maximum tokens for Atlas Frame (use with --auto-radius)', parseInt)
+    .option('--cache-stats', 'Show cache statistics')
     .action(async (query, cmdOptions) => {
       const globalOptions = program.opts();
       const options: RecallOptions = {
         foldRadius: cmdOptions.foldRadius || 1,
+        autoRadius: cmdOptions.autoRadius || false,
+        maxTokens: cmdOptions.maxTokens,
+        showCacheStats: cmdOptions.cacheStats || false,
         json: globalOptions.json || false,
       };
+      
+      // Validate auto-radius options
+      if (options.autoRadius && !options.maxTokens) {
+        console.error('Error: --auto-radius requires --max-tokens to be specified');
+        process.exit(1);
+      }
+      
       await recall(query, options);
     });
 
