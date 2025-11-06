@@ -10,7 +10,7 @@
 // The policy loader is pre-compiled to shared/policy/dist/loader.js at build time.
 import { loadPolicy } from '../../policy/dist/loader.js';
 // @ts-ignore - importing from compiled dist directory
-import type { PolicyModule } from '../types/dist/policy.js';
+import type { PolicyModule } from '../../types/dist/policy.js';
 import { extractNeighborhood, generateCoordinates } from './graph.js';
 
 export interface AtlasFrame {

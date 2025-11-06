@@ -8,13 +8,13 @@
  */
 
 // @ts-ignore - importing from compiled dist directories
-import type { Policy } from '../types/dist/policy.js';
+import type { Policy } from '../../types/dist/policy.js';
 // @ts-ignore - importing from compiled dist directories
-import type { ValidationResult, ModuleIdError } from '../types/dist/validation.js';
+import type { ValidationResult, ModuleIdError } from '../../types/dist/validation.js';
 // @ts-ignore - importing from compiled dist directories
-import type { AliasTable } from '../aliases/dist/types.js';
+import type { AliasTable } from '../../aliases/dist/types.js';
 // @ts-ignore - importing from compiled dist directories
-import { resolveModuleId } from '../aliases/dist/resolver.js';
+import { resolveModuleId } from '../../aliases/dist/resolver.js';
 
 // Re-export for use by other packages
 export { resolveModuleId };
