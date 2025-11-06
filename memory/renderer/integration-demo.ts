@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 /**
- * Integration test demonstrating syntax highlighting for code diffs in memory cards
- * This test validates the complete workflow from diff input to rendered card
+ * Integration demo: Memory card + syntax highlighting + diff rendering
+ * Generates a comprehensive visual summary combining all renderer features
  */
 
 import { renderMemoryCard } from './card.js';
-import type { Frame } from '../frames/types.js';
+import type { Frame } from './types.js';
 import { writeFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import { highlightDiff } from './syntax.js';
@@ -20,7 +20,7 @@ const typescriptDiff = `
 +   }
 +   return bcrypt.compare(password, user.hash);
 + }
-+ 
++
 - function authenticateUser(username, password) {
 -   return bcrypt.compare(password, user.hash);
 - }
@@ -33,7 +33,7 @@ const pythonDiff = `
 +     subtotal = sum(item['price'] * item['qty'] for item in items)
 +     tax = subtotal * 0.08
 +     return subtotal + tax
-+ 
++
 - def calculate_total(items):
 -     return sum(item['price'] for item in items)
 `;
@@ -80,11 +80,11 @@ Performance metrics:
 
 async function main() {
   console.log('🎨 Syntax Highlighting Integration Test\n');
-  
+
   // Create output directory
   const outputDir = '/tmp/syntax-highlighting-demo';
   mkdirSync(outputDir, { recursive: true });
-  
+
   // Test 1: Render memory card with code diffs
   console.log('Test 1: Rendering memory card with syntax-highlighted diffs...');
   const cardBuffer = await renderMemoryCard(exampleFrame, rawContext);
@@ -92,13 +92,13 @@ async function main() {
   writeFileSync(cardPath, cardBuffer);
   console.log(`✓ Memory card rendered (${cardBuffer.length} bytes)`);
   console.log(`  Saved to: ${cardPath}\n`);
-  
+
   // Test 2: Test syntax highlighting directly
   console.log('Test 2: Testing syntax highlighting directly...');
   const startTime = Date.now();
   const highlightedHtml = await highlightDiff(typescriptDiff, 'typescript');
   const highlightTime = Date.now() - startTime;
-  
+
   const htmlPath = join(outputDir, 'highlighted-diff.html');
   const htmlContent = `
 <!DOCTYPE html>
@@ -149,25 +149,25 @@ async function main() {
   writeFileSync(htmlPath, htmlContent);
   console.log(`✓ Syntax highlighting completed in ${highlightTime}ms`);
   console.log(`  Saved to: ${htmlPath}\n`);
-  
+
   // Test 3: Test diff statistics
   console.log('Test 3: Testing diff statistics...');
   const tsStats = getDiffStats(typescriptDiff);
   const pyStats = getDiffStats(pythonDiff);
-  
+
   console.log(`TypeScript diff stats:`);
   console.log(`  Additions: ${tsStats.additions}`);
   console.log(`  Deletions: ${tsStats.deletions}`);
   console.log(`  Total lines: ${tsStats.total}`);
-  
+
   console.log(`\nPython diff stats:`);
   console.log(`  Additions: ${pyStats.additions}`);
   console.log(`  Deletions: ${pyStats.deletions}`);
   console.log(`  Total lines: ${pyStats.total}\n`);
-  
+
   // Test 4: Test diff truncation
   console.log('Test 4: Testing smart diff truncation...');
-  
+
   // Create a large diff
   let largeDiff = '';
   for (let i = 0; i < 100; i++) {
@@ -177,34 +177,34 @@ async function main() {
       largeDiff += ` unchanged line ${i}\n`;
     }
   }
-  
+
   const truncated = renderDiff(largeDiff, { maxLines: 20, contextLines: 3 });
   const truncatedLines = truncated.split('\n').length;
-  
+
   console.log(`Original diff: 100 lines`);
   console.log(`Truncated diff: ${truncatedLines} lines`);
   console.log(`✓ Successfully truncated while preserving changes and context\n`);
-  
+
   // Test 5: Performance validation
   console.log('Test 5: Performance validation...');
   const perfStart = Date.now();
-  
+
   // Render 10 cards to test performance
   for (let i = 0; i < 10; i++) {
     await renderMemoryCard(exampleFrame, rawContext);
   }
-  
+
   const perfEnd = Date.now();
   const avgTime = (perfEnd - perfStart) / 10;
-  
+
   console.log(`Average rendering time: ${avgTime.toFixed(2)}ms`);
-  
+
   if (avgTime < 100) {
     console.log(`✓ Performance requirement met (<100ms)\n`);
   } else {
     console.log(`⚠ Performance requirement not met (${avgTime.toFixed(2)}ms > 100ms)\n`);
   }
-  
+
   console.log('✨ Integration test complete!');
   console.log(`\nOutputs saved to: ${outputDir}`);
   console.log('Open the files to verify:');

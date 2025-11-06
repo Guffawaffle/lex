@@ -12,7 +12,8 @@
   "scripts": {
     "remember": "node memory/mcp_server/frame-mcp.mjs",
     "check": "node policy/check/lexmap-check.ts",
-    "build": "npm run build:types && npm run build:module-ids && npm run build:aliases && npm run build:policy && npm run build:atlas && npm run build:git && npm run build:merge && npm run build:check && npm run build:store && npm run build:renderer && npm run build:mcp-server && npm run build:cli",
+    "pretest": "npm run build",
+    "build": "npm run build:types && npm run build:aliases && npm run build:module-ids && npm run build:policy && npm run build:atlas && npm run build:git && npm run build:merge && npm run build:check && npm run build:store && npm run build:renderer && npm run build:mcp-server && npm run build:cli",
     "build:types": "cd shared/types && npx tsc",
     "build:module-ids": "cd shared/module_ids && npx tsc",
     "build:aliases": "cd shared/aliases && npx tsc",

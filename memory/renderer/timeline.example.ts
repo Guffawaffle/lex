@@ -1,6 +1,6 @@
 /**
  * Timeline Example
- * 
+ *
  * Demonstrates the timeline visualization for Frame evolution.
  */
 
@@ -11,7 +11,7 @@ import {
   renderBlockerTracking,
   renderTimelineHTML,
 } from './timeline.js';
-import type { Frame } from '../../shared/types/frame.js';
+import type { Frame } from './types.js';
 import { writeFileSync } from 'fs';
 
 // Example frames for TICKET-123: Add user authentication
