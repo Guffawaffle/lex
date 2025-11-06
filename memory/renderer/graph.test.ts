@@ -10,6 +10,10 @@ import { join } from 'path';
 // Test output directory
 const TEST_OUTPUT_DIR = '/tmp/graph-renderer-tests';
 
+// Performance test constants
+const PERFORMANCE_TARGET_MS = 500;
+const LARGE_GRAPH_SIZE = 50;
+
 /**
  * Create a test Atlas Frame with sample data
  */
@@ -86,10 +90,9 @@ function createTestAtlasFrame(): AtlasFrame {
 function createLargeTestAtlasFrame(): AtlasFrame {
   const modules = [];
   const edges = [];
-  const numModules = 50;
   
   // Create modules in a grid
-  for (let i = 0; i < numModules; i++) {
+  for (let i = 0; i < LARGE_GRAPH_SIZE; i++) {
     modules.push({
       id: `module-${i}`,
       coords: [
@@ -100,7 +103,7 @@ function createLargeTestAtlasFrame(): AtlasFrame {
   }
   
   // Create edges (each module connects to next few modules)
-  for (let i = 0; i < numModules - 1; i++) {
+  for (let i = 0; i < LARGE_GRAPH_SIZE - 1; i++) {
     edges.push({
       from: `module-${i}`,
       to: `module-${i + 1}`,
@@ -108,7 +111,7 @@ function createLargeTestAtlasFrame(): AtlasFrame {
     });
     
     // Add some forbidden edges
-    if (i % 5 === 0 && i + 2 < numModules) {
+    if (i % 5 === 0 && i + 2 < LARGE_GRAPH_SIZE) {
       edges.push({
         from: `module-${i}`,
         to: `module-${i + 2}`,
@@ -272,7 +275,7 @@ async function testCustomColors() {
  * Test 6: Performance test with large graph
  */
 async function testLargeGraphPerformance() {
-  console.log('Test 6: Testing performance with large graph (50 nodes)...');
+  console.log(`Test 6: Testing performance with large graph (${LARGE_GRAPH_SIZE} nodes)...`);
   
   const atlasFrame = createLargeTestAtlasFrame();
   const startTime = Date.now();
@@ -297,10 +300,10 @@ async function testLargeGraphPerformance() {
   console.log(`  Saved to: ${outputPath}`);
   
   // Check performance requirement (< 500ms for < 100 nodes)
-  if (renderTime > 500) {
-    console.warn(`  ⚠ Render time ${renderTime}ms exceeds target of 500ms`);
+  if (renderTime > PERFORMANCE_TARGET_MS) {
+    console.warn(`  ⚠ Render time ${renderTime}ms exceeds target of ${PERFORMANCE_TARGET_MS}ms`);
   } else {
-    console.log(`  ✓ Performance requirement met (${renderTime}ms < 500ms)`);
+    console.log(`  ✓ Performance requirement met (${renderTime}ms < ${PERFORMANCE_TARGET_MS}ms)`);
   }
 }
 
