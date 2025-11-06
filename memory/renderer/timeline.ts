@@ -1,13 +1,13 @@
 /**
  * Timeline Renderer - Visual timeline showing Frame evolution
- * 
+ *
  * Renders Frames for a ticket/branch as a timeline with:
  * - Module scope evolution (what modules were touched when)
  * - Blocker introduction and resolution tracking
  * - Status updates over time
  */
 
-import type { Frame } from '../../shared/types/frame.js';
+import type { Frame } from './types.js';
 
 /**
  * Timeline entry representing a single Frame in the timeline
@@ -137,7 +137,7 @@ export function renderTimelineText(
     // Modules
     if (frame.module_scope.length > 0) {
       lines.push(`${modulePrefix}Modules: ${frame.module_scope.join(', ')}`);
-      
+
       // Show module changes
       if (entry.modulesAdded.length > 0) {
         lines.push(`${modulePrefix}         + Added: ${entry.modulesAdded.join(', ')}`);
@@ -156,7 +156,7 @@ export function renderTimelineText(
       ...(frame.status_snapshot.blockers || []),
       ...(frame.status_snapshot.merge_blockers || []),
     ];
-    
+
     if (allBlockers.length > 0) {
       for (const blocker of allBlockers) {
         const isNew = entry.blockersAdded.includes(blocker);
@@ -164,7 +164,7 @@ export function renderTimelineText(
         lines.push(`${modulePrefix}         ${marker}⚠️  ${blocker}`);
       }
     }
-    
+
     if (entry.blockersRemoved.length > 0) {
       for (const blocker of entry.blockersRemoved) {
         lines.push(`${modulePrefix}         - ✅ Resolved: ${blocker}`);
@@ -219,7 +219,7 @@ export function renderModuleScopeEvolution(timeline: TimelineEntry[]): string {
 
   // Collect all modules that appear in any frame
   const moduleAppearances = new Map<string, Set<number>>();
-  
+
   timeline.forEach((entry, index) => {
     entry.frame.module_scope.forEach(module => {
       if (!moduleAppearances.has(module)) {
@@ -234,13 +234,13 @@ export function renderModuleScopeEvolution(timeline: TimelineEntry[]): string {
 
   // Render each module with a visual representation
   const maxModuleNameLength = Math.max(...Array.from(moduleAppearances.keys()).map(m => m.length));
-  
+
   for (const [module, appearances] of Array.from(moduleAppearances.entries()).sort()) {
     const paddedModule = module.padEnd(maxModuleNameLength);
-    const graph = Array.from({ length: timeline.length }, (_, i) => 
+    const graph = Array.from({ length: timeline.length }, (_, i) =>
       appearances.has(i) ? '█' : ' '
     ).join('');
-    
+
     const frameCount = `(${appearances.size}/${timeline.length} frames)`;
     lines.push(`${paddedModule}  ${graph}  ${frameCount}`);
   }
@@ -271,19 +271,19 @@ export function renderBlockerTracking(timeline: TimelineEntry[]): string {
     ];
 
     lines.push(`Frame ${i + 1}:`);
-    
+
     if (entry.blockersAdded.length > 0) {
       for (const blocker of entry.blockersAdded) {
         lines.push(`  + ${blocker}`);
       }
     }
-    
+
     if (entry.blockersRemoved.length > 0) {
       for (const blocker of entry.blockersRemoved) {
         lines.push(`  - ${blocker} (resolved)`);
       }
     }
-    
+
     if (allBlockers.length === 0 && entry.blockersAdded.length === 0 && entry.blockersRemoved.length === 0) {
       lines.push(`  No blockers`);
     }
@@ -420,10 +420,10 @@ function renderEntryHTML(entry: TimelineEntry): string {
   const frame = entry.frame;
   const date = new Date(frame.timestamp);
   const dateStr = date.toLocaleString();
-  
+
   const statusClass = getStatusClass(frame);
   const statusText = getStatusIndicator(frame);
-  
+
   const allBlockers = [
     ...(frame.status_snapshot.blockers || []),
     ...(frame.status_snapshot.merge_blockers || []),

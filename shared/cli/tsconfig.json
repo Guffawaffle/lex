@@ -5,7 +5,6 @@
     "moduleResolution": "node",
     "lib": ["ES2022"],
     "outDir": "./dist",
-    "rootDir": "../..",
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
@@ -17,25 +16,7 @@
     "allowSyntheticDefaultImports": true
   },
   "include": [
-    "*.ts",
-    "../types/**/*.ts",
-    "../module_ids/**/*.ts",
-    "../policy/**/*.ts",
-    "../atlas/**/*.ts",
-    "../git/**/*.ts",
-    "../../memory/store/**/*.ts",
-    "../../memory/frames/**/*.ts"
+    "*.ts"
   ],
-  "exclude": [
-    "node_modules",
-    "dist",
-    "**/*.test.mjs",
-    "**/*.test.js",
-    "**/*.test.ts",
-    "../**/*.test.ts",
-    "../../**/*.test.ts",
-    "../../memory/store/images.perf.test.ts",
-    "../../memory/store/images.test.ts",
-    "../../memory/store/store.test.ts"
-  ]
+  "exclude": ["node_modules", "dist"]
 }
