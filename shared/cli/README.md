@@ -96,6 +96,80 @@ Policy violations found:
 Exit code: 1
 ```
 
+### `lex timeline`
+Show visual timeline of Frame evolution for a ticket or branch.
+
+```bash
+lex timeline TICKET-123
+lex timeline feature/auth-fix
+```
+
+**Implementation:**
+1. Query `memory/store/` for all Frames matching ticket ID or branch name
+2. Sort Frames chronologically
+3. Build timeline tracking module scope changes and blocker evolution
+4. Render timeline with multiple visualization options
+
+**Options:**
+- `--since <date>` — Filter frames since this date (ISO 8601)
+- `--until <date>` — Filter frames until this date (ISO 8601)
+- `--format <type>` — Output format: text, json, or html (default: text)
+- `--output <file>` — Write output to file instead of stdout
+
+**Output example (text):**
+```
+TICKET-123: Add user authentication
+═══════════════════════════════════
+
+Nov 1, 14:00  [Frame #abc123]  Started implementation
+              Modules: ui/login-form
+              Status: ✅ In progress
+              
+Nov 2, 09:30  [Frame #def456]  Auth API integration
+              Modules: ui/login-form, services/auth-core
+                       + Added: services/auth-core
+              Status: ⚠️  Blocked
+                       + ⚠️  CORS configuration issue
+              
+Nov 2, 16:45  [Frame #ghi789]  Fixed CORS, tests failing
+              Modules: ui/login-form, services/auth-core
+              Status: ❌ Tests failing
+                       - ✅ Resolved: CORS configuration issue
+                       ❌ test_login_flow
+              
+Nov 3, 11:20  [Frame #jkl012]  All tests passing
+              Modules: ui/login-form, services/auth-core
+              Status: ✅ In progress
+
+═══════════════════════════════════
+
+Module Scope Evolution:
+
+services/auth-core   ███  (3/4 frames)
+ui/login-form       ████  (4/4 frames)
+
+Blocker Tracking:
+
+Frame 1: No blockers
+Frame 2: + CORS configuration issue
+Frame 3: - CORS configuration issue (resolved)
+Frame 4: No blockers
+```
+
+**HTML output:**
+```bash
+lex timeline TICKET-123 --format=html --output=timeline.html
+```
+
+Generates an interactive HTML page with visual timeline, color-coded status indicators, and expandable frames.
+
+**JSON output:**
+```bash
+lex timeline TICKET-123 --format=json
+```
+
+Exports timeline data as JSON for programmatic use or integration with other tools.
+
 ## Implementation plan
 
 1. Create `shared/cli/lex.ts` as main entry point
@@ -104,6 +178,7 @@ Exit code: 1
    - `remember` → `memory/frames/`
    - `recall` → `memory/store/` + `shared/atlas/`
    - `check` → `policy/check/`
+   - `timeline` → `memory/store/` + `memory/renderer/timeline`
 4. Build as executable binary or package for distribution
 
 ## Integration
@@ -114,10 +189,17 @@ This is what makes Lex one product instead of two separate tools.
 
 ---
 
-**Status:** Not yet implemented. This is placeholder documentation for the intended CLI.
+**Status:** ✅ Implemented
+
+**Commands available:**
+- ✅ `lex remember` — Capture work session frames
+- ✅ `lex recall` — Retrieve frames by reference or ticket
+- ✅ `lex check` — Enforce policy in CI
+- ✅ `lex timeline` — Visualize frame evolution
 
 **Depends on:**
-- `memory/frames/`, `memory/store/`, `memory/recall` implementations
-- `policy/check/` implementation
-- `shared/module_ids/` validation
-- `shared/atlas/` fold radius export
+- ✅ `memory/frames/`, `memory/store/`, `memory/recall` implementations
+- ✅ `policy/check/` implementation
+- ✅ `shared/module_ids/` validation
+- ✅ `shared/atlas/` fold radius export
+- ✅ `memory/renderer/timeline` visualization
