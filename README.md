@@ -1,6 +1,11 @@
-# lex
+# Lex (MIT) — Atlas/Memory Core
+
+![MIT License](https://img.shields.io/badge/License-MIT-green)
+![OSS](https://img.shields.io/badge/Community-OSS-blue)
 
 **Policy-aware work continuity with receipts.**
+
+Lex powers the paid **LexRunner** CLI; development stays OSS-first. See the [LexRunner repo](https://github.com/Guffawaffle/lex-pr-runner) for the orchestration layer.
 
 When you ask `/recall TICKET-123`, you don't get vague summarization or context-free git log replay. You get:
 
