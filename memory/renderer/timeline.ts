@@ -84,14 +84,16 @@ export function filterTimeline(
   let filtered = timeline;
 
   if (options.since) {
+    const sinceDate = options.since;
     filtered = filtered.filter(
-      entry => new Date(entry.frame.timestamp) >= options.since!
+      entry => new Date(entry.frame.timestamp) >= sinceDate
     );
   }
 
   if (options.until) {
+    const untilDate = options.until;
     filtered = filtered.filter(
-      entry => new Date(entry.frame.timestamp) <= options.until!
+      entry => new Date(entry.frame.timestamp) <= untilDate
     );
   }
 
@@ -223,7 +225,10 @@ export function renderModuleScopeEvolution(timeline: TimelineEntry[]): string {
       if (!moduleAppearances.has(module)) {
         moduleAppearances.set(module, new Set());
       }
-      moduleAppearances.get(module)!.add(index);
+      const appearances = moduleAppearances.get(module);
+      if (appearances) {
+        appearances.add(index);
+      }
     });
   });
 
