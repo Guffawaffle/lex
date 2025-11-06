@@ -60,12 +60,13 @@ export async function remember(options: RememberOptions = {}): Promise<void> {
         
         // Emit warning and log for auto-corrections and substring matches
         if (resolution.corrected && !options.json) {
-          if (resolution.editDistance > 0) {
+          if (resolution.source === 'fuzzy' && resolution.editDistance > 0) {
             const typoType = resolution.editDistance === 1 ? '1 char typo' : `${resolution.editDistance} char typo`;
             console.warn(`⚠️  Auto-corrected '${resolution.original}' → '${resolution.resolved}' (${typoType})`);
-          } else if (resolution.confidence === 0.9) {
-            // Substring match
+          } else if (resolution.source === 'substring') {
             console.warn(`ℹ️  Expanded substring '${resolution.original}' → '${resolution.resolved}' (unique match)`);
+          } else if (resolution.source === 'alias') {
+            // Alias resolution - optionally log but don't warn
           }
           console.log(`   Original input: '${resolution.original}' (confidence: ${resolution.confidence})`);
         }

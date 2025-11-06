@@ -115,7 +115,8 @@ export function resolveModuleId(
       original: moduleId,
       confidence: 1.0,
       corrected: false,
-      editDistance: 0
+      editDistance: 0,
+      source: 'exact'
     };
   }
 
@@ -130,7 +131,8 @@ export function resolveModuleId(
       original: moduleId,
       confidence: aliasEntry.confidence,
       corrected: true,
-      editDistance: 0
+      editDistance: 0,
+      source: 'alias'
     };
   }
 
@@ -164,7 +166,8 @@ export function resolveModuleId(
       original: moduleId,
       confidence,
       corrected: true,
-      editDistance: candidate.distance
+      editDistance: candidate.distance,
+      source: 'fuzzy'
     };
   }
 
@@ -189,7 +192,8 @@ export function resolveModuleId(
         original: moduleId,
         confidence: 0.9,
         corrected: true,
-        editDistance: 0
+        editDistance: 0,
+        source: 'substring'
       };
     } else if (substringMatches.length > 1) {
       // Ambiguous substring
@@ -220,7 +224,7 @@ export function resolveModuleId(
  * 
  * @param moduleScope - Array of module IDs to validate (may include aliases or typos)
  * @param policy - Policy object containing module definitions
- * @param aliasTable - Optional pre-loaded alias table (deprecated, not used)
+ * @param aliasTable - Optional pre-loaded alias table (passed to resolveModuleId)
  * @returns ValidationResult with errors, suggestions, and canonical IDs for storage
  *
  * @example

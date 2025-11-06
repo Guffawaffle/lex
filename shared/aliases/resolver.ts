@@ -117,8 +117,8 @@ export function findSubstringMatches(
  * // { canonical: 'services/auth-core', confidence: 1.0, original: 'auth-core', source: 'alias' }
  * 
  * // Unique substring
- * const result3 = await resolveModuleId('auth-core', policy);
- * // { canonical: 'services/auth-core', confidence: 0.9, original: 'auth-core', source: 'substring' }
+ * const result3 = await resolveModuleId('user-access', policy);
+ * // { canonical: 'services/user-access-api', confidence: 0.9, original: 'user-access', source: 'substring' }
  * 
  * // Unknown
  * const result4 = await resolveModuleId('unknown-module', policy);
