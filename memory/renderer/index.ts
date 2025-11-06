@@ -21,3 +21,9 @@ export type {
   ColorScheme,
   FontConfig,
 } from './templates.js';
+
+export { renderAtlasFrameGraph, exportGraphAsPNG } from './graph.js';
+export type { GraphRenderOptions, GraphNode, GraphEdgeRenderable } from './graph.js';
+
+export { forceDirectedLayout, hierarchicalLayout, circularLayout } from './layouts.js';
+export type { Layout, LayoutConfig } from './layouts.js';
