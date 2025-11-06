@@ -9,8 +9,8 @@
 
 import type { Policy } from '../types/policy.js';
 import type { ValidationResult, ModuleIdError, ResolutionResult } from '../types/validation.js';
-import type { AliasTable } from '../aliases/types.js';
-import { loadAliasTable } from '../aliases/resolver.js';
+import type { AliasTable, ResolverOptions } from '../aliases/types.js';
+import { loadAliasTable, findSubstringMatches, AmbiguousSubstringError } from '../aliases/resolver.js';
 
 /**
  * Maximum edit distance threshold for fuzzy matching suggestions
@@ -75,18 +75,20 @@ function findSimilarModules(
 }
 
 /**
- * Resolve a module ID with Phase 2 fuzzy matching and auto-correction
+ * Resolve a module ID with Phase 2 fuzzy matching and Phase 3 substring matching
  * 
  * Resolution order:
  * 1. Exact match (confidence 1.0)
  * 2. Alias table (confidence 1.0) [Phase 1]
  * 3. Fuzzy typo correction (confidence 0.8-0.9) [Phase 2]
- * 4. Reject with error
+ * 4. Unique substring match (confidence 0.9) [Phase 3]
+ * 5. Reject with error
  * 
- * @param moduleId - The module ID to resolve (may be an alias or contain typos)
+ * @param moduleId - The module ID to resolve (may be an alias, typo, or substring)
  * @param policy - The policy containing canonical module IDs
  * @param strict - If true, only accept exact matches (confidence 1.0)
  * @param aliasTable - Optional pre-loaded alias table (for testing)
+ * @param options - Optional resolver options (for substring matching)
  * @returns ResolutionResult with resolved ID and metadata
  * @throws Error if module not found or ambiguous
  */
@@ -94,9 +96,17 @@ export function resolveModuleId(
   moduleId: string,
   policy: Policy,
   strict: boolean = false,
-  aliasTable?: AliasTable
+  aliasTable?: AliasTable,
+  options?: ResolverOptions
 ): ResolutionResult {
   const policyModuleIds = new Set(Object.keys(policy.modules));
+  
+  // Default options
+  const opts: Required<ResolverOptions> = {
+    noSubstring: options?.noSubstring ?? false,
+    minSubstringLength: options?.minSubstringLength ?? 3,
+    maxAmbiguousMatches: options?.maxAmbiguousMatches ?? 5
+  };
 
   // Phase 1: Exact match (case-sensitive)
   if (policyModuleIds.has(moduleId)) {
@@ -124,7 +134,7 @@ export function resolveModuleId(
     };
   }
 
-  // If strict mode, reject now (no fuzzy matching)
+  // If strict mode, reject now (no fuzzy or substring matching)
   if (strict) {
     const suggestions = findSimilarModules(moduleId, policyModuleIds);
     const suggestionText = suggestions.length > 0 ? ` Did you mean '${suggestions[0]}'?` : '';
@@ -158,13 +168,40 @@ export function resolveModuleId(
     };
   }
 
-  // Ambiguous or no match
+  // Ambiguous fuzzy matches
   if (candidates.length > 1) {
     const matches = candidates.map(c => c.module).join(', ');
     throw new Error(`Module '${moduleId}' is ambiguous. Multiple close matches found: ${matches}`);
   }
 
-  // No fuzzy match found
+  // Phase 4: Substring matching (if enabled)
+  if (!opts.noSubstring) {
+    const substringMatches = findSubstringMatches(
+      moduleId,
+      policyModuleIds,
+      opts.minSubstringLength
+    );
+
+    if (substringMatches.length === 1) {
+      // Unique substring match - confidence 0.9
+      return {
+        resolved: substringMatches[0],
+        original: moduleId,
+        confidence: 0.9,
+        corrected: true,
+        editDistance: 0
+      };
+    } else if (substringMatches.length > 1) {
+      // Ambiguous substring
+      throw new AmbiguousSubstringError(
+        moduleId,
+        substringMatches,
+        opts.maxAmbiguousMatches
+      );
+    }
+  }
+
+  // No fuzzy or substring match found
   const suggestions = findSimilarModules(moduleId, policyModuleIds);
   const suggestionText = suggestions.length > 0 ? ` Did you mean '${suggestions[0]}'?` : '';
   throw new Error(`Module '${moduleId}' not found in policy.${suggestionText}`);
