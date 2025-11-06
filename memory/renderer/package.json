@@ -6,7 +6,7 @@
   "main": "index.ts",
   "scripts": {
     "build": "tsc",
-    "test": "npm run build && node --test dist/card.test.js"
+    "test": "npm run build && node --test dist/renderer/card.test.js dist/renderer/graph.test.js"
   },
   "dependencies": {
     "sharp": "^0.33.5"
