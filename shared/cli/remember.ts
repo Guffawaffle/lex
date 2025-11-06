@@ -64,6 +64,15 @@ export async function remember(options: RememberOptions = {}): Promise<void> {
           undefined,
           { noSubstring }
         );
+
+        // In default mode, reject unknown modules (confidence 0)
+        // In non-strict mode (future), could allow with warning
+        if (resolution.confidence === 0) {
+          throw new Error(
+            `Unknown module: '${resolution.original}'. Not found in lexmap.policy.json.`
+          );
+        }
+
         resolvedModules.push(resolution.canonical);
         resolutions.push(resolution);
 

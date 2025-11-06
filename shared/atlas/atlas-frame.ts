@@ -1,6 +1,6 @@
 /**
  * Atlas Frame - Spatial neighborhood extraction from policy graph
- * 
+ *
  * Computes the "map page" around a set of modules with fold radius.
  * Implements full policy graph traversal with N-hop neighborhood extraction.
  */
@@ -8,9 +8,9 @@
 // @ts-ignore - importing from compiled dist directory (follows mcp_server pattern)
 // TypeScript compilation of cross-package dependencies is complex due to rootDir constraints.
 // The policy loader is pre-compiled to shared/policy/dist/loader.js at build time.
-import { loadPolicy } from '../../policy/dist/loader.js';
+import { loadPolicy } from '../policy/dist/loader.js';
 // @ts-ignore - importing from compiled dist directory
-import type { PolicyModule } from '../../types/dist/policy.js';
+import type { PolicyModule } from '../types/dist/policy.js';
 import { extractNeighborhood, generateCoordinates } from './graph.js';
 import { getCache } from './cache.js';
 
@@ -45,19 +45,19 @@ export interface AtlasEdge {
 
 /**
  * Generate Atlas Frame for a set of seed modules
- * 
+ *
  * Implements full fold radius algorithm with policy graph traversal:
  * - Loads policy graph from lexmap.policy.json
  * - Starts with seed modules
  * - Expands N hops via allowed_callers/forbidden_callers edges
  * - Includes full policy metadata for all discovered modules
  * - Returns complete neighborhood with edges and coordinates
- * 
+ *
  * Caching:
  * - Caches results by (module_scope, radius) key
  * - Cache is keyed on sorted module IDs for consistency
  * - Cache can be disabled via setEnableCache(false)
- * 
+ *
  * Algorithm:
  * 1. Check cache for existing result
  * 2. Load policy from lexmap.policy.json
@@ -66,7 +66,7 @@ export interface AtlasEdge {
  * 5. Include full PolicyModule metadata for each module
  * 6. Include all edges (allowed + forbidden) between modules
  * 7. Store result in cache
- * 
+ *
  * @param seedModules - Module IDs from Frame.module_scope
  * @param foldRadius - How many hops to expand (default: 1)
  * @param policyPath - Optional custom policy path
@@ -86,26 +86,26 @@ export function generateAtlasFrame(
       return cached;
     }
   }
-  
+
   const timestamp = new Date().toISOString();
-  
+
   // Load policy graph
   const policy = loadPolicy(policyPath);
-  
+
   // Extract neighborhood using BFS traversal
   const neighborhood = extractNeighborhood(policy, seedModules, foldRadius);
-  
+
   // Generate coordinates for visualization
   const coordinates = generateCoordinates(
     neighborhood.modules,
     neighborhood.edges
   );
-  
+
   // Build AtlasModule objects with full metadata
   const modules: AtlasModule[] = [];
   for (const moduleId of neighborhood.modules) {
     const policyModule = policy.modules[moduleId];
-    
+
     if (!policyModule) {
       // Module not found in policy - include minimal data
       modules.push({
@@ -114,13 +114,13 @@ export function generateAtlasFrame(
       });
       continue;
     }
-    
+
     // Include full policy metadata
     const atlasModule: AtlasModule = {
       id: moduleId,
       coords: coordinates.get(moduleId),
     };
-    
+
     // Copy all PolicyModule fields to AtlasModule
     if (policyModule.owns_paths) {
       atlasModule.owns_paths = policyModule.owns_paths;
@@ -146,10 +146,10 @@ export function generateAtlasFrame(
     if (policyModule.notes) {
       atlasModule.notes = policyModule.notes;
     }
-    
+
     modules.push(atlasModule);
   }
-  
+
   // Convert edges to AtlasEdge format
   const edges: AtlasEdge[] = neighborhood.edges.map((edge) => ({
     from: edge.from,
@@ -181,11 +181,11 @@ export function generateAtlasFrame(
  */
 export function formatAtlasFrame(atlasFrame: AtlasFrame): string {
   const { seed_modules, fold_radius, modules, edges } = atlasFrame;
-  
+
   let output = `\n📊 Atlas Frame (fold radius: ${fold_radius})\n`;
   output += `🌱 Seed modules: ${seed_modules.join(", ")}\n`;
   output += `📦 Total modules in neighborhood: ${modules.length}\n`;
-  
+
   if (edges.length > 0) {
     output += `\n🔗 Edges:\n`;
     edges.forEach((edge) => {
@@ -197,6 +197,6 @@ export function formatAtlasFrame(atlasFrame: AtlasFrame): string {
       output += "\n";
     });
   }
-  
+
   return output;
 }
