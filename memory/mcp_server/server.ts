@@ -13,9 +13,9 @@ import { MCP_TOOLS } from "./tools.js";
 // @ts-ignore - importing from compiled dist directories
 import { generateAtlasFrame, formatAtlasFrame } from "../../../shared/atlas/dist/atlas-frame.js";
 // @ts-ignore - importing from compiled dist directories
-import { validateModuleIds } from "../../../shared/module_ids/dist/module_ids/validator.js";
+import { validateModuleIds } from "../../../shared/module_ids/dist/validator.js";
 // @ts-ignore - importing from compiled dist directories
-import { loadPolicy } from "../../../shared/policy/dist/policy/loader.js";
+import { loadPolicy } from "../../../shared/policy/dist/loader.js";
 // @ts-ignore - importing from compiled dist directories
 import { getCurrentBranch } from "../../../shared/git/dist/branch.js";
 import { randomUUID } from "crypto";

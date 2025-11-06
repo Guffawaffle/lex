@@ -18,6 +18,10 @@ export interface ColorScheme {
   muted: string;
   warning: string;
   error: string;
+  diffAddition: string;
+  diffDeletion: string;
+  diffUnchanged: string;
+  diffContext: string;
 }
 
 export interface FontConfig {
@@ -51,6 +55,10 @@ export const DARK_COLOR_SCHEME: ColorScheme = {
   muted: '#888888',
   warning: '#ffaa00',
   error: '#ff4444',
+  diffAddition: '#22863a',
+  diffDeletion: '#b31d28',
+  diffUnchanged: '#6a737d',
+  diffContext: '#586069',
 };
 
 /**

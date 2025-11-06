@@ -5,12 +5,13 @@
  * Used by Atlas Frame generation to extract module neighborhoods.
  */
 
-import type { Policy, PolicyModule } from '../types/policy.js';
+// @ts-ignore - importing from compiled dist directory
+import type { Policy, PolicyModule } from "../../types/dist/policy.js";
 
 export interface GraphEdge {
   from: string;
   to: string;
-  type: 'allowed' | 'forbidden';
+  type: "allowed" | "forbidden";
 }
 
 export interface NeighborhoodResult {
@@ -42,7 +43,8 @@ export function buildAdjacencyLists(policy: Policy): {
   }
 
   // Build edges from allowed_callers and forbidden_callers
-  for (const [moduleId, module] of Object.entries(policy.modules)) {
+  for (const [moduleId, moduleData] of Object.entries(policy.modules)) {
+    const module = moduleData as PolicyModule;
     // allowed_callers defines who can call this module (inbound edges)
     if (module.allowed_callers) {
       for (const callerId of module.allowed_callers) {
@@ -160,7 +162,7 @@ export function extractNeighborhood(
     if (discoveredModules.has(from)) {
       for (const to of targets) {
         if (discoveredModules.has(to)) {
-          edges.push({ from, to, type: 'allowed' });
+          edges.push({ from, to, type: "allowed" });
         }
       }
     }
@@ -171,7 +173,7 @@ export function extractNeighborhood(
     if (discoveredModules.has(from)) {
       for (const to of targets) {
         if (discoveredModules.has(to)) {
-          edges.push({ from, to, type: 'forbidden' });
+          edges.push({ from, to, type: "forbidden" });
         }
       }
     }
@@ -211,10 +213,7 @@ export function generateCoordinates(
   // Initialize with random positions
   const moduleList = Array.from(modules);
   for (const moduleId of moduleList) {
-    coords.set(moduleId, [
-      Math.random() * width,
-      Math.random() * height,
-    ]);
+    coords.set(moduleId, [Math.random() * width, Math.random() * height]);
     velocities.set(moduleId, [0, 0]);
   }
 
@@ -264,7 +263,7 @@ export function generateCoordinates(
     // Attraction forces (connected nodes)
     for (const edge of edges) {
       // Only use allowed edges for attraction (forbidden edges don't pull)
-      if (edge.type !== 'allowed') continue;
+      if (edge.type !== "allowed") continue;
 
       const [x1, y1] = coords.get(edge.from)!;
       const [x2, y2] = coords.get(edge.to)!;
@@ -335,7 +334,8 @@ export function buildPolicyGraph(policy: Policy): Graph {
     adjacency.set(moduleId, new Set());
   }
 
-  for (const [moduleId, module] of Object.entries(policy.modules)) {
+  for (const [moduleId, moduleData] of Object.entries(policy.modules)) {
+    const module = moduleData as PolicyModule;
     if (module.allowed_callers) {
       for (const caller of module.allowed_callers) {
         if (adjacency.has(caller)) {
@@ -352,4 +352,3 @@ export function getNeighbors(moduleId: string, graph: Graph): string[] {
   const neighbors = graph.adjacency.get(moduleId);
   return neighbors ? Array.from(neighbors) : [];
 }
-
