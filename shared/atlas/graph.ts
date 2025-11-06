@@ -6,7 +6,7 @@
  */
 
 // @ts-ignore - importing from compiled dist directory
-import type { Policy, PolicyModule } from "../types/dist/policy.js";
+import type { Policy, PolicyModule } from "../../types/dist/policy.js";
 
 export interface GraphEdge {
   from: string;
