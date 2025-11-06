@@ -21,3 +21,30 @@ export type {
   ColorScheme,
   FontConfig,
 } from './templates.js';
+
+export {
+  highlightCode,
+  highlightDiff,
+  detectLanguageFromExtension,
+  isLanguageSupported,
+  SUPPORTED_LANGUAGES,
+} from './syntax.js';
+
+export type {
+  SupportedLanguage,
+} from './syntax.js';
+
+export {
+  parseDiff,
+  truncateDiff,
+  formatDiff,
+  renderDiff,
+  getDiffStats,
+} from './diff.js';
+
+export type {
+  DiffLine,
+  DiffBlock,
+  TruncationOptions,
+  DiffStats,
+} from './diff.js';
