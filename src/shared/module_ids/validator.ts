@@ -8,11 +8,7 @@
  */
 
 import type { Policy } from "../types/policy.js";
-import type {
-  ValidationResult,
-  ModuleIdError,
-  ResolutionResult,
-} from "../types/validation.js";
+import type { ValidationResult, ModuleIdError, ResolutionResult } from "../types/validation.js";
 import type { AliasTable, ResolverOptions } from "../aliases/types.js";
 import {
   resolveModuleId,
@@ -104,10 +100,7 @@ function findSimilarModules(
   const suggestions: Array<{ module: string; distance: number }> = [];
 
   for (const available of availableModules) {
-    const distance = levenshteinDistance(
-      moduleId.toLowerCase(),
-      available.toLowerCase()
-    );
+    const distance = levenshteinDistance(moduleId.toLowerCase(), available.toLowerCase());
     suggestions.push({ module: available, distance });
   }
 
@@ -158,19 +151,20 @@ export async function validateModuleIds(
 
   // Get cached policy module ID set for efficiency
   const policyModuleIds = getPolicyModuleIds(policy);
-  
+
   // Fast path: Check if all module IDs are exact matches (common case)
   // This avoids the overhead of calling resolveModuleId for every module
   const allExactMatches = moduleScope.every((id) => policyModuleIds.has(id));
-  
+
   if (allExactMatches) {
     // All are exact matches - return immediately without alias resolution
     return { valid: true, canonical: moduleScope };
   }
 
   // Step 1: Resolve all aliases (only reached if there are non-exact matches)
+  // Disable substring matching to enforce exact matches only
   const resolutions = await Promise.all(
-    moduleScope.map((id) => resolveModuleId(id, policy, aliasTable))
+    moduleScope.map((id) => resolveModuleId(id, policy, aliasTable, { noSubstring: true }))
   );
 
   // Step 2: Validate all canonical IDs exist in policy
@@ -181,24 +175,24 @@ export async function validateModuleIds(
 
   for (const resolution of resolutions) {
     // Only accept high-confidence resolutions (exact match or alias)
-    const isValid = resolution.confidence === EXACT_MATCH_CONFIDENCE && policyModuleIds.has(resolution.canonical);
-    
+    const isValid =
+      resolution.confidence === EXACT_MATCH_CONFIDENCE && policyModuleIds.has(resolution.canonical);
+
     if (!isValid) {
       // For substring matches, provide the substring match as a suggestion
       let suggestions: string[];
-      if (resolution.confidence === SUBSTRING_MATCH_CONFIDENCE && policyModuleIds.has(resolution.canonical)) {
+      if (
+        resolution.confidence === SUBSTRING_MATCH_CONFIDENCE &&
+        policyModuleIds.has(resolution.canonical)
+      ) {
         // Substring match found - suggest it
         suggestions = [resolution.canonical];
       } else {
         // No substring match or invalid - use fuzzy matching for suggestions
-        suggestions = findSimilarModules(
-          resolution.original,
-          policyModuleIds
-        );
+        suggestions = findSimilarModules(resolution.original, policyModuleIds);
       }
-      
-      const suggestionText =
-        suggestions.length > 0 ? ` Did you mean '${suggestions[0]}'?` : "";
+
+      const suggestionText = suggestions.length > 0 ? ` Did you mean '${suggestions[0]}'?` : "";
 
       errors.push({
         module: resolution.original,
@@ -228,10 +222,7 @@ export async function validateModuleIds(
  *
  * @deprecated This function does not support alias resolution. Use async validateModuleIds.
  */
-export function validateModuleIdsSync(
-  moduleScope: string[],
-  policy: Policy
-): ValidationResult {
+export function validateModuleIdsSync(moduleScope: string[], policy: Policy): ValidationResult {
   // Empty module_scope is allowed
   if (!moduleScope || moduleScope.length === 0) {
     return { valid: true };
@@ -244,8 +235,7 @@ export function validateModuleIdsSync(
     // Case-sensitive exact match required
     if (!policyModuleIds.has(moduleId)) {
       const suggestions = findSimilarModules(moduleId, policyModuleIds);
-      const suggestionText =
-        suggestions.length > 0 ? ` Did you mean '${suggestions[0]}'?` : "";
+      const suggestionText = suggestions.length > 0 ? ` Did you mean '${suggestions[0]}'?` : "";
 
       errors.push({
         module: moduleId,
