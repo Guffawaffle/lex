@@ -1,8 +1,36 @@
 # Lex CI Troubleshooting Guide
 
-## CI Stabilization (2025-11-06)
+---
 
-This document summarizes the root causes and fixes applied to stabilize the CI pipeline.
+## 🚨 CI FREEZE NOTICE (2025-11-06)
+
+**Status:** All heavy CI workflows disabled to reduce spend pending consolidation
+**Active PR:** #90 (repurposed for documentation only)
+**Decision:** Pause monorepo approach; consolidate to single package
+
+### Workflows Disabled
+- ✅ Continuous Integration
+- ✅ Security Scanning
+- ✅ Test Suite
+
+### Why
+- Cross-package `dist/` imports causing TypeScript compilation failures
+- Fragile manual build orchestration
+- High CI cost for unstable builds
+
+### Next Steps
+1. Prepare single-package consolidation PR (branch: `consolidate/single-package`)
+2. Migrate `shared/*/`, `memory/*/`, `policy/*/` → `src/*/`
+3. Single root `package.json` with subpath exports
+4. Re-enable workflows after consolidation lands
+
+**See:** [PR #90](https://github.com/Guffawaffle/lex/pull/90) for detailed consolidation plan
+
+---
+
+## CI Stabilization History (Pre-Freeze)
+
+This section documents fixes attempted before the freeze decision.
 
 ## Root Causes Fixed
 
