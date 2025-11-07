@@ -1,13 +1,13 @@
 /**
  * CLI Command: lex remember
- * 
+ *
  * Prompts user for Frame metadata, validates module_scope, creates Frame.
  */
 
 import inquirer from 'inquirer';
 import { v4 as uuidv4 } from 'uuid';
 import type { Frame } from '../types/frame.js';
-import { resolveModuleId } from '../module_ids/validator.js';
+import { validateModuleIds } from '../module_ids/index.js';
 import type { ResolutionResult } from '../types/validation.js';
 import { loadPolicy } from '../policy/loader.js';
 import { getDb, saveFrame } from '../../memory/store/index.js';
@@ -38,7 +38,7 @@ export async function remember(options: RememberOptions = {}): Promise<void> {
   try {
     // Get current git branch
     const branch = await getCurrentBranch();
-    
+
     // If interactive mode or missing required fields, prompt for input
     const answers = options.interactive || !options.summary || !options.next || !options.modules
       ? await promptForFrameData(options, branch)
@@ -46,29 +46,20 @@ export async function remember(options: RememberOptions = {}): Promise<void> {
 
     // Resolve and validate module_scope against policy (THE CRITICAL RULE + auto-correction)
     const policy = loadPolicy();
-    const strictMode = options.strict || false;
-    const resolvedModules: string[] = [];
-    const resolutions: ResolutionResult[] = [];
-    
-    try {
-      for (const moduleId of answers.modules || []) {
-        const resolution = resolveModuleId(moduleId, policy, strictMode);
-        resolvedModules.push(resolution.resolved);
-        resolutions.push(resolution);
-        
-        // Emit warning and log for auto-corrections
-        if (resolution.corrected && !options.json) {
-          const typoType = resolution.editDistance === 1 ? '1 char typo' : `${resolution.editDistance} char typo`;
-          console.warn(`⚠️  Auto-corrected '${resolution.original}' → '${resolution.resolved}' (${typoType})`);
-          console.log(`   Original input: '${resolution.original}' (confidence: ${resolution.confidence})`);
-        }
+
+    const validationResult = await validateModuleIds(answers.modules || [], policy);
+
+    if (!validationResult.valid) {
+      console.error(`\n❌ Module validation failed:\n`);
+      for (const error of validationResult.errors || []) {
+        console.error(`  - ${error.message}`);
       }
-    } catch (error: any) {
-      console.error(`\n❌ Module resolution failed: ${error.message}\n`);
+      console.error('');
       process.exit(1);
     }
 
-    // Build Frame object
+    // Use canonical (resolved) module IDs from validation
+    const resolvedModules = validationResult.canonical || [];    // Build Frame object
     const frame: Frame = {
       id: uuidv4(),
       timestamp: new Date().toISOString(),
