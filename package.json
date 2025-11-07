@@ -2,50 +2,45 @@
   "name": "lex",
   "version": "0.2.0",
   "description": "Policy-aware work continuity with receipts. Unified LexBrain + LexMap.",
-  "private": true,
   "type": "module",
-  "workspaces": [
-    "memory/*",
-    "policy/*",
-    "shared/*"
-  ],
-  "scripts": {
-    "remember": "node memory/mcp_server/frame-mcp.mjs",
-    "check": "node policy/check/lexmap-check.ts",
-    "pretest": "npm run build",
-    "build": "npm run build:types && npm run build:aliases && npm run build:module-ids && npm run build:policy && npm run build:atlas && npm run build:git && npm run build:merge && npm run build:check && npm run build:store && npm run build:renderer && npm run build:mcp-server && npm run build:cli",
-    "build:types": "cd shared/types && npx tsc",
-    "build:module-ids": "cd shared/module_ids && npx tsc",
-    "build:aliases": "cd shared/aliases && npx tsc",
-    "build:policy": "cd shared/policy && npx tsc",
-    "build:atlas": "cd shared/atlas && npx tsc",
-    "build:git": "cd shared/git && npx tsc",
-    "build:merge": "cd policy/merge && npx tsc",
-    "build:check": "cd policy/check && npx tsc",
-    "build:store": "cd memory/store && npx tsc",
-    "build:renderer": "cd memory/renderer && npm run build",
-    "build:mcp-server": "cd memory/mcp_server && npm run build",
-    "build:cli": "cd shared/cli && npx tsc",
-    "test": "npm run test:module-ids && npm run test:aliases && npm run test:policy && npm run test:atlas && npm run test:git && npm run test:merge && npm run test:check && npm run test:store && npm run test:renderer && npm run test:mcp-server && npm run test:cli",
-    "test:module-ids": "cd shared/module_ids && node validator.test.mjs",
-    "test:aliases": "cd shared/aliases && node resolver.test.mjs",
-    "test:policy": "cd shared/policy && node loader.test.mjs",
-    "test:atlas": "cd shared/atlas && node atlas-frame.test.mjs",
-    "test:git": "cd shared/git && npm test",
-    "test:merge": "cd policy/merge && npm test",
-    "test:check": "cd policy/check && npm test",
-    "test:store": "cd memory/store && npm test",
-    "test:renderer": "cd memory/renderer && npm test",
-    "test:mcp-server": "cd memory/mcp_server && npm test",
-    "test:cli": "cd shared/cli && npm test",
-    "test:integration": "npm run test:integration:memory && npm run test:integration:policy",
-    "test:integration:memory": "cd memory && npx tsx --test integration.test.ts",
-    "test:integration:policy": "cd policy && node integration.test.mjs",
-    "test:benchmarks": "cd memory && npx tsx --test benchmarks.test.ts",
-    "test:all": "npm test && npm run test:integration"
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./cli": "./dist/cli/index.js",
+    "./policy/*": "./dist/policy/*",
+    "./memory/*": "./dist/memory/*",
+    "./shared/*": "./dist/shared/*"
   },
   "bin": {
-    "lex": "./shared/cli/dist/shared/cli/lex.js"
+    "lex": "./dist/shared/cli/lex.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "clean": "rimraf dist",
+    "type-check": "tsc --noEmit",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "test": "npx tsx --test 'src/**/*.test.{ts,mts}' && node --test 'src/**/*.test.mjs'",
+    "test:integration": "npx tsx --test src/memory/integration.test.ts && node src/policy/integration.test.mjs",
+    "test:benchmarks": "npx tsx --test src/memory/benchmarks.test.ts",
+    "test:all": "npm test && npm run test:integration",
+    "test:coverage": "npm run test",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "local-ci": "./scripts/local-ci-run.sh",
+    "local-ci:nonet": "./scripts/ci-nonet.sh",
+    "changeset": "changeset",
+    "version-packages": "changeset version",
+    "release": "npm run build && changeset publish"
   },
   "keywords": [
     "memory",
@@ -59,9 +54,31 @@
     "node": ">=18.0.0"
   },
   "dependencies": {
+    "better-sqlite3": "^11.0.0",
+    "commander": "^12.0.0",
+    "glob": "^10.0.0",
+    "inquirer": "^9.2.0",
+    "minimatch": "^10.1.1",
+    "sharp": "^0.33.5",
+    "shiki": "^1.22.2",
+    "typescript": "^5.9.3",
+    "uuid": "^9.0.1",
     "zod": "^4.1.12"
   },
   "devDependencies": {
-    "@types/node": "^24.10.0"
+    "@changesets/cli": "^2.29.7",
+    "@commitlint/cli": "^20.1.0",
+    "@commitlint/config-conventional": "^20.0.0",
+    "@types/better-sqlite3": "^7.6.11",
+    "@types/inquirer": "^9.0.9",
+    "@types/node": "^24.9.2",
+    "@types/uuid": "^9.0.8",
+    "@typescript-eslint/eslint-plugin": "^8.46.3",
+    "@typescript-eslint/parser": "^8.46.3",
+    "eslint": "^9.39.1",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.6.2",
+    "rimraf": "^6.0.0",
+    "tsx": "^4.20.6"
   }
 }

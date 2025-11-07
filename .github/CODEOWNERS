@@ -1,0 +1,43 @@
+# CODEOWNERS
+#
+# Lines starting with '#' are comments.
+# Each line is a file pattern followed by one or more owners.
+# Owners can be @username or email addresses.
+
+# Global fallback
+* @Guffawaffle
+
+# Core packages
+/shared/types/ @Guffawaffle
+/shared/module_ids/ @Guffawaffle
+/shared/aliases/ @Guffawaffle
+/shared/policy/ @Guffawaffle
+/shared/atlas/ @Guffawaffle
+/shared/git/ @Guffawaffle
+/shared/cli/ @Guffawaffle
+
+# Memory subsystem
+/memory/store/ @Guffawaffle
+/memory/renderer/ @Guffawaffle
+/memory/mcp_server/ @Guffawaffle
+
+# Policy tools
+/policy/check/ @Guffawaffle
+/policy/merge/ @Guffawaffle
+
+# CI/CD and infrastructure
+/.github/ @Guffawaffle
+/.changeset/ @Guffawaffle
+/scripts/ @Guffawaffle
+
+# Security and release
+SECURITY.md @Guffawaffle
+RELEASE.md @Guffawaffle
+/.github/workflows/release.yml @Guffawaffle
+/.github/workflows/security.yml @Guffawaffle
+
+# Configuration
+tsconfig*.json @Guffawaffle
+package*.json @Guffawaffle
+.eslintrc* @Guffawaffle
+.prettierrc* @Guffawaffle
