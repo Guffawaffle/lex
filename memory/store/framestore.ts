@@ -37,7 +37,7 @@ export interface FrameRow {
  * // Old API (still works)
  * const store = new FrameStore('/path/to/db');
  * store.insertFrame(frame);
- * 
+ *
  * // New API (recommended)
  * import { getDb, saveFrame } from '@lex/store';
  * const db = getDb('/path/to/db');
@@ -89,15 +89,15 @@ export class FrameStore {
     if (query.reference_point) {
       return search(this.db, query.reference_point);
     }
-    
+
     if (query.jira) {
       return getFramesByJira(this.db, query.jira);
     }
-    
+
     if (query.branch) {
       return getFramesByBranch(this.db, query.branch);
     }
-    
+
     return getAllFrames(this.db, query.limit);
   }
 
@@ -114,6 +114,14 @@ export class FrameStore {
    */
   close() {
     this.db.close();
+  }
+
+  /**
+   * Get the underlying database instance (for testing/internal use)
+   * @internal
+   */
+  getDatabase(): Database.Database {
+    return this.db;
   }
 }
 

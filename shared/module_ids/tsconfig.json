@@ -17,6 +17,7 @@
   "include": ["*.ts"],
   "exclude": ["node_modules", "dist", "*.test.mjs", "*.test.ts"],
   "references": [
+    { "path": "../types" },
     { "path": "../aliases" }
   ]
 }

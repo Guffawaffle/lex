@@ -1,13 +1,13 @@
 /**
  * Integration tests for Frame lifecycle
- * 
+ *
  * Tests the full end-to-end flow:
  * - Frame creation → storage → recall
  * - Module validation
  * - Image attachments
  * - Atlas Frame generation
  * - Memory card rendering
- * 
+ *
  * Run with: npx tsx --test integration.test.ts
  */
 
@@ -123,7 +123,7 @@ describe("Memory Integration Tests", () => {
       };
 
       // Validate modules before storage
-      const validationResult = validateModuleIds(validFrame.module_scope, mockPolicy as any);
+      const validationResult = await validateModuleIds(validFrame.module_scope, mockPolicy as any);
       assert.strictEqual(
         validationResult.valid,
         true,
@@ -147,7 +147,7 @@ describe("Memory Integration Tests", () => {
     test("should reject Frame with invalid module IDs", async () => {
       const invalidModules = ["invalid-module", "another-bad-one"];
 
-      const validationResult = validateModuleIds(invalidModules, mockPolicy as any);
+      const validationResult = await validateModuleIds(invalidModules, mockPolicy as any);
       assert.strictEqual(
         validationResult.valid,
         false,
