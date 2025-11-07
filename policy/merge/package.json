@@ -15,13 +15,24 @@
       "import": "./dist/types.js"
     }
   },
+  "files": [
+    "dist/",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "tsc",
     "test": "npm run build && node merge.test.mjs"
   },
+  "keywords": ["merge", "scanner", "policy"],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Guffawaffle/lex.git",
+    "directory": "policy/merge"
+  },
   "devDependencies": {
     "@types/node": "^18.0.0",
     "typescript": "^5.0.0"
-  },
-  "license": "MIT"
+  }
 }

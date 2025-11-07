@@ -4,18 +4,31 @@
   "description": "Module ID alias resolution for fuzzy matching and historical name resolution",
   "type": "module",
   "main": "index.ts",
+  "types": "index.ts",
   "exports": {
     ".": {
       "types": "./index.ts",
       "import": "./index.js"
     }
   },
+  "files": [
+    "*.ts",
+    "*.js",
+    "*.d.ts",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "tsc",
     "test": "npm run build && node resolver.test.mjs"
   },
   "keywords": ["aliases", "fuzzy-matching", "module-ids", "resolution"],
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Guffawaffle/lex.git",
+    "directory": "shared/aliases"
+  },
   "devDependencies": {
     "@types/node": "^24.9.2",
     "typescript": "^5.9.3"
