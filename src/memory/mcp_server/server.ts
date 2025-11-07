@@ -6,22 +6,22 @@
  */
 
 // @ts-ignore - importing from compiled dist directories
-import { FrameStore } from "../../store/store/framestore.js";
+import { FrameStore } from "../store/framestore.js";
 // @ts-ignore - importing from compiled dist directories
-import { ImageManager } from "../../store/images.js";
+import { ImageManager } from "../store/images.js";
 // @ts-ignore - importing from compiled dist directories
-import type { Frame } from "../../frames/types.js";
+import type { Frame } from "../frames/types.js";
 import { MCP_TOOLS } from "./tools.js";
 // @ts-ignore - importing from compiled dist directories
-import { generateAtlasFrame, formatAtlasFrame } from "../../../shared/atlas/atlas-frame.js";
+import { generateAtlasFrame, formatAtlasFrame } from "../../shared/atlas/atlas-frame.js";
 // @ts-ignore - importing from compiled dist directories
-import { validateModuleIds } from "../../../shared/module_ids/validator.js";
+import { validateModuleIds } from "../../shared/module_ids/validator.js";
 // @ts-ignore - importing from compiled dist directories
-import type { ModuleIdError } from "../../../shared/types/validation.js";
+import type { ModuleIdError } from "../../shared/types/validation.js";
 // @ts-ignore - importing from compiled dist directories
-import { loadPolicy } from "../policy/loader.js";
+import { loadPolicy } from "../../shared/policy/loader.js";
 // @ts-ignore - importing from compiled dist directories
-import { getCurrentBranch } from "../../../shared/git/branch.js";
+import { getCurrentBranch } from "../../shared/git/branch.js";
 import { randomUUID } from "crypto";
 import { join } from "path";
 
