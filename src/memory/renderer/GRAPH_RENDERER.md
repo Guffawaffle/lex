@@ -39,8 +39,8 @@ Visual rendering of Atlas Frames as interactive SVG/Canvas graphs showing module
 ### Basic Rendering
 
 ```typescript
-import { renderAtlasFrameGraph, exportGraphAsPNG } from '@lex/renderer';
-import { generateAtlasFrame } from '@lex/atlas';
+import { renderAtlasFrameGraph, exportGraphAsPNG } from './graph.js';
+import { generateAtlasFrame } from '../../shared/atlas/atlas-frame.js';
 
 // Generate an Atlas Frame
 const atlasFrame = generateAtlasFrame(['ui/admin-panel'], 1);
@@ -146,8 +146,8 @@ Tests cover:
 The graph renderer integrates with the memory card system to provide visual Atlas Frame representations:
 
 ```typescript
-import { renderMemoryCard } from '@lex/renderer';
-import { generateAtlasFrame } from '@lex/atlas';
+import { renderMemoryCard } from './card.js';
+import { generateAtlasFrame } from '../../shared/atlas/atlas-frame.js';
 
 const frame = {
   id: 'frame-123',

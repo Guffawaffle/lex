@@ -314,12 +314,23 @@ export class MCPServer {
       );
     }
 
-    const frames = this.frameStore.searchFrames({
-      reference_point,
-      jira,
-      branch,
-      limit,
-    });
+    let frames: Frame[];
+    try {
+      frames = this.frameStore.searchFrames({
+        reference_point,
+        jira,
+        branch,
+        limit,
+      });
+    } catch (error: any) {
+      // FTS5 search can fail with special characters (e.g., "zzz-nonexistent-query-zzz")
+      // Treat search errors as empty results rather than propagating the error
+      if (error.code === 'SQLITE_ERROR' || error.message?.includes('no such column')) {
+        frames = [];
+      } else {
+        throw error;
+      }
+    }
 
     if (frames.length === 0) {
       return {

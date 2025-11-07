@@ -8,6 +8,7 @@ dist/
 build/
 *.js.map
 *.d.ts.map
+tsconfig.tsbuildinfo
 
 # Generated TypeScript compilation outputs (source is .ts)
 # Keep only source .ts files, not compiled .js/.d.ts
@@ -69,3 +70,6 @@ yarn-error.log*
 **/.docker-cache/
 docker-compose.override.yml
 .env.local
+
+# TypeScript build info files
+*.tsbuildinfo
