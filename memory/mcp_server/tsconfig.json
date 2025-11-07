@@ -15,6 +15,14 @@
     "declarationMap": true,
     "sourceMap": true,
     "noImplicitAny": false
+    ,
+    "baseUrl": ".",
+    "paths": {
+      "@lex/policy": ["../../shared/policy"],
+      "@lex/policy/*": ["../../shared/policy/*"],
+      "@lex/types": ["../../shared/types"],
+      "@lex/types/*": ["../../shared/types/*"]
+    }
   },
   "include": ["*.ts"],
   "exclude": ["node_modules", "dist"]

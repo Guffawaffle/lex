@@ -4,7 +4,7 @@
  */
 
 import { renderMemoryCard, renderMemoryCardWithOptions } from './card.js';
-import type { Frame } from '../frames/types.js';
+import type { Frame } from './types.js';
 import { writeFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
 
@@ -94,22 +94,22 @@ async function testMinimalFrame() {
   console.log('Test 1: Rendering minimal Frame...');
   const frame = createMinimalFrame();
   const buffer = await renderMemoryCard(frame);
-  
+
   // Verify buffer is valid
   if (!Buffer.isBuffer(buffer)) {
     throw new Error('Output is not a Buffer');
   }
-  
+
   // Check PNG signature
   const pngSignature = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
   if (!buffer.subarray(0, 8).equals(pngSignature)) {
     throw new Error('Output is not a valid PNG');
   }
-  
+
   // Save for manual inspection
   const outputPath = join(TEST_OUTPUT_DIR, 'test-minimal-frame.png');
   writeFileSync(outputPath, buffer);
-  
+
   console.log(`✓ Minimal frame rendered successfully (${buffer.length} bytes)`);
   console.log(`  Saved to: ${outputPath}`);
 }
@@ -121,22 +121,22 @@ async function testFullFrame() {
   console.log('Test 2: Rendering full Frame...');
   const frame = createFullFrame();
   const buffer = await renderMemoryCard(frame);
-  
+
   // Verify buffer is valid
   if (!Buffer.isBuffer(buffer)) {
     throw new Error('Output is not a Buffer');
   }
-  
+
   // Check PNG signature
   const pngSignature = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
   if (!buffer.subarray(0, 8).equals(pngSignature)) {
     throw new Error('Output is not a valid PNG');
   }
-  
+
   // Should be larger than minimal due to more content
   const outputPath = join(TEST_OUTPUT_DIR, 'test-full-frame.png');
   writeFileSync(outputPath, buffer);
-  
+
   console.log(`✓ Full frame rendered successfully (${buffer.length} bytes)`);
   console.log(`  Saved to: ${outputPath}`);
 }
@@ -148,15 +148,15 @@ async function testLongTextHandling() {
   console.log('Test 3: Testing long text handling...');
   const frame = createLongTextFrame();
   const buffer = await renderMemoryCard(frame);
-  
+
   // Verify buffer is valid
   if (!Buffer.isBuffer(buffer)) {
     throw new Error('Output is not a Buffer');
   }
-  
+
   const outputPath = join(TEST_OUTPUT_DIR, 'test-long-text.png');
   writeFileSync(outputPath, buffer);
-  
+
   console.log(`✓ Long text handled successfully (${buffer.length} bytes)`);
   console.log(`  Saved to: ${outputPath}`);
 }
@@ -179,17 +179,17 @@ Recent changes:
 + Implemented canvas-based image generation
 + Created test suite with 5+ test cases
   `;
-  
+
   const buffer = await renderMemoryCard(frame, rawContext);
-  
+
   // Verify buffer is valid
   if (!Buffer.isBuffer(buffer)) {
     throw new Error('Output is not a Buffer');
   }
-  
+
   const outputPath = join(TEST_OUTPUT_DIR, 'test-raw-context.png');
   writeFileSync(outputPath, buffer);
-  
+
   console.log(`✓ Raw context rendered successfully (${buffer.length} bytes)`);
   console.log(`  Saved to: ${outputPath}`);
 }
@@ -200,14 +200,14 @@ Recent changes:
 async function testReadabilityAtSizes() {
   console.log('Test 5: Testing readability at various sizes...');
   const frame = createFullFrame();
-  
+
   // Test with custom dimensions
   const sizes = [
     { width: 600, height: 800, name: 'small' },
     { width: 800, height: 1000, name: 'medium' },
     { width: 1000, height: 1200, name: 'large' },
   ];
-  
+
   for (const size of sizes) {
     const buffer = await renderMemoryCardWithOptions(frame, {
       dimensions: {
@@ -217,13 +217,13 @@ async function testReadabilityAtSizes() {
         lineHeight: 24,
       },
     });
-    
+
     const outputPath = join(TEST_OUTPUT_DIR, `test-size-${size.name}.png`);
     writeFileSync(outputPath, buffer);
-    
+
     console.log(`  ✓ ${size.name} size (${size.width}x${size.height}): ${buffer.length} bytes`);
   }
-  
+
   console.log('✓ All size variations rendered successfully');
 }
 
@@ -232,30 +232,30 @@ async function testReadabilityAtSizes() {
  */
 async function runTests() {
   console.log('=== Memory Card Renderer Test Suite ===\n');
-  
+
   // Create output directory
   try {
     mkdirSync(TEST_OUTPUT_DIR, { recursive: true });
   } catch (err) {
     // Directory already exists
   }
-  
+
   try {
     await testMinimalFrame();
     console.log();
-    
+
     await testFullFrame();
     console.log();
-    
+
     await testLongTextHandling();
     console.log();
-    
+
     await testRawContext();
     console.log();
-    
+
     await testReadabilityAtSizes();
     console.log();
-    
+
     console.log('=== All Tests Passed ✓ ===');
     console.log(`\nTest outputs saved to: ${TEST_OUTPUT_DIR}`);
     console.log('Open the PNG files to visually verify rendering quality.');
