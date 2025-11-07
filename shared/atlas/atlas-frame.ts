@@ -5,8 +5,10 @@
  * Implements full policy graph traversal with N-hop neighborhood extraction.
  */
 
-import { loadPolicy } from '../policy/dist/index.js';
-import type { PolicyModule } from '../types/dist/policy.js';
+// @ts-expect-error - cross-package import from compiled dist
+import { loadPolicy } from '../../policy/dist/index.js';
+// @ts-expect-error - cross-package import from compiled dist
+import type { PolicyModule } from '../../types/dist/policy.js';
 import { extractNeighborhood, generateCoordinates } from './graph.js';
 import { getCache } from './cache.js';
 

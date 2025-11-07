@@ -5,8 +5,10 @@
  * merged scanner output against the policy file.
  */
 
-import { Policy, PolicyModule } from '../../shared/types/dist/policy.js';
-import { MergedScanResult, FileData } from '../merge/dist/types.js';
+// @ts-expect-error - cross-package import from compiled dist
+import { Policy, PolicyModule } from '../../../shared/types/dist/policy.js';
+// @ts-expect-error - cross-package import from compiled dist
+import { MergedScanResult, FileData } from '../../merge/dist/types.js';
 
 /**
  * Types of policy violations that can be detected

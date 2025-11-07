@@ -6,16 +6,16 @@
  */
 
 // @ts-ignore - importing from compiled dist directories
-import { FrameStore } from "../../store/dist/framestore.js";
+import { FrameStore } from "../../store/dist/store/framestore.js";
 // @ts-ignore - importing from compiled dist directories
-import { ImageManager } from "../../store/dist/images.js";
+import { ImageManager } from "../../store/dist/store/images.js";
 import { MCP_TOOLS } from "./tools.js";
 // @ts-ignore - importing from compiled dist directories
 import { generateAtlasFrame, formatAtlasFrame } from "../../../shared/atlas/dist/atlas-frame.js";
 // @ts-ignore - importing from compiled dist directories
 import { validateModuleIds } from "../../../shared/module_ids/dist/validator.js";
 // @ts-ignore - importing from compiled dist directories
-import { loadPolicy } from "../../shared/policy/dist/index.js";
+import { loadPolicy } from "../../../shared/policy/dist/index.js";
 // @ts-ignore - importing from compiled dist directories
 import { getCurrentBranch } from "../../../shared/git/dist/branch.js";
 import { randomUUID } from "crypto";

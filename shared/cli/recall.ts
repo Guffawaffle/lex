@@ -11,7 +11,8 @@ import {
   getFramesByJira,
   getFrameById,
 } from "../../memory/store/index.js";
-import { loadPolicy } from "../policy/dist/index.js";
+// @ts-expect-error - cross-package import from compiled dist
+import { loadPolicy } from "../../../../policy/dist/index.js";
 import {
   generateAtlasFrame,
   computeFoldRadius,

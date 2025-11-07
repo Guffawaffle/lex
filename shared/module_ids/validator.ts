@@ -15,13 +15,10 @@ import type {
   ModuleIdError,
   ResolutionResult,
 } from "../types/dist/validation.js";
+// @ts-expect-error - cross-package import from compiled dist
 import type { AliasTable, ResolverOptions } from "../../aliases/dist/types.js";
-import {
-  resolveModuleId,
-  loadAliasTable,
-  findSubstringMatches,
-  AmbiguousSubstringError,
-} from "../../aliases/dist/resolver.js";
+// @ts-expect-error - cross-package import from compiled dist  
+import { resolveModuleId, loadAliasTable, findSubstringMatches, AmbiguousSubstringError } from "../../aliases/dist/resolver.js";
 
 // Re-export for use by other packages
 export { resolveModuleId };
