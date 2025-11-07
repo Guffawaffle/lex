@@ -27,8 +27,8 @@ This module provides functionality to render Frame metadata as high-contrast vis
 ### Basic rendering
 
 ```typescript
-import { renderMemoryCard } from '@lex/renderer';
-import type { Frame } from '@lex/frames/types';
+import { renderMemoryCard } from './card.js';
+import type { Frame } from '../frames/types.js';
 
 const frame: Frame = {
   id: 'frame-001',
@@ -53,7 +53,7 @@ writeFileSync('memory-card.png', pngBuffer);
 ### Rendering with raw context
 
 ```typescript
-import { renderMemoryCard } from '@lex/renderer';
+import { renderMemoryCard } from './card.js';
 
 const rawContext = `
 Recent logs:
@@ -76,8 +76,8 @@ const pngBuffer = await renderMemoryCard(frame, rawContext);
 ### Basic timeline rendering
 
 ```typescript
-import { buildTimeline, renderTimelineText } from '@lex/renderer';
-import type { Frame } from '@lex/frames/types';
+import { buildTimeline, renderTimelineText } from './timeline.js';
+import type { Frame } from '../frames/types.js';
 
 // Get frames for a ticket or branch (from store)
 const frames: Frame[] = getFramesByJira(db, 'TICKET-123');
@@ -93,7 +93,7 @@ console.log(textOutput);
 ### Module scope evolution
 
 ```typescript
-import { renderModuleScopeEvolution } from '@lex/renderer';
+import { renderModuleScopeEvolution } from './timeline.js';
 
 // Show which modules were touched in each frame
 const evolution = renderModuleScopeEvolution(timeline);
@@ -107,7 +107,7 @@ console.log(evolution);
 ### Blocker tracking
 
 ```typescript
-import { renderBlockerTracking } from '@lex/renderer';
+import { renderBlockerTracking } from './timeline.js';
 
 // Track when blockers were introduced and resolved
 const tracking = renderBlockerTracking(timeline);
@@ -122,7 +122,7 @@ console.log(tracking);
 ### Date filtering
 
 ```typescript
-import { filterTimeline } from '@lex/renderer';
+import { filterTimeline } from './timeline.js';
 
 // Filter timeline by date range
 const filtered = filterTimeline(timeline, {
@@ -134,7 +134,7 @@ const filtered = filterTimeline(timeline, {
 ### HTML output
 
 ```typescript
-import { renderTimelineHTML } from '@lex/renderer';
+import { renderTimelineHTML } from './timeline.js';
 import { writeFileSync } from 'fs';
 
 // Generate interactive HTML timeline
@@ -145,7 +145,7 @@ writeFileSync('timeline.html', html, 'utf-8');
 ### JSON output
 
 ```typescript
-import { renderTimelineJSON } from '@lex/renderer';
+import { renderTimelineJSON } from './timeline.js';
 
 // Export timeline as JSON for programmatic use
 const json = renderTimelineJSON(timeline);
@@ -155,7 +155,7 @@ console.log(json);
 ### Custom rendering options
 
 ```typescript
-import { renderMemoryCardWithOptions } from '@lex/renderer';
+import { renderMemoryCardWithOptions } from './card.js';
 
 const pngBuffer = await renderMemoryCardWithOptions(frame, {
   dimensions: {
