@@ -8,9 +8,15 @@
   "exports": {
     ".": {
       "types": "./loader.ts",
-      "import": "./dist/loader.js"
+      "import": "./dist/policy/loader.js"
     }
   },
+  "files": [
+    "dist/",
+    "*.ts",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "tsc",
     "test": "node loader.test.mjs"

@@ -5,10 +5,28 @@
   "type": "module",
   "main": "./dist/server.js",
   "types": "./dist/server.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/server.d.ts",
+      "import": "./dist/server.js"
+    }
+  },
+  "files": [
+    "dist/",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "tsc",
     "watch": "tsc --watch",
     "test": "npm run build && node --test dist/server.test.js"
+  },
+  "keywords": ["mcp", "server", "frames", "ai", "assistant"],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Guffawaffle/lex.git",
+    "directory": "memory/mcp_server"
   },
   "dependencies": {
     "@lex/store": "file:../store"
@@ -16,6 +34,5 @@
   "devDependencies": {
     "@types/node": "^24.9.2",
     "typescript": "^5.9.3"
-  },
-  "license": "MIT"
+  }
 }

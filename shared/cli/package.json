@@ -3,17 +3,22 @@
   "version": "0.2.0",
   "description": "Unified CLI interface for Lex - orchestrates memory and policy subsystems",
   "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "main": "./dist/shared/cli/index.js",
+  "types": "./dist/shared/cli/index.d.ts",
   "bin": {
-    "lex": "./dist/lex.js"
+    "lex": "./dist/shared/cli/lex.js"
   },
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "types": "./dist/shared/cli/index.d.ts",
+      "import": "./dist/shared/cli/index.js"
     }
   },
+  "files": [
+    "dist/",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "tsc",
     "watch": "tsc --watch",
@@ -39,5 +44,10 @@
     "policy",
     "frames"
   ],
-  "license": "MIT"
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Guffawaffle/lex.git",
+    "directory": "shared/cli"
+  }
 }

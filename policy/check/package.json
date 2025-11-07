@@ -4,12 +4,31 @@
   "description": "LexMap policy violation checker",
   "type": "module",
   "main": "dist/lexmap-check.js",
+  "types": "dist/lexmap-check.d.ts",
   "bin": {
     "lexmap-check": "./dist/lexmap-check.js"
   },
+  "exports": {
+    ".": {
+      "types": "./dist/lexmap-check.d.ts",
+      "import": "./dist/lexmap-check.js"
+    }
+  },
+  "files": [
+    "dist/",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "npx tsc",
     "test": "node check.test.mjs"
+  },
+  "keywords": ["policy", "check", "violation", "lexmap"],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Guffawaffle/lex.git",
+    "directory": "policy/check"
   },
   "dependencies": {
     "@lex/types": "0.1.0-alpha",
