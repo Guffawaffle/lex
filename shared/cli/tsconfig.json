@@ -20,7 +20,9 @@
       "@lex/policy": ["../policy"],
       "@lex/policy/*": ["../policy/*"],
       "@lex/types": ["../types"],
-      "@lex/types/*": ["../types/*"]
+      "@lex/types/*": ["../types/*"],
+      "@lex/aliases/types": ["../aliases/types"],
+      "@lex/aliases/resolver": ["../aliases/resolver"]
     }
   },
   "include": [

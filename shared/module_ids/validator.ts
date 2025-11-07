@@ -15,15 +15,13 @@ import type {
   ModuleIdError,
   ResolutionResult,
 } from "../types/dist/validation.js";
-// Import from aliases package using package name (resolved via exports)
-import type { AliasTable, ResolverOptions } from "@lex/aliases/types";
-// Import from aliases package using package name (resolved via exports)
+import type { AliasTable, ResolverOptions } from "../../aliases/dist/types.js";
 import {
   resolveModuleId,
   loadAliasTable,
   findSubstringMatches,
   AmbiguousSubstringError,
-} from "@lex/aliases/resolver";
+} from "../../aliases/dist/resolver.js";
 
 // Re-export for use by other packages
 export { resolveModuleId };

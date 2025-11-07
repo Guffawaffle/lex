@@ -13,8 +13,6 @@
     "declarationMap": true,
     "sourceMap": true,
     "outDir": "./dist",
-    "rootDir": "."
-    ,
     "baseUrl": ".",
     "paths": {
       "@lex/policy": ["../policy"],

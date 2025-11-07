@@ -15,7 +15,7 @@ import { generateAtlasFrame, formatAtlasFrame } from "../../../shared/atlas/dist
 // @ts-ignore - importing from compiled dist directories
 import { validateModuleIds } from "../../../shared/module_ids/dist/validator.js";
 // @ts-ignore - importing from compiled dist directories
-import { loadPolicy } from "@lex/policy";
+import { loadPolicy } from "../../shared/policy/dist/index.js";
 // @ts-ignore - importing from compiled dist directories
 import { getCurrentBranch } from "../../../shared/git/dist/branch.js";
 import { randomUUID } from "crypto";

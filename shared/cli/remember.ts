@@ -8,8 +8,8 @@ import inquirer from "inquirer";
 import { v4 as uuidv4 } from "uuid";
 import type { Frame } from "../types/frame.js";
 import { resolveModuleId } from "../module_ids/validator.js";
-import type { AliasResolution } from "@lex/aliases/types";
-import { loadPolicy } from "@lex/policy";
+import type { AliasResolution } from "../aliases/dist/types.js";
+import { loadPolicy } from "../policy/dist/index.js";
 import { getDb, saveFrame } from "../../memory/store/index.js";
 import { getCurrentBranch } from "../git/branch.js";
 

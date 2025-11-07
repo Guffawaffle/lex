@@ -5,8 +5,8 @@
  * merged scanner output against the policy file.
  */
 
-import { Policy, PolicyModule } from '@lex/types/policy';
-import { MergedScanResult, FileData } from '@lex/merge/types';
+import { Policy, PolicyModule } from '../../shared/types/dist/policy.js';
+import { MergedScanResult, FileData } from '../merge/dist/types.js';
 
 /**
  * Types of policy violations that can be detected

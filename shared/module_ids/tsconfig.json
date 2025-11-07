@@ -12,7 +12,12 @@
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
-    "composite": true
+    "composite": true,
+    "baseUrl": ".",
+    "paths": {
+      "@lex/aliases/types": ["../aliases/types"],
+      "@lex/aliases/resolver": ["../aliases/resolver"]
+    }
   },
   "include": ["*.ts"],
   "exclude": ["node_modules", "dist", "*.test.mjs", "*.test.ts"],

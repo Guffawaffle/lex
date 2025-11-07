@@ -5,7 +5,6 @@
     "moduleResolution": "node",
     "lib": ["ES2022"],
     "outDir": "./dist",
-    "rootDir": "./",
     "strict": false,
     "esModuleInterop": true,
     "skipLibCheck": true,
@@ -14,8 +13,7 @@
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
-    "noImplicitAny": false
-    ,
+    "noImplicitAny": false,
     "baseUrl": ".",
     "paths": {
       "@lex/policy": ["../../shared/policy"],
