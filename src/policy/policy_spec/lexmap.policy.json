@@ -3,19 +3,19 @@
     "patterns": [
       {
         "name": "indexer",
-        "match": "packages/codemap-indexer/**"
+        "match": "src/policy/scanners/**"
       },
       {
         "name": "ts",
-        "match": "packages/codemap-ts/**"
+        "match": "src/**/*.ts"
       },
       {
         "name": "php",
-        "match": "packages/codemap-php/**"
+        "match": "src/**/*.php"
       },
       {
         "name": "mcp",
-        "match": "packages/codemap-mcp/**"
+        "match": "src/memory/mcp_server/**"
       }
     ],
     "allowed_deps": []
