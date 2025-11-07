@@ -69,3 +69,6 @@ yarn-error.log*
 **/.docker-cache/
 docker-compose.override.yml
 .env.local
+
+# TypeScript build info files
+*.tsbuildinfo
