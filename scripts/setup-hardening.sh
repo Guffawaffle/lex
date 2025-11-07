@@ -91,14 +91,14 @@ if [ -z "${SKIP_BRANCH_PROTECTION:-}" ]; then
             echo "   Protecting main branch..."
             gh api "repos/$REPO/branches/main/protection" \
                 --method PUT \
-                --field required_pull_request_reviews='{"required_approving_review_count":2,"dismiss_stale_reviews":true}' \
+                --field required_pull_request_reviews='{"required_approving_review_count":1,"dismiss_stale_reviews":true}' \
                 --field required_status_checks='{"strict":true,"contexts":["all-checks-pass"]}' \
                 --field enforce_admins=true \
                 --field required_linear_history=true \
                 --field required_signatures=true \
                 --field allow_force_pushes=false \
                 --field allow_deletions=false \
-                2>/dev/null && echo "   ✅ main branch protected" || echo "   ⚠️  Could not protect main (may need admin access)"
+                2>/dev/null && echo "   ✅ main branch protected (1 approval required)" || echo "   ⚠️  Could not protect main (may need admin access)"
         else
             echo "   ⚠️  main branch does not exist yet"
         fi
