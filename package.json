@@ -36,6 +36,8 @@
     "test:coverage": "npm run test",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "local-ci": "./scripts/local-ci-run.sh",
+    "local-ci:nonet": "./scripts/ci-nonet.sh",
     "changeset": "changeset",
     "version-packages": "changeset version",
     "release": "npm run build && changeset publish"
