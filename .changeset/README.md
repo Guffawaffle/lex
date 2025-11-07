@@ -89,4 +89,4 @@ BREAKING: Change policy file format to YAML
 - Always create a changeset when making user-facing changes
 - Use semantic versioning correctly (major/minor/patch)
 - Write clear, user-focused summaries
-- Reference the single 'lex' package (not @lex/* subpackages)
+- Reference the single 'lex' package (not lex/* subpackages)

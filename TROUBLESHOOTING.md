@@ -11,7 +11,7 @@ This guide helps you diagnose and fix common issues with Lex.
 **Current Structure:**
 - Single root `package.json`
 - All source in `src/` directory
-- Relative imports (no `@lex/*` package names)
+- Relative imports (no `lex/*` package names)
 - Single build command: `npm run build`
 - Subpath exports for external consumers
 
@@ -39,9 +39,9 @@ TypeScript cannot find imported modules.
    ```typescript
    // ✅ Correct
    import { Frame } from "../../shared/types/frame.js";
-   
+
    // ❌ Wrong (old monorepo style)
-   import { Frame } from "@lex/types";
+   import { Frame } from "lex/types";
    ```
 
 ### Build Succeeds but Tests Fail
@@ -70,10 +70,11 @@ TypeScript project references now handle build order automatically with `tsc -b`
 
 ---
 
+
 ### 2. Cross-Package Import Issues (RESOLVED)
 
 **Old Problem (Monorepo):**
-Cross-package imports using `@lex/*` aliases and `/dist/` paths were fragile.
+Cross-package imports using `lex/*` aliases and `/dist/` paths were fragile.
 
 **Solution (Single Package):**
 All code now uses relative imports from `src/`. No package aliases needed.
@@ -144,7 +145,7 @@ lex check --policy /path/to/lexmap.policy.json
 import type { Frame } from "../../shared/types/frame.js";
 import type { Policy } from "../../shared/types/policy.js";
 
-// Functions  
+// Functions
 import { validateModuleIds } from "../../shared/module_ids/validation.js";
 import { resolveModuleId } from "../../shared/aliases/resolver.js";
 import { loadPolicy } from "../../shared/policy/loader.js";
@@ -157,9 +158,9 @@ import { FrameStore } from "../../memory/store/framestore.js";
 
 ```typescript
 // ❌ These were for the old monorepo structure
-import { Frame } from "@lex/types";
-import { validateModuleIds } from "@lex/module-ids";
-import { resolveModuleId } from "@lex/aliases/resolver";
+import { Frame } from "lex/types";
+import { validateModuleIds } from "lex/module-ids";
+import { resolveModuleId } from "lex/aliases/resolver";
 ```
 
 ---
@@ -178,7 +179,7 @@ import { cli } from "lex/cli";
 // Policy utilities
 import { checker } from "lex/policy/check";
 
-// Memory utilities  
+// Memory utilities
 import { FrameStore } from "lex/memory/store";
 
 // Shared utilities

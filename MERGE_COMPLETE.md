@@ -2,8 +2,8 @@
 
 > **⚠️ HISTORICAL DOCUMENT**: This document describes work done during the monorepo phase. The repository has since been consolidated to a single package (PR #91). This file is kept for historical reference only. The issues described here (relative path imports, cross-package dependencies) have been resolved by the single-package migration.
 
-**Branch**: `integration/merge-weave-20251106-014906`  
-**Date**: 2025-11-06  
+**Branch**: `integration/merge-weave-20251106-014906`
+**Date**: 2025-11-06
 **Status**: ✅ **Complete** (160/173 tests passing, 92.5%) - **Superseded by PR #91**
 
 ## Summary
@@ -12,7 +12,7 @@ Fixed critical ESM module resolution errors blocking the test suite by eliminati
 
 **Core Issue**: TypeScript preserves relative import paths verbatim (`../aliases/dist/resolver.js`), but Node.js ESM resolves them from the *compiled* file location, not the source location. When files compile from `shared/module_ids/*.ts` → `shared/module_ids/dist/*.js`, the relative path becomes invalid.
 
-**Solution**: Use package subpath exports (`@lex/aliases/resolver`) which resolve to absolute package locations at runtime, eliminating path relativity issues.
+**Solution**: Use package subpath exports (`lex/aliases/resolver`) which resolve to absolute package locations at runtime, eliminating path relativity issues.
 
 ## Test Results
 
@@ -46,7 +46,7 @@ Fixed critical ESM module resolution errors blocking the test suite by eliminati
   }
 }
 ```
-**Impact**: Enables `import { resolveModuleId } from "@lex/aliases/resolver"` instead of fragile relative paths.
+**Impact**: Enables `import { resolveModuleId } from "lex/aliases/resolver"` instead of fragile relative paths.
 
 ### 2. Module ID Validator Import Fix
 **File**: `shared/module_ids/validator.ts`
@@ -55,7 +55,7 @@ Fixed critical ESM module resolution errors blocking the test suite by eliminati
 import { resolveModuleId } from "../../aliases/dist/resolver.js";
 
 // AFTER (fixed):
-import { resolveModuleId } from "@lex/aliases/resolver";
+import { resolveModuleId } from "lex/aliases/resolver";
 ```
 **Impact**: Node.js now resolves to correct package location at runtime.
 
@@ -119,7 +119,7 @@ import type { Frame } from './types.js';
 import type { ResolutionResult } from '../types/validation.js';
 
 // AFTER:
-import type { AliasResolution } from "@lex/aliases/types";
+import type { AliasResolution } from "lex/aliases/types";
 ```
 **Impact**: Uses correct type after alias refactoring.
 
@@ -171,8 +171,8 @@ fix: Resolve ESM module resolution with package subpath exports
 
 BREAKING CHANGE: Module imports changed from relative paths to package subpaths
 
-- Add subpath exports to @lex/aliases for /resolver and /types
-- Change module_ids imports to use @lex/aliases/resolver
+- Add subpath exports to lex/aliases for /resolver and /types
+- Change module_ids imports to use lex/aliases/resolver
 - Enable TypeScript composite mode + project references for build order
 - Fix renderer by creating local types.ts to avoid cross-package imports
 - Remove problematic rootDir settings causing nested dist/ structures
@@ -217,5 +217,5 @@ Tests: 160/173 passing (92.5%)
 
 ---
 
-**Merge Status**: Ready for `git merge --no-ff integration/merge-weave-20251106-014906`  
+**Merge Status**: Ready for `git merge --no-ff integration/merge-weave-20251106-014906`
 **Blocker**: None (CLI tests are pre-existing failures, not introduced by this work)

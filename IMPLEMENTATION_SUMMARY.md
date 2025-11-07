@@ -1,6 +1,6 @@
 # Implementation Summary: Repository Hardening
 
-> **Note:** This document was created during the repository hardening phase. The repository has since been consolidated from a monorepo to a single package (PR #91). Core infrastructure (CI, security, release workflows) remains as described here, but package structure has changed from multiple `@lex/*` packages to a single `lex` package.
+> **Note:** This document was created during the repository hardening phase. The repository has since been consolidated from a monorepo to a single package (PR #91). Core infrastructure (CI, security, release workflows) remains as described here, but package structure has changed from multiple `lex/*` packages to a single `lex` package.
 
 ## ✅ Completed
 
