@@ -1,13 +1,13 @@
 /**
  * Integration tests for MCP Server
- * 
+ *
  * Tests the full MCP protocol integration:
  * - Full request/response cycle
  * - Real validation and error handling
  * - FTS5 search integration
  * - Frame filtering
  * - Module validation integration
- * 
+ *
  * Run with: npm run build && node --test dist/integration.test.js
  */
 
@@ -152,6 +152,7 @@ describe("MCP Server Integration Tests", () => {
           },
         });
 
+        assert.ok(recallResponse.content, "Response should have content");
         assert.ok(
           recallResponse.content[0].text.includes("first frame"),
           "Should find specific frame"
@@ -317,6 +318,7 @@ describe("MCP Server Integration Tests", () => {
           },
         });
 
+        assert.ok(keywordSearch.content, "Keyword search should have content");
         assert.ok(
           keywordSearch.content[0].text.includes("payment system"),
           "Should find via keyword search"
@@ -333,6 +335,7 @@ describe("MCP Server Integration Tests", () => {
           },
         });
 
+        assert.ok(summarySearch.content, "Summary search should have content");
         assert.ok(
           summarySearch.content[0].text.includes("payment system"),
           "Should find via summary search"
@@ -370,6 +373,7 @@ describe("MCP Server Integration Tests", () => {
           },
         });
 
+        assert.ok(wildcardSearch.content, "Wildcard search should have content");
         assert.ok(
           wildcardSearch.content[0].text.includes("database optimization"),
           "Should support wildcard search"
@@ -423,6 +427,7 @@ describe("MCP Server Integration Tests", () => {
           },
         });
 
+        assert.ok(filterResponse.content, "Filter response should have content");
         assert.ok(
           filterResponse.content[0].text.includes("indexer work"),
           "Should include indexer frame"
@@ -466,6 +471,7 @@ describe("MCP Server Integration Tests", () => {
           },
         });
 
+        assert.ok(limitedResponse.content, "Limited response should have content");
         assert.ok(
           limitedResponse.content[0].text.includes("Recent Frames (3)"),
           "Should respect limit parameter"
@@ -611,7 +617,7 @@ describe("MCP Server Integration Tests", () => {
           method: "tools/list",
         });
 
-        const rememberTool = response.tools.find((t) => t.name === "lex.remember");
+        const rememberTool = response.tools?.find((t) => t.name === "lex.remember");
         assert.ok(rememberTool, "Should include lex.remember");
         assert.ok(rememberTool.inputSchema, "Should include input schema");
         assert.ok(

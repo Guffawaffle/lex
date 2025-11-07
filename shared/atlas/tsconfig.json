@@ -13,8 +13,8 @@
     "declarationMap": true,
     "sourceMap": true,
     "outDir": "./dist",
-    "rootDir": "."
-    ,
+    "rootDir": ".",
+    "composite": true,
     "baseUrl": ".",
     "paths": {
       "@lex/policy": ["../policy"],
@@ -30,5 +30,9 @@
     "demo.ts",
     "perf-test.ts",
     "verify-format.ts"
+  ],
+  "references": [
+    { "path": "../types" },
+    { "path": "../policy" }
   ]
 }
