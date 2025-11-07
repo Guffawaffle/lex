@@ -1,0 +1,49 @@
+{
+  "extends": ["@commitlint/config-conventional"],
+  "rules": {
+    "type-enum": [
+      2,
+      "always",
+      [
+        "feat",
+        "fix",
+        "docs",
+        "style",
+        "refactor",
+        "perf",
+        "test",
+        "chore",
+        "revert",
+        "ci",
+        "build"
+      ]
+    ],
+    "scope-enum": [
+      2,
+      "always",
+      [
+        "types",
+        "aliases",
+        "module-ids",
+        "policy",
+        "atlas",
+        "git",
+        "cli",
+        "store",
+        "renderer",
+        "mcp-server",
+        "merge",
+        "check",
+        "ci",
+        "deps",
+        "release"
+      ]
+    ],
+    "subject-case": [2, "always", "lower-case"],
+    "subject-empty": [2, "never"],
+    "subject-full-stop": [2, "never", "."],
+    "type-case": [2, "always", "lower-case"],
+    "type-empty": [2, "never"],
+    "header-max-length": [2, "always", 100]
+  }
+}

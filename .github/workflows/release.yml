@@ -1,0 +1,202 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., 0.1.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  packages: write
+  id-token: write
+
+jobs:
+  validate-tag:
+    name: Validate Release Tag
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@v2
+        with:
+          egress-policy: audit
+          disable-sudo: true
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate semver tag
+        if: github.event_name == 'push'
+        run: |
+          if [[ ! "${{ github.ref_name }}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "❌ Invalid semver tag: ${{ github.ref_name }}"
+            exit 1
+          fi
+          echo "✅ Valid semver tag: ${{ github.ref_name }}"
+
+      - name: Verify tag is signed
+        if: github.event_name == 'push'
+        run: |
+          if git verify-tag "${{ github.ref_name }}" 2>/dev/null; then
+            echo "✅ Tag is signed"
+          else
+            echo "⚠️  Warning: Tag is not signed"
+            # Don't fail - branch protection enforces this
+          fi
+
+  build-and-test:
+    name: Build & Test for Release
+    needs: validate-tag
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@v2
+        with:
+          egress-policy: audit
+          disable-sudo: true
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+          cache: 'npm'
+
+      - name: Install dependencies (hermetic)
+        run: npm ci --ignore-scripts
+
+      - name: Build all packages
+        run: npm run build
+
+      - name: Run all tests
+        run: npm test
+
+      - name: Create tarballs
+        run: |
+          mkdir -p dist-packages
+          for dir in shared/* memory/* policy/*; do
+            if [ -f "$dir/package.json" ]; then
+              echo "Packing $dir"
+              (cd "$dir" && npm pack --pack-destination ../../dist-packages)
+            fi
+          done
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-packages
+          path: dist-packages/*.tgz
+          retention-days: 7
+          if-no-files-found: error
+
+  publish-npm:
+    name: Publish to npm
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@v2
+        with:
+          egress-policy: audit
+          disable-sudo: true
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: npm-packages
+          path: dist-packages
+
+      - name: Publish packages with provenance
+        run: |
+          set -e
+          # Publish in dependency order (from RELEASE.md)
+          echo "Publishing packages with npm provenance..."
+
+          # 1. Core types (no dependencies)
+          npm publish dist-packages/lex-types-*.tgz --provenance --access public
+
+          # 2. Git utilities (depends on types)
+          npm publish dist-packages/lex-git-*.tgz --provenance --access public
+
+          # 3. Module resolution
+          npm publish dist-packages/lex-module-ids-*.tgz --provenance --access public
+          npm publish dist-packages/lex-aliases-*.tgz --provenance --access public
+
+          # 4. Policy and Atlas
+          npm publish dist-packages/lex-policy-*.tgz --provenance --access public
+          npm publish dist-packages/lex-atlas-*.tgz --provenance --access public
+
+          # 5. Policy tools
+          npm publish dist-packages/lex-merge-*.tgz --provenance --access public
+          npm publish dist-packages/lex-policy-check-*.tgz --provenance --access public
+
+          # 6. Storage
+          npm publish dist-packages/lex-store-*.tgz --provenance --access public
+
+          # 7. Rendering
+          npm publish dist-packages/lex-renderer-*.tgz --provenance --access public
+
+          # 8. CLI (depends on most packages)
+          npm publish dist-packages/lex-cli-*.tgz --provenance --access public
+
+          # 9. MCP Server (depends on CLI)
+          npm publish dist-packages/lex-mcp-server-*.tgz --provenance --access public
+
+          echo "✅ All packages published successfully"
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  create-github-release:
+    name: Create GitHub Release
+    needs: publish-npm
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@v2
+        with:
+          egress-policy: audit
+          disable-sudo: true
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          # Generate changelog between this tag and previous tag
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          if [ -n "$PREV_TAG" ]; then
+            echo "Generating changelog from $PREV_TAG to ${{ github.ref_name }}"
+            git log $PREV_TAG..${{ github.ref_name }} --pretty=format:"- %s (%h)" > CHANGELOG.txt
+          else
+            echo "First release - listing all commits"
+            git log --pretty=format:"- %s (%h)" > CHANGELOG.txt
+          fi
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+          body_path: CHANGELOG.txt
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
