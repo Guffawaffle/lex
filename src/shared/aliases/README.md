@@ -160,7 +160,7 @@ The default `aliases.json` is empty. To add aliases:
 
 The alias table is loaded once and cached for performance. To reload:
 ```typescript
-import { clearAliasTableCache } from '@lex/aliases';
+import { clearAliasTableCache } from './resolver.js';
 clearAliasTableCache();  // Force reload on next use
 ```
 
