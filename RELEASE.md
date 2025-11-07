@@ -92,11 +92,20 @@ git push origin "v${VERSION}"
 
 ### 5. Automated Publishing
 
-The GitHub Actions release workflow will:
-- Validate the signed tag
-- Run build and tests
-- Publish to npm with provenance
-- Create GitHub release with changelog
+The GitHub Actions release workflow (`.github/workflows/release.yml`) will automatically:
+1. Validate the signed tag format (vX.Y.Z)
+2. Build the package and run all tests
+3. Verify npm authentication with `npm whoami`
+4. Run a dry-run publish to validate the package
+5. Publish to npm with provenance attestation
+6. Create GitHub release with auto-generated changelog
+
+The workflow includes safeguards:
+- Tag must match semver format (`v*.*.*`)
+- Tag signing is verified (warns if unsigned)
+- npm authentication is verified before publish
+- Dry-run tests the publish without actually publishing
+- Actual publish only happens on tag push events
 
 ## Dry-Run Testing
 
@@ -155,6 +164,67 @@ The repository has automated workflows for:
 - Build + tests on all PRs (`.github/workflows/ci.yml`)
 - Security scanning (`.github/workflows/security.yml`)
 - Automated npm publishing on tagged releases (`.github/workflows/release.yml`)
+
+### Automated Release Workflow
+
+The `.github/workflows/release.yml` workflow automates the publishing process:
+
+#### Trigger
+- **Tag push**: When a tag matching `v*.*.*` (e.g., `v0.2.0`) is pushed
+- **Manual dispatch**: Can be manually triggered via GitHub Actions UI
+
+#### Workflow Steps
+
+1. **Validate Tag** (`validate-tag` job)
+   - Verifies tag follows semver format (`vX.Y.Z`)
+   - Checks if tag is signed (warns but doesn't fail)
+   - Ensures tag authenticity and format compliance
+
+2. **Build & Test** (`build-and-test` job)
+   - Installs dependencies hermetically (`npm ci --ignore-scripts`)
+   - Builds native dependencies (better-sqlite3)
+   - Compiles TypeScript (`npm run build`)
+   - Runs full test suite (`npm run test:all`)
+   - Creates npm tarball (`npm pack`)
+   - Uploads package artifact for publishing
+
+3. **Publish to npm** (`publish-npm` job)
+   - Downloads built package artifact
+   - **Verifies npm authentication** with `npm whoami`
+   - **Runs dry-run publish** to validate package before actual publish
+   - Publishes to npm with provenance attestation (only on tag push)
+   - Uses `NPM_TOKEN` secret for authentication
+   - Publishes with `--provenance` flag for supply chain security
+
+4. **Create GitHub Release** (`create-github-release` job)
+   - Generates changelog from git commits
+   - Creates GitHub release with auto-generated notes
+   - Attaches changelog to release
+
+#### Safeguards
+
+The workflow includes multiple safeguards:
+- ✅ **Tag validation**: Ensures tags follow semver format
+- ✅ **Tag signing verification**: Warns if tags aren't signed (optional)
+- ✅ **npm whoami check**: Verifies authentication before publishing
+- ✅ **Dry-run**: Tests publish without actually publishing
+- ✅ **Conditional publish**: Only publishes on tag push, not manual dispatch
+- ✅ **Provenance attestation**: Links published package to source code and build
+- ✅ **Hermetic builds**: Uses `npm ci --ignore-scripts` for reproducible builds
+- ✅ **Production environment**: Requires approval if environment protection rules are configured
+
+#### Required Secrets
+
+Configure these secrets in GitHub repository settings:
+- `NPM_TOKEN`: npm authentication token with publish permissions
+- `GITHUB_TOKEN`: Automatically provided by GitHub Actions
+
+#### Testing the Workflow
+
+On non-tag branches or manual dispatch:
+- The workflow runs all validation and build steps
+- The dry-run executes to verify package integrity
+- Actual publishing is skipped (conditional on tag push)
 
 ## Post-Release
 
