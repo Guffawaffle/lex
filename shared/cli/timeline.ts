@@ -4,18 +4,12 @@
  * Display a visual timeline showing Frame evolution for a ticket or branch.
  */
 
-import type { Frame } from '../types/frame.js';
-import { getDb, getFramesByJira, getFramesByBranch } from '../../memory/store/index.js';
-import {
-  buildTimeline,
-  filterTimeline,
-  renderTimelineText,
-  renderModuleScopeEvolution,
-  renderBlockerTracking,
-  renderTimelineJSON,
-  renderTimelineHTML,
-  type TimelineOptions,
-} from '../../memory/renderer/timeline.js';
+// @ts-expect-error - cross-package import from compiled dist
+import type { Frame } from '../../types/dist/frame.js';
+// @ts-expect-error - cross-package import from compiled dist
+import { getDb, getFramesByJira, getFramesByBranch } from '../../../memory/store/dist/store/index.js';
+// @ts-expect-error - cross-package import from compiled dist
+import { buildTimeline, filterTimeline, renderTimelineText, renderModuleScopeEvolution, renderBlockerTracking, renderTimelineJSON, renderTimelineHTML, type TimelineOptions } from '../../../memory/renderer/dist/timeline.js';
 import { writeFileSync } from 'fs';
 
 export interface TimelineCommandOptions {

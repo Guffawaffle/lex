@@ -45,7 +45,7 @@
     "test:all": "npm test && npm run test:integration"
   },
   "bin": {
-    "lex": "./shared/cli/dist/shared/cli/lex.js"
+    "lex": "./shared/cli/dist/lex.js"
   },
   "keywords": [
     "memory",

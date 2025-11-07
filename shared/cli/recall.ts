@@ -4,22 +4,14 @@
  * Searches Frames via query, returns Frame + Atlas Frame with pretty output.
  */
 
-import type { Frame } from "../types/frame.js";
-import {
-  getDb,
-  searchFrames,
-  getFramesByJira,
-  getFrameById,
-} from "../../memory/store/index.js";
 // @ts-expect-error - cross-package import from compiled dist
-import { loadPolicy } from "../../../../policy/dist/index.js";
-import {
-  generateAtlasFrame,
-  computeFoldRadius,
-  autoTuneRadius,
-  estimateTokens,
-  getCacheStats,
-} from "../atlas/index.js";
+import type { Frame } from "../../types/dist/frame.js";
+// @ts-expect-error - cross-package import from compiled dist
+import { getDb, searchFrames, getFramesByJira, getFrameById } from "../../../memory/store/dist/store/index.js";
+// @ts-expect-error - cross-package import from compiled dist
+import { loadPolicy } from "../../policy/dist/index.js";
+// @ts-expect-error - cross-package import from compiled dist
+import { generateAtlasFrame, computeFoldRadius, autoTuneRadius, estimateTokens, getCacheStats } from "../../atlas/dist/index.js";
 
 export interface RecallOptions {
   json?: boolean;
@@ -239,10 +231,10 @@ async function generateAtlasFrameWithAutoTune(
     // Auto-tune radius if enabled
     if (options.autoRadius && options.maxTokens) {
       const result = autoTuneRadius(
-        (radius) => computeFoldRadius(frame.module_scope, radius, policy),
+        (radius: number) => computeFoldRadius(frame.module_scope, radius, policy),
         requestedRadius,
         options.maxTokens,
-        (oldRadius, newRadius, tokens, limit) => {
+        (oldRadius: number, newRadius: number, tokens: number, limit: number) => {
           // Only log adjustments when not in JSON mode
           if (!options.json) {
             console.log(

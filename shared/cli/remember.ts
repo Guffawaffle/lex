@@ -6,14 +6,18 @@
 
 import inquirer from "inquirer";
 import { v4 as uuidv4 } from "uuid";
-import type { Frame } from "../types/frame.js";
-import { resolveModuleId } from "../module_ids/validator.js";
 // @ts-expect-error - cross-package import from compiled dist
-import type { AliasResolution } from "../../../../aliases/dist/types.js";
+import type { Frame } from "../../types/dist/frame.js";
 // @ts-expect-error - cross-package import from compiled dist
-import { loadPolicy } from "../../../../policy/dist/index.js";
-import { getDb, saveFrame } from "../../memory/store/index.js";
-import { getCurrentBranch } from "../git/branch.js";
+import { resolveModuleId } from "../../module_ids/dist/validator.js";
+// @ts-expect-error - cross-package import from compiled dist
+import type { AliasResolution } from "../../aliases/dist/types.js";
+// @ts-expect-error - cross-package import from compiled dist
+import { loadPolicy } from "../../policy/dist/index.js";
+// @ts-expect-error - cross-package import from compiled dist
+import { getDb, saveFrame } from "../../../memory/store/dist/store/index.js";
+// @ts-expect-error - cross-package import from compiled dist
+import { getCurrentBranch } from "../../git/dist/branch.js";
 
 export interface RememberOptions {
   jira?: string;

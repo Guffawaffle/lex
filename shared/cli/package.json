@@ -6,18 +6,18 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "lex": "./dist/shared/cli/lex.js"
+    "lex": "./dist/lex.js"
   },
   "exports": {
     ".": {
-      "types": "./dist/shared/cli/index.d.ts",
-      "import": "./dist/shared/cli/index.js"
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
     }
   },
   "scripts": {
     "build": "tsc",
     "watch": "tsc --watch",
-    "test": "npm run build && node --test dist/shared/cli/cli.test.js"
+    "test": "npm run build && node --test dist/cli.test.js"
   },
   "dependencies": {
     "better-sqlite3": "^11.0.0",

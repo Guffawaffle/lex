@@ -13,7 +13,7 @@ import { tmpdir } from 'os';
 
 const testDir = join(tmpdir(), 'lex-cli-test-' + Date.now());
 const testDbPath = join(testDir, 'frames.db');
-const lexBin = join(process.cwd(), 'dist', 'shared', 'cli', 'lex.js');
+const lexBin = join(process.cwd(), 'dist', 'lex.js');
 
 // Setup test environment
 function setupTest() {
