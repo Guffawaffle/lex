@@ -3,14 +3,30 @@
  *
  * Ensures that module IDs used in Frames match the module IDs defined in lexmap.policy.json
  * This prevents vocabulary drift between memory and policy subsystems.
- * 
+ *
  * Now integrates with alias resolution to support shorthand and historical names.
  */
 
-import type { Policy } from '../types/policy.js';
-import type { ValidationResult, ModuleIdError } from '../types/validation.js';
-import type { AliasTable } from '../aliases/types.js';
-import { resolveModuleId } from '../aliases/resolver.js';
+// @ts-ignore - cross-package import from compiled dist
+import type { Policy } from "../types/dist/policy.js";
+// @ts-ignore - cross-package import from compiled dist
+import type {
+  ValidationResult,
+  ModuleIdError,
+  ResolutionResult,
+} from "../types/dist/validation.js";
+// Import from aliases package using package name (resolved via exports)
+import type { AliasTable, ResolverOptions } from "@lex/aliases/types";
+// Import from aliases package using package name (resolved via exports)
+import {
+  resolveModuleId,
+  loadAliasTable,
+  findSubstringMatches,
+  AmbiguousSubstringError,
+} from "@lex/aliases/resolver";
+
+// Re-export for use by other packages
+export { resolveModuleId };
 
 /**
  * Maximum edit distance threshold for fuzzy matching suggestions
@@ -40,8 +56,8 @@ function levenshteinDistance(str1: string, str2: string): number {
     for (let j = 1; j <= len2; j++) {
       const cost = str1[i - 1] === str2[j - 1] ? 0 : 1;
       matrix[i][j] = Math.min(
-        matrix[i - 1][j] + 1,      // deletion
-        matrix[i][j - 1] + 1,      // insertion
+        matrix[i - 1][j] + 1, // deletion
+        matrix[i][j - 1] + 1, // insertion
         matrix[i - 1][j - 1] + cost // substitution
       );
     }
@@ -62,16 +78,19 @@ function findSimilarModules(
   const suggestions: Array<{ module: string; distance: number }> = [];
 
   for (const available of availableModules) {
-    const distance = levenshteinDistance(moduleId.toLowerCase(), available.toLowerCase());
+    const distance = levenshteinDistance(
+      moduleId.toLowerCase(),
+      available.toLowerCase()
+    );
     suggestions.push({ module: available, distance });
   }
 
   // Filter by threshold FIRST, then sort and take top N
   return suggestions
-    .filter(s => s.distance <= MAX_EDIT_DISTANCE_THRESHOLD)
+    .filter((s) => s.distance <= MAX_EDIT_DISTANCE_THRESHOLD)
     .sort((a, b) => a.distance - b.distance)
     .slice(0, maxSuggestions)
-    .map(s => s.module);
+    .map((s) => s.module);
 }
 
 /**
@@ -80,7 +99,7 @@ function findSimilarModules(
  *
  * This function resolves aliases first, then validates canonical IDs against policy.
  * Returns canonical IDs for storage in Frame.module_scope.
- * 
+ *
  * @param moduleScope - Array of module IDs to validate (may include aliases)
  * @param policy - Policy object containing module definitions
  * @param aliasTable - Optional pre-loaded alias table
@@ -113,7 +132,7 @@ export async function validateModuleIds(
 
   // Step 1: Resolve all aliases
   const resolutions = await Promise.all(
-    moduleScope.map(id => resolveModuleId(id, policy, aliasTable))
+    moduleScope.map((id) => resolveModuleId(id, policy, aliasTable))
   );
 
   // Step 2: Validate all canonical IDs exist in policy
@@ -124,15 +143,17 @@ export async function validateModuleIds(
   for (const resolution of resolutions) {
     // Check if canonical ID exists in policy
     if (!policyModuleIds.has(resolution.canonical)) {
-      const suggestions = findSimilarModules(resolution.canonical, policyModuleIds);
-      const suggestionText = suggestions.length > 0
-        ? ` Did you mean '${suggestions[0]}'?`
-        : '';
+      const suggestions = findSimilarModules(
+        resolution.canonical,
+        policyModuleIds
+      );
+      const suggestionText =
+        suggestions.length > 0 ? ` Did you mean '${suggestions[0]}'?` : "";
 
       errors.push({
         module: resolution.original,
         message: `Module '${resolution.original}' resolved to '${resolution.canonical}' which is not found in policy.${suggestionText}`,
-        suggestions
+        suggestions,
       });
     } else {
       // Valid - add canonical ID to result
@@ -143,7 +164,7 @@ export async function validateModuleIds(
   if (errors.length > 0) {
     return {
       valid: false,
-      errors
+      errors,
     };
   }
 
@@ -152,9 +173,9 @@ export async function validateModuleIds(
 
 /**
  * DEPRECATED: Use async validateModuleIds instead
- * 
+ *
  * Synchronous validation without alias resolution (legacy support)
- * 
+ *
  * @deprecated This function does not support alias resolution. Use async validateModuleIds.
  */
 export function validateModuleIdsSync(
@@ -173,14 +194,13 @@ export function validateModuleIdsSync(
     // Case-sensitive exact match required
     if (!policyModuleIds.has(moduleId)) {
       const suggestions = findSimilarModules(moduleId, policyModuleIds);
-      const suggestionText = suggestions.length > 0
-        ? ` Did you mean '${suggestions[0]}'?`
-        : '';
+      const suggestionText =
+        suggestions.length > 0 ? ` Did you mean '${suggestions[0]}'?` : "";
 
       errors.push({
         module: moduleId,
         message: `Module '${moduleId}' not found in policy.${suggestionText}`,
-        suggestions
+        suggestions,
       });
     }
   }
@@ -188,7 +208,7 @@ export function validateModuleIdsSync(
   if (errors.length > 0) {
     return {
       valid: false,
-      errors
+      errors,
     };
   }
 
