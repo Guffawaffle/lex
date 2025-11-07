@@ -8,7 +8,11 @@
   "exports": {
     ".": {
       "types": "./loader.ts",
-      "import": "./dist/policy/loader.js"
+      "import": "./dist/loader.js"
+    },
+    "./dist/loader.js": {
+      "types": "./dist/loader.d.ts",
+      "import": "./dist/loader.js"
     }
   },
   "files": [

@@ -21,6 +21,10 @@
     "./validation": {
       "types": "./validation.ts",
       "import": "./validation.js"
+    },
+    "./dist/policy.js": {
+      "types": "./dist/policy.d.ts",
+      "import": "./dist/policy.js"
     }
   },
   "files": [
