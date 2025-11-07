@@ -1,6 +1,6 @@
 /**
  * Database initialization and schema management for Frame storage
- * 
+ *
  * Creates SQLite database with FTS5 virtual table for full-text search
  * on reference_point, keywords, and summary_caption.
  */
@@ -34,7 +34,7 @@ export function getDefaultDbPath(): string {
   if (process.env.LEX_DB_PATH) {
     return process.env.LEX_DB_PATH;
   }
-  
+
   const lexDir = join(homedir(), ".lex");
   if (!existsSync(lexDir)) {
     mkdirSync(lexDir, { recursive: true });
@@ -69,6 +69,10 @@ export function initializeDatabase(db: Database.Database): void {
   if (currentVersion < 1) {
     applyMigrationV1(db);
     db.prepare("INSERT INTO schema_version (version) VALUES (?)").run(1);
+  }
+  if (currentVersion < 2) {
+    applyMigrationV2(db);
+    db.prepare("INSERT INTO schema_version (version) VALUES (?)").run(2);
   }
 }
 
@@ -144,6 +148,28 @@ function applyMigrationV1(db: Database.Database): void {
 
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_frames_atlas_frame_id ON frames(atlas_frame_id);
+  `);
+}
+
+/**
+ * Migration V2: Add images table
+ */
+function applyMigrationV2(db: Database.Database): void {
+  // Create images table for Frame attachments
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS images (
+      image_id TEXT PRIMARY KEY,
+      frame_id TEXT NOT NULL,
+      data BLOB NOT NULL,
+      mime_type TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      FOREIGN KEY (frame_id) REFERENCES frames(id) ON DELETE CASCADE
+    );
+  `);
+
+  // Create index for frame_id lookups
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_images_frame_id ON images(frame_id);
   `);
 }
 

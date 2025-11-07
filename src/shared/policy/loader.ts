@@ -13,7 +13,7 @@ import type { Policy } from '../../types/policy.js';
 /**
  * Default policy path (from repository root)
  */
-const DEFAULT_POLICY_PATH = 'policy/policy_spec/lexmap.policy.json';
+const DEFAULT_POLICY_PATH = 'src/policy/policy_spec/lexmap.policy.json';
 
 /**
  * Environment variable for custom policy path
