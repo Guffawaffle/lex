@@ -182,7 +182,7 @@ With `module_scope`, LexBrain + LexMap gives you **policy-aware reasoning** ("wh
 ### THE CRITICAL RULE
 
 > **THE CRITICAL RULE:**
-> Every module name in `module_scope` MUST match the module IDs defined in LexMap's `lexmap.policy.json`.
+> Every module name in `module_scope` MUST match the module IDs defined in LexMap's `src/policy/policy_spec/lexmap.policy.json`.
 > No ad hoc naming. No "almost the same module."
 > If the vocabulary drifts, we lose the ability to line up:
 >
@@ -241,7 +241,7 @@ This rule is the bridge.
    }
    ```
 
-   Those module IDs should match what's in `lexmap.policy.json`.
+   Those module IDs should match what's in `src/policy/policy_spec/lexmap.policy.json`.
 
    **Important:** Module IDs are validated strictly. If you make a typo, you'll get a helpful error:
    
@@ -256,7 +256,7 @@ This rule is the bridge.
    
    Always use exact module IDs from your policy. Fuzzy matching provides suggestions but doesn't auto-correct.
    
-   **Future:** Alias tables will support team shorthand (e.g., `auth` → `services/auth-core`). See `shared/aliases/README.md`.
+   **Future:** Alias tables will support team shorthand (e.g., `auth` → `services/auth-core`). See `src/shared/aliases/README.md`.
 
 4. **Test policy-aware reasoning**
 
@@ -393,11 +393,11 @@ Instead of searching by ticket ID, you recall by natural phrasing.
 
 1. **LexBrain working** - Phases 1-5 complete
 2. **LexMap configured** - Mind Palace requires LexMap for module coordinates
-3. **Policy has coordinates** - Your `lexmap.policy.json` must include module coordinates
+3. **Policy has coordinates** - Your `src/policy/policy_spec/lexmap.policy.json` must include module coordinates
 
 ### Step 1: Add Coordinates to LexMap Policy
 
-Edit your `lexmap.policy.json` to include coordinates for each module:
+Edit your `src/policy/policy_spec/lexmap.policy.json` to include coordinates for each module:
 
 ```json
 {
@@ -610,7 +610,7 @@ Start with radius 1 (default). Only increase if needed.
 
 - Check that LexMap is configured in `lexbrain.config.json`
 - Check that the files you touched are recognized by LexMap (run `lexmap scan` and verify the output)
-- Check that the module IDs in `lexmap.policy.json` match what LexBrain is trying to resolve
+- Check that the module IDs in `src/policy/policy_spec/lexmap.policy.json` match what LexBrain is trying to resolve
 
 ### "My assistant isn't calling `/recall`"
 
@@ -621,7 +621,7 @@ Start with radius 1 (default). Only increase if needed.
 ### "Atlas Frames aren't being generated"
 
 - Verify LexMap is configured and accessible: `lexmap version`
-- Check that your `lexmap.policy.json` includes coordinates for modules
+- Check that your `src/policy/policy_spec/lexmap.policy.json` includes coordinates for modules
 - Test adjacency export manually: `lexmap export-adjacency --reference-module <module> --fold-radius 1`
 - Check `mind_palace.enabled` is `true` in `lexbrain.config.json`
 

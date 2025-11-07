@@ -23,7 +23,7 @@ You're on branch `feature/TICKET-123_auth_handshake_fix`.
 You've been debugging for an hour. Tests are failing. You've identified the blocker:
 
 - The admin UI (`ui/user-admin-panel`) is calling `services/auth-core` directly.
-- That call path is **forbidden** by your architecture policy (defined in LexMap's `lexmap.policy.json`).
+- That call path is **forbidden** by your architecture policy (defined in LexMap's `src/policy/policy_spec/lexmap.policy.json`).
 - The correct path is: UI → approved service layer → auth-core, gated by the `can_manage_users` permission.
 - You've left the Add User button disabled until you fix the wiring.
 
@@ -152,7 +152,7 @@ That's not vibes. That's **receipts**.
 ## THE CRITICAL RULE
 
 > **THE CRITICAL RULE:**
-> Every module name in `module_scope` MUST match the module IDs defined in LexMap's `lexmap.policy.json`.
+> Every module name in `module_scope` MUST match the module IDs defined in LexMap's `src/policy/policy_spec/lexmap.policy.json`.
 > No ad hoc naming. No "almost the same module."
 > If the vocabulary drifts, we lose the ability to line up:
 >

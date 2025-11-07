@@ -81,7 +81,7 @@ You still store the raw text for exact recall when needed. But for "what was I d
 
 You can run LexBrain standalone and get continuity ("what was I doing yesterday?").
 
-If you **also** use LexMap, and you follow THE CRITICAL RULE (your `module_scope` uses the same module IDs defined in `lexmap.policy.json`), then your assistant can answer deeper questions like:
+If you **also** use LexMap, and you follow THE CRITICAL RULE (your `module_scope` uses the same module IDs defined in `src/policy/policy_spec/lexmap.policy.json`), then your assistant can answer deeper questions like:
 
 > "Why is the Add User button still disabled?"
 
@@ -118,7 +118,7 @@ If you don't care about that, just use LexBrain by itself.
 ## What is THE CRITICAL RULE?
 
 > **THE CRITICAL RULE:**
-> Every module name in `module_scope` MUST match the module IDs defined in LexMap's `lexmap.policy.json`.
+> Every module name in `module_scope` MUST match the module IDs defined in LexMap's `src/policy/policy_spec/lexmap.policy.json`.
 > No ad hoc naming. No "almost the same module."
 > If the vocabulary drifts, we lose the ability to line up:
 >
@@ -165,7 +165,7 @@ Planned enhancement for team shorthand and historical renames:
 
 This will allow `/remember "Auth work" --modules "auth"` while storing the canonical ID internally.
 
-See `shared/aliases/README.md` for details.
+See `src/shared/aliases/README.md` for details.
 
 ---
 
@@ -461,7 +461,7 @@ Just correct the typo and retry. The fuzzy matching uses Levenshtein distance to
 
 When implemented, you'll be able to use `--modules "auth"` and it will store `services/auth-core` internally.
 
-For now, use the exact module IDs from `lexmap.policy.json`.
+For now, use the exact module IDs from `src/policy/policy_spec/lexmap.policy.json`.
 
 ---
 
@@ -469,7 +469,7 @@ For now, use the exact module IDs from `lexmap.policy.json`.
 
 When you refactor and rename a module (e.g., `services/user-access-api` → `api/user-access`):
 
-1. Update `lexmap.policy.json` with the new name
+1. Update `src/policy/policy_spec/lexmap.policy.json` with the new name
 2. Old Frames with the old name will still exist in your database
 3. **Future:** Alias tables will let you map old → new names:
 

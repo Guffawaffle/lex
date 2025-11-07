@@ -7,14 +7,14 @@ This document tracks known constraints in Lex and planned enhancements.
 ### Module ID Drift and Aliasing (Future Work)
 
 **THE CRITICAL RULE** is currently strict:
-> Module IDs in Frames must match the IDs in `lexmap.policy.json` exactly.
+> Module IDs in Frames must match the IDs in `src/policy/policy_spec/lexmap.policy.json` exactly.
 
 This is correct for CI (policy enforcement must be unambiguous), but humans are messy:
 - People type shorthand or old names when capturing a Frame via `/remember`
 - Teams rename modules over time
 
 Planned direction:
-- `shared/aliases/` will maintain an alias table mapping historical or shorthand names to canonical module IDs
+- `src/shared/aliases/` will maintain an alias table mapping historical or shorthand names to canonical module IDs
 - Recall (`lex recall`) will be allowed to resolve aliases/fuzzy matches with confidence scores
 - CI (`lex check`) will remain strict
 
@@ -22,7 +22,7 @@ This gives us strict enforcement where it matters (policy/CI) and forgiveness wh
 
 ### Single-Repo Scope
 
-Currently, Lex assumes one `lexmap.policy.json` per codebase. For monorepos with multiple products or microservice architectures, this means:
+Currently, Lex assumes one `src/policy/policy_spec/lexmap.policy.json` per codebase. For monorepos with multiple products or microservice architectures, this means:
 - One unified policy file (can get large)
 - Or separate Lex instances per service (loses cross-service policy view)
 
@@ -64,7 +64,7 @@ Future: Optional self-hosted sync server for teams (still no SaaS dependency).
 - ✅ Cache computed Atlas Frames by `(module_scope, radius)` key with LRU eviction
 - ✅ CLI support: `lex recall --fold-radius N --auto-radius --max-tokens N --cache-stats`
 
-See `shared/atlas/README.md` for full documentation.
+See `src/shared/atlas/README.md` for full documentation.
 
 ## Planned Enhancements
 
@@ -88,7 +88,7 @@ When `/recall` returns a Frame + Atlas Frame, the system could:
 
 ### Policy Change Impact Analysis
 
-When updating `lexmap.policy.json`:
+When updating `src/policy/policy_spec/lexmap.policy.json`:
 - Show which existing Frames would be affected
 - Identify Frames that reference renamed/deleted modules
 - Generate migration plan for alias table

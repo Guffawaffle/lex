@@ -178,7 +178,7 @@ But when you add **LexMap**, you unlock something deeper: **policy-aware reasoni
 ### THE CRITICAL RULE
 
 > **THE CRITICAL RULE:**
-> Every module name in `module_scope` MUST match the module IDs defined in LexMap's `lexmap.policy.json`.
+> Every module name in `module_scope` MUST match the module IDs defined in LexMap's `src/policy/policy_spec/lexmap.policy.json`.
 > No ad hoc naming. No "almost the same module."
 > If the vocabulary drifts, we lose the ability to line up:
 >

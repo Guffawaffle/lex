@@ -40,7 +40,7 @@ Frames are timestamped work session snapshots. You create them with `/remember` 
 Frames live locally (e.g. SQLite). No telemetry. No forced HTTP service. Access is via MCP over stdio.
 
 ### Policy (lex/policy)
-Policy is machine-readable architecture boundaries. `lexmap.policy.json` defines which modules own which code, which calls are allowed, which are forbidden, which permissions/flags gate them, and which kill patterns are being removed. Language scanners ("dumb by design") emit facts from code; `lex check` compares facts vs policy and can fail CI.
+Policy is machine-readable architecture boundaries. `src/policy/policy_spec/lexmap.policy.json` defines which modules own which code, which calls are allowed, which are forbidden, which permissions/flags gate them, and which kill patterns are being removed. Language scanners ("dumb by design") emit facts from code; `lex check` compares facts vs policy and can fail CI.
 
 ### Fold radius & Atlas Frame (lex/shared/atlas)
 When you recall a Frame, Lex does **not** dump the whole monolith into context. Instead, it exports an Atlas Frame: the touched modules (`module_scope`) plus their 1-hop neighborhood in the policy graph (allowed callers, forbidden callers, required flags/permissions). That's fold radius = 1.
@@ -48,7 +48,7 @@ When you recall a Frame, Lex does **not** dump the whole monolith into context. 
 That gives you and your assistant a "map page," not a firehose.
 
 ### THE CRITICAL RULE
-Every module name in `module_scope` MUST match a module ID in `lexmap.policy.json`. No ad hoc naming. If the vocabulary drifts, you lose the ability to line up:
+Every module name in `module_scope` MUST match a module ID in `src/policy/policy_spec/lexmap.policy.json`. No ad hoc naming. If the vocabulary drifts, you lose the ability to line up:
 - "what happened last night"
 with
 - "what the architecture is supposed to allow."
@@ -56,7 +56,7 @@ with
 This shared vocabulary is what lets Lex answer:
 > "You left this button disabled because this module was still calling a forbidden dependency. Your declared next step was to route through the approved service."
 
-**Module ID Validation & Aliasing:** To help prevent typos and improve usability, Lex provides fuzzy matching with helpful suggestions when module IDs don't match. When you use an invalid module ID, you'll get suggestions for similar modules. In the future, explicit alias tables will support team shorthand conventions (e.g., `auth` → `services/auth-core`) and historical renames. See `shared/aliases/README.md` for details.
+**Module ID Validation & Aliasing:** To help prevent typos and improve usability, Lex provides fuzzy matching with helpful suggestions when module IDs don't match. When you use an invalid module ID, you'll get suggestions for similar modules. In the future, explicit alias tables will support team shorthand conventions (e.g., `auth` → `services/auth-core`) and historical renames. See `src/shared/aliases/README.md` for details.
 
 ## Status
 Early alpha. We are actively converging two previously separate codebases:

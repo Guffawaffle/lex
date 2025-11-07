@@ -456,7 +456,7 @@ Reference points are added to existing Frame metadata:
 
 THE CRITICAL RULE still applies:
 
-> Every module name in `module_scope` MUST match the module IDs defined in LexMap's `lexmap.policy.json`.
+> Every module name in `module_scope` MUST match the module IDs defined in LexMap's `src/policy/policy_spec/lexmap.policy.json`.
 
 Atlas Frames rely on this rule. If module IDs drift, Atlas Frames break.
 
