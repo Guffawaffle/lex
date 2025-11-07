@@ -17,10 +17,10 @@
     "composite": true,
     "baseUrl": ".",
     "paths": {
-      "@lex/policy": ["../policy"],
-      "@lex/policy/*": ["../policy/*"],
-      "@lex/types": ["../types"],
-      "@lex/types/*": ["../types/*"]
+      "lex/policy": ["../policy"],
+      "lex/policy/*": ["../policy/*"],
+      "lex/types": ["../types"],
+      "lex/types/*": ["../types/*"]
     }
   },
   "include": [

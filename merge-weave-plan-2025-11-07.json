@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "1.0.0",
+  "policy": { "requiredGates": ["lint", "typecheck", "test"], "maxWorkers": 1 },
+  "order": ["PR-112", "PR-118", "PR-117", "PR-119", "PR-120"],
+  "nodes": [
+    { "id": "PR-112", "number": 112, "title": "docs: update all documentation to reflect single-package structure", "dependsOn": [], "gates": ["lint", "typecheck", "test"] },
+    { "id": "PR-118", "number": 118, "title": "Fix CommonJS require() in ES module test file", "dependsOn": [], "gates": ["lint", "typecheck", "test"] },
+    { "id": "PR-117", "number": 117, "title": "Fix benchmark performance tests: async/await and O(1) policy lookup caching", "dependsOn": [], "gates": ["lint", "typecheck", "test"] },
+    { "id": "PR-119", "number": 119, "title": "Fix validator substring matching breaking strict module ID validation", "dependsOn": ["PR-117"], "gates": ["lint", "typecheck", "test"] },
+    { "id": "PR-120", "number": 120, "title": "Fix FTS5 search errors treated as failures instead of empty results", "dependsOn": [], "gates": ["lint", "typecheck", "test"] }
+  ]
+}

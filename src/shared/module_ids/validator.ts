@@ -8,11 +8,7 @@
  */
 
 import type { Policy } from "../types/policy.js";
-import type {
-  ValidationResult,
-  ModuleIdError,
-  ResolutionResult,
-} from "../types/validation.js";
+import type { ValidationResult, ModuleIdError, ResolutionResult } from "../types/validation.js";
 import type { AliasTable, ResolverOptions } from "../aliases/types.js";
 import {
   resolveModuleId,
@@ -25,10 +21,40 @@ import {
 export { resolveModuleId };
 
 /**
+ * Cache for policy module ID sets
+ * Uses WeakMap to avoid memory leaks - entries are garbage collected when policy is no longer referenced
+ */
+const policyModuleIdsCache = new WeakMap<Policy, Set<string>>();
+
+/**
+ * Get or create a Set of module IDs from a policy (with caching)
+ */
+function getPolicyModuleIds(policy: Policy): Set<string> {
+  let moduleIds = policyModuleIdsCache.get(policy);
+  if (!moduleIds) {
+    moduleIds = new Set(Object.keys(policy.modules));
+    policyModuleIdsCache.set(policy, moduleIds);
+  }
+  return moduleIds;
+}
+
+/**
  * Maximum edit distance threshold for fuzzy matching suggestions
  * Only suggest module names if edit distance is within this threshold
  */
 const MAX_EDIT_DISTANCE_THRESHOLD = 10;
+
+/**
+ * Confidence level for exact matches and aliases
+ * Only resolutions with this confidence level are accepted as valid
+ */
+const EXACT_MATCH_CONFIDENCE = 1.0;
+
+/**
+ * Confidence level for substring matches
+ * These are treated as invalid but suggestions are provided
+ */
+const SUBSTRING_MATCH_CONFIDENCE = 0.9;
 
 /**
  * Calculate Levenshtein distance between two strings
@@ -74,10 +100,7 @@ function findSimilarModules(
   const suggestions: Array<{ module: string; distance: number }> = [];
 
   for (const available of availableModules) {
-    const distance = levenshteinDistance(
-      moduleId.toLowerCase(),
-      available.toLowerCase()
-    );
+    const distance = levenshteinDistance(moduleId.toLowerCase(), available.toLowerCase());
     suggestions.push({ module: available, distance });
   }
 
@@ -126,29 +149,61 @@ export async function validateModuleIds(
     return { valid: true, canonical: [] };
   }
 
-  // Step 1: Resolve all aliases
+  // Get cached policy module ID set for efficiency
+  const policyModuleIds = getPolicyModuleIds(policy);
+
+  // Fast path: Check if all module IDs are exact matches (common case)
+  // This avoids the overhead of calling resolveModuleId for every module
+  const allExactMatches = moduleScope.every((id) => policyModuleIds.has(id));
+
+  if (allExactMatches) {
+    // All are exact matches - return immediately without alias resolution
+    return { valid: true, canonical: moduleScope };
+  }
+
+  // Step 1: Resolve all aliases (only reached if there are non-exact matches)
+  // Disable substring matching to enforce exact matches only
   const resolutions = await Promise.all(
-    moduleScope.map((id) => resolveModuleId(id, policy, aliasTable))
+    moduleScope.map((id) => resolveModuleId(id, policy, aliasTable, { noSubstring: true }))
   );
 
   // Step 2: Validate all canonical IDs exist in policy
-  const policyModuleIds = new Set(Object.keys(policy.modules));
+  // Only accept exact matches (confidence 1.0) and aliases (confidence 1.0)
+  // Substring matches (confidence 0.9) and fuzzy matches (confidence 0) should fail with suggestions
   const errors: ModuleIdError[] = [];
   const canonicalIds: string[] = [];
 
   for (const resolution of resolutions) {
-    // Check if canonical ID exists in policy
-    if (!policyModuleIds.has(resolution.canonical)) {
-      const suggestions = findSimilarModules(
-        resolution.canonical,
-        policyModuleIds
-      );
-      const suggestionText =
-        suggestions.length > 0 ? ` Did you mean '${suggestions[0]}'?` : "";
+    // Only accept high-confidence resolutions (exact match or alias)
+    const isValid =
+      resolution.confidence === EXACT_MATCH_CONFIDENCE && policyModuleIds.has(resolution.canonical);
+
+    if (!isValid) {
+      // For substring matches, provide the substring match as a suggestion
+      let suggestions: string[];
+      if (
+        resolution.confidence === SUBSTRING_MATCH_CONFIDENCE &&
+        policyModuleIds.has(resolution.canonical)
+      ) {
+        // Substring match found - suggest it
+        suggestions = [resolution.canonical];
+      } else {
+        // No substring match or invalid - use fuzzy matching for suggestions
+        suggestions = findSimilarModules(resolution.original, policyModuleIds);
+      }
+
+      const suggestionText = suggestions.length > 0 ? ` Did you mean '${suggestions[0]}'?` : "";
+
+      // If an alias resolves to a canonical ID that doesn't exist in policy,
+      // include the resolved canonical in the error message for clarity.
+      const message =
+        resolution.confidence === EXACT_MATCH_CONFIDENCE
+          ? `Module '${resolution.original}' resolved to '${resolution.canonical}' which is not found in policy.${suggestionText}`
+          : `Module '${resolution.original}' not found in policy.${suggestionText}`;
 
       errors.push({
         module: resolution.original,
-        message: `Module '${resolution.original}' resolved to '${resolution.canonical}' which is not found in policy.${suggestionText}`,
+        message,
         suggestions,
       });
     } else {
@@ -174,24 +229,20 @@ export async function validateModuleIds(
  *
  * @deprecated This function does not support alias resolution. Use async validateModuleIds.
  */
-export function validateModuleIdsSync(
-  moduleScope: string[],
-  policy: Policy
-): ValidationResult {
+export function validateModuleIdsSync(moduleScope: string[], policy: Policy): ValidationResult {
   // Empty module_scope is allowed
   if (!moduleScope || moduleScope.length === 0) {
     return { valid: true };
   }
 
-  const policyModuleIds = new Set(Object.keys(policy.modules));
+  const policyModuleIds = getPolicyModuleIds(policy);
   const errors: ModuleIdError[] = [];
 
   for (const moduleId of moduleScope) {
     // Case-sensitive exact match required
     if (!policyModuleIds.has(moduleId)) {
       const suggestions = findSimilarModules(moduleId, policyModuleIds);
-      const suggestionText =
-        suggestions.length > 0 ? ` Did you mean '${suggestions[0]}'?` : "";
+      const suggestionText = suggestions.length > 0 ? ` Did you mean '${suggestions[0]}'?` : "";
 
       errors.push({
         module: moduleId,

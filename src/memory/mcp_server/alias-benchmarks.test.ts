@@ -49,11 +49,16 @@ const createTestPolicy = (moduleCount: number) => {
 };
 
 /**
- * Measure execution time
+ * Measure execution time for async function
  */
-function measureTime(fn: () => void): number {
+async function measureTime(fn: () => Promise<void>): Promise<number> {
   const start = performance.now();
-  fn();
+  try {
+    await fn();
+  } catch (error) {
+    // Still record timing even if function throws
+    // This ensures we measure actual execution time
+  }
   const end = performance.now();
   return end - start;
 }
@@ -61,17 +66,17 @@ function measureTime(fn: () => void): number {
 /**
  * Run benchmark multiple times and return average
  */
-function benchmark(name: string, iterations: number, fn: () => void): number {
+async function benchmark(name: string, iterations: number, fn: () => Promise<void>): Promise<number> {
   const times: number[] = [];
 
   // Warmup
   for (let i = 0; i < 5; i++) {
-    fn();
+    await fn();
   }
 
   // Actual measurements
   for (let i = 0; i < iterations; i++) {
-    times.push(measureTime(fn));
+    times.push(await measureTime(fn));
   }
 
   const avg = times.reduce((a, b) => a + b, 0) / times.length;
@@ -92,12 +97,12 @@ describe("Alias Resolution Performance Benchmarks", () => {
   const policy1000 = createTestPolicy(1000);
 
   describe("Exact Match Path (Best Case)", () => {
-    test("should validate exact matches very quickly (<0.5ms)", () => {
-      const avgTime = benchmark(
+    test("should validate exact matches very quickly (<0.5ms)", async () => {
+      const avgTime = await benchmark(
         "Exact match validation (10 modules policy)",
         1000,
-        () => {
-          validateModuleIds(["indexer", "ts", "php"], policy10);
+        async () => {
+          await validateModuleIds(["indexer", "ts", "php"], policy10);
         }
       );
 
@@ -107,28 +112,28 @@ describe("Alias Resolution Performance Benchmarks", () => {
       );
     });
 
-    test("should scale linearly with policy size", () => {
-      const time10 = benchmark(
+    test("should scale linearly with policy size", async () => {
+      const time10 = await benchmark(
         "Exact match with 10 modules policy",
         1000,
-        () => {
-          validateModuleIds(["indexer"], policy10);
+        async () => {
+          await validateModuleIds(["indexer"], policy10);
         }
       );
 
-      const time100 = benchmark(
+      const time100 = await benchmark(
         "Exact match with 100 modules policy",
         1000,
-        () => {
-          validateModuleIds(["indexer"], policy100);
+        async () => {
+          await validateModuleIds(["indexer"], policy100);
         }
       );
 
-      const time1000 = benchmark(
+      const time1000 = await benchmark(
         "Exact match with 1000 modules policy",
         1000,
-        () => {
-          validateModuleIds(["indexer"], policy1000);
+        async () => {
+          await validateModuleIds(["indexer"], policy1000);
         }
       );
 
@@ -145,12 +150,12 @@ describe("Alias Resolution Performance Benchmarks", () => {
       );
     });
 
-    test("should handle multiple exact matches efficiently", () => {
-      const avgTime = benchmark(
+    test("should handle multiple exact matches efficiently", async () => {
+      const avgTime = await benchmark(
         "Multiple exact matches (6 modules)",
         1000,
-        () => {
-          validateModuleIds(
+        async () => {
+          await validateModuleIds(
             ["indexer", "ts", "php", "mcp", "services/auth-core", "ui/main-panel"],
             policy100
           );
@@ -165,12 +170,12 @@ describe("Alias Resolution Performance Benchmarks", () => {
   });
 
   describe("Fuzzy Match Path (Worst Case)", () => {
-    test("should handle typos with fuzzy matching (<2ms)", () => {
-      const avgTime = benchmark(
+    test("should handle typos with fuzzy matching (<2ms)", async () => {
+      const avgTime = await benchmark(
         "Fuzzy match for typo",
         1000,
-        () => {
-          validateModuleIds(["indexr"], policy10); // Typo: "indexr" instead of "indexer"
+        async () => {
+          await validateModuleIds(["indexr"], policy10); // Typo: "indexr" instead of "indexer"
         }
       );
 
@@ -182,12 +187,12 @@ describe("Alias Resolution Performance Benchmarks", () => {
       );
     });
 
-    test("should handle completely invalid input (<3ms)", () => {
-      const avgTime = benchmark(
+    test("should handle completely invalid input (<3ms)", async () => {
+      const avgTime = await benchmark(
         "Fuzzy match for invalid module",
         1000,
-        () => {
-          validateModuleIds(["nonexistent-module-xyz"], policy10);
+        async () => {
+          await validateModuleIds(["nonexistent-module-xyz"], policy10);
         }
       );
 
@@ -197,12 +202,12 @@ describe("Alias Resolution Performance Benchmarks", () => {
       );
     });
 
-    test("should not degrade badly with large policy", () => {
-      const avgTime = benchmark(
+    test("should not degrade badly with large policy", async () => {
+      const avgTime = await benchmark(
         "Fuzzy match with 1000 module policy",
         100, // Fewer iterations since this is slower
-        () => {
-          validateModuleIds(["indexr"], policy1000);
+        async () => {
+          await validateModuleIds(["indexr"], policy1000);
         }
       );
 
@@ -216,13 +221,13 @@ describe("Alias Resolution Performance Benchmarks", () => {
   });
 
   describe("Mixed Case (Realistic Workload)", () => {
-    test("should handle mix of valid and invalid efficiently", () => {
-      const avgTime = benchmark(
+    test("should handle mix of valid and invalid efficiently", async () => {
+      const avgTime = await benchmark(
         "Mixed valid/invalid modules",
         1000,
-        () => {
+        async () => {
           // 2 valid, 1 invalid - realistic typo scenario
-          validateModuleIds(["indexer", "ts", "invalidmodule"], policy100);
+          await validateModuleIds(["indexer", "ts", "invalidmodule"], policy100);
         }
       );
 
@@ -232,12 +237,12 @@ describe("Alias Resolution Performance Benchmarks", () => {
       );
     });
 
-    test("should validate empty module scope instantly", () => {
-      const avgTime = benchmark(
+    test("should validate empty module scope instantly", async () => {
+      const avgTime = await benchmark(
         "Empty module scope validation",
         10000,
-        () => {
-          validateModuleIds([], policy100);
+        async () => {
+          await validateModuleIds([], policy100);
         }
       );
 
@@ -249,12 +254,12 @@ describe("Alias Resolution Performance Benchmarks", () => {
   });
 
   describe("Performance Regression Check", () => {
-    test("should have <5% regression vs exact-only matching", () => {
+    test("should have <5% regression vs exact-only matching", async () => {
       // Simulate "before": just checking Set membership (O(1))
-      const exactOnlyTime = benchmark(
+      const exactOnlyTime = await benchmark(
         "Before (exact-only, no fuzzy)",
         10000,
-        () => {
+        async () => {
           const moduleSet = new Set(Object.keys(policy100.modules));
           const modules = ["indexer", "ts", "php"];
           for (const mod of modules) {
@@ -264,11 +269,11 @@ describe("Alias Resolution Performance Benchmarks", () => {
       );
 
       // Current implementation with fuzzy fallback
-      const withFuzzyTime = benchmark(
+      const withFuzzyTime = await benchmark(
         "After (with fuzzy fallback)",
         10000,
-        () => {
-          validateModuleIds(["indexer", "ts", "php"], policy100);
+        async () => {
+          await validateModuleIds(["indexer", "ts", "php"], policy100);
         }
       );
 
