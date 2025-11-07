@@ -127,8 +127,9 @@ export async function validateModuleIds(
   }
 
   // Step 1: Resolve all aliases
+  // Disable substring matching to enforce exact matches only
   const resolutions = await Promise.all(
-    moduleScope.map((id) => resolveModuleId(id, policy, aliasTable))
+    moduleScope.map((id) => resolveModuleId(id, policy, aliasTable, { noSubstring: true }))
   );
 
   // Step 2: Validate all canonical IDs exist in policy
