@@ -162,22 +162,35 @@ export async function validateModuleIds(
   );
 
   // Step 2: Validate all canonical IDs exist in policy
+  // Only accept exact matches (confidence 1.0) and aliases (confidence 1.0)
+  // Substring matches (confidence 0.9) and fuzzy matches (confidence 0) should fail with suggestions
   const errors: ModuleIdError[] = [];
   const canonicalIds: string[] = [];
 
   for (const resolution of resolutions) {
-    // Check if canonical ID exists in policy
-    if (!policyModuleIds.has(resolution.canonical)) {
-      const suggestions = findSimilarModules(
-        resolution.canonical,
-        policyModuleIds
-      );
+    // Only accept high-confidence resolutions (exact match or alias)
+    const isValid = resolution.confidence === 1.0 && policyModuleIds.has(resolution.canonical);
+    
+    if (!isValid) {
+      // For substring matches, provide the substring match as a suggestion
+      let suggestions: string[];
+      if (resolution.confidence === 0.9 && policyModuleIds.has(resolution.canonical)) {
+        // Substring match found - suggest it
+        suggestions = [resolution.canonical];
+      } else {
+        // No substring match or invalid - use fuzzy matching for suggestions
+        suggestions = findSimilarModules(
+          resolution.original,
+          policyModuleIds
+        );
+      }
+      
       const suggestionText =
         suggestions.length > 0 ? ` Did you mean '${suggestions[0]}'?` : "";
 
       errors.push({
         module: resolution.original,
-        message: `Module '${resolution.original}' resolved to '${resolution.canonical}' which is not found in policy.${suggestionText}`,
+        message: `Module '${resolution.original}' not found in policy.${suggestionText}`,
         suggestions,
       });
     } else {
