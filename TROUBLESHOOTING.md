@@ -8,30 +8,30 @@ This document summarizes the root causes and fixes applied to stabilize the CI p
 
 ### 1. Build Order Dependency Violation (P0 - Blocker)
 
-**Problem:**  
+**Problem:**
 The monorepo build order violated dependency chains. `module_ids` depends on `aliases`, but `aliases` was built *after* `module_ids`, causing TypeScript compilation errors.
 
 **Error:**
 ```
-error TS6305: Output file '/home/runner/work/lex/lex/shared/aliases/dist/resolver.d.ts' 
+error TS6305: Output file '/home/runner/work/lex/lex/shared/aliases/dist/resolver.d.ts'
 has not been built from source file '/home/runner/work/lex/lex/shared/aliases/resolver.ts'.
 ```
 
-**Fix:**  
+**Fix:**
 Reordered build script in `package.json`:
 ```diff
 - "build": "npm run build:types && npm run build:module-ids && npm run build:aliases && ..."
 + "build": "npm run build:types && npm run build:aliases && npm run build:module-ids && ..."
 ```
 
-**Rationale:**  
+**Rationale:**
 TypeScript composite project builds must respect dependency order. Since `module_ids` imports from `aliases`, we must build `aliases` first.
 
 ---
 
 ### 2. TypeScript Project References Missing (P0 - Blocker)
 
-**Problem:**  
+**Problem:**
 Cross-package imports in the monorepo failed because TypeScript project references weren't properly configured, and some packages weren't marked as `composite`.
 
 **Errors:**
@@ -40,7 +40,7 @@ error TS2307: Cannot find module '../types/dist/validation.js' or its correspond
 error TS6059: File '.../shared/types/validation.ts' is not under 'rootDir' '.../shared/module_ids'.
 ```
 
-**Fix:**  
+**Fix:**
 Added `composite: true` to base packages and configured project references:
 
 - `shared/types/tsconfig.json` - Added `"composite": true`
@@ -48,14 +48,14 @@ Added `composite: true` to base packages and configured project references:
 - `shared/atlas/tsconfig.json` - Added `"composite": true` + references to `types` and `policy`
 - `shared/module_ids/tsconfig.json` - Added reference to `types`
 
-**Rationale:**  
+**Rationale:**
 TypeScript composite projects enable incremental builds and proper cross-project type checking. The `references` array tells TypeScript about dependencies between packages.
 
 ---
 
 ### 3. Missing `await` in Async Validation Calls (P1 - High)
 
-**Problem:**  
+**Problem:**
 Integration tests called `validateModuleIds()` without `await`, causing TypeScript to see `Promise<ValidationResult>` instead of `ValidationResult`.
 
 **Error:**
@@ -63,21 +63,21 @@ Integration tests called `validateModuleIds()` without `await`, causing TypeScri
 error TS2339: Property 'valid' does not exist on type 'Promise<ValidationResult>'.
 ```
 
-**Fix:**  
+**Fix:**
 Added `await` to validation calls in `memory/integration.test.ts`:
 ```typescript
 - const validationResult = validateModuleIds(modules, policy);
 + const validationResult = await validateModuleIds(modules, policy);
 ```
 
-**Rationale:**  
+**Rationale:**
 `validateModuleIds` is async (returns a Promise) because it performs alias resolution. Must always be awaited.
 
 ---
 
 ### 4. Possibly Undefined Properties in MCP Tests (P1 - High)
 
-**Problem:**  
+**Problem:**
 TypeScript strict mode flagged potentially undefined properties when accessing MCP response content.
 
 **Error:**
@@ -85,7 +85,7 @@ TypeScript strict mode flagged potentially undefined properties when accessing M
 error TS18048: 'recallResponse.content' is possibly 'undefined'.
 ```
 
-**Fix:**  
+**Fix:**
 Added existence checks before accessing nested properties:
 ```typescript
 + assert.ok(recallResponse.content, "Response should have content");
@@ -94,14 +94,14 @@ Added existence checks before accessing nested properties:
 
 Applied to all MCP response assertions in `memory/mcp_server/integration.test.ts`.
 
-**Rationale:**  
+**Rationale:**
 Defensive programming - always verify optional properties exist before accessing them. Improves test robustness.
 
 ---
 
 ### 5. Implicit `any` Types in Server Code (P1 - High)
 
-**Problem:**  
+**Problem:**
 Anonymous function parameters in map/filter callbacks lacked explicit types, triggering implicit `any` errors.
 
 **Errors:**
@@ -110,7 +110,7 @@ error TS7006: Parameter 'error' implicitly has an 'any' type.
 error TS7006: Parameter 'f' implicitly has an 'any' type.
 ```
 
-**Fix:**  
+**Fix:**
 Added explicit type annotations:
 ```typescript
 - validationResult.errors.map(error => {
@@ -129,14 +129,14 @@ import type { Frame } from "../../frames/types.js";
 import type { ModuleIdError } from "../../../shared/types/dist/validation.js";
 ```
 
-**Rationale:**  
+**Rationale:**
 TypeScript strict mode (`noImplicitAny`) requires all parameters to have explicit types. Improves type safety and IDE autocomplete.
 
 ---
 
 ### 6. Missing Test Utility Method (P2 - Medium)
 
-**Problem:**  
+**Problem:**
 Performance tests expected `FrameStore.getDatabase()` method which didn't exist.
 
 **Error:**
@@ -144,7 +144,7 @@ Performance tests expected `FrameStore.getDatabase()` method which didn't exist.
 error TS2339: Property 'getDatabase' does not exist on type 'FrameStore'.
 ```
 
-**Fix:**  
+**Fix:**
 Added internal accessor method to `memory/store/framestore.ts`:
 ```typescript
 /**
@@ -156,23 +156,23 @@ getDatabase(): Database.Database {
 }
 ```
 
-**Rationale:**  
+**Rationale:**
 Tests need access to the underlying database for performance benchmarks and direct SQL operations. Marked `@internal` to discourage production use.
 
 ---
 
 ### 7. Missing CLI Option Type (P2 - Medium)
 
-**Problem:**  
+**Problem:**
 CLI code referenced `noSubstring` option that wasn't defined in `RememberOptions` interface.
 
 **Error:**
 ```
-error TS2353: Object literal may only specify known properties, 
+error TS2353: Object literal may only specify known properties,
 and 'noSubstring' does not exist in type 'RememberOptions'.
 ```
 
-**Fix:**  
+**Fix:**
 Added missing property to `shared/cli/remember.ts`:
 ```typescript
 export interface RememberOptions {
@@ -181,7 +181,7 @@ export interface RememberOptions {
 }
 ```
 
-**Rationale:**  
+**Rationale:**
 The `noSubstring` flag controls whether alias resolution should match substrings. This option was implemented but not properly typed.
 
 ---
