@@ -298,10 +298,12 @@ The package exports multiple entry points via subpath exports in `package.json`:
 {
   "exports": {
     ".": "./dist/index.js",                    // Main entry
-    "./cli": "./dist/cli/index.js",            // CLI commands
     "./policy/*": "./dist/policy/*",           // Policy subsystem
     "./memory/*": "./dist/memory/*",           // Memory subsystem
-    "./shared/*": "./dist/shared/*"            // Shared utilities
+    "./shared/*": "./dist/shared/*"            // Shared utilities (includes CLI)
+  },
+  "bin": {
+    "lex": "./dist/shared/cli/lex.js"          // CLI binary entry point
   }
 }
 ```
@@ -311,8 +313,10 @@ This allows importing specific subsystems without exposing internal implementati
 ```typescript
 import { remember, recall } from 'lex/memory/frames';
 import { checkPolicy } from 'lex/policy/check';
-import { resolveModuleId } from 'lex/shared/aliases/resolver';
+import { resolveModuleId } from 'lex/shared/aliases';
 ```
+
+The CLI is available as a binary via `npx lex` or direct invocation after installation.
 
 ### Merge-Weave Integration
 
