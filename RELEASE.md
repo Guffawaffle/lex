@@ -110,9 +110,33 @@ tar -tf lex-*.tgz | head -30  # Inspect contents
 
 ## Consumer Smoke Test
 
-Create a test project to verify the published package:
+An automated smoke test verifies that the package can be installed and its subpath exports work correctly.
+
+### Running the Smoke Test
 
 ```bash
+npm run test:smoke
+```
+
+This script will:
+1. Build the package (`npm run build`)
+2. Create a tarball (`npm pack`)
+3. Install the tarball in a temporary test project
+4. Test imports from all representative subpaths:
+   - `lex` (main entry)
+   - `lex/cli`
+   - `lex/policy/*`
+5. Clean up temporary files
+
+### Manual Smoke Test
+
+You can also manually test the package:
+
+```bash
+# Create tarball
+npm pack
+
+# Create test project
 mkdir /tmp/lex-consumer-test
 cd /tmp/lex-consumer-test
 npm init -y
@@ -127,9 +151,11 @@ npm install lex
 Test imports:
 ```javascript
 // test.mjs
-import { FrameStore } from 'lex/memory/store';
-import { loadPolicy } from 'lex/shared/policy';
-console.log('Imports work!');
+import { getDb, saveFrame } from 'lex';
+import { createProgram } from 'lex/cli';
+import { detectViolations } from 'lex/policy/check/violations.js';
+import { mergeScans } from 'lex/policy/merge/merge.js';
+console.log('All imports work!');
 ```
 
 Run: `node test.mjs`

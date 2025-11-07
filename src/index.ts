@@ -15,3 +15,6 @@
 // Export core types
 export type { Policy } from './shared/types/policy.js';
 export type { Frame } from './shared/types/frame.js';
+
+// Export main functionality
+export { getDb, closeDb, saveFrame, getFrameById, searchFrames } from './memory/store/index.js';
