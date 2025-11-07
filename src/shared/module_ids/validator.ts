@@ -194,9 +194,16 @@ export async function validateModuleIds(
 
       const suggestionText = suggestions.length > 0 ? ` Did you mean '${suggestions[0]}'?` : "";
 
+      // If an alias resolves to a canonical ID that doesn't exist in policy,
+      // include the resolved canonical in the error message for clarity.
+      const message =
+        resolution.confidence === EXACT_MATCH_CONFIDENCE
+          ? `Module '${resolution.original}' resolved to '${resolution.canonical}' which is not found in policy.${suggestionText}`
+          : `Module '${resolution.original}' not found in policy.${suggestionText}`;
+
       errors.push({
         module: resolution.original,
-        message: `Module '${resolution.original}' not found in policy.${suggestionText}`,
+        message,
         suggestions,
       });
     } else {
