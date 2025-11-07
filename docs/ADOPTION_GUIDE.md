@@ -256,7 +256,7 @@ This rule is the bridge.
    
    Always use exact module IDs from your policy. Fuzzy matching provides suggestions but doesn't auto-correct.
    
-   **Future:** Alias tables will support team shorthand (e.g., `auth` → `services/auth-core`). See `shared/aliases/README.md`.
+   **Future:** Alias tables will support team shorthand (e.g., `auth` → `services/auth-core`). See `src/shared/aliases/README.md`.
 
 4. **Test policy-aware reasoning**
 

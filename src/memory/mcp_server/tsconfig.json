@@ -18,10 +18,10 @@
     ,
     "baseUrl": ".",
     "paths": {
-      "@lex/policy": ["../../shared/policy"],
-      "@lex/policy/*": ["../../shared/policy/*"],
-      "@lex/types": ["../../shared/types"],
-      "@lex/types/*": ["../../shared/types/*"]
+      "lex/policy": ["../../shared/policy"],
+      "lex/policy/*": ["../../shared/policy/*"],
+      "lex/types": ["../../shared/types"],
+      "lex/types/*": ["../../shared/types/*"]
     }
   },
   "include": ["*.ts"],

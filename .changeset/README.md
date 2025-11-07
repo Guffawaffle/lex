@@ -4,7 +4,7 @@ This directory contains changeset files for managing releases.
 
 ## What are changesets?
 
-Changesets are a way to manage versioning and changelogs in a monorepo. Each changeset describes what packages should be updated and why.
+Changesets are a way to manage versioning and changelogs. Each changeset describes what should be updated and why.
 
 ## Workflow
 
@@ -17,7 +17,6 @@ npx changeset
 ```
 
 This will:
-- Ask which packages changed
 - Ask whether the change is major/minor/patch
 - Ask for a summary of the change
 
@@ -29,7 +28,7 @@ On Wednesday, the release manager:
 # 1. Generate version bumps and changelog
 npx changeset version
 
-# 2. Review changes to package.json files and CHANGELOG.md files
+# 2. Review changes to package.json and CHANGELOG.md
 
 # 3. Commit the version changes
 git add .
@@ -61,8 +60,7 @@ When the signed tag is pushed, GitHub Actions will:
 ### Feature (minor)
 ```md
 ---
-'@lex/cli': minor
-'@lex/mcp-server': minor
+'lex': minor
 ---
 
 Add new frame visualization command
@@ -71,7 +69,7 @@ Add new frame visualization command
 ### Bug fix (patch)
 ```md
 ---
-'@lex/store': patch
+'lex': patch
 ---
 
 Fix SQLite connection leak in frame queries
@@ -80,7 +78,7 @@ Fix SQLite connection leak in frame queries
 ### Breaking change (major)
 ```md
 ---
-'@lex/policy': major
+'lex': major
 ---
 
 BREAKING: Change policy file format to YAML
@@ -91,4 +89,4 @@ BREAKING: Change policy file format to YAML
 - Always create a changeset when making user-facing changes
 - Use semantic versioning correctly (major/minor/patch)
 - Write clear, user-focused summaries
-- Group related package changes in one changeset
+- Reference the single 'lex' package (not lex/* subpackages)
