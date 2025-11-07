@@ -11,8 +11,12 @@
     "resolveJsonModule": true,
     "declaration": true,
     "declarationMap": true,
-    "sourceMap": true
+    "sourceMap": true,
+    "composite": true
   },
   "include": ["*.ts"],
-  "exclude": ["node_modules", "dist", "*.test.mjs", "*.test.ts"]
+  "exclude": ["node_modules", "dist", "*.test.mjs", "*.test.ts"],
+  "references": [
+    { "path": "../aliases" }
+  ]
 }
