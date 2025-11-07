@@ -79,11 +79,13 @@
 #### Branch Protection (requires admin)
 ```
 Settings → Branches → Add rule for "main":
-  ✅ Require pull request reviews (2 approvals)
+  ✅ Require pull request reviews (1 approval - @Guffawaffle)
   ✅ Require status checks: all-checks-pass
   ✅ Require signed commits
   ✅ Require linear history
   ✅ Lock branch (no force push/delete)
+
+  Note: Increase to 2 approvals when additional maintainers join
 
 Settings → Branches → Add rule for "staging":
   ✅ Require pull request reviews (1 approval)

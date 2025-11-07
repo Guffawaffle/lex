@@ -138,7 +138,7 @@ Protection Rules:
 #### For `main` (releases only):
 ```yaml
 Protection Rules:
-  ✅ Require pull request reviews (2 approvals)
+  ✅ Require pull request reviews (1 approval - maintainer only)
   ✅ Require all status checks to pass
     - unit-tests
     - integration-tests
@@ -149,10 +149,12 @@ Protection Rules:
   ✅ Require signed commits
   ✅ Require linear history (squash merge from release PR)
   ✅ Include administrators (no bypass)
-  ✅ Restrict who can push (release managers only)
+  ✅ Restrict who can push (maintainers only)
   ✅ Lock branch (prevent force push & deletion)
   ✅ Require signed tags for releases
 ```
+
+**Note**: When additional maintainers join, increase to 2 required approvals.
 
 #### For `rc/*` (optional):
 ```yaml
