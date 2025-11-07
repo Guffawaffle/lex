@@ -9,6 +9,7 @@ fi
 
 echo "==> Running local CI replica (network enabled)"
 docker run --rm -it \
+  --user "$(id -u):$(id -g)" \
   -v "$PWD":/work -w /work \
   "${IMAGE}" \
   bash -lc "./scripts/ci.sh"
