@@ -123,6 +123,9 @@ jobs:
       - name: Install dependencies (hermetic)
         run: npm ci --ignore-scripts
 
+      - name: Build native dependencies
+        run: npm rebuild better-sqlite3
+
       - name: Build all packages
         run: npm run build
 
