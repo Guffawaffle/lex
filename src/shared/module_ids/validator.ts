@@ -49,6 +49,18 @@ function getPolicyModuleIds(policy: Policy): Set<string> {
 const MAX_EDIT_DISTANCE_THRESHOLD = 10;
 
 /**
+ * Confidence level for exact matches and aliases
+ * Only resolutions with this confidence level are accepted as valid
+ */
+const EXACT_MATCH_CONFIDENCE = 1.0;
+
+/**
+ * Confidence level for substring matches
+ * These are treated as invalid but suggestions are provided
+ */
+const SUBSTRING_MATCH_CONFIDENCE = 0.9;
+
+/**
  * Calculate Levenshtein distance between two strings
  * Used for fuzzy matching to suggest similar module names
  */
@@ -169,12 +181,12 @@ export async function validateModuleIds(
 
   for (const resolution of resolutions) {
     // Only accept high-confidence resolutions (exact match or alias)
-    const isValid = resolution.confidence === 1.0 && policyModuleIds.has(resolution.canonical);
+    const isValid = resolution.confidence === EXACT_MATCH_CONFIDENCE && policyModuleIds.has(resolution.canonical);
     
     if (!isValid) {
       // For substring matches, provide the substring match as a suggestion
       let suggestions: string[];
-      if (resolution.confidence === 0.9 && policyModuleIds.has(resolution.canonical)) {
+      if (resolution.confidence === SUBSTRING_MATCH_CONFIDENCE && policyModuleIds.has(resolution.canonical)) {
         // Substring match found - suggest it
         suggestions = [resolution.canonical];
       } else {

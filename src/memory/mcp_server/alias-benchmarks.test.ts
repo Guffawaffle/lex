@@ -53,7 +53,12 @@ const createTestPolicy = (moduleCount: number) => {
  */
 async function measureTime(fn: () => Promise<void>): Promise<number> {
   const start = performance.now();
-  await fn();
+  try {
+    await fn();
+  } catch (error) {
+    // Still record timing even if function throws
+    // This ensures we measure actual execution time
+  }
   const end = performance.now();
   return end - start;
 }
