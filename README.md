@@ -26,14 +26,18 @@ Lex powers the paid **LexRunner** CLI; development stays OSS-first. See the [Lex
 Reproduce CI locally without touching GitHub workflows:
 
 ```bash
-# one-time build (or auto-built by the helper script)
-docker build -f ci.Dockerfile -t lex-ci:local .
+# Quick run via npm
+npm run local-ci
 
-# run CI steps inside the container
+# Or run scripts directly:
 ./scripts/local-ci-run.sh
 
 # (optional) run with no network allowed
-./scripts/ci-nonet.sh
+npm run local-ci:nonet
+# or: ./scripts/ci-nonet.sh
+
+# one-time build (or auto-built by the helper script)
+docker build -f ci.Dockerfile -t lex-ci:local .
 ```
 
 This Docker image is **not** used by GitHub Actions. It exists only for local parity and faster debugging.
