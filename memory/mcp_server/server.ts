@@ -9,11 +9,15 @@
 import { FrameStore } from "../../store/dist/framestore.js";
 // @ts-ignore - importing from compiled dist directories
 import { ImageManager } from "../../store/dist/images.js";
+// @ts-ignore - importing from compiled dist directories
+import type { Frame } from "../../frames/types.js";
 import { MCP_TOOLS } from "./tools.js";
 // @ts-ignore - importing from compiled dist directories
 import { generateAtlasFrame, formatAtlasFrame } from "../../../shared/atlas/dist/atlas-frame.js";
 // @ts-ignore - importing from compiled dist directories
 import { validateModuleIds } from "../../../shared/module_ids/dist/validator.js";
+// @ts-ignore - importing from compiled dist directories
+import type { ModuleIdError } from "../../../shared/types/dist/validation.js";
 // @ts-ignore - importing from compiled dist directories
 import { loadPolicy } from "@lex/policy";
 // @ts-ignore - importing from compiled dist directories
@@ -188,7 +192,7 @@ export class MCPServer {
 
       if (!validationResult.valid && validationResult.errors) {
         // Format error message with suggestions
-        const errorMessages = validationResult.errors.map(error => {
+        const errorMessages = validationResult.errors.map((error: ModuleIdError) => {
           const suggestions = error.suggestions.length > 0
             ? `\n  Did you mean: ${error.suggestions.join(', ')}?`
             : '';
@@ -332,7 +336,7 @@ export class MCPServer {
 
     // Format results with Atlas Frame for each
     const results = frames
-      .map((f, idx) => {
+      .map((f: Frame, idx: number) => {
         const nextAction = f.status_snapshot?.next_action || "None specified";
         const blockers = f.status_snapshot?.blockers || [];
         const mergeBlockers = f.status_snapshot?.merge_blockers || [];
@@ -391,13 +395,13 @@ export class MCPServer {
 
     // Filter by module if specified
     if (module) {
-      frames = frames.filter((f) => f.module_scope.includes(module));
+      frames = frames.filter((f: Frame) => f.module_scope.includes(module));
     }
 
     // Filter by timestamp if since is specified
     if (since) {
       const sinceDate = new Date(since);
-      frames = frames.filter((f) => new Date(f.timestamp) >= sinceDate);
+      frames = frames.filter((f: Frame) => new Date(f.timestamp) >= sinceDate);
     }
 
     if (frames.length === 0) {
@@ -413,7 +417,7 @@ export class MCPServer {
 
     // Format results with Atlas Frame for each
     const results = frames
-      .map((f, idx) => {
+      .map((f: Frame, idx: number) => {
         const atlasFrame = generateAtlasFrame(f.module_scope);
         const atlasOutput = formatAtlasFrame(atlasFrame);
 
