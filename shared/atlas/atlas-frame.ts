@@ -5,8 +5,8 @@
  * Implements full policy graph traversal with N-hop neighborhood extraction.
  */
 
-import { loadPolicy } from '../policy/loader.js';
-import type { PolicyModule } from '../types/policy.js';
+import { loadPolicy } from '@lex/policy/dist/loader.js';
+import type { PolicyModule } from '@lex/types/dist/policy.js';
 import { extractNeighborhood, generateCoordinates } from './graph.js';export interface AtlasFrame {
   atlas_timestamp: string;
   seed_modules: string[];
