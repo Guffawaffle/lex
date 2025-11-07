@@ -10,7 +10,10 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
-    "./cli": "./dist/cli/index.js",
+    "./cli": {
+      "types": "./dist/shared/cli/index.d.ts",
+      "import": "./dist/shared/cli/index.js"
+    },
     "./policy/*": "./dist/policy/*",
     "./memory/*": "./dist/memory/*",
     "./shared/*": "./dist/shared/*"
