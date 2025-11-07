@@ -6,7 +6,7 @@
 
 import { strict as assert } from 'assert';
 import { test, describe } from 'node:test';
-import { validateModuleIds, validateModuleIdsSync } from './dist/module_ids/validator.js';
+import { validateModuleIds, validateModuleIdsSync } from './dist/validator.js';
 
 // Sample policy for testing
 const samplePolicy = {

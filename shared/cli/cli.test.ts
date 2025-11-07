@@ -285,3 +285,109 @@ test('CLI: lex check with --json outputs JSON', () => {
     cleanup();
   }
 });
+
+test('CLI: lex timeline shows frames for a ticket', () => {
+  setupTest();
+  try {
+    // Create multiple frames for the same ticket
+    execSync(
+      `node ${lexBin} remember ` +
+      `--jira TICKET-123 ` +
+      `--reference-point "frame 1" ` +
+      `--summary "First frame" ` +
+      `--next "Test action 1" ` +
+      `--modules "ui/admin-panel"`,
+      { encoding: 'utf-8', env: { ...process.env, LEX_DB_PATH: testDbPath } }
+    );
+    
+    execSync(
+      `node ${lexBin} remember ` +
+      `--jira TICKET-123 ` +
+      `--reference-point "frame 2" ` +
+      `--summary "Second frame" ` +
+      `--next "Test action 2" ` +
+      `--modules "ui/admin-panel,services/user-api"`,
+      { encoding: 'utf-8', env: { ...process.env, LEX_DB_PATH: testDbPath } }
+    );
+    
+    // Get timeline
+    const output = execSync(
+      `node ${lexBin} timeline TICKET-123`,
+      { encoding: 'utf-8', env: { ...process.env, LEX_DB_PATH: testDbPath } }
+    );
+    
+    assert.match(output, /TICKET-123/, 'Should show ticket ID');
+    assert.match(output, /First frame/, 'Should show first frame');
+    assert.match(output, /Second frame/, 'Should show second frame');
+    assert.match(output, /Module Scope Evolution/, 'Should show module scope evolution');
+  } finally {
+    cleanup();
+  }
+});
+
+test('CLI: lex timeline with --format=json outputs JSON', () => {
+  setupTest();
+  try {
+    // Create a frame
+    execSync(
+      `node ${lexBin} remember ` +
+      `--jira TICKET-456 ` +
+      `--reference-point "json timeline test" ` +
+      `--summary "JSON test" ` +
+      `--next "Test action" ` +
+      `--modules "ui/admin-panel"`,
+      { encoding: 'utf-8', env: { ...process.env, LEX_DB_PATH: testDbPath } }
+    );
+    
+    // Get timeline as JSON
+    const output = execSync(
+      `node ${lexBin} timeline TICKET-456 --format=json`,
+      { encoding: 'utf-8', env: { ...process.env, LEX_DB_PATH: testDbPath } }
+    );
+    
+    const json = JSON.parse(output.trim());
+    assert.ok(Array.isArray(json), 'JSON should be an array');
+    assert.ok(json.length > 0, 'JSON should contain timeline entries');
+    assert.ok(json[0].frame, 'Entry should contain frame');
+  } finally {
+    cleanup();
+  }
+});
+
+test('CLI: lex timeline shows blocker evolution', () => {
+  setupTest();
+  try {
+    // Create frames with blockers
+    execSync(
+      `node ${lexBin} remember ` +
+      `--jira TICKET-789 ` +
+      `--reference-point "blocker test 1" ` +
+      `--summary "Frame with blocker" ` +
+      `--next "Test action" ` +
+      `--modules "ui/admin-panel" ` +
+      `--blockers "CORS issue"`,
+      { encoding: 'utf-8', env: { ...process.env, LEX_DB_PATH: testDbPath } }
+    );
+    
+    execSync(
+      `node ${lexBin} remember ` +
+      `--jira TICKET-789 ` +
+      `--reference-point "blocker test 2" ` +
+      `--summary "Frame without blocker" ` +
+      `--next "Test action" ` +
+      `--modules "ui/admin-panel"`,
+      { encoding: 'utf-8', env: { ...process.env, LEX_DB_PATH: testDbPath } }
+    );
+    
+    // Get timeline
+    const output = execSync(
+      `node ${lexBin} timeline TICKET-789`,
+      { encoding: 'utf-8', env: { ...process.env, LEX_DB_PATH: testDbPath } }
+    );
+    
+    assert.match(output, /CORS issue/, 'Should show blocker');
+    assert.match(output, /Blocker Tracking/, 'Should show blocker tracking section');
+  } finally {
+    cleanup();
+  }
+});

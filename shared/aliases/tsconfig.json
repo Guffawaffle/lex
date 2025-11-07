@@ -4,6 +4,7 @@
     "module": "ES2022",
     "moduleResolution": "node",
     "outDir": "./dist",
+    "rootDir": ".",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
@@ -11,7 +12,8 @@
     "resolveJsonModule": true,
     "declaration": true,
     "declarationMap": true,
-    "sourceMap": true
+    "sourceMap": true,
+    "composite": true
   },
   "include": ["*.ts"],
   "exclude": ["node_modules", "dist", "*.test.mjs", "*.test.ts"]

@@ -6,7 +6,7 @@
 
 import { strict as assert } from 'assert';
 import { test, describe } from 'node:test';
-import { generateAtlasFrame, formatAtlasFrame } from './dist/shared/atlas/atlas-frame.js';
+import { generateAtlasFrame, formatAtlasFrame } from './dist/atlas-frame.js';
 import { writeFileSync, mkdirSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';

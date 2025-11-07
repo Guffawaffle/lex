@@ -1,6 +1,25 @@
-# lex
+# Lex (MIT) — Atlas/Memory Core
+
+![MIT License](https://img.shields.io/badge/License-MIT-green)
+![OSS](https://img.shields.io/badge/Community-OSS-blue)
 
 **Policy-aware work continuity with receipts.**
+
+Lex powers the paid **LexRunner** CLI; development stays OSS-first. See the [LexRunner repo](https://github.com/Guffawaffle/lex-pr-runner) for the orchestration layer.
+
+### Lex (MIT OSS) vs LexRunner (Proprietary)
+
+| Aspect | **Lex** (MIT) | **LexRunner** (Paid) |
+|--------|---------------|--------------------|
+| **Purpose** | Atlas/Memory/Policy core frameworks | Enterprise merge-weave orchestration CLI |
+| **License** | MIT (open source) | Proprietary |
+| **Repo** | `Guffawaffle/lex` (this repo) | `Guffawaffle/lex-pr-runner` |
+| **What you get** | Frames, policy scanners, atlas fold-radius | Full CLI for fanout/merge workflows |
+
+👉 **This repo** (Lex) = OSS primitives for frames, memory, and policy.
+👉 **LexRunner** = Orchestration layer built on Lex (paid product).
+
+---
 
 When you ask `/recall TICKET-123`, you don't get vague summarization or context-free git log replay. You get:
 
