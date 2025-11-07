@@ -11,7 +11,7 @@
       },
       {
         "name": "php",
-        "match": "src/**/*.php"
+        "match": "src/policy/scanners/php_scanner.py"
       },
       {
         "name": "mcp",
