@@ -1,4 +1,4 @@
-# Frame Storage (@lex/store)
+# Frame Storage
 
 SQLite-based local storage for Frames with FTS5 full-text search.
 
@@ -6,7 +6,7 @@ SQLite-based local storage for Frames with FTS5 full-text search.
 
 - **Local-first storage**: SQLite database at `~/.lex/frames.db` (configurable)
 - **Full-text search**: FTS5 virtual table for fuzzy search on `reference_point`, `keywords`, and `summary_caption`
-- **All Frame fields**: Supports all fields from `shared/types/FRAME.md`
+- **All Frame fields**: Supports all fields from `src/shared/types/FRAME.md`
 - **Migration support**: Schema versioning for database upgrades
 - **Performant queries**: Indexed searches by branch, jira, module_scope
 - **Concurrent access**: WAL mode for better concurrent read/write
@@ -15,7 +15,7 @@ SQLite-based local storage for Frames with FTS5 full-text search.
 ## Installation
 
 ```bash
-npm install @lex/store
+npm install
 ```
 
 ## Usage
@@ -23,7 +23,7 @@ npm install @lex/store
 ### Basic CRUD Operations
 
 ```typescript
-import { getDb, saveFrame, getFrameById, deleteFrame } from '@lex/store';
+import { getDb, saveFrame, getFrameById, deleteFrame } from '../../memory/store/index.js';
 
 const db = getDb(); // Uses ~/.lex/frames.db by default
 

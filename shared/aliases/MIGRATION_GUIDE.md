@@ -8,7 +8,7 @@
 
 ### Why No Migration Is Needed
 
-1. **Frames store canonical module IDs** - Even when aliases are implemented, Frames will always store the canonical ID from `lexmap.policy.json`, never the alias.
+1. **Frames store canonical module IDs** - Even when aliases are implemented, Frames will always store the canonical ID from `src/policy/policy_spec/lexmap.policy.json`, never the alias.
 
 2. **Validation happened at creation time** - When you created a Frame with `module_scope: ["services/auth-core"]`, that exact ID was validated and stored.
 
@@ -54,7 +54,7 @@
 
 **Refactoring:**
 - New module ID: `api/user-access`
-- Update `lexmap.policy.json`
+- Update `src/policy/policy_spec/lexmap.policy.json`
 
 ### What Happens to Old Frames?
 

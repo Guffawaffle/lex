@@ -39,7 +39,7 @@ Create `.lex/aliases.json` in your repository root:
 ```
 
 **Key fields:**
-- `canonical` - The exact module ID from `lexmap.policy.json`
+- `canonical` - The exact module ID from `src/policy/policy_spec/lexmap.policy.json`
 - `confidence` - 1.0 for explicit aliases, <1.0 for fuzzy matches
 - `reason` - Why this alias exists (for documentation/auditing)
 
@@ -93,7 +93,7 @@ Reference from your project's `.lex/aliases.json`:
 
 1. **Check if the module exists in policy:**
    ```bash
-   grep "module-name" lexmap.policy.json
+   grep "module-name" src/policy/policy_spec/lexmap.policy.json
    ```
 
 2. **Add to alias table:**
@@ -123,7 +123,7 @@ Reference from your project's `.lex/aliases.json`:
 
 When refactoring renames a module:
 
-**Before (lexmap.policy.json):**
+**Before (src/policy/policy_spec/lexmap.policy.json):**
 ```json
 {
   "modules": {
@@ -253,7 +253,7 @@ After a grace period (e.g., 6 months):
 
 ❌ **Don't alias to non-existent modules**
 ```json
-// BAD: "fake/module" must exist in lexmap.policy.json
+// BAD: "fake/module" must exist in src/policy/policy_spec/lexmap.policy.json
 {
   "fake": {
     "canonical": "fake/module",  // Must be in policy!
@@ -324,7 +324,7 @@ For teams that want auto-typo-correction:
 
 **Error:** `Circular alias detected: alias-a -> alias-b -> alias-a`
 
-**Solution:** Aliases must resolve to canonical module IDs from `lexmap.policy.json`, not to other aliases.
+**Solution:** Aliases must resolve to canonical module IDs from `src/policy/policy_spec/lexmap.policy.json`, not to other aliases.
 
 ### Alias table validation fails
 
@@ -333,10 +333,10 @@ lex alias validate .lex/aliases.json
 # Error: Module 'fake/module' not found in policy
 ```
 
-**Solution:** Every `canonical` value must exist in `lexmap.policy.json`. Add it to policy first:
+**Solution:** Every `canonical` value must exist in `src/policy/policy_spec/lexmap.policy.json`. Add it to policy first:
 
 ```json
-// lexmap.policy.json
+// src/policy/policy_spec/lexmap.policy.json
 {
   "modules": {
     "fake/module": {

@@ -86,7 +86,7 @@ The `validateModuleIds()` function now:
 3. Returns canonical IDs for storage
 
 ```typescript
-import { validateModuleIds } from '@lex/module-ids';
+import { validateModuleIds } from '../../shared/module_ids/validator.js';
 
 const result = await validateModuleIds(
   ['auth-core', 'services/user-access-api'],  // Input with alias
@@ -102,7 +102,7 @@ if (result.valid) {
 
 ### MCP Server Integration
 
-The `/remember` tool in `memory/mcp_server/server.ts` now:
+The `/remember` tool in `src/memory/mcp_server/server.ts` now:
 1. Accepts module IDs (including aliases) from user
 2. Resolves all aliases via `validateModuleIds()`
 3. Stores only canonical IDs in `Frame.module_scope`
@@ -144,7 +144,7 @@ Future phases will add:
 The default `aliases.json` is empty. To add aliases:
 
 ```bash
-# Edit shared/aliases/aliases.json
+# Edit src/shared/aliases/aliases.json
 {
   "aliases": {
     "your-alias": {
@@ -160,7 +160,7 @@ The default `aliases.json` is empty. To add aliases:
 
 The alias table is loaded once and cached for performance. To reload:
 ```typescript
-import { clearAliasTableCache } from '@lex/aliases';
+import { clearAliasTableCache } from '../../shared/aliases/resolver.js';
 clearAliasTableCache();  // Force reload on next use
 ```
 
@@ -168,7 +168,7 @@ clearAliasTableCache();  // Force reload on next use
 
 Run tests with:
 ```bash
-npm run test:aliases
+npm test
 ```
 
 Tests cover:

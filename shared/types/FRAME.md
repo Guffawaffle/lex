@@ -9,7 +9,7 @@ A Frame is a timestamped record of what you were doing, stored locally with stru
 - **`id`** (string): Unique identifier for this Frame (e.g., `frame-001` or UUID)
 - **`timestamp`** (string): ISO 8601 timestamp when Frame was captured (e.g., `2025-11-01T16:04:12-05:00`)
 - **`branch`** (string): Git branch name where work was happening
-- **`module_scope`** (array of strings): Module IDs from `lexmap.policy.json` that were touched during this work session
+- **`module_scope`** (array of strings): Module IDs from `src/policy/policy_spec/lexmap.policy.json` that were touched during this work session
 - **`summary_caption`** (string): Human-readable one-line summary of what was happening
 - **`reference_point`** (string): Human-memorable anchor phrase for fuzzy recall (e.g., "that auth deadlock", "Add User button still disabled")
 - **`status_snapshot`** (object): Current state of work:
@@ -51,9 +51,9 @@ A Frame is a timestamped record of what you were doing, stored locally with stru
 
 ## THE CRITICAL RULE
 
-Every string in `module_scope` MUST be a module ID that exists in `lexmap.policy.json`. This is enforced by `shared/module_ids/` validation.
+Every string in `module_scope` MUST be a module ID that exists in `src/policy/policy_spec/lexmap.policy.json`. This is enforced by `src/shared/module_ids/` validation.
 
-If vocabulary drifts (Frame uses "auth-core" but policy has "services/auth-core"), recall will fail. Future work: `shared/aliases/` will allow fuzzy matching with confidence scores.
+If vocabulary drifts (Frame uses "auth-core" but policy has "services/auth-core"), recall will fail. Future work: `src/shared/aliases/` will allow fuzzy matching with confidence scores.
 
 ---
 
