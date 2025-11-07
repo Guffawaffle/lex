@@ -25,6 +25,24 @@ import {
 export { resolveModuleId };
 
 /**
+ * Cache for policy module ID sets
+ * Uses WeakMap to avoid memory leaks - entries are garbage collected when policy is no longer referenced
+ */
+const policyModuleIdsCache = new WeakMap<Policy, Set<string>>();
+
+/**
+ * Get or create a Set of module IDs from a policy (with caching)
+ */
+function getPolicyModuleIds(policy: Policy): Set<string> {
+  let moduleIds = policyModuleIdsCache.get(policy);
+  if (!moduleIds) {
+    moduleIds = new Set(Object.keys(policy.modules));
+    policyModuleIdsCache.set(policy, moduleIds);
+  }
+  return moduleIds;
+}
+
+/**
  * Maximum edit distance threshold for fuzzy matching suggestions
  * Only suggest module names if edit distance is within this threshold
  */
@@ -126,13 +144,24 @@ export async function validateModuleIds(
     return { valid: true, canonical: [] };
   }
 
-  // Step 1: Resolve all aliases
+  // Get cached policy module ID set for efficiency
+  const policyModuleIds = getPolicyModuleIds(policy);
+  
+  // Fast path: Check if all module IDs are exact matches (common case)
+  // This avoids the overhead of calling resolveModuleId for every module
+  const allExactMatches = moduleScope.every((id) => policyModuleIds.has(id));
+  
+  if (allExactMatches) {
+    // All are exact matches - return immediately without alias resolution
+    return { valid: true, canonical: moduleScope };
+  }
+
+  // Step 1: Resolve all aliases (only reached if there are non-exact matches)
   const resolutions = await Promise.all(
     moduleScope.map((id) => resolveModuleId(id, policy, aliasTable))
   );
 
   // Step 2: Validate all canonical IDs exist in policy
-  const policyModuleIds = new Set(Object.keys(policy.modules));
   const errors: ModuleIdError[] = [];
   const canonicalIds: string[] = [];
 
@@ -183,7 +212,7 @@ export function validateModuleIdsSync(
     return { valid: true };
   }
 
-  const policyModuleIds = new Set(Object.keys(policy.modules));
+  const policyModuleIds = getPolicyModuleIds(policy);
   const errors: ModuleIdError[] = [];
 
   for (const moduleId of moduleScope) {
