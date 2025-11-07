@@ -66,7 +66,7 @@ Implements a force-directed graph layout algorithm to assign 2D coordinates to m
 
 - **`module_scope`** (array of strings): Seed modules from a Frame (e.g., `["ui/user-admin-panel"]`)
 - **`fold_radius`** (number, default 1): How many hops to expand from seed modules
-- **`policy`** (object): The full `lexmap.policy.json` loaded in memory
+- **`policy`** (object): The full `src/policy/policy_spec/lexmap.policy.json` loaded in memory
 
 ## Output: Atlas Frame
 
@@ -120,7 +120,7 @@ Implements a force-directed graph layout algorithm to assign 2D coordinates to m
       "allowed": true
     }
   ],
-  "critical_rule": "Every module name MUST match the IDs in lexmap.policy.json. No ad hoc naming."
+  "critical_rule": "Every module name MUST match the IDs in src/policy/policy_spec/lexmap.policy.json. No ad hoc naming."
 }
 ```
 
@@ -152,17 +152,14 @@ Tested with 100+ module policies, performs acceptably (< 1 second for typical qu
 ## Integration
 
 Called by:
-- **`memory/mcp_server`** — when returning a Frame via `/recall`, also exports Atlas Frame for `module_scope`
-- **`policy/check`** (future) — when showing a violation, export the neighborhood around the offending edge
+- **`src/memory/mcp_server`** — when returning a Frame via `/recall`, also exports Atlas Frame for `module_scope`
+- **`src/policy/check`** (future) — when showing a violation, export the neighborhood around the offending edge
 
 ## Testing
 
 Run tests with:
 ```bash
-cd shared/atlas
-node atlas-frame.test.mjs  # Atlas Frame generation tests (16 tests)
-node cache.test.mjs        # Cache functionality tests (8 tests)
-node auto-tune.test.mjs    # Auto-tuning tests (12 tests)
+npm test
 ```
 
 Test coverage includes:

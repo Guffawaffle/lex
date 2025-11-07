@@ -1,5 +1,7 @@
 # Merge Weave Complete: ESM Module Resolution Fix
 
+> **⚠️ ARCHIVED:** This document describes the ESM module resolution fix from November 2025. The repository has since been consolidated to a single package structure. This document is kept for historical reference but describes an outdated workspace-based architecture.
+
 **Branch**: `integration/merge-weave-20251106-014906`  
 **Date**: 2025-11-06  
 **Status**: ✅ **Complete** (160/173 tests passing, 92.5%)

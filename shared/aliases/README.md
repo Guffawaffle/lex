@@ -2,7 +2,7 @@
 
 **✅ Phase 1: Explicit Alias Table - IMPLEMENTED**
 
-This module provides alias resolution for module IDs, allowing humans to use shorthand during `/remember` while maintaining vocabulary alignment with `lexmap.policy.json`.
+This module provides alias resolution for module IDs, allowing humans to use shorthand during `/remember` while maintaining vocabulary alignment with `src/policy/policy_spec/lexmap.policy.json`.
 
 ## Current Status
 
@@ -18,7 +18,7 @@ This module provides alias resolution for module IDs, allowing humans to use sho
 
 ## Problem
 
-THE CRITICAL RULE (in `shared/module_ids/`) currently requires exact matches between Frame `module_scope` and policy module IDs. This is correct for CI enforcement, but creates friction for humans:
+THE CRITICAL RULE (in `src/shared/module_ids/`) currently requires exact matches between Frame `module_scope` and policy module IDs. This is correct for CI enforcement, but creates friction for humans:
 
 1. **Fat-fingering:** Developer types `auth-core` instead of `services/auth-core` during `/remember`
 2. **Refactoring:** Module is renamed from `services/user-access-api` to `api/user-access`, orphaning old Frames
@@ -28,7 +28,7 @@ THE CRITICAL RULE (in `shared/module_ids/`) currently requires exact matches bet
 ### How It Works
 
 1. Developer runs `/remember` and types `auth-core` in module list
-2. `shared/aliases/resolver.ts` checks if input matches policy exactly (fast path)
+2. `src/shared/aliases/resolver.ts` checks if input matches policy exactly (fast path)
 3. If no exact match, checks `aliases.json` for an alias entry
 4. If alias found, resolves to canonical ID with confidence 1.0
 5. Frame is saved with **canonical ID only** (never stores aliases)
@@ -36,7 +36,7 @@ THE CRITICAL RULE (in `shared/module_ids/`) currently requires exact matches bet
 
 ### Alias Table Format
 
-Located at `shared/aliases/aliases.json`:
+Located at `src/shared/aliases/aliases.json`:
 
 ```json
 {
@@ -63,7 +63,7 @@ Located at `shared/aliases/aliases.json`:
 ### API Usage
 
 ```typescript
-import { resolveModuleId } from '@lex/aliases';
+import { resolveModuleId } from '../../shared/aliases/resolver.js';
 
 // Exact match (fast path) - no alias lookup
 const result1 = await resolveModuleId('services/auth-core', policy);

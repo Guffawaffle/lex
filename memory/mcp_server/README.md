@@ -191,7 +191,7 @@ frame-mcp.mjs          Entry point (stdio protocol handler)
 ├── dist/server.js     MCPServer class (request routing)
 ├── dist/tools.js      Tool definitions
 ├── ../store/          FrameStore (SQLite + FTS5)
-└── ../../shared/atlas/ Atlas Frame generation
+└── ../../src/shared/atlas/ Atlas Frame generation
 ```
 
 ## Atlas Frame
@@ -207,7 +207,7 @@ Currently a stub implementation (returns seed modules only). Full policy graph i
 
 ## Module ID Validation (THE CRITICAL RULE)
 
-Every string in `module_scope` MUST be a module ID that exists in `lexmap.policy.json`. This prevents vocabulary drift between memory and policy subsystems.
+Every string in `module_scope` MUST be a module ID that exists in `src/policy/policy_spec/lexmap.policy.json`. This prevents vocabulary drift between memory and policy subsystems.
 
 ### How Validation Works
 
@@ -260,7 +260,7 @@ The validator uses Levenshtein distance to suggest similar module names:
 ```
 ❌ Error: "Module 'auth' not found."
 
-> **Future:** Explicit alias tables will support `auth` → `services/auth-core` mappings. See `shared/aliases/README.md`.
+> **Future:** Explicit alias tables will support `auth` → `services/auth-core` mappings. See `src/shared/aliases/README.md`.
 
 ### Performance
 

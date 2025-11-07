@@ -118,8 +118,8 @@ The merge process is:
 
 ### With Policy Enforcement
 
-The merged output feeds into the policy checker (`policy/check/`), which:
-1. Resolves file paths → module IDs using `lexmap.policy.json`
+The merged output feeds into the policy checker (`src/policy/check/`), which:
+1. Resolves file paths → module IDs using `src/policy/policy_spec/lexmap.policy.json`
 2. Converts file-level edges to module-level edges
 3. Checks `allowed_callers` vs. actual dependencies
 4. Reports policy violations

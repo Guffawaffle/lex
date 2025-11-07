@@ -1,6 +1,6 @@
 # Policy Check
 
-Enforces architectural policy by checking scanner output against `lexmap.policy.json`.
+Enforces architectural policy by checking scanner output against `src/policy/policy_spec/lexmap.policy.json`.
 
 ## Usage
 
@@ -18,16 +18,16 @@ lexmap check <merged.json> <policy.json> [options]
 
 ```bash
 # Basic check with text output
-lexmap check merged.json lexmap.policy.json
+lexmap check merged.json src/policy/policy_spec/lexmap.policy.json
 
 # Generate markdown report
-lexmap check merged.json lexmap.policy.json --report-format markdown
+lexmap check merged.json src/policy/policy_spec/lexmap.policy.json --report-format markdown
 
 # JSON output for CI/CD integration
-lexmap check merged.json lexmap.policy.json --report-format json
+lexmap check merged.json src/policy/policy_spec/lexmap.policy.json --report-format json
 
 # With ticket tracking
-lexmap check merged.json lexmap.policy.json --ticket WEB-23621
+lexmap check merged.json src/policy/policy_spec/lexmap.policy.json --ticket WEB-23621
 ```
 
 ## Exit Codes
@@ -206,12 +206,12 @@ Each violation report includes Atlas Frame context, showing the relevant policy 
 - name: Check Policy Violations
   run: |
     npm run build
-    lexmap check merged.json lexmap.policy.json --report-format json > violations.json
+    lexmap check merged.json src/policy/policy_spec/lexmap.policy.json --report-format json > violations.json
     
 - name: Comment on PR
   if: failure()
   run: |
-    lexmap check merged.json lexmap.policy.json --report-format markdown > comment.md
+    lexmap check merged.json src/policy/policy_spec/lexmap.policy.json --report-format markdown > comment.md
     gh pr comment ${{ github.event.pull_request.number }} --body-file comment.md
 ```
 
@@ -220,13 +220,12 @@ Each violation report includes Atlas Frame context, showing the relevant policy 
 ### Building
 
 ```bash
-npm run build:check
+npm run build
 ```
 
 ### Testing
 
 ```bash
-cd policy/check
 npm test
 ```
 
@@ -247,6 +246,6 @@ The test suite includes 19 test cases covering:
 
 ## Dependencies
 
-- Depends on: `@lex/types` (TypeScript type definitions)
-- Depends on: `@lex/merge` (Scanner merge output types)
-- Depends on: `@lex/atlas` (Atlas Frame generation)
+- Depends on: `src/shared/types` (TypeScript type definitions)
+- Depends on: `src/policy/merge` (Scanner merge output types)
+- Depends on: `src/shared/atlas` (Atlas Frame generation)
