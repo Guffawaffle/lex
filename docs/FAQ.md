@@ -165,7 +165,7 @@ Planned enhancement for team shorthand and historical renames:
 
 This will allow `/remember "Auth work" --modules "auth"` while storing the canonical ID internally.
 
-See `shared/aliases/README.md` for details.
+See `src/shared/aliases/README.md` for details.
 
 ---
 

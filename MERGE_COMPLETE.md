@@ -1,8 +1,10 @@
 # Merge Weave Complete: ESM Module Resolution Fix
 
+> **⚠️ HISTORICAL DOCUMENT**: This document describes work done during the monorepo phase. The repository has since been consolidated to a single package (PR #91). This file is kept for historical reference only. The issues described here (relative path imports, cross-package dependencies) have been resolved by the single-package migration.
+
 **Branch**: `integration/merge-weave-20251106-014906`  
 **Date**: 2025-11-06  
-**Status**: ✅ **Complete** (160/173 tests passing, 92.5%)
+**Status**: ✅ **Complete** (160/173 tests passing, 92.5%) - **Superseded by PR #91**
 
 ## Summary
 
