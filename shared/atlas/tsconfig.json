@@ -14,6 +14,14 @@
     "sourceMap": true,
     "outDir": "./dist",
     "rootDir": "."
+    ,
+    "baseUrl": ".",
+    "paths": {
+      "@lex/policy": ["../policy"],
+      "@lex/policy/*": ["../policy/*"],
+      "@lex/types": ["../types"],
+      "@lex/types/*": ["../types/*"]
+    }
   },
   "include": [
     "*.ts"
