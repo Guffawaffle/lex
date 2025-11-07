@@ -4,6 +4,7 @@
   "description": "Shared TypeScript type definitions for Lex (Policy, Frame, Validation)",
   "type": "module",
   "main": "index.ts",
+  "types": "index.ts",
   "exports": {
     ".": {
       "types": "./index.ts",
@@ -13,11 +14,27 @@
       "types": "./policy.ts",
       "import": "./policy.js"
     },
+    "./frame": {
+      "types": "./frame.ts",
+      "import": "./frame.js"
+    },
     "./validation": {
       "types": "./validation.ts",
       "import": "./validation.js"
     }
   },
+  "files": [
+    "*.ts",
+    "*.js",
+    "*.d.ts",
+    "README.md",
+    "LICENSE"
+  ],
   "keywords": ["types", "typescript", "policy", "frames", "validation"],
-  "license": "MIT"
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Guffawaffle/lex.git",
+    "directory": "shared/types"
+  }
 }

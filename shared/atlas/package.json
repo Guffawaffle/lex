@@ -3,20 +3,30 @@
   "version": "0.1.0-alpha",
   "description": "Atlas Frame - Spatial neighborhood extraction from policy graph",
   "type": "module",
-  "main": "./dist/atlas-frame.js",
-  "types": "./dist/atlas-frame.d.ts",
+  "main": "./dist/shared/atlas/atlas-frame.js",
+  "types": "./dist/shared/atlas/atlas-frame.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/atlas-frame.d.ts",
-      "import": "./dist/atlas-frame.js"
+      "types": "./dist/shared/atlas/atlas-frame.d.ts",
+      "import": "./dist/shared/atlas/atlas-frame.js"
     }
   },
+  "files": [
+    "dist/",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "tsc"
   },
+  "keywords": ["atlas", "policy", "graph", "spatial"],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Guffawaffle/lex.git",
+    "directory": "shared/atlas"
+  },
   "devDependencies": {
     "typescript": "^5.0.0"
-  },
-  "keywords": ["atlas", "policy", "graph"],
-  "license": "MIT"
+  }
 }
