@@ -70,14 +70,15 @@ Go to https://github.com/Guffawaffle/lex/settings:
 **Branches:**
 - Add rule for `main`:
   - Branch name pattern: `main`
-  - ✅ Require pull request reviews (2)
+  - ✅ Require pull request reviews (1 approval from @Guffawaffle)
   - ✅ Require status checks: `all-checks-pass`
   - ✅ Require signed commits
   - ✅ Require linear history
   - ✅ Do not allow bypassing the above settings
   - ✅ Restrict who can push (maintainers only)
   - ✅ Lock branch
-  
+  - **Note**: Increase to 2 approvals when more maintainers join
+
 - Add rule for `staging`:
   - Branch name pattern: `staging`
   - ✅ Require pull request reviews (1)
