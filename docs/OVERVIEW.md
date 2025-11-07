@@ -260,10 +260,97 @@ LexBrain is:
 
 ---
 
+## Package Structure
+
+Lex is a **single-package repository** with a clean, hierarchical source layout:
+
+```
+lex/
+├── src/
+│   ├── memory/          # Frame storage, recall, MCP server
+│   │   ├── frames/      # Frame types and interfaces
+│   │   ├── store/       # SQLite storage layer
+│   │   ├── renderer/    # Memory card image generation
+│   │   └── mcp_server/  # MCP server for assistants
+│   ├── policy/          # Architecture policy enforcement
+│   │   ├── check/       # Policy validation and CI checks
+│   │   ├── merge/       # Merge-weave policy enforcement
+│   │   └── scanners/    # Language-specific code scanners
+│   └── shared/          # Cross-cutting utilities
+│       ├── aliases/     # Module ID aliasing and resolution
+│       ├── atlas/       # Fold-radius graph computation
+│       ├── cli/         # CLI commands
+│       ├── git/         # Git integration utilities
+│       ├── module_ids/  # Module ID validation
+│       ├── policy/      # Policy loading and types
+│       └── types/       # Shared type definitions
+└── dist/                # Compiled output (mirrors src/ structure)
+    ├── memory/
+    ├── policy/
+    └── shared/
+```
+
+### Subpath Exports Contract
+
+The package exports multiple entry points via subpath exports in `package.json`:
+
+```json
+{
+  "exports": {
+    ".": "./dist/index.js",                    // Main entry
+    "./cli": "./dist/cli/index.js",            // CLI commands
+    "./policy/*": "./dist/policy/*",           // Policy subsystem
+    "./memory/*": "./dist/memory/*",           // Memory subsystem
+    "./shared/*": "./dist/shared/*"            // Shared utilities
+  }
+}
+```
+
+This allows importing specific subsystems without exposing internal implementation details:
+
+```typescript
+import { remember, recall } from 'lex/memory/frames';
+import { checkPolicy } from 'lex/policy/check';
+import { resolveModuleId } from 'lex/shared/aliases/resolver';
+```
+
+### Merge-Weave Integration
+
+Lex integrates with merge-weave workflows through `plan.json`, which defines:
+
+- **Required gates**: lint, typecheck, test (all PRs must pass)
+- **Merge policy**: strict-required (all gates must succeed)
+- **PR dependencies**: Ordered merge sequences via `deps` field
+- **Scope**: Single-package validation (no workspace references)
+
+Example from `plan.json`:
+
+```json
+{
+  "schemaVersion": "1.0.0",
+  "policy": {
+    "requiredGates": ["lint", "typecheck", "test"],
+    "mergeRule": { "type": "strict-required" }
+  },
+  "items": [
+    {
+      "name": "PR-123",
+      "deps": [],
+      "gates": [...]
+    }
+  ]
+}
+```
+
+The merge-weave orchestration (handled by the separate LexRunner CLI) validates PRs against this policy before merging.
+
+---
+
 ## Status
 
-LexBrain is **alpha**.
+Lex is **alpha**.
 
+- Single-package architecture (consolidated from previous multi-package workspace)
 - Frames are stored in a local database (e.g. `/srv/lex-brain/thoughts.db`)
 - MCP access via `stdio` (spawned process, no forced HTTP server)
 - No telemetry
