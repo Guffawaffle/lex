@@ -15,7 +15,7 @@ import { generateAtlasFrame, formatAtlasFrame } from "../../../shared/atlas/dist
 // @ts-ignore - importing from compiled dist directories
 import { validateModuleIds } from "../../../shared/module_ids/dist/validator.js";
 // @ts-ignore - importing from compiled dist directories
-import { loadPolicy } from "../../../shared/policy/dist/loader.js";
+import { loadPolicy } from "@lex/policy";
 // @ts-ignore - importing from compiled dist directories
 import { getCurrentBranch } from "../../../shared/git/dist/branch.js";
 import { randomUUID } from "crypto";
@@ -214,12 +214,20 @@ export class MCPServer {
     const frameId = `frame-${Date.now()}-${randomUUID()}`;
     const timestamp = new Date().toISOString();
 
-    // Get current git branch if not provided - auto-detect using git
-    const frameBranch = branch || getCurrentBranch();
-
-    // Log branch detection for debugging
-    if (!branch) {
+    // Get current git branch if not provided - only auto-detect when we
+    // have an explicit repoRoot or an environment override. This avoids
+    // leaking the runner's git branch into tests or hosted environments.
+    let frameBranch: string;
+    if (branch) {
+      frameBranch = branch;
+    } else if (this.repoRoot || process.env.LEX_DEFAULT_BRANCH) {
+      frameBranch = getCurrentBranch();
+      // Log branch detection for debugging
       console.log(`[lex.remember] Auto-detected branch: ${frameBranch}`);
+    } else {
+      // When no repoRoot is provided and no env override, avoid auto-detecting
+      // from the runner's repository; use 'unknown' to indicate no branch context.
+      frameBranch = 'unknown';
     }
 
     const frame = {

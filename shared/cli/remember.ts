@@ -9,7 +9,7 @@ import { v4 as uuidv4 } from "uuid";
 import type { Frame } from "../types/frame.js";
 import { resolveModuleId } from "../module_ids/validator.js";
 import type { AliasResolution } from "@lex/aliases/types";
-import { loadPolicy } from "../policy/loader.js";
+import { loadPolicy } from "@lex/policy";
 import { getDb, saveFrame } from "../../memory/store/index.js";
 import { getCurrentBranch } from "../git/branch.js";
 

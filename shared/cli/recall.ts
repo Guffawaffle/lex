@@ -11,7 +11,7 @@ import {
   getFramesByJira,
   getFrameById,
 } from "../../memory/store/index.js";
-import { loadPolicy } from "../policy/loader.js";
+import { loadPolicy } from "@lex/policy";
 import {
   generateAtlasFrame,
   computeFoldRadius,
