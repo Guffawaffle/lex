@@ -6,7 +6,7 @@
  */
 
 // @ts-ignore - importing from compiled dist directories
-import { FrameStore } from "../../store/dist/framestore.js";
+import { FrameStore } from "../../store/dist/store/framestore.js";
 // @ts-ignore - importing from compiled dist directories
 import { ImageManager } from "../../store/dist/images.js";
 // @ts-ignore - importing from compiled dist directories
