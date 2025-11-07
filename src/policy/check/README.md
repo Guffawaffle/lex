@@ -247,6 +247,6 @@ The test suite includes 19 test cases covering:
 
 ## Dependencies
 
-- Depends on: `@lex/types` (TypeScript type definitions)
-- Depends on: `@lex/merge` (Scanner merge output types)
-- Depends on: `@lex/atlas` (Atlas Frame generation)
+- Depends on: `src/shared/types/` (TypeScript type definitions)
+- Depends on: `src/policy/merge/` (Scanner merge output types)
+- Depends on: `src/shared/atlas/` (Atlas Frame generation)

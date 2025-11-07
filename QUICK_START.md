@@ -134,12 +134,12 @@ git commit -m "chore: add changeset for feature X"
 ### Example Changeset Workflow:
 
 ```bash
-# 1. Make a change to @lex/cli
-vim shared/cli/lex.ts
+# 1. Make a change to the CLI
+vim src/shared/cli/lex.ts
 
 # 2. Create changeset
 npx changeset
-# Select: @lex/cli
+# Select: lex (single package)
 # Type: minor (new feature)
 # Summary: "Add new --format flag for output formatting"
 

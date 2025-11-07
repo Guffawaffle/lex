@@ -63,7 +63,7 @@ Located at `shared/aliases/aliases.json`:
 ### API Usage
 
 ```typescript
-import { resolveModuleId } from '@lex/aliases';
+import { resolveModuleId } from '../../shared/aliases/resolver.js';
 
 // Exact match (fast path) - no alias lookup
 const result1 = await resolveModuleId('services/auth-core', policy);
@@ -86,7 +86,7 @@ The `validateModuleIds()` function now:
 3. Returns canonical IDs for storage
 
 ```typescript
-import { validateModuleIds } from '@lex/module-ids';
+import { validateModuleIds } from '../../shared/module_ids/validation.js';
 
 const result = await validateModuleIds(
   ['auth-core', 'services/user-access-api'],  // Input with alias

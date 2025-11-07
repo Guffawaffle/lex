@@ -1,4 +1,4 @@
-# Frame Storage (@lex/store)
+# Frame Storage
 
 SQLite-based local storage for Frames with FTS5 full-text search.
 
@@ -6,24 +6,20 @@ SQLite-based local storage for Frames with FTS5 full-text search.
 
 - **Local-first storage**: SQLite database at `~/.lex/frames.db` (configurable)
 - **Full-text search**: FTS5 virtual table for fuzzy search on `reference_point`, `keywords`, and `summary_caption`
-- **All Frame fields**: Supports all fields from `shared/types/FRAME.md`
+- **All Frame fields**: Supports all fields from `src/shared/types/frame.ts`
 - **Migration support**: Schema versioning for database upgrades
 - **Performant queries**: Indexed searches by branch, jira, module_scope
 - **Concurrent access**: WAL mode for better concurrent read/write
 - **Graceful shutdown**: Automatic connection cleanup
 
-## Installation
+## Usage (Internal)
 
-```bash
-npm install @lex/store
-```
-
-## Usage
+This module is part of the Lex single package. It's not installed separately.
 
 ### Basic CRUD Operations
 
 ```typescript
-import { getDb, saveFrame, getFrameById, deleteFrame } from '@lex/store';
+import { getDb, saveFrame, getFrameById, deleteFrame } from '../../memory/store/index.js';
 
 const db = getDb(); // Uses ~/.lex/frames.db by default
 
@@ -53,7 +49,7 @@ deleteFrame(db, "frame-001");
 ### Full-Text Search
 
 ```typescript
-import { searchFrames } from '@lex/store';
+import { searchFrames } from '../../memory/store/index.js';
 
 // Natural language search across reference_point, keywords, summary_caption
 const results = searchFrames(db, "auth deadlock");
@@ -68,7 +64,7 @@ import {
   getFramesByBranch,
   getFramesByJira,
   getFramesByModuleScope 
-} from '@lex/store';
+} from '../../memory/store/index.js';
 
 // Get all Frames for a branch
 const branchFrames = getFramesByBranch(db, "feature/auth-fix");
@@ -83,7 +79,7 @@ const moduleFrames = getFramesByModuleScope(db, "services/auth-core");
 ### Custom Database Path
 
 ```typescript
-import { getDb } from '@lex/store';
+import { getDb } from '../../memory/store/index.js';
 
 // Use custom database path
 const db = getDb("/path/to/custom/frames.db");
@@ -92,7 +88,7 @@ const db = getDb("/path/to/custom/frames.db");
 ### Connection Management
 
 ```typescript
-import { closeDb } from '@lex/store';
+import { closeDb } from '../../memory/store/index.js';
 
 // Graceful shutdown (usually not needed - handled automatically)
 closeDb();
