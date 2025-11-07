@@ -4,153 +4,152 @@
  * Run with: node shared/aliases/resolver.test.mjs
  */
 
-import { strict as assert } from 'assert';
-import { test, describe } from 'node:test';
-import { resolveModuleId, loadAliasTable, clearAliasTableCache } from './dist/resolver.js';
-import { writeFileSync, mkdirSync, rmSync } from 'fs';
-import { join } from 'path';
-import { tmpdir } from 'os';
+import { strict as assert } from "assert";
+import { test, describe } from "node:test";
+// Adjusted import path to built dist output
+import {
+  resolveModuleId,
+  loadAliasTable,
+  clearAliasTableCache,
+} from "../../../dist/shared/aliases/resolver.js";
+import { writeFileSync, mkdirSync, rmSync } from "fs";
+import { join } from "path";
+import { tmpdir } from "os";
 
 // Sample policy for testing
 const samplePolicy = {
   modules: {
-    'services/auth-core': {
-      description: 'Core authentication service',
-      owns_paths: ['services/auth/**']
+    "services/auth-core": {
+      description: "Core authentication service",
+      owns_paths: ["services/auth/**"],
     },
-    'services/user-access-api': {
-      description: 'User access API layer',
-      owns_paths: ['services/userAccess/**']
+    "services/user-access-api": {
+      description: "User access API layer",
+      owns_paths: ["services/userAccess/**"],
     },
-    'ui/user-admin-panel': {
-      description: 'User admin panel UI',
-      owns_paths: ['web-ui/userAdmin/**']
-    }
-  }
+    "ui/user-admin-panel": {
+      description: "User admin panel UI",
+      owns_paths: ["web-ui/userAdmin/**"],
+    },
+  },
 };
 
 // Sample alias table for testing
 const sampleAliasTable = {
   aliases: {
-    'auth-core': {
-      canonical: 'services/auth-core',
+    "auth-core": {
+      canonical: "services/auth-core",
       confidence: 1.0,
-      reason: 'shorthand'
+      reason: "shorthand",
     },
-    'user-api': {
-      canonical: 'services/user-access-api',
+    "user-api": {
+      canonical: "services/user-access-api",
       confidence: 1.0,
-      reason: 'shorthand'
+      reason: "shorthand",
     },
-    'old-auth-service': {
-      canonical: 'services/auth-core',
+    "old-auth-service": {
+      canonical: "services/auth-core",
       confidence: 1.0,
-      reason: 'refactored 2025-10-15'
-    }
-  }
+      reason: "refactored 2025-10-15",
+    },
+  },
 };
 
-describe('resolveModuleId', () => {
-  test('exact match bypasses alias lookup (performance optimization)', async () => {
-    const result = await resolveModuleId('services/auth-core', samplePolicy);
+describe("resolveModuleId", () => {
+  test("exact match bypasses alias lookup (performance optimization)", async () => {
+    const result = await resolveModuleId("services/auth-core", samplePolicy);
 
-    assert.equal(result.canonical, 'services/auth-core');
+    assert.equal(result.canonical, "services/auth-core");
     assert.equal(result.confidence, 1.0);
-    assert.equal(result.original, 'services/auth-core');
-    assert.equal(result.source, 'exact');
+    assert.equal(result.original, "services/auth-core");
+    assert.equal(result.source, "exact");
   });
 
-  test('alias maps to canonical ID with confidence 1.0', async () => {
-    const result = await resolveModuleId('auth-core', samplePolicy, sampleAliasTable);
+  test("alias maps to canonical ID with confidence 1.0", async () => {
+    const result = await resolveModuleId("auth-core", samplePolicy, sampleAliasTable);
 
-    assert.equal(result.canonical, 'services/auth-core');
+    assert.equal(result.canonical, "services/auth-core");
     assert.equal(result.confidence, 1.0);
-    assert.equal(result.original, 'auth-core');
-    assert.equal(result.source, 'alias');
+    assert.equal(result.original, "auth-core");
+    assert.equal(result.source, "alias");
   });
 
-  test('multiple aliases can point to same canonical ID', async () => {
-    const result1 = await resolveModuleId('auth-core', samplePolicy, sampleAliasTable);
-    const result2 = await resolveModuleId('old-auth-service', samplePolicy, sampleAliasTable);
+  test("multiple aliases can point to same canonical ID", async () => {
+    const result1 = await resolveModuleId("auth-core", samplePolicy, sampleAliasTable);
+    const result2 = await resolveModuleId("old-auth-service", samplePolicy, sampleAliasTable);
 
-    assert.equal(result1.canonical, 'services/auth-core');
-    assert.equal(result2.canonical, 'services/auth-core');
-    assert.equal(result1.source, 'alias');
-    assert.equal(result2.source, 'alias');
+    assert.equal(result1.canonical, "services/auth-core");
+    assert.equal(result2.canonical, "services/auth-core");
+    assert.equal(result1.source, "alias");
+    assert.equal(result2.source, "alias");
   });
 
-  test('unknown input returns original with confidence 0', async () => {
-    const result = await resolveModuleId('unknown-module', samplePolicy, sampleAliasTable);
+  test("unknown input returns original with confidence 0", async () => {
+    const result = await resolveModuleId("unknown-module", samplePolicy, sampleAliasTable);
 
-    assert.equal(result.canonical, 'unknown-module');
+    assert.equal(result.canonical, "unknown-module");
     assert.equal(result.confidence, 0);
-    assert.equal(result.original, 'unknown-module');
-    assert.equal(result.source, 'fuzzy');
+    assert.equal(result.original, "unknown-module");
+    assert.equal(result.source, "fuzzy");
   });
 
-  test('empty alias table returns unknowns with confidence 0 (substring disabled)', async () => {
+  test("empty alias table returns unknowns with confidence 0 (substring disabled)", async () => {
     const emptyAliasTable = { aliases: {} };
-    const result = await resolveModuleId(
-      'auth-core',
-      samplePolicy,
-      emptyAliasTable,
-      { noSubstring: true }
-    );
+    const result = await resolveModuleId("auth-core", samplePolicy, emptyAliasTable, {
+      noSubstring: true,
+    });
 
-    assert.equal(result.canonical, 'auth-core');
+    assert.equal(result.canonical, "auth-core");
     assert.equal(result.confidence, 0);
-    assert.equal(result.original, 'auth-core');
-    assert.equal(result.source, 'fuzzy');
+    assert.equal(result.original, "auth-core");
+    assert.equal(result.source, "fuzzy");
   });
 
-  test('case sensitivity is preserved in aliases', async () => {
-    const result = await resolveModuleId(
-      'Auth-Core',
-      samplePolicy,
-      sampleAliasTable,
-      { noSubstring: true }
-    );
+  test("case sensitivity is preserved in aliases", async () => {
+    const result = await resolveModuleId("Auth-Core", samplePolicy, sampleAliasTable, {
+      noSubstring: true,
+    });
 
     // 'Auth-Core' doesn't match 'auth-core' in alias table
-    assert.equal(result.canonical, 'Auth-Core');
+    assert.equal(result.canonical, "Auth-Core");
     assert.equal(result.confidence, 0);
-    assert.equal(result.source, 'fuzzy');
+    assert.equal(result.source, "fuzzy");
   });
 });
 
-describe('loadAliasTable', () => {
-  test('loads alias table from custom path', () => {
+describe("loadAliasTable", () => {
+  test("loads alias table from custom path", () => {
     // Create temporary alias table file
-    const tmpDir = join(tmpdir(), 'lex-test-aliases-' + Date.now());
+    const tmpDir = join(tmpdir(), "lex-test-aliases-" + Date.now());
     mkdirSync(tmpDir, { recursive: true });
-    const testAliasPath = join(tmpDir, 'test-aliases.json');
-    
+    const testAliasPath = join(tmpDir, "test-aliases.json");
+
     const testAliasTable = {
       aliases: {
-        'test-alias': {
-          canonical: 'services/test',
+        "test-alias": {
+          canonical: "services/test",
           confidence: 1.0,
-          reason: 'test'
-        }
-      }
+          reason: "test",
+        },
+      },
     };
-    
+
     writeFileSync(testAliasPath, JSON.stringify(testAliasTable, null, 2));
 
     // Clear cache and load from custom path
     clearAliasTableCache();
     const loaded = loadAliasTable(testAliasPath);
 
-    assert.ok(loaded.aliases['test-alias']);
-    assert.equal(loaded.aliases['test-alias'].canonical, 'services/test');
+    assert.ok(loaded.aliases["test-alias"]);
+    assert.equal(loaded.aliases["test-alias"].canonical, "services/test");
 
     // Cleanup
     rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  test('alias table caching works correctly', () => {
+  test("alias table caching works correctly", () => {
     clearAliasTableCache();
-    
+
     const table1 = loadAliasTable();
     const table2 = loadAliasTable();
 
@@ -158,127 +157,119 @@ describe('loadAliasTable', () => {
     assert.strictEqual(table1, table2);
   });
 
-  test('returns empty table if file not found', () => {
+  test("returns empty table if file not found", () => {
     clearAliasTableCache();
-    const table = loadAliasTable('/nonexistent/path/aliases.json');
+    const table = loadAliasTable("/nonexistent/path/aliases.json");
 
     assert.ok(table);
     assert.deepEqual(table.aliases, {});
   });
 });
 
-describe('integration with /remember flow', () => {
-  test('resolves module IDs before validation', async () => {
+describe("integration with /remember flow", () => {
+  test("resolves module IDs before validation", async () => {
     // Simulate user input with aliases
-    const userInput = ['auth-core', 'services/user-access-api', 'user-api'];
-    
+    const userInput = ["auth-core", "services/user-access-api", "user-api"];
+
     const resolved = await Promise.all(
-      userInput.map(id => resolveModuleId(id, samplePolicy, sampleAliasTable))
+      userInput.map((id) => resolveModuleId(id, samplePolicy, sampleAliasTable))
     );
 
     // All should resolve to canonical IDs
-    assert.equal(resolved[0].canonical, 'services/auth-core');
-    assert.equal(resolved[1].canonical, 'services/user-access-api');
-    assert.equal(resolved[2].canonical, 'services/user-access-api');
+    assert.equal(resolved[0].canonical, "services/auth-core");
+    assert.equal(resolved[1].canonical, "services/user-access-api");
+    assert.equal(resolved[2].canonical, "services/user-access-api");
 
     // Extract canonical IDs for storage
-    const canonicalIds = resolved.map(r => r.canonical);
+    const canonicalIds = resolved.map((r) => r.canonical);
     assert.deepEqual(canonicalIds, [
-      'services/auth-core',
-      'services/user-access-api',
-      'services/user-access-api'
+      "services/auth-core",
+      "services/user-access-api",
+      "services/user-access-api",
     ]);
   });
 
-  test('unknown aliases should be detected after resolution', async () => {
-    const userInput = ['auth-core', 'invalid-module'];
-    
+  test("unknown aliases should be detected after resolution", async () => {
+    const userInput = ["auth-core", "invalid-module"];
+
     const resolved = await Promise.all(
-      userInput.map(id => resolveModuleId(id, samplePolicy, sampleAliasTable))
+      userInput.map((id) => resolveModuleId(id, samplePolicy, sampleAliasTable))
     );
 
     // Check which ones are unknown (confidence 0)
-    const unknowns = resolved.filter(r => r.confidence === 0);
+    const unknowns = resolved.filter((r) => r.confidence === 0);
     assert.equal(unknowns.length, 1);
-    assert.equal(unknowns[0].original, 'invalid-module');
+    assert.equal(unknowns[0].original, "invalid-module");
   });
 });
 
-describe('Phase 3: Substring matching', () => {
-  test('unique substring resolves with confidence 0.9', async () => {
-    const result = await resolveModuleId('auth-core', samplePolicy);
+describe("Phase 3: Substring matching", () => {
+  test("unique substring resolves with confidence 0.9", async () => {
+    const result = await resolveModuleId("auth-core", samplePolicy);
 
-    assert.equal(result.canonical, 'services/auth-core');
+    assert.equal(result.canonical, "services/auth-core");
     assert.equal(result.confidence, 0.9);
-    assert.equal(result.original, 'auth-core');
-    assert.equal(result.source, 'substring');
+    assert.equal(result.original, "auth-core");
+    assert.equal(result.source, "substring");
   });
 
-  test('substring matching is case-insensitive', async () => {
-    const result = await resolveModuleId('AUTH-CORE', samplePolicy);
+  test("substring matching is case-insensitive", async () => {
+    const result = await resolveModuleId("AUTH-CORE", samplePolicy);
 
-    assert.equal(result.canonical, 'services/auth-core');
+    assert.equal(result.canonical, "services/auth-core");
     assert.equal(result.confidence, 0.9);
-    assert.equal(result.source, 'substring');
+    assert.equal(result.source, "substring");
   });
 
-  test('ambiguous substring returns confidence 0', async () => {
+  test("ambiguous substring returns confidence 0", async () => {
     // 'user' matches both 'services/user-access-api' and 'ui/user-admin-panel'
-    const result = await resolveModuleId('user', samplePolicy);
+    const result = await resolveModuleId("user", samplePolicy);
 
     assert.equal(result.confidence, 0);
-    assert.equal(result.original, 'user');
-    assert.equal(result.source, 'fuzzy');
+    assert.equal(result.original, "user");
+    assert.equal(result.source, "fuzzy");
   });
 
-  test('substring shorter than minLength returns confidence 0', async () => {
+  test("substring shorter than minLength returns confidence 0", async () => {
     // Default minSubstringLength is 3, so 'au' should not match
-    const result = await resolveModuleId('au', samplePolicy);
+    const result = await resolveModuleId("au", samplePolicy);
 
     assert.equal(result.confidence, 0);
-    assert.equal(result.original, 'au');
+    assert.equal(result.original, "au");
   });
 
-  test('noSubstring option disables substring matching', async () => {
-    const result = await resolveModuleId(
-      'auth-core',
-      samplePolicy,
-      undefined,
-      { noSubstring: true }
-    );
+  test("noSubstring option disables substring matching", async () => {
+    const result = await resolveModuleId("auth-core", samplePolicy, undefined, {
+      noSubstring: true,
+    });
 
     // Should not find substring match
     assert.equal(result.confidence, 0);
-    assert.equal(result.source, 'fuzzy');
+    assert.equal(result.source, "fuzzy");
   });
 
-  test('custom minSubstringLength is respected', async () => {
-    const result = await resolveModuleId(
-      'se',
-      samplePolicy,
-      undefined,
-      { minSubstringLength: 2 }
-    );
+  test("custom minSubstringLength is respected", async () => {
+    const result = await resolveModuleId("se", samplePolicy, undefined, { minSubstringLength: 2 });
 
     // With minLength 2, 'se' should match (ambiguous: services/auth-core and services/user-access-api)
     // But since both matches start with 'se', it's ambiguous
     assert.equal(result.confidence, 0);
   });
 
-  test('exact match has higher priority than substring', async () => {
+  test("exact match has higher priority than substring", async () => {
     // Even though 'services/auth-core' contains 'auth', exact match wins
-    const result = await resolveModuleId('services/auth-core', samplePolicy);
+    const result = await resolveModuleId("services/auth-core", samplePolicy);
 
     assert.equal(result.confidence, 1.0);
-    assert.equal(result.source, 'exact');
+    assert.equal(result.source, "exact");
   });
 
-  test('alias has higher priority than substring', async () => {
+  test("alias has higher priority than substring", async () => {
     // If 'auth-core' is in alias table, alias wins over substring
-    const result = await resolveModuleId('auth-core', samplePolicy, sampleAliasTable);
+    const result = await resolveModuleId("auth-core", samplePolicy, sampleAliasTable);
 
     assert.equal(result.confidence, 1.0);
-    assert.equal(result.source, 'alias');
-    assert.equal(result.canonical, 'services/auth-core');
+    assert.equal(result.source, "alias");
+    assert.equal(result.canonical, "services/auth-core");
   });
 });

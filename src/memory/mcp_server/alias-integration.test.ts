@@ -15,7 +15,7 @@
 import { test, describe, before, after } from "node:test";
 import assert from "node:assert";
 import { MCPServer } from "./server.js";
-import { mkdtempSync, rmSync, writeFileSync } from "fs";
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
 
@@ -31,7 +31,7 @@ describe("MCP Server Alias Resolution Integration Tests", () => {
 
     // Create minimal test policy structure
     const policyDir = join(tmpDir, "policy", "policy_spec");
-    require("fs").mkdirSync(policyDir, { recursive: true });
+    mkdirSync(policyDir, { recursive: true });
     
     const testPolicy = {
       modules: {

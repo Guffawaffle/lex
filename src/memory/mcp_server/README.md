@@ -114,7 +114,7 @@ npm run remember
 
 ### Directly:
 ```bash
-node memory/mcp_server/frame-mcp.mjs
+node dist/memory/mcp_server/frame-mcp.js
 ```
 
 ### Environment Variables:
@@ -123,7 +123,7 @@ node memory/mcp_server/frame-mcp.mjs
 
 ### Example Usage:
 ```bash
-echo '{"method":"tools/list"}' | LEX_DEBUG=1 node memory/mcp_server/frame-mcp.mjs
+echo '{"method":"tools/list"}' | LEX_DEBUG=1 node dist/memory/mcp_server/frame-mcp.js
 ```
 
 ## Integration with AI Assistants
@@ -137,7 +137,7 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
   "mcpServers": {
     "lex-memory": {
       "command": "node",
-      "args": ["/path/to/lex/memory/mcp_server/frame-mcp.mjs"],
+      "args": ["/path/to/lex/dist/memory/mcp_server/frame-mcp.js"],
       "env": {
         "LEX_MEMORY_DB": "/path/to/lex-memory.db"
       }
@@ -153,45 +153,38 @@ Follow GitHub Copilot's MCP configuration for stdio servers.
 ## Testing
 
 ```bash
-cd memory/mcp_server
+# From root directory
 npm test
 ```
 
 **Test Coverage:**
-- **Integration tests** (`integration.test.ts`) - Full MCP protocol flow
+- **Integration tests** (`src/memory/integration.test.ts`) - Full MCP protocol flow
   - MCP protocol (tools/list)
   - Frame creation with validation
   - Frame recall (fuzzy search, empty results)
   - Frame listing with filters
   - Error handling (unknown methods and tools)
-- **Alias resolution tests** (`alias-integration.test.ts`) - Module validation flow
+- **Alias resolution tests** - Module validation flow
   - Exact matches (baseline)
   - Typo correction with suggestions
   - Substring/shorthand rejection
   - Ambiguous match handling
   - Performance validation
-- **Performance benchmarks** (`alias-benchmarks.test.ts`) - Validation performance
+- **Performance benchmarks** - Validation performance
   - Exact match path performance (<0.5ms)
   - Fuzzy match path performance (<2ms)
   - Policy size scaling tests
   - Memory overhead measurements
 
-**Run specific test suites:**
-```bash
-npm run build
-node --test dist/integration.test.js
-node --test dist/alias-integration.test.js
-node --test dist/alias-benchmarks.test.js
-```
-
 ## Architecture
 
 ```
-frame-mcp.mjs          Entry point (stdio protocol handler)
-├── dist/server.js     MCPServer class (request routing)
-├── dist/tools.js      Tool definitions
-├── ../store/          FrameStore (SQLite + FTS5)
-└── ../../shared/atlas/ Atlas Frame generation
+src/memory/mcp_server/
+├── frame-mcp.mjs          Entry point (stdio protocol handler)
+├── server.ts              MCPServer class (request routing)
+├── tools.ts               Tool definitions
+├── ../store/              FrameStore (SQLite + FTS5)
+└── ../../shared/atlas/    Atlas Frame generation
 ```
 
 ## Atlas Frame
@@ -260,7 +253,7 @@ The validator uses Levenshtein distance to suggest similar module names:
 ```
 ❌ Error: "Module 'auth' not found."
 
-> **Future:** Explicit alias tables will support `auth` → `services/auth-core` mappings. See `shared/aliases/README.md`.
+> **Future:** Explicit alias tables will support `auth` → `services/auth-core` mappings. See `src/shared/aliases/README.md`.
 
 ### Performance
 

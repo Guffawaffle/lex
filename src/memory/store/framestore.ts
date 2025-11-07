@@ -39,7 +39,7 @@ export interface FrameRow {
  * store.insertFrame(frame);
  *
  * // New API (recommended)
- * import { getDb, saveFrame } from '@lex/store';
+ * import { getDb, saveFrame } from 'lex/store';
  * const db = getDb('/path/to/db');
  * saveFrame(db, frame);
  * ```

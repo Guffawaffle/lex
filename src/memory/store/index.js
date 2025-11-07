@@ -4,7 +4,7 @@
  * Main export for database operations with connection pooling and graceful shutdown.
  *
  * Usage:
- *   import { getDb, saveFrame, getFrameById, searchFrames } from '@lex/store';
+ *   import { getDb, saveFrame, getFrameById, searchFrames } from 'lex/store';
  *
  *   const db = getDb();
  *   await saveFrame(db, myFrame);

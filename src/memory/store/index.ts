@@ -1,11 +1,11 @@
 /**
  * Frame storage interface
- * 
+ *
  * Main export for database operations with connection pooling and graceful shutdown.
- * 
+ *
  * Usage:
- *   import { getDb, saveFrame, getFrameById, searchFrames } from '@lex/store';
- *   
+ *   import { getDb, saveFrame, getFrameById, searchFrames } from 'lex/store';
+ *
  *   const db = getDb();
  *   await saveFrame(db, myFrame);
  *   const frame = await getFrameById(db, 'frame-001');
@@ -40,14 +40,14 @@ let dbPath: string | null = null;
  */
 export function getDb(customPath?: string): Database.Database {
   const targetPath = customPath || getDefaultDbPath();
-  
+
   // Create new instance if path changed or no instance exists
   if (!dbInstance || (customPath && dbPath !== customPath)) {
     // Close existing instance if path is changing
     if (dbInstance && dbPath !== targetPath) {
       dbInstance.close();
     }
-    
+
     dbInstance = createDatabase(targetPath);
     dbPath = targetPath;
   }
