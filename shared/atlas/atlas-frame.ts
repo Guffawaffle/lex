@@ -7,10 +7,10 @@
 
 // @ts-ignore - importing from compiled dist directory (follows mcp_server pattern)
 // TypeScript compilation of cross-package dependencies is complex due to rootDir constraints.
-// The policy loader is pre-compiled to shared/policy/dist/loader.js at build time.
-import { loadPolicy } from '../policy/dist/loader.js';
-// @ts-ignore - importing from compiled dist directory
-import type { PolicyModule } from '../types/dist/policy.js';
+// Use package export for policy loader to avoid fragile relative dist paths
+import { loadPolicy } from '@lex/policy';
+// @ts-ignore - type re-export from shared types package
+import type { PolicyModule } from '@lex/types/policy';
 import { extractNeighborhood, generateCoordinates } from './graph.js';
 import { getCache } from './cache.js';
 
