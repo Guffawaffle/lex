@@ -28,6 +28,7 @@ export interface RememberOptions {
   interactive?: boolean;
   json?: boolean;
   strict?: boolean;
+  noSubstring?: boolean;
 }
 
 /**
