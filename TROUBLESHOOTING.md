@@ -163,16 +163,16 @@ Tests need access to the underlying database for performance benchmarks and dire
 
 ### 7. Missing CLI Option Type (P2 - Medium)
 
-**Problem:**  
+**Problem:**
 CLI code referenced `noSubstring` option that wasn't defined in `RememberOptions` interface.
 
 **Error:**
 ```
-error TS2353: Object literal may only specify known properties, 
+error TS2353: Object literal may only specify known properties,
 and 'noSubstring' does not exist in type 'RememberOptions'.
 ```
 
-**Fix:**  
+**Fix:**
 Added missing property to `shared/cli/remember.ts`:
 ```typescript
 export interface RememberOptions {
@@ -181,14 +181,14 @@ export interface RememberOptions {
 }
 ```
 
-**Rationale:**  
+**Rationale:**
 The `noSubstring` flag controls whether alias resolution should match substrings. This option was implemented but not properly typed.
 
 ---
 
 ### 8. Native Dependencies with Hermetic Install (P1 - High)
 
-**Problem:**  
+**Problem:**
 Using `npm ci --ignore-scripts` skips postinstall scripts, which prevented `better-sqlite3` from building its native bindings.
 
 **Error:**
@@ -198,17 +198,17 @@ Could not locate the bindings file. Tried:
  → ...
 ```
 
-**Fix:**  
+**Fix:**
 Added explicit rebuild step after hermetic install in CI workflow:
 ```yaml
 - name: Install dependencies (hermetic)
   run: npm ci --ignore-scripts
 
-- name: Build native dependencies  
+- name: Build native dependencies
   run: npm rebuild better-sqlite3
 ```
 
-**Rationale:**  
+**Rationale:**
 Hermetic installs (`--ignore-scripts`) improve security by preventing arbitrary code execution during install, but native modules like `better-sqlite3` require compilation. Explicitly rebuilding only the necessary native dependencies provides the best of both worlds: security and functionality.
 
 ---
