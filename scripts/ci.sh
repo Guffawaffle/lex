@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "==> Local CI replica starting"
+echo "pwd: $(pwd)"
+node -v
+npm -v
+
+# Basic paranoia: ensure we don't accidentally have multiple package.json manifests after consolidation
+EXTRA_MANIFESTS=$(find . -path ./node_modules -prune -o -name package.json -not -path ./package.json -print | wc -l | tr -d ' ')
+if [[ -f package.json && "$EXTRA_MANIFESTS" -gt 0 ]]; then
+  echo "NOTE: Multiple package.json files detected. Running in monorepo mode."
+  MONOREPO=1
+else
+  MONOREPO=0
+fi
+
+# Hermetic install
+export npm_config_fund=false
+export npm_config_audit=false
+echo "==> npm ci (ignore postinstall)"
+npm ci --ignore-scripts
+
+# Rebuild native deps *if* present (tolerate absence)
+echo "==> rebuilding native deps if present"
+npm rebuild better-sqlite3 --update-binary || true
+
+# Lint + type-check (non-blocking if scripts missing)
+if npm run | rg -q '^  lint';   then echo "==> npm run lint"; npm run lint; fi
+if npm run | rg -q '^  type-check'; then echo "==> npm run type-check"; npm run type-check; fi
+
+# Build + tests
+if [[ "$MONOREPO" -eq 1 ]] && rg -q '"workspaces"' package.json; then
+  echo "==> Monorepo mode: build & test all workspaces (if present)"
+  npm -ws run build --if-present
+  npm -ws run test --if-present
+  if npm -ws run | rg -q '^  test:integration'; then
+    npm -ws run test:integration --if-present
+  fi
+else
+  echo "==> Single-package mode: build & test"
+  if npm run | rg -q '^  build'; then npm run build; fi
+  if npm run | rg -q '^  test:integration'; then npm run test:integration; fi
+  if npm run | rg -q '^  test(:|$)'; then npm test; fi
+fi
+
+echo "==> Local CI replica completed OK"

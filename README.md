@@ -21,6 +21,29 @@ Lex powers the paid **LexRunner** CLI; development stays OSS-first. See the [Lex
 
 ---
 
+### Local CI (Docker)
+
+Reproduce CI locally without touching GitHub workflows:
+
+```bash
+# Quick run via npm
+npm run local-ci
+
+# Or run scripts directly:
+./scripts/local-ci-run.sh
+
+# (optional) run with no network allowed
+npm run local-ci:nonet
+# or: ./scripts/ci-nonet.sh
+
+# one-time build (or auto-built by the helper script)
+docker build -f ci.Dockerfile -t lex-ci:local .
+```
+
+This Docker image is **not** used by GitHub Actions. It exists only for local parity and faster debugging.
+
+---
+
 When you ask `/recall TICKET-123`, you don't get vague summarization or context-free git log replay. You get:
 
 - **What you were doing** — the Frame you captured with `/remember`: which modules you touched, what the blocker was, what the next action is.
