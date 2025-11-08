@@ -19,9 +19,8 @@ export type ReportFormat = "text" | "json" | "markdown";
  * Report result with exit code
  */
 export interface ReportResult {
-  /** Exit code: 0=clean, 1=violations, 2=error */
-  exitCode: 0 | 1 | 2;
-
+  /** Exit code: 0=clean, 1=violations */
+  exitCode: 0 | 1;
   /** Formatted report content */
   content: string;
 }
@@ -37,10 +36,9 @@ export interface ReportResult {
  */
 export function generateReport(
   violations: Violation[],
-  policy: Policy,
-  format: ReportFormat = "text",
-  strict: boolean = false
+  opts: { policy?: Policy; format?: ReportFormat; strict?: boolean } = {}
 ): ReportResult {
+  const { policy, format = "text" } = opts;
   const exitCode = violations.length > 0 ? 1 : 0;
 
   let content: string;
@@ -57,21 +55,53 @@ export function generateReport(
       break;
   }
 
-  return {
-    exitCode,
-    content,
-  };
+  return { exitCode, content };
+}
+
+/**
+ * Format policy header for text output
+ */
+function formatPolicyHeaderText(policy: Policy, count: number): string {
+  // Attempt to derive an identifier (fallback to 'policy')
+  const id = derivePolicyId(policy);
+  return `Policy: ${id} (violations: ${count})`;
+}
+
+/**
+ * Format policy header for markdown output
+ */
+function formatPolicyHeaderMarkdown(policy: Policy, count: number): string {
+  const id = derivePolicyId(policy);
+  return `**Policy:** ${id} • **Violations:** ${count}`;
+}
+
+/**
+ * Derive a human-friendly policy identifier.
+ * Currently uses number of modules; can evolve to use explicit metadata.
+ */
+function derivePolicyId(policy: Policy): string {
+  try {
+    const moduleCount = Object.keys(policy.modules || {}).length;
+    return moduleCount > 0 ? `${moduleCount} modules` : "policy";
+  } catch {
+    return "policy";
+  }
 }
 
 /**
  * Format violations as human-readable text
  */
-function formatAsText(violations: Violation[], policy: Policy): string {
+function formatAsText(violations: Violation[], policy?: Policy): string {
   if (violations.length === 0) {
-    return "✅ No violations found\n";
+    const header = policy ? formatPolicyHeaderText(policy, 0) + "\n" : "";
+    return header + "✅ No violations found\n";
   }
 
-  let output = `❌ Found ${violations.length} violation(s):\n\n`;
+  let output = "";
+  if (policy) {
+    output += formatPolicyHeaderText(policy, violations.length) + "\n";
+  }
+  output += `❌ Found ${violations.length} violation(s):\n\n`;
 
   // Group violations by module for better context
   const byModule = groupViolationsByModule(violations);
@@ -84,7 +114,7 @@ function formatAsText(violations: Violation[], policy: Policy): string {
       const atlasFrame = generateAtlasFrame([moduleId], 1);
       const atlasContext = formatAtlasFrame(atlasFrame);
       output += atlasContext;
-    } catch (error) {
+    } catch {
       // If Atlas Frame generation fails, continue without it
       output += `\n⚠️  Atlas Frame context unavailable\n`;
     }
@@ -128,12 +158,17 @@ function formatAsJson(violations: Violation[]): string {
 /**
  * Format violations as Markdown
  */
-function formatAsMarkdown(violations: Violation[], policy: Policy): string {
+function formatAsMarkdown(violations: Violation[], policy?: Policy): string {
   if (violations.length === 0) {
-    return "# Policy Check Report\n\n✅ **No violations found**\n";
+    let clean = "# Policy Check Report\n\n";
+    if (policy) clean += formatPolicyHeaderMarkdown(policy, 0) + "\n\n";
+    return clean + "✅ **No violations found**\n";
   }
 
   let output = "# Policy Check Report\n\n";
+  if (policy) {
+    output += formatPolicyHeaderMarkdown(policy, violations.length) + "\n\n";
+  }
   output += `**Status:** ❌ ${violations.length} violation(s) found\n\n`;
 
   // Group violations by type
@@ -161,7 +196,7 @@ function formatAsMarkdown(violations: Violation[], policy: Policy): string {
       output += "```\n";
       output += formatAtlasFrame(atlasFrame);
       output += "```\n\n";
-    } catch (error) {
+    } catch {
       output += "**Atlas Frame Context:** ⚠️ Unavailable\n\n";
     }
 
@@ -251,7 +286,8 @@ export function printReport(
   policy: Policy,
   format: ReportFormat = "text"
 ): void {
-  const report = generateReport(violations, policy, format);
+  const report = generateReport(violations, { policy, format });
+  // eslint-disable-next-line no-console -- intentional CLI output
   console.log(report.content);
 }
 
