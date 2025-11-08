@@ -6,7 +6,8 @@
  */
 
 // Frame types
-export type { Frame, StatusSnapshot, AtlasFrame } from "./frame.js";
+export type { Frame, StatusSnapshot } from "./frame.js";
+export type { AtlasFrame } from "../atlas/types.js";
 
 export { validateFrameMetadata } from "./frame.js";
 

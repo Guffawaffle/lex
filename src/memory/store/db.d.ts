@@ -6,18 +6,18 @@
  */
 import Database from "better-sqlite3";
 export interface FrameRow {
-    id: string;
-    timestamp: string;
-    branch: string;
-    jira: string | null;
-    module_scope: string;
-    summary_caption: string;
-    reference_point: string;
-    status_snapshot: string;
-    keywords: string | null;
-    atlas_frame_id: string | null;
-    feature_flags: string | null;
-    permissions: string | null;
+  id: string;
+  timestamp: string;
+  branch: string;
+  jira: string | null;
+  module_scope: string;
+  summary_caption: string;
+  reference_point: string;
+  status_snapshot: string;
+  keywords: string | null;
+  atlas_frame_id: string | null;
+  feature_flags: string | null;
+  permissions: string | null;
 }
 /**
  * Get default database path: ~/.lex/frames.db
