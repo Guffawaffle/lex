@@ -37,9 +37,9 @@ export interface ReportResult {
  */
 export function generateReport(
   violations: Violation[],
-  policy: Policy,
+  _policy: Policy,
   format: ReportFormat = "text",
-  strict: boolean = false
+  _strict: boolean = false
 ): ReportResult {
   const exitCode = violations.length > 0 ? 1 : 0;
 
@@ -49,11 +49,11 @@ export function generateReport(
       content = formatAsJson(violations);
       break;
     case "markdown":
-      content = formatAsMarkdown(violations, policy);
+      content = formatAsMarkdown(violations);
       break;
     case "text":
     default:
-      content = formatAsText(violations, policy);
+      content = formatAsText(violations);
       break;
   }
 
@@ -66,7 +66,7 @@ export function generateReport(
 /**
  * Format violations as human-readable text
  */
-function formatAsText(violations: Violation[], policy: Policy): string {
+function formatAsText(violations: Violation[]): string {
   if (violations.length === 0) {
     return "✅ No violations found\n";
   }
@@ -84,7 +84,7 @@ function formatAsText(violations: Violation[], policy: Policy): string {
       const atlasFrame = generateAtlasFrame([moduleId], 1);
       const atlasContext = formatAtlasFrame(atlasFrame);
       output += atlasContext;
-    } catch (error) {
+    } catch {
       // If Atlas Frame generation fails, continue without it
       output += `\n⚠️  Atlas Frame context unavailable\n`;
     }
@@ -128,7 +128,7 @@ function formatAsJson(violations: Violation[]): string {
 /**
  * Format violations as Markdown
  */
-function formatAsMarkdown(violations: Violation[], policy: Policy): string {
+function formatAsMarkdown(violations: Violation[]): string {
   if (violations.length === 0) {
     return "# Policy Check Report\n\n✅ **No violations found**\n";
   }
@@ -161,7 +161,7 @@ function formatAsMarkdown(violations: Violation[], policy: Policy): string {
       output += "```\n";
       output += formatAtlasFrame(atlasFrame);
       output += "```\n\n";
-    } catch (error) {
+    } catch {
       output += "**Atlas Frame Context:** ⚠️ Unavailable\n\n";
     }
 
@@ -252,6 +252,7 @@ export function printReport(
   format: ReportFormat = "text"
 ): void {
   const report = generateReport(violations, policy, format);
+  // eslint-disable-next-line no-console -- intentional CLI output
   console.log(report.content);
 }
 
