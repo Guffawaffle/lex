@@ -96,6 +96,10 @@ The goal of this repo is to ship them as one system called **Lex** with one CLI 
 - [Adoption Guide](./docs/ADOPTION_GUIDE.md) — how to roll out Lex in phases
 - [Limitations](./docs/LIMITATIONS.md) — known constraints and future work
 
+## Source Layout
+
+`src/` is **TypeScript-only**. JavaScript files (`.js`) under `src/` were legacy compiled artifacts and have been removed. Build output is emitted to `dist/` via `tsc -b` (see `package.json` exports). Add new code in `.ts`/`.tsx` only; do not commit generated `.js` siblings.
+
 ## License
 
 MIT
