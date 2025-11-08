@@ -215,10 +215,7 @@ describe("MCP Server Integration Tests", () => {
         });
 
         assert.ok(response.error, "Should return error");
-        assert.ok(
-          response.error.message.includes("Did you mean"),
-          "Should provide suggestions"
-        );
+        assert.ok(response.error.message.includes("Did you mean"), "Should provide suggestions");
       } finally {
         teardown();
       }
@@ -241,10 +238,7 @@ describe("MCP Server Integration Tests", () => {
         });
 
         assert.ok(response.content, "Should succeed with valid modules");
-        assert.ok(
-          response.content[0].text.includes("✅ Frame stored"),
-          "Should confirm storage"
-        );
+        assert.ok(response.content[0].text.includes("✅ Frame stored"), "Should confirm storage");
       } finally {
         teardown();
       }
@@ -580,10 +574,7 @@ describe("MCP Server Integration Tests", () => {
         });
 
         assert.ok(response.error, "Should return error");
-        assert.ok(
-          response.error.message.includes("Unknown tool"),
-          "Should indicate unknown tool"
-        );
+        assert.ok(response.error.message.includes("Unknown tool"), "Should indicate unknown tool");
       } finally {
         teardown();
       }
@@ -620,10 +611,7 @@ describe("MCP Server Integration Tests", () => {
         const rememberTool = response.tools?.find((t) => t.name === "lex.remember");
         assert.ok(rememberTool, "Should include lex.remember");
         assert.ok(rememberTool.inputSchema, "Should include input schema");
-        assert.ok(
-          rememberTool.inputSchema.properties,
-          "Schema should have properties"
-        );
+        assert.ok(rememberTool.inputSchema.properties, "Schema should have properties");
       } finally {
         teardown();
       }

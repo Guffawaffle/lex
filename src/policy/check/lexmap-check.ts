@@ -150,7 +150,7 @@ class LexMapChecker {
     if (scannerOutput.module_edges) {
       for (const edge of scannerOutput.module_edges) {
         const toModule = this.policy.modules[edge.to_module];
-        
+
         if (toModule && toModule.forbidden_callers) {
           for (const forbidden of toModule.forbidden_callers) {
             if (this.matchPattern(edge.from_module, forbidden)) {
@@ -254,9 +254,7 @@ function main() {
   const args = process.argv.slice(2);
 
   if (args.length < 2) {
-    console.error(
-      "Usage: lexmap check <merged.json> <policy.json> [--ticket WEB-23621]"
-    );
+    console.error("Usage: lexmap check <merged.json> <policy.json> [--ticket WEB-23621]");
     console.error("");
     console.error("Checks scanner output against architectural policy.");
     console.error("");

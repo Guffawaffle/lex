@@ -1,14 +1,14 @@
 /**
  * Alias Resolution Integration Tests for MCP Server
- * 
+ *
  * Tests the full MCP /remember flow with module ID validation and fuzzy matching.
  * These tests verify:
  * - Exact matches work without warnings
- * - Typos trigger helpful suggestions  
+ * - Typos trigger helpful suggestions
  * - Substring matching (future: could suggest modules)
  * - Ambiguous matches are rejected
  * - Strict mode (CI) only allows exact matches
- * 
+ *
  * Run with: npm run build && node --test dist/alias-integration.test.js
  */
 
@@ -32,22 +32,19 @@ describe("MCP Server Alias Resolution Integration Tests", () => {
     // Create minimal test policy structure
     const policyDir = join(tmpDir, "policy", "policy_spec");
     mkdirSync(policyDir, { recursive: true });
-    
+
     const testPolicy = {
       modules: {
-        "indexer": { owns_paths: ["indexer/**"] },
-        "ts": { owns_paths: ["ts/**"] },
-        "php": { owns_paths: ["php/**"] },
-        "mcp": { owns_paths: ["mcp/**"] },
+        indexer: { owns_paths: ["indexer/**"] },
+        ts: { owns_paths: ["ts/**"] },
+        php: { owns_paths: ["php/**"] },
+        mcp: { owns_paths: ["mcp/**"] },
         "services/auth-core": { owns_paths: ["services/auth/**"] },
         "ui/main-panel": { owns_paths: ["ui/main/**"] },
       },
     };
-    
-    writeFileSync(
-      join(policyDir, "lexmap.policy.json"),
-      JSON.stringify(testPolicy, null, 2)
-    );
+
+    writeFileSync(join(policyDir, "lexmap.policy.json"), JSON.stringify(testPolicy, null, 2));
 
     server = new MCPServer(testDbPath, testRepoRoot);
     return server;
@@ -86,11 +83,8 @@ describe("MCP Server Alias Resolution Integration Tests", () => {
         });
 
         assert.ok(response.content, "Should succeed with exact match");
-        assert.ok(
-          response.content[0].text.includes("✅ Frame stored"),
-          "Should confirm storage"
-        );
-        
+        assert.ok(response.content[0].text.includes("✅ Frame stored"), "Should confirm storage");
+
         // Exact matches should not produce warnings
         assert.ok(
           !response.content[0].text.toLowerCase().includes("warning"),
@@ -120,10 +114,7 @@ describe("MCP Server Alias Resolution Integration Tests", () => {
         });
 
         assert.ok(response.content, "Should succeed with multiple exact matches");
-        assert.ok(
-          response.content[0].text.includes("✅ Frame stored"),
-          "Should confirm storage"
-        );
+        assert.ok(response.content[0].text.includes("✅ Frame stored"), "Should confirm storage");
       } finally {
         teardown();
       }
@@ -150,18 +141,9 @@ describe("MCP Server Alias Resolution Integration Tests", () => {
         });
 
         assert.ok(response.error, "Should return error for typo");
-        assert.ok(
-          response.error.message.includes("indexr"),
-          "Error should mention the typo"
-        );
-        assert.ok(
-          response.error.message.includes("Did you mean"),
-          "Should provide suggestion"
-        );
-        assert.ok(
-          response.error.message.includes("indexer"),
-          "Should suggest 'indexer'"
-        );
+        assert.ok(response.error.message.includes("indexr"), "Error should mention the typo");
+        assert.ok(response.error.message.includes("Did you mean"), "Should provide suggestion");
+        assert.ok(response.error.message.includes("indexer"), "Should suggest 'indexer'");
       } finally {
         teardown();
       }
@@ -186,10 +168,7 @@ describe("MCP Server Alias Resolution Integration Tests", () => {
         });
 
         assert.ok(response.error, "Should return error for typo");
-        assert.ok(
-          response.error.message.includes("Did you mean"),
-          "Should provide suggestion"
-        );
+        assert.ok(response.error.message.includes("Did you mean"), "Should provide suggestion");
         assert.ok(
           response.error.message.includes("services/auth-core"),
           "Should suggest correct module"
@@ -220,10 +199,7 @@ describe("MCP Server Alias Resolution Integration Tests", () => {
         });
 
         assert.ok(response.error, "Should reject substring match");
-        assert.ok(
-          response.error.message.includes("auth"),
-          "Error should mention the input"
-        );
+        assert.ok(response.error.message.includes("auth"), "Error should mention the input");
         // Future: Could suggest "services/auth-core" as it contains "auth"
       } finally {
         teardown();
@@ -382,12 +358,9 @@ describe("MCP Server Alias Resolution Integration Tests", () => {
         });
 
         const elapsed = performance.now() - start;
-        
+
         console.log(`  Module validation time: ${elapsed.toFixed(2)}ms`);
-        assert.ok(
-          elapsed < 10,
-          `Validation took ${elapsed.toFixed(2)}ms, expected <10ms`
-        );
+        assert.ok(elapsed < 10, `Validation took ${elapsed.toFixed(2)}ms, expected <10ms`);
       } finally {
         teardown();
       }
@@ -408,20 +381,13 @@ describe("MCP Server Alias Resolution Integration Tests", () => {
               status_snapshot: {
                 next_action: "Continue",
               },
-              module_scope: [
-                "indexer",
-                "ts",
-                "php",
-                "mcp",
-                "services/auth-core",
-                "ui/main-panel",
-              ],
+              module_scope: ["indexer", "ts", "php", "mcp", "services/auth-core", "ui/main-panel"],
             },
           },
         });
 
         const elapsed = performance.now() - start;
-        
+
         console.log(`  Large scope validation time: ${elapsed.toFixed(2)}ms`);
         assert.ok(
           elapsed < 15,

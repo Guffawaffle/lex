@@ -1,6 +1,6 @@
 /**
  * Performance Tests for Image Storage
- * 
+ *
  * Tests image storage and retrieval performance with large datasets.
  */
 
@@ -65,7 +65,7 @@ describe("Image Manager - Performance", () => {
       const startStore = Date.now();
       for (let f = 0; f < 10; f++) {
         const frame = createTestFrame(`frame-${f}`);
-        
+
         for (let i = 0; i < 10; i++) {
           const imageData = Buffer.alloc(imageSize, `img-${f}-${i}`);
           const imageId = imageManager.storeImage(frame.id, imageData, "image/png");
@@ -74,7 +74,9 @@ describe("Image Manager - Performance", () => {
       }
       const storeTime = Date.now() - startStore;
 
-      console.log(`  Stored ${imageCount} images in ${storeTime}ms (${(storeTime / imageCount).toFixed(2)}ms per image)`);
+      console.log(
+        `  Stored ${imageCount} images in ${storeTime}ms (${(storeTime / imageCount).toFixed(2)}ms per image)`
+      );
 
       // Verify all images were stored
       const totalCount = imageManager.getImageCount();
@@ -88,7 +90,9 @@ describe("Image Manager - Performance", () => {
       }
       const retrieveTime = Date.now() - startRetrieve;
 
-      console.log(`  Retrieved ${imageCount} images in ${retrieveTime}ms (${(retrieveTime / imageCount).toFixed(2)}ms per image)`);
+      console.log(
+        `  Retrieved ${imageCount} images in ${retrieveTime}ms (${(retrieveTime / imageCount).toFixed(2)}ms per image)`
+      );
 
       // Performance assertions
       assert.ok(storeTime < 5000, "Storing 100 images should take less than 5 seconds");
@@ -108,21 +112,27 @@ describe("Image Manager - Performance", () => {
       const startSetup = Date.now();
       for (let f = 0; f < frameCount; f++) {
         const frame = createTestFrame(`frame-${f}`);
-        
+
         for (let i = 0; i < imagesPerFrame; i++) {
           const imageData = Buffer.alloc(512, `data-${f}-${i}`);
           imageManager.storeImage(frame.id, imageData, "image/png");
         }
       }
       const setupTime = Date.now() - startSetup;
-      console.log(`  Setup ${frameCount} frames with ${imagesPerFrame} images each in ${setupTime}ms`);
+      console.log(
+        `  Setup ${frameCount} frames with ${imagesPerFrame} images each in ${setupTime}ms`
+      );
 
       // List images for each frame
       const startList = Date.now();
       for (let f = 0; f < frameCount; f++) {
         const images = imageManager.listFrameImages(`frame-${f}`);
-        assert.strictEqual(images.length, imagesPerFrame, `Frame ${f} should have ${imagesPerFrame} images`);
-        
+        assert.strictEqual(
+          images.length,
+          imagesPerFrame,
+          `Frame ${f} should have ${imagesPerFrame} images`
+        );
+
         // Verify metadata
         for (const img of images) {
           assert.strictEqual(img.frame_id, `frame-${f}`, "Frame ID should match");
@@ -133,7 +143,9 @@ describe("Image Manager - Performance", () => {
       }
       const listTime = Date.now() - startList;
 
-      console.log(`  Listed images for ${frameCount} frames in ${listTime}ms (${(listTime / frameCount).toFixed(2)}ms per frame)`);
+      console.log(
+        `  Listed images for ${frameCount} frames in ${listTime}ms (${(listTime / frameCount).toFixed(2)}ms per frame)`
+      );
 
       // Performance assertion
       assert.ok(listTime < 1000, "Listing images for 10 frames should take less than 1 second");
@@ -167,7 +179,9 @@ describe("Image Manager - Performance", () => {
       }
       const deleteTime = Date.now() - startDelete;
 
-      console.log(`  Deleted ${deleteCount} images in ${deleteTime}ms (${(deleteTime / deleteCount).toFixed(2)}ms per image)`);
+      console.log(
+        `  Deleted ${deleteCount} images in ${deleteTime}ms (${(deleteTime / deleteCount).toFixed(2)}ms per image)`
+      );
 
       assert.strictEqual(deleteCount, imageCount, "Should have deleted all images");
       assert.strictEqual(imageManager.getImageCount(), 0, "Should have no images left");
@@ -190,7 +204,7 @@ describe("Image Manager - Performance", () => {
       for (let i = 0; i < imageCount; i++) {
         const frameId = `size-frame-${i}`;
         const frame = createTestFrame(frameId);
-        const size = imageSize + (i * 10); // Gradually increasing size
+        const size = imageSize + i * 10; // Gradually increasing size
         const imageData = Buffer.alloc(size, `data-${i}`);
         imageManager.storeImage(frame.id, imageData, "image/png");
         expectedTotal += size;
@@ -199,7 +213,9 @@ describe("Image Manager - Performance", () => {
       const actualTotal = imageManager.getTotalImageSize();
       assert.strictEqual(actualTotal, expectedTotal, "Total size should match sum of all images");
 
-      console.log(`  Total storage: ${(actualTotal / 1024 / 1024).toFixed(2)} MB for ${imageCount} images`);
+      console.log(
+        `  Total storage: ${(actualTotal / 1024 / 1024).toFixed(2)} MB for ${imageCount} images`
+      );
       console.log(`  Average size: ${(actualTotal / imageCount / 1024).toFixed(2)} KB per image`);
     } finally {
       teardown();
@@ -215,7 +231,7 @@ describe("Image Manager - Performance", () => {
       // Create frames with images
       for (let f = 0; f < framesCount; f++) {
         const frame = createTestFrame(`cascade-frame-${f}`);
-        
+
         for (let i = 0; i < imagesPerFrame; i++) {
           const imageData = Buffer.alloc(128, `data-${f}-${i}`);
           imageManager.storeImage(frame.id, imageData, "image/png");
@@ -232,7 +248,9 @@ describe("Image Manager - Performance", () => {
       }
       const cascadeTime = Date.now() - startCascade;
 
-      console.log(`  Cascading delete of ${framesCount} frames (${totalImages} images) in ${cascadeTime}ms`);
+      console.log(
+        `  Cascading delete of ${framesCount} frames (${totalImages} images) in ${cascadeTime}ms`
+      );
 
       // Verify all images were deleted
       assert.strictEqual(imageManager.getImageCount(), 0, "All images should be deleted");

@@ -84,9 +84,7 @@ class LexMapMerge {
 
       // Basic validation
       if (!data.language || !Array.isArray(data.files)) {
-        console.error(
-          `Error: ${filePath} does not conform to scanner-output.schema.json`
-        );
+        console.error(`Error: ${filePath} does not conform to scanner-output.schema.json`);
         process.exit(1);
       }
 
@@ -119,9 +117,7 @@ class LexMapMerge {
           // File already seen - merge metadata
           // This shouldn't happen often (different scanners for different languages)
           // but handle it gracefully
-          console.error(
-            `Warning: File ${file.path} appears in multiple scanner outputs`
-          );
+          console.error(`Warning: File ${file.path} appears in multiple scanner outputs`);
 
           // Prefer module_scope from scanner if it exists
           if (file.module_scope && !existingFile.module_scope) {
@@ -135,9 +131,7 @@ class LexMapMerge {
           existingFile.permissions = [
             ...new Set([...existingFile.permissions, ...file.permissions]),
           ].sort();
-          existingFile.warnings = [
-            ...new Set([...existingFile.warnings, ...file.warnings]),
-          ];
+          existingFile.warnings = [...new Set([...existingFile.warnings, ...file.warnings])];
         } else {
           // New file - add to map
           this.fileMap.set(file.path, file);
@@ -156,9 +150,7 @@ class LexMapMerge {
 
     return {
       sources,
-      files: Array.from(this.fileMap.values()).sort((a, b) =>
-        a.path.localeCompare(b.path)
-      ),
+      files: Array.from(this.fileMap.values()).sort((a, b) => a.path.localeCompare(b.path)),
       module_edges: Array.from(edgeMap.values()),
     };
   }
@@ -168,9 +160,7 @@ function main() {
   const args = process.argv.slice(2);
 
   if (args.length < 1) {
-    console.error(
-      "Usage: lexmap merge <scanner1.json> <scanner2.json> ... > merged.json"
-    );
+    console.error("Usage: lexmap merge <scanner1.json> <scanner2.json> ... > merged.json");
     console.error("");
     console.error("Combines scanner outputs from multiple language scanners.");
     console.error("Output conforms to scanner-output.schema.json structure.");
@@ -197,9 +187,7 @@ function main() {
   const merged = merger.merge();
 
   console.log(JSON.stringify(merged, null, 2));
-  console.error(
-    `\nMerged ${merged.files.length} files from ${merged.sources.length} scanners`
-  );
+  console.error(`\nMerged ${merged.files.length} files from ${merged.sources.length} scanners`);
 }
 
 main();

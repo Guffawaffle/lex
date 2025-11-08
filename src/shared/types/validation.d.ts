@@ -4,17 +4,17 @@
  * Used by module ID validation to report errors and suggestions
  */
 export interface ModuleIdError {
-    module: string;
-    message: string;
-    suggestions: string[];
+  module: string;
+  message: string;
+  suggestions: string[];
 }
 export declare class ModuleNotFoundError extends Error {
-    readonly module: string;
-    readonly suggestions: string[];
-    constructor(module: string, suggestions?: string[]);
+  readonly module: string;
+  readonly suggestions: string[];
+  constructor(module: string, suggestions?: string[]);
 }
 export interface ValidationResult {
-    valid: boolean;
-    errors?: ModuleIdError[];
+  valid: boolean;
+  errors?: ModuleIdError[];
 }
 //# sourceMappingURL=validation.d.ts.map

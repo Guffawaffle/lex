@@ -1,11 +1,11 @@
 /**
  * CLI Command: lex timeline
- * 
+ *
  * Display a visual timeline showing Frame evolution for a ticket or branch.
  */
 
-import type { Frame } from '../types/frame.js';
-import { getDb, getFramesByJira, getFramesByBranch } from '../../memory/store/index.js';
+import type { Frame } from "../types/frame.js";
+import { getDb, getFramesByJira, getFramesByBranch } from "../../memory/store/index.js";
 import {
   buildTimeline,
   filterTimeline,
@@ -15,13 +15,13 @@ import {
   renderTimelineJSON,
   renderTimelineHTML,
   type TimelineOptions,
-} from '../../memory/renderer/timeline.js';
-import { writeFileSync } from 'fs';
+} from "../../memory/renderer/timeline.js";
+import { writeFileSync } from "fs";
 
 export interface TimelineCommandOptions {
   since?: string;
   until?: string;
-  format?: 'text' | 'json' | 'html';
+  format?: "text" | "json" | "html";
   output?: string;
   json?: boolean;
 }
@@ -57,7 +57,7 @@ export async function timeline(
 
     if (frames.length === 0) {
       console.log(`\n❌ No frames found for: "${ticketOrBranch}"\n`);
-      console.log('Try using a Jira ticket ID (e.g., TICKET-123) or a branch name.\n');
+      console.log("Try using a Jira ticket ID (e.g., TICKET-123) or a branch name.\n");
       process.exit(1);
     }
 
@@ -66,7 +66,7 @@ export async function timeline(
 
     // Apply filters
     const timelineOptions: TimelineOptions = {
-      format: options.format || 'text',
+      format: options.format || "text",
     };
 
     if (options.since) {
@@ -79,7 +79,7 @@ export async function timeline(
 
     if (timelineOptions.since || timelineOptions.until) {
       timelineData = filterTimeline(timelineData, timelineOptions);
-      
+
       if (timelineData.length === 0) {
         console.log(`\n❌ No frames found in the specified date range.\n`);
         process.exit(1);
@@ -87,17 +87,17 @@ export async function timeline(
     }
 
     // Render timeline based on format
-    const format = options.format || (options.json ? 'json' : 'text');
+    const format = options.format || (options.json ? "json" : "text");
     let output: string;
 
     switch (format) {
-      case 'json':
+      case "json":
         output = renderTimelineJSON(timelineData);
         break;
-      case 'html':
+      case "html":
         output = renderTimelineHTML(timelineData, title);
         break;
-      case 'text':
+      case "text":
       default:
         output = renderTimelineText(timelineData, title);
         output += renderModuleScopeEvolution(timelineData);
@@ -107,7 +107,7 @@ export async function timeline(
 
     // Write to file or stdout
     if (options.output) {
-      writeFileSync(options.output, output, 'utf-8');
+      writeFileSync(options.output, output, "utf-8");
       console.log(`\n✅ Timeline written to: ${options.output}\n`);
     } else {
       console.log(output);

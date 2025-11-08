@@ -1,6 +1,6 @@
 /**
  * Frame storage queries
- * 
+ *
  * CRUD operations and search functions for Frames.
  */
 
@@ -53,7 +53,7 @@ function rowToFrame(row: FrameRow): Frame {
  */
 export function saveFrame(db: Database.Database, frame: Frame): void {
   const row = frameToRow(frame);
-  
+
   const stmt = db.prepare(`
     INSERT OR REPLACE INTO frames (
       id, timestamp, branch, jira, module_scope, summary_caption,
@@ -148,11 +148,9 @@ export function getFramesByModuleScope(db: Database.Database, moduleId: string):
   `);
 
   const rows = stmt.all() as FrameRow[];
-  
+
   // Filter frames that contain the moduleId in their module_scope array
-  return rows
-    .map(rowToFrame)
-    .filter(frame => frame.module_scope.includes(moduleId));
+  return rows.map(rowToFrame).filter((frame) => frame.module_scope.includes(moduleId));
 }
 
 /**
@@ -162,10 +160,10 @@ export function getAllFrames(db: Database.Database, limit?: number): Frame[] {
   const stmt = db.prepare(`
     SELECT * FROM frames
     ORDER BY timestamp DESC
-    ${limit ? 'LIMIT ?' : ''}
+    ${limit ? "LIMIT ?" : ""}
   `);
 
-  const rows = limit ? stmt.all(limit) as FrameRow[] : stmt.all() as FrameRow[];
+  const rows = limit ? (stmt.all(limit) as FrameRow[]) : (stmt.all() as FrameRow[]);
   return rows.map(rowToFrame);
 }
 

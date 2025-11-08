@@ -1,12 +1,12 @@
 /**
  * Performance benchmarks for Frame operations
- * 
+ *
  * Targets:
  * - Frame creation: <50ms
  * - Frame recall: <100ms with 1000 Frames
  * - FTS5 search: <200ms with 10000 Frames
  * - Memory card rendering: <500ms
- * 
+ *
  * Run with: npx tsx --test benchmarks.test.ts
  */
 
@@ -114,18 +114,14 @@ describe("Performance Benchmarks", () => {
     });
 
     test("should create 100 Frames efficiently", () => {
-      const frames = Array.from({ length: 100 }, (_, i) =>
-        createTestFrame(`bench-bulk-${i}`)
-      );
+      const frames = Array.from({ length: 100 }, (_, i) => createTestFrame(`bench-bulk-${i}`));
 
       const time = measureTime(() => {
         frames.forEach((f) => saveFrame(db, f));
       });
 
       const avgTime = time / 100;
-      console.log(
-        `  Average time per Frame (100 Frames): ${avgTime.toFixed(2)}ms`
-      );
+      console.log(`  Average time per Frame (100 Frames): ${avgTime.toFixed(2)}ms`);
       assert.ok(
         avgTime < THRESHOLDS.FRAME_CREATION,
         `Average creation time ${avgTime.toFixed(2)}ms exceeds threshold`
@@ -174,9 +170,7 @@ describe("Performance Benchmarks", () => {
       });
 
       const avgTime = time / ids.length;
-      console.log(
-        `  Average recall time (5 lookups): ${avgTime.toFixed(2)}ms`
-      );
+      console.log(`  Average recall time (5 lookups): ${avgTime.toFixed(2)}ms`);
       assert.ok(
         avgTime < THRESHOLDS.FRAME_RECALL_1K,
         `Average recall time ${avgTime.toFixed(2)}ms exceeds threshold`
@@ -189,10 +183,7 @@ describe("Performance Benchmarks", () => {
       });
 
       console.log(`  List 100 Frames time: ${time.toFixed(2)}ms`);
-      assert.ok(
-        time < THRESHOLDS.FRAME_RECALL_1K * 2,
-        `Listing frames took ${time.toFixed(2)}ms`
-      );
+      assert.ok(time < THRESHOLDS.FRAME_RECALL_1K * 2, `Listing frames took ${time.toFixed(2)}ms`);
     });
   });
 
@@ -250,22 +241,14 @@ describe("Performance Benchmarks", () => {
     });
 
     test("should handle multiple search queries efficiently", () => {
-      const queries = [
-        "authentication",
-        "database",
-        "api",
-        "performance",
-        "security",
-      ];
+      const queries = ["authentication", "database", "api", "performance", "security"];
 
       const time = measureTime(() => {
         queries.forEach((q) => searchFrames(db, q));
       });
 
       const avgTime = time / queries.length;
-      console.log(
-        `  Average FTS5 search time (5 queries): ${avgTime.toFixed(2)}ms`
-      );
+      console.log(`  Average FTS5 search time (5 queries): ${avgTime.toFixed(2)}ms`);
       assert.ok(
         avgTime < THRESHOLDS.FTS5_SEARCH_10K,
         `Average search time ${avgTime.toFixed(2)}ms exceeds threshold`
@@ -278,10 +261,7 @@ describe("Performance Benchmarks", () => {
       });
 
       console.log(`  Wildcard search time: ${time.toFixed(2)}ms`);
-      assert.ok(
-        time < THRESHOLDS.FTS5_SEARCH_10K,
-        `Wildcard search took ${time.toFixed(2)}ms`
-      );
+      assert.ok(time < THRESHOLDS.FTS5_SEARCH_10K, `Wildcard search took ${time.toFixed(2)}ms`);
     });
 
     test("should handle multi-term searches efficiently", () => {
@@ -290,10 +270,7 @@ describe("Performance Benchmarks", () => {
       });
 
       console.log(`  Multi-term search time: ${time.toFixed(2)}ms`);
-      assert.ok(
-        time < THRESHOLDS.FTS5_SEARCH_10K,
-        `Multi-term search took ${time.toFixed(2)}ms`
-      );
+      assert.ok(time < THRESHOLDS.FTS5_SEARCH_10K, `Multi-term search took ${time.toFixed(2)}ms`);
     });
   });
 
@@ -307,8 +284,7 @@ describe("Performance Benchmarks", () => {
         module_scope: ["indexer", "ts", "php", "mcp"],
         summary_caption:
           "Complex frame with all fields populated to test rendering performance with long text and multiple sections",
-        reference_point:
-          "Complex rendering benchmark with detailed information",
+        reference_point: "Complex rendering benchmark with detailed information",
         status_snapshot: {
           next_action:
             "Continue implementing complex features with multiple dependencies and blockers",
@@ -317,18 +293,9 @@ describe("Performance Benchmarks", () => {
             "Database migration pending",
             "Code review in progress",
           ],
-          merge_blockers: [
-            "Tests failing in CI",
-            "Documentation incomplete",
-          ],
+          merge_blockers: ["Tests failing in CI", "Documentation incomplete"],
         },
-        keywords: [
-          "rendering",
-          "performance",
-          "benchmark",
-          "complex",
-          "testing",
-        ],
+        keywords: ["rendering", "performance", "benchmark", "complex", "testing"],
         atlas_frame_id: "atlas-render-001",
         feature_flags: ["beta_ui", "new_renderer", "performance_mode"],
         permissions: ["can_render", "can_benchmark"],
@@ -365,9 +332,7 @@ describe("Performance Benchmarks", () => {
       });
 
       const avgTime = time / frames.length;
-      console.log(
-        `  Average rendering time (10 cards): ${avgTime.toFixed(2)}ms`
-      );
+      console.log(`  Average rendering time (10 cards): ${avgTime.toFixed(2)}ms`);
       assert.ok(
         avgTime < THRESHOLDS.MEMORY_CARD_RENDER,
         `Average rendering time ${avgTime.toFixed(2)}ms exceeds threshold`
@@ -436,9 +401,7 @@ describe("Performance Benchmarks", () => {
     });
 
     test("should handle batch operations efficiently", async () => {
-      const frames = Array.from({ length: 50 }, (_, i) =>
-        createTestFrame(`batch-${i}`)
-      );
+      const frames = Array.from({ length: 50 }, (_, i) => createTestFrame(`batch-${i}`));
 
       const time = await measureTimeAsync(async () => {
         // Store all
@@ -457,10 +420,7 @@ describe("Performance Benchmarks", () => {
       });
 
       console.log(`  Batch operations time (50 frames): ${time.toFixed(2)}ms`);
-      assert.ok(
-        time < 5000,
-        `Batch operations took ${time.toFixed(2)}ms`
-      );
+      assert.ok(time < 5000, `Batch operations took ${time.toFixed(2)}ms`);
 
       // Clean up
       frames.forEach((f) => deleteFrame(db, f.id));

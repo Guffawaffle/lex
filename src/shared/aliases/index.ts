@@ -4,12 +4,7 @@
  * Exports alias resolution functionality for fuzzy matching and historical name resolution.
  */
 
-export type {
-  AliasEntry,
-  AliasTable,
-  AliasResolution,
-  ResolverOptions,
-} from "./types.js";
+export type { AliasEntry, AliasTable, AliasResolution, ResolverOptions } from "./types.js";
 export {
   resolveModuleId,
   loadAliasTable,

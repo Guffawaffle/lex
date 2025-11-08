@@ -66,7 +66,11 @@ async function measureTime(fn: () => Promise<void>): Promise<number> {
 /**
  * Run benchmark multiple times and return average
  */
-async function benchmark(name: string, iterations: number, fn: () => Promise<void>): Promise<number> {
+async function benchmark(
+  name: string,
+  iterations: number,
+  fn: () => Promise<void>
+): Promise<number> {
   const times: number[] = [];
 
   // Warmup
@@ -106,36 +110,21 @@ describe("Alias Resolution Performance Benchmarks", () => {
         }
       );
 
-      assert.ok(
-        avgTime < 0.5,
-        `Exact match took ${avgTime.toFixed(3)}ms, expected <0.5ms`
-      );
+      assert.ok(avgTime < 0.5, `Exact match took ${avgTime.toFixed(3)}ms, expected <0.5ms`);
     });
 
     test("should scale linearly with policy size", async () => {
-      const time10 = await benchmark(
-        "Exact match with 10 modules policy",
-        1000,
-        async () => {
-          await validateModuleIds(["indexer"], policy10);
-        }
-      );
+      const time10 = await benchmark("Exact match with 10 modules policy", 1000, async () => {
+        await validateModuleIds(["indexer"], policy10);
+      });
 
-      const time100 = await benchmark(
-        "Exact match with 100 modules policy",
-        1000,
-        async () => {
-          await validateModuleIds(["indexer"], policy100);
-        }
-      );
+      const time100 = await benchmark("Exact match with 100 modules policy", 1000, async () => {
+        await validateModuleIds(["indexer"], policy100);
+      });
 
-      const time1000 = await benchmark(
-        "Exact match with 1000 modules policy",
-        1000,
-        async () => {
-          await validateModuleIds(["indexer"], policy1000);
-        }
-      );
+      const time1000 = await benchmark("Exact match with 1000 modules policy", 1000, async () => {
+        await validateModuleIds(["indexer"], policy1000);
+      });
 
       // Hash table lookup should be O(1), so times should be similar
       console.log(`  Scaling comparison:`);
@@ -151,16 +140,12 @@ describe("Alias Resolution Performance Benchmarks", () => {
     });
 
     test("should handle multiple exact matches efficiently", async () => {
-      const avgTime = await benchmark(
-        "Multiple exact matches (6 modules)",
-        1000,
-        async () => {
-          await validateModuleIds(
-            ["indexer", "ts", "php", "mcp", "services/auth-core", "ui/main-panel"],
-            policy100
-          );
-        }
-      );
+      const avgTime = await benchmark("Multiple exact matches (6 modules)", 1000, async () => {
+        await validateModuleIds(
+          ["indexer", "ts", "php", "mcp", "services/auth-core", "ui/main-panel"],
+          policy100
+        );
+      });
 
       assert.ok(
         avgTime < 1.0,
@@ -171,30 +156,19 @@ describe("Alias Resolution Performance Benchmarks", () => {
 
   describe("Fuzzy Match Path (Worst Case)", () => {
     test("should handle typos with fuzzy matching (<2ms)", async () => {
-      const avgTime = await benchmark(
-        "Fuzzy match for typo",
-        1000,
-        async () => {
-          await validateModuleIds(["indexr"], policy10); // Typo: "indexr" instead of "indexer"
-        }
-      );
+      const avgTime = await benchmark("Fuzzy match for typo", 1000, async () => {
+        await validateModuleIds(["indexr"], policy10); // Typo: "indexr" instead of "indexer"
+      });
 
       console.log(`  Note: Result is invalid, but fuzzy matching provides suggestions`);
 
-      assert.ok(
-        avgTime < 2.0,
-        `Fuzzy matching took ${avgTime.toFixed(3)}ms, expected <2.0ms`
-      );
+      assert.ok(avgTime < 2.0, `Fuzzy matching took ${avgTime.toFixed(3)}ms, expected <2.0ms`);
     });
 
     test("should handle completely invalid input (<3ms)", async () => {
-      const avgTime = await benchmark(
-        "Fuzzy match for invalid module",
-        1000,
-        async () => {
-          await validateModuleIds(["nonexistent-module-xyz"], policy10);
-        }
-      );
+      const avgTime = await benchmark("Fuzzy match for invalid module", 1000, async () => {
+        await validateModuleIds(["nonexistent-module-xyz"], policy10);
+      });
 
       assert.ok(
         avgTime < 3.0,
@@ -222,60 +196,38 @@ describe("Alias Resolution Performance Benchmarks", () => {
 
   describe("Mixed Case (Realistic Workload)", () => {
     test("should handle mix of valid and invalid efficiently", async () => {
-      const avgTime = await benchmark(
-        "Mixed valid/invalid modules",
-        1000,
-        async () => {
-          // 2 valid, 1 invalid - realistic typo scenario
-          await validateModuleIds(["indexer", "ts", "invalidmodule"], policy100);
-        }
-      );
+      const avgTime = await benchmark("Mixed valid/invalid modules", 1000, async () => {
+        // 2 valid, 1 invalid - realistic typo scenario
+        await validateModuleIds(["indexer", "ts", "invalidmodule"], policy100);
+      });
 
-      assert.ok(
-        avgTime < 2.0,
-        `Mixed validation took ${avgTime.toFixed(3)}ms, expected <2.0ms`
-      );
+      assert.ok(avgTime < 2.0, `Mixed validation took ${avgTime.toFixed(3)}ms, expected <2.0ms`);
     });
 
     test("should validate empty module scope instantly", async () => {
-      const avgTime = await benchmark(
-        "Empty module scope validation",
-        10000,
-        async () => {
-          await validateModuleIds([], policy100);
-        }
-      );
+      const avgTime = await benchmark("Empty module scope validation", 10000, async () => {
+        await validateModuleIds([], policy100);
+      });
 
-      assert.ok(
-        avgTime < 0.1,
-        `Empty validation took ${avgTime.toFixed(3)}ms, expected <0.1ms`
-      );
+      assert.ok(avgTime < 0.1, `Empty validation took ${avgTime.toFixed(3)}ms, expected <0.1ms`);
     });
   });
 
   describe("Performance Regression Check", () => {
     test("should have <5% regression vs exact-only matching", async () => {
       // Simulate "before": just checking Set membership (O(1))
-      const exactOnlyTime = await benchmark(
-        "Before (exact-only, no fuzzy)",
-        10000,
-        async () => {
-          const moduleSet = new Set(Object.keys(policy100.modules));
-          const modules = ["indexer", "ts", "php"];
-          for (const mod of modules) {
-            moduleSet.has(mod); // Just check, don't do fuzzy
-          }
+      const exactOnlyTime = await benchmark("Before (exact-only, no fuzzy)", 10000, async () => {
+        const moduleSet = new Set(Object.keys(policy100.modules));
+        const modules = ["indexer", "ts", "php"];
+        for (const mod of modules) {
+          moduleSet.has(mod); // Just check, don't do fuzzy
         }
-      );
+      });
 
       // Current implementation with fuzzy fallback
-      const withFuzzyTime = await benchmark(
-        "After (with fuzzy fallback)",
-        10000,
-        async () => {
-          await validateModuleIds(["indexer", "ts", "php"], policy100);
-        }
-      );
+      const withFuzzyTime = await benchmark("After (with fuzzy fallback)", 10000, async () => {
+        await validateModuleIds(["indexer", "ts", "php"], policy100);
+      });
 
       const regression = ((withFuzzyTime - exactOnlyTime) / exactOnlyTime) * 100;
 
@@ -300,10 +252,7 @@ describe("Alias Resolution Performance Benchmarks", () => {
 
       console.log(`  Policy cache size (100 modules): ${sizeKB.toFixed(2)}KB`);
 
-      assert.ok(
-        sizeKB < 50,
-        `Policy cache of ${sizeKB.toFixed(2)}KB exceeds 50KB limit`
-      );
+      assert.ok(sizeKB < 50, `Policy cache of ${sizeKB.toFixed(2)}KB exceeds 50KB limit`);
     });
 
     test("should report large policy cache size", () => {
@@ -312,10 +261,7 @@ describe("Alias Resolution Performance Benchmarks", () => {
 
       console.log(`  Policy cache size (1000 modules): ${sizeKB.toFixed(2)}KB`);
 
-      assert.ok(
-        sizeKB < 500,
-        `Large policy cache of ${sizeKB.toFixed(2)}KB exceeds 500KB limit`
-      );
+      assert.ok(sizeKB < 500, `Large policy cache of ${sizeKB.toFixed(2)}KB exceeds 500KB limit`);
     });
   });
 
