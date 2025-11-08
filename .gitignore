@@ -9,6 +9,7 @@ build/
 *.js.map
 *.d.ts.map
 tsconfig.tsbuildinfo
+*.tgz
 
 # Generated TypeScript compilation outputs (source is .ts)
 # Keep only source .ts files, not compiled .js/.d.ts
@@ -73,3 +74,4 @@ docker-compose.override.yml
 
 # TypeScript build info files
 *.tsbuildinfo
+*.tgz
