@@ -1,17 +1,17 @@
 /**
  * CLI Entry Point - Command Routing and Global Flags
- * 
+ *
  * Routes commands to appropriate handlers and handles global flags.
  */
 
-import { Command } from 'commander';
-import { remember, type RememberOptions } from './remember.js';
-import { recall, type RecallOptions } from './recall.js';
-import { check, type CheckOptions } from './check.js';
-import { timeline, type TimelineCommandOptions } from './timeline.js';
-import { readFileSync } from 'fs';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
+import { Command } from "commander";
+import { remember, type RememberOptions } from "./remember.js";
+import { recall, type RecallOptions } from "./recall.js";
+import { check, type CheckOptions } from "./check.js";
+import { timeline, type TimelineCommandOptions } from "./timeline.js";
+import { readFileSync } from "fs";
+import { join, dirname } from "path";
+import { fileURLToPath } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -20,11 +20,11 @@ const __dirname = dirname(__filename);
 function getVersion(): string {
   try {
     // From dist/shared/cli/index.js, package.json is at ../../../package.json (root)
-    const packagePath = join(__dirname, '..', '..', '..', 'package.json');
-    const packageJson = JSON.parse(readFileSync(packagePath, 'utf-8'));
+    const packagePath = join(__dirname, "..", "..", "..", "package.json");
+    const packageJson = JSON.parse(readFileSync(packagePath, "utf-8"));
     return packageJson.version;
   } catch {
-    return '0.2.0';
+    return "0.2.0";
   }
 }
 
@@ -35,29 +35,29 @@ export function createProgram(): Command {
   const program = new Command();
 
   program
-    .name('lex')
-    .description('Policy-aware work continuity with receipts')
+    .name("lex")
+    .description("Policy-aware work continuity with receipts")
     .version(getVersion())
-    .option('--json', 'Output results in JSON format');
+    .option("--json", "Output results in JSON format");
 
   // lex remember command
   program
-    .command('remember')
-    .description('Capture a work session Frame')
-    .option('--jira <ticket>', 'Jira ticket ID')
-    .option('--reference-point <phrase>', 'Human-memorable anchor phrase')
-    .option('--summary <text>', 'One-line summary')
-    .option('--next <action>', 'Next action to take')
-    .option('--modules <list>', 'Comma-separated module IDs', parseList)
-    .option('--blockers <list>', 'Comma-separated blockers', parseList)
-    .option('--merge-blockers <list>', 'Comma-separated merge blockers', parseList)
-    .option('--tests-failing <list>', 'Comma-separated test names', parseList)
-    .option('--keywords <list>', 'Comma-separated keywords', parseList)
-    .option('--feature-flags <list>', 'Comma-separated feature flags', parseList)
-    .option('--permissions <list>', 'Comma-separated permissions', parseList)
-    .option('-i, --interactive', 'Interactive mode (prompt for all fields)')
-    .option('--strict', 'Disable auto-correction for typos (for CI)')
-    .option('--no-substring', 'Disable substring matching for module IDs (for CI)')
+    .command("remember")
+    .description("Capture a work session Frame")
+    .option("--jira <ticket>", "Jira ticket ID")
+    .option("--reference-point <phrase>", "Human-memorable anchor phrase")
+    .option("--summary <text>", "One-line summary")
+    .option("--next <action>", "Next action to take")
+    .option("--modules <list>", "Comma-separated module IDs", parseList)
+    .option("--blockers <list>", "Comma-separated blockers", parseList)
+    .option("--merge-blockers <list>", "Comma-separated merge blockers", parseList)
+    .option("--tests-failing <list>", "Comma-separated test names", parseList)
+    .option("--keywords <list>", "Comma-separated keywords", parseList)
+    .option("--feature-flags <list>", "Comma-separated feature flags", parseList)
+    .option("--permissions <list>", "Comma-separated permissions", parseList)
+    .option("-i, --interactive", "Interactive mode (prompt for all fields)")
+    .option("--strict", "Disable auto-correction for typos (for CI)")
+    .option("--no-substring", "Disable substring matching for module IDs (for CI)")
     .action(async (cmdOptions) => {
       const globalOptions = program.opts();
       const options: RememberOptions = {
@@ -82,12 +82,16 @@ export function createProgram(): Command {
 
   // lex recall command
   program
-    .command('recall <query>')
-    .description('Retrieve a Frame by reference point, ticket ID, or Frame ID')
-    .option('--fold-radius <number>', 'Fold radius for Atlas Frame neighborhood', parseInt)
-    .option('--auto-radius', 'Auto-tune radius based on token limits')
-    .option('--max-tokens <number>', 'Maximum tokens for Atlas Frame (use with --auto-radius)', parseInt)
-    .option('--cache-stats', 'Show cache statistics')
+    .command("recall <query>")
+    .description("Retrieve a Frame by reference point, ticket ID, or Frame ID")
+    .option("--fold-radius <number>", "Fold radius for Atlas Frame neighborhood", parseInt)
+    .option("--auto-radius", "Auto-tune radius based on token limits")
+    .option(
+      "--max-tokens <number>",
+      "Maximum tokens for Atlas Frame (use with --auto-radius)",
+      parseInt
+    )
+    .option("--cache-stats", "Show cache statistics")
     .action(async (query, cmdOptions) => {
       const globalOptions = program.opts();
       const options: RecallOptions = {
@@ -97,21 +101,21 @@ export function createProgram(): Command {
         showCacheStats: cmdOptions.cacheStats || false,
         json: globalOptions.json || false,
       };
-      
+
       // Validate auto-radius options
       if (options.autoRadius && !options.maxTokens) {
-        console.error('Error: --auto-radius requires --max-tokens to be specified');
+        console.error("Error: --auto-radius requires --max-tokens to be specified");
         process.exit(1);
       }
-      
+
       await recall(query, options);
     });
 
   // lex check command
   program
-    .command('check <merged-json> <policy-json>')
-    .description('Enforce policy against scanned code')
-    .option('--ticket <id>', 'Ticket ID for context')
+    .command("check <merged-json> <policy-json>")
+    .description("Enforce policy against scanned code")
+    .option("--ticket <id>", "Ticket ID for context")
     .action(async (mergedJson, policyJson, cmdOptions) => {
       const globalOptions = program.opts();
       const options: CheckOptions = {
@@ -123,12 +127,12 @@ export function createProgram(): Command {
 
   // lex timeline command
   program
-    .command('timeline <ticket-or-branch>')
-    .description('Show visual timeline of Frame evolution for a ticket or branch')
-    .option('--since <date>', 'Filter frames since this date (ISO 8601)')
-    .option('--until <date>', 'Filter frames until this date (ISO 8601)')
-    .option('--format <type>', 'Output format: text, json, or html', /^(text|json|html)$/, 'text')
-    .option('--output <file>', 'Write output to file instead of stdout')
+    .command("timeline <ticket-or-branch>")
+    .description("Show visual timeline of Frame evolution for a ticket or branch")
+    .option("--since <date>", "Filter frames since this date (ISO 8601)")
+    .option("--until <date>", "Filter frames until this date (ISO 8601)")
+    .option("--format <type>", "Output format: text, json, or html", /^(text|json|html)$/, "text")
+    .option("--output <file>", "Write output to file instead of stdout")
     .action(async (ticketOrBranch, cmdOptions) => {
       const globalOptions = program.opts();
       const options: TimelineCommandOptions = {
@@ -151,7 +155,10 @@ function parseList(value: string): string[] | undefined {
   if (!value || !value.trim()) {
     return undefined;
   }
-  return value.split(',').map(item => item.trim()).filter(item => item.length > 0);
+  return value
+    .split(",")
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0);
 }
 
 /**

@@ -30,4 +30,3 @@ export interface Frame {
   feature_flags?: string[];
   permissions?: string[];
 }
-

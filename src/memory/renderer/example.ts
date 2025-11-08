@@ -4,30 +4,28 @@
  * Demonstrates how to generate a visual memory card from Frame metadata
  */
 
-import { renderMemoryCard } from './card.js';
-import type { Frame } from './types.js';
-import { writeFileSync, mkdirSync } from 'fs';
-import { join } from 'path';
+import { renderMemoryCard } from "./card.js";
+import type { Frame } from "./types.js";
+import { writeFileSync, mkdirSync } from "fs";
+import { join } from "path";
 
 // Create example Frame
 const exampleFrame: Frame = {
-  id: 'frame-example-' + Date.now(),
+  id: "frame-example-" + Date.now(),
   timestamp: new Date().toISOString(),
-  branch: 'feature/memory-card-rendering',
-  jira: 'LEX-1',
-  module_scope: ['memory/renderer', 'memory/frames'],
-  summary_caption: 'Implementing memory card visual rendering for Frame snapshots',
-  reference_point: 'Visual compression for LLM vision models',
+  branch: "feature/memory-card-rendering",
+  jira: "LEX-1",
+  module_scope: ["memory/renderer", "memory/frames"],
+  summary_caption: "Implementing memory card visual rendering for Frame snapshots",
+  reference_point: "Visual compression for LLM vision models",
   status_snapshot: {
-    next_action: 'Complete implementation, add tests, and create documentation',
-    blockers: [
-      'Need to verify canvas rendering on different platforms',
-    ],
+    next_action: "Complete implementation, add tests, and create documentation",
+    blockers: ["Need to verify canvas rendering on different platforms"],
     merge_blockers: [],
     tests_failing: [],
   },
-  keywords: ['memory', 'rendering', 'canvas', 'visual', 'llm'],
-  atlas_frame_id: 'atlas-frame-example',
+  keywords: ["memory", "rendering", "canvas", "visual", "llm"],
+  atlas_frame_id: "atlas-frame-example",
 };
 
 // Example with raw context
@@ -47,27 +45,27 @@ Recent changes:
 `;
 
 async function main() {
-  console.log('🎨 Memory Card Rendering Example\n');
+  console.log("🎨 Memory Card Rendering Example\n");
 
   // Create output directory
-  const outputDir = '/tmp/memory-card-example';
+  const outputDir = "/tmp/memory-card-example";
   mkdirSync(outputDir, { recursive: true });
 
   // Render without raw context
-  console.log('Rendering basic memory card...');
+  console.log("Rendering basic memory card...");
   const basicBuffer = await renderMemoryCard(exampleFrame);
-  const basicPath = join(outputDir, 'example-basic.png');
+  const basicPath = join(outputDir, "example-basic.png");
   writeFileSync(basicPath, basicBuffer);
   console.log(`✓ Saved: ${basicPath} (${basicBuffer.length} bytes)\n`);
 
   // Render with raw context
-  console.log('Rendering memory card with raw context...');
+  console.log("Rendering memory card with raw context...");
   const contextBuffer = await renderMemoryCard(exampleFrame, rawContext);
-  const contextPath = join(outputDir, 'example-with-context.png');
+  const contextPath = join(outputDir, "example-with-context.png");
   writeFileSync(contextPath, contextBuffer);
   console.log(`✓ Saved: ${contextPath} (${contextBuffer.length} bytes)\n`);
 
-  console.log('✨ Example complete!');
+  console.log("✨ Example complete!");
   console.log(`\nOpen the generated PNG files to see the results:`);
   console.log(`  ${basicPath}`);
   console.log(`  ${contextPath}`);

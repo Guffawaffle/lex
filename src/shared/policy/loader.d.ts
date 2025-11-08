@@ -4,7 +4,7 @@
  * Loads and caches policy from lexmap.policy.json
  * Supports custom policy path via environment variable
  */
-import type { Policy } from '../../types/policy.js';
+import type { Policy } from "../../types/policy.js";
 /**
  * Load policy from lexmap.policy.json
  *

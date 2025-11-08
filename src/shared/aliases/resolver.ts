@@ -33,8 +33,7 @@ export function loadAliasTable(aliasTablePath?: string): AliasTable {
   try {
     // Default to aliases.json in the same directory as this module
     const defaultPath =
-      aliasTablePath ||
-      join(dirname(fileURLToPath(import.meta.url)), "aliases.json");
+      aliasTablePath || join(dirname(fileURLToPath(import.meta.url)), "aliases.json");
 
     const content = readFileSync(defaultPath, "utf-8");
     aliasTableCache = JSON.parse(content) as AliasTable;
@@ -167,11 +166,7 @@ export async function resolveModuleId(
 
   // Phase 4: Substring matching (if enabled)
   if (!opts.noSubstring) {
-    const substringMatches = findSubstringMatches(
-      input,
-      policyModuleIds,
-      opts.minSubstringLength
-    );
+    const substringMatches = findSubstringMatches(input, policyModuleIds, opts.minSubstringLength);
 
     if (substringMatches.length === 1) {
       // Unique substring match - confidence 0.9
