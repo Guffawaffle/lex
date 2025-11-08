@@ -1,4 +1,10 @@
-# LexBrain Overview
+# Lex Overview
+
+> Subsystems: Lex includes distinct subsystems that work together:
+> - LexBrain — the work-memory subsystem that provides Frames and recall
+> - LexMap — the architecture policy + module vocabulary used for explainable reasoning
+>
+> This page describes the overall product and highlights where LexBrain fits.
 
 ## The Pain
 
@@ -297,7 +303,11 @@ The package exports multiple entry points via subpath exports in `package.json`:
 ```json
 {
   "exports": {
-    ".": "./dist/index.js",                    // Main entry
+    ".": {                                      // Main entry with types
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./cli": "./dist/cli/index.js",            // Programmatic CLI helpers
     "./policy/*": "./dist/policy/*",           // Policy subsystem
     "./memory/*": "./dist/memory/*",           // Memory subsystem
     "./shared/*": "./dist/shared/*"            // Shared utilities (includes CLI)
@@ -308,6 +318,8 @@ The package exports multiple entry points via subpath exports in `package.json`:
 }
 ```
 
+Note: The snippet above reflects the current `package.json`. Check that file for the latest authoritative export map.
+
 This allows importing specific subsystems without exposing internal implementation details:
 
 ```typescript
@@ -316,7 +328,11 @@ import { checkPolicy } from 'lex/policy/check';
 import { resolveModuleId } from 'lex/shared/aliases';
 ```
 
-The CLI is available as a binary via `npx lex` or direct invocation after installation.
+The CLI is available as a binary via `npx lex` or direct invocation after installation. For programmatic helpers, you can also import the CLI subpath:
+
+```typescript
+import * as cli from 'lex/cli';
+```
 
 ### Merge-Weave Integration
 
