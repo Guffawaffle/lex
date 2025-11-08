@@ -41,9 +41,10 @@ export default [
       parserOptions: {
         ecmaVersion: 2022,
         sourceType: "module",
-        // Use the TS project service so rules that rely on type information
-        // can work without listing explicit project files here.
-        projectService: true,
+        // Use a dedicated tsconfig for ESLint that includes test files so the
+        // parser's project can resolve them (avoids "was not found by the
+        // project service" parser errors).
+        project: ["./tsconfig.eslint.json"],
       },
     },
     plugins: { "@typescript-eslint": tseslint },

@@ -109,12 +109,12 @@ function derivePolicyId(policy: Policy): string {
  */
 function formatAsText(violations: Violation[], policy?: Policy): string {
   if (violations.length === 0) {
-    const header = policy ? formatPolicyHeaderText(policy, 0) + "\n" : "";
+    const header = policy != null ? formatPolicyHeaderText(policy, 0) + "\n" : "";
     return header + "✅ No violations found\n";
   }
 
   let output = "";
-  if (policy) {
+  if (policy != null) {
     output += formatPolicyHeaderText(policy, violations.length) + "\n";
   }
   output += `❌ Found ${violations.length} violation(s):\n\n`;
@@ -139,13 +139,13 @@ function formatAsText(violations: Violation[], policy?: Policy): string {
       output += `\n  ❌ ${formatViolationType(violation.type)}\n`;
       output += `     File: ${violation.file}\n`;
       output += `     ${violation.message}\n`;
-      if (violation.details) {
+      if (typeof violation.details === "string" && violation.details.length > 0) {
         output += `     Details: ${violation.details}\n`;
       }
-      if (violation.target_module) {
+      if (typeof violation.target_module === "string" && violation.target_module.length > 0) {
         output += `     Target: ${violation.target_module}\n`;
       }
-      if (violation.import_from) {
+      if (typeof violation.import_from === "string" && violation.import_from.length > 0) {
         output += `     Import: ${violation.import_from}\n`;
       }
     }
@@ -177,12 +177,12 @@ function formatAsJson(violations: Violation[]): string {
 function formatAsMarkdown(violations: Violation[], policy?: Policy): string {
   if (violations.length === 0) {
     let clean = "# Policy Check Report\n\n";
-    if (policy) clean += formatPolicyHeaderMarkdown(policy, 0) + "\n\n";
+    if (policy != null) clean += formatPolicyHeaderMarkdown(policy, 0) + "\n\n";
     return clean + "✅ **No violations found**\n";
   }
 
   let output = "# Policy Check Report\n\n";
-  if (policy) {
+  if (policy != null) {
     output += formatPolicyHeaderMarkdown(policy, violations.length) + "\n\n";
   }
   output += `**Status:** ❌ ${violations.length} violation(s) found\n\n`;
@@ -303,7 +303,6 @@ export function printReport(
   format: ReportFormat = "text"
 ): void {
   const report = generateReport(violations, { policy, format });
-  // eslint-disable-next-line no-console -- intentional CLI output
   console.log(report.content);
 }
 
