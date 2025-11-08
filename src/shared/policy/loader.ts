@@ -5,20 +5,20 @@
  * Supports custom policy path via environment variable
  */
 
-import { readFileSync, existsSync } from 'fs';
-import { resolve, dirname, join } from 'path';
+import { readFileSync, existsSync } from "fs";
+import { resolve, dirname, join } from "path";
 // @ts-ignore - importing from compiled dist directory
-import type { Policy } from '../../types/policy.js';
+import type { Policy } from "../../types/policy.js";
 
 /**
  * Default policy path (from repository root)
  */
-const DEFAULT_POLICY_PATH = 'src/policy/policy_spec/lexmap.policy.json';
+const DEFAULT_POLICY_PATH = "src/policy/policy_spec/lexmap.policy.json";
 
 /**
  * Environment variable for custom policy path
  */
-const POLICY_PATH_ENV = 'LEX_POLICY_PATH';
+const POLICY_PATH_ENV = "LEX_POLICY_PATH";
 
 /**
  * Cached policy to avoid re-reading from disk
@@ -32,11 +32,11 @@ function findRepoRoot(startPath: string): string {
   let currentPath = startPath;
 
   while (currentPath !== dirname(currentPath)) {
-    const packageJsonPath = join(currentPath, 'package.json');
+    const packageJsonPath = join(currentPath, "package.json");
     if (existsSync(packageJsonPath)) {
-      const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf-8'));
+      const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf-8"));
       // Check if this is the lex root package
-      if (packageJson.name === 'lex') {
+      if (packageJson.name === "lex") {
         return currentPath;
       }
     }
@@ -66,7 +66,7 @@ function transformPolicy(rawPolicy: any): Policy {
       modules[pattern.name] = {
         owns_paths: [pattern.match],
         allowed_callers: [],
-        forbidden_callers: []
+        forbidden_callers: [],
       };
     }
   }
@@ -78,8 +78,8 @@ function transformPolicy(rawPolicy: any): Policy {
     // For now, this maps kind→pattern and match→description as a placeholder
     global_kill_patterns: rawPolicy.kill_patterns?.map((kp: any) => ({
       pattern: kp.kind,
-      description: kp.match
-    }))
+      description: kp.match,
+    })),
   };
 }
 
@@ -129,14 +129,14 @@ export function loadPolicy(path?: string): Policy {
     }
 
     // Read and parse policy file
-    const policyContent = readFileSync(resolvedPath, 'utf-8');
+    const policyContent = readFileSync(resolvedPath, "utf-8");
     const rawPolicy = JSON.parse(policyContent);
 
     // Transform to expected format
     const policy = transformPolicy(rawPolicy);
 
     // Validate basic structure
-    if (!policy.modules || typeof policy.modules !== 'object') {
+    if (!policy.modules || typeof policy.modules !== "object") {
       throw new Error('Invalid policy structure: missing or invalid "modules" field');
     }
 
@@ -147,10 +147,12 @@ export function loadPolicy(path?: string): Policy {
 
     return policy;
   } catch (error: any) {
-    if (error.code === 'ENOENT') {
+    if (error.code === "ENOENT") {
       throw new Error(`Policy file not found: ${policyPath || DEFAULT_POLICY_PATH}`);
     }
-    throw new Error(`Failed to load policy from ${policyPath || DEFAULT_POLICY_PATH}: ${error.message}`);
+    throw new Error(
+      `Failed to load policy from ${policyPath || DEFAULT_POLICY_PATH}: ${error.message}`
+    );
   }
 }
 

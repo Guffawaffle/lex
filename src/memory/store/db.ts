@@ -62,7 +62,9 @@ export function initializeDatabase(db: Database.Database): void {
   `);
 
   // Check current schema version
-  const versionRow = db.prepare("SELECT MAX(version) as version FROM schema_version").get() as { version: number | null };
+  const versionRow = db.prepare("SELECT MAX(version) as version FROM schema_version").get() as {
+    version: number | null;
+  };
   const currentVersion = versionRow?.version || 0;
 
   // Apply migrations

@@ -2,7 +2,7 @@
  * Verify output format matches the specification in README.md
  */
 
-import { computeFoldRadius, Policy } from './index.js';
+import { computeFoldRadius, Policy } from "./index.js";
 
 const samplePolicy: Policy = {
   modules: {

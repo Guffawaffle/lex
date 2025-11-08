@@ -132,12 +132,7 @@ class TypeScriptScanner {
       const content = fs.readFileSync(filePath, "utf-8");
       const relativePath = path.relative(this.rootDir, filePath);
 
-      const sourceFile = ts.createSourceFile(
-        filePath,
-        content,
-        ts.ScriptTarget.Latest,
-        true
-      );
+      const sourceFile = ts.createSourceFile(filePath, content, ts.ScriptTarget.Latest, true);
 
       const imports = this.extractImports(sourceFile);
       const fileData: FileData = {
@@ -157,11 +152,7 @@ class TypeScriptScanner {
 
           // Detect cross-module calls
           for (const imp of imports) {
-            const targetModuleId = resolveImportToModule(
-              imp.from,
-              relativePath,
-              this.policy
-            );
+            const targetModuleId = resolveImportToModule(imp.from, relativePath, this.policy);
             if (targetModuleId && targetModuleId !== moduleId) {
               this.output.module_edges!.push({
                 from_module: moduleId,
@@ -222,9 +213,7 @@ class TypeScriptScanner {
           if (ts.isIdentifier(decl.name)) {
             // Check if it's exported
             const modifiers = node.modifiers;
-            if (
-              modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword)
-            ) {
+            if (modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword)) {
               declarations.push({
                 type: "variable",
                 name: decl.name.text,
@@ -286,8 +275,6 @@ class TypeScriptScanner {
     visit(sourceFile);
     return imports;
   }
-
-
 }
 
 async function main() {
@@ -296,14 +283,10 @@ async function main() {
   if (args.length < 1) {
     console.error("Usage: node ts_scanner.ts <directory> [policy.json]");
     console.error("");
-    console.error(
-      "Outputs JSON conforming to ../docs/schemas/scanner-output.schema.json"
-    );
+    console.error("Outputs JSON conforming to ../docs/schemas/scanner-output.schema.json");
     console.error("");
     console.error("Options:");
-    console.error(
-      "  policy.json  Optional path to lexmap.policy.json for module resolution"
-    );
+    console.error("  policy.json  Optional path to lexmap.policy.json for module resolution");
     process.exit(1);
   }
 

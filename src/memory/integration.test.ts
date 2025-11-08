@@ -124,11 +124,7 @@ describe("Memory Integration Tests", () => {
 
       // Validate modules before storage
       const validationResult = await validateModuleIds(validFrame.module_scope, mockPolicy as any);
-      assert.strictEqual(
-        validationResult.valid,
-        true,
-        "Valid module IDs should pass validation"
-      );
+      assert.strictEqual(validationResult.valid, true, "Valid module IDs should pass validation");
 
       // Store and retrieve
       saveFrame(db, validFrame);
@@ -293,10 +289,7 @@ describe("Memory Integration Tests", () => {
 
       // Search for "authentication" - should find 2 frames
       const authResults = searchFrames(db, "authentication");
-      assert.ok(
-        authResults.length >= 2,
-        "Should find at least 2 frames with 'authentication'"
-      );
+      assert.ok(authResults.length >= 2, "Should find at least 2 frames with 'authentication'");
 
       // Search for "database" - should find 1 frame
       const dbResults = searchFrames(db, "database");
@@ -369,10 +362,7 @@ describe("Memory Integration Tests", () => {
       // Verify update
       const updated = getFrameById(db, frame.id);
       assert.strictEqual(updated!.summary_caption, "Updated caption");
-      assert.strictEqual(
-        updated!.status_snapshot.next_action,
-        "Updated action"
-      );
+      assert.strictEqual(updated!.status_snapshot.next_action, "Updated action");
 
       deleteFrame(db, frame.id);
     });
@@ -399,9 +389,7 @@ describe("Memory Integration Tests", () => {
       await Promise.all(concurrentFrames.map((f) => saveFrame(db, f)));
 
       // Verify all saved
-      const savedFrames = getAllFrames(db).filter((f) =>
-        f.id.startsWith("concurrent-")
-      );
+      const savedFrames = getAllFrames(db).filter((f) => f.id.startsWith("concurrent-"));
       assert.ok(savedFrames.length >= 5, "All concurrent frames should be saved");
 
       // Clean up

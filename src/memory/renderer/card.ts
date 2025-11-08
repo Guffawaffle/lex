@@ -5,8 +5,8 @@
  * Uses SVG for layout/styling and Sharp for PNG conversion (no system dependencies)
  */
 
-import sharp from 'sharp';
-import type { Frame } from './types.js';
+import sharp from "sharp";
+import type { Frame } from "./types.js";
 import {
   DEFAULT_DIMENSIONS,
   DARK_COLOR_SCHEME,
@@ -18,10 +18,10 @@ import {
   type CardDimensions,
   type ColorScheme,
   type FontConfig,
-} from './templates.js';
-import { highlightDiff } from './syntax.js';
-import { renderDiff, getDiffStats, type TruncationOptions } from './diff.js';
-import type { BundledLanguage } from 'shiki';
+} from "./templates.js";
+import { highlightDiff } from "./syntax.js";
+import { renderDiff, getDiffStats, type TruncationOptions } from "./diff.js";
+import type { BundledLanguage } from "shiki";
 
 export interface RenderOptions {
   dimensions?: CardDimensions;
@@ -42,7 +42,7 @@ function extractDiffs(rawContext: string): Array<{
 
   // Detect unified diff format: lines starting with +, -, or space (for context)
   // Must have at least one + or - line to be considered a diff
-  const lines = rawContext.split('\n');
+  const lines = rawContext.split("\n");
   let currentDiff: string[] = [];
   let inDiff = false;
   let hasChanges = false; // Track if current block has actual changes
@@ -51,8 +51,7 @@ function extractDiffs(rawContext: string): Array<{
     const firstChar = line[0];
 
     // Check for diff markers at the start of the line (not trimmed)
-    const isDiffLine = firstChar === '+' || firstChar === '-' ||
-                       (firstChar === ' ' && inDiff); // Space only counts if already in diff
+    const isDiffLine = firstChar === "+" || firstChar === "-" || (firstChar === " " && inDiff); // Space only counts if already in diff
 
     if (isDiffLine) {
       if (!inDiff) {
@@ -62,7 +61,7 @@ function extractDiffs(rawContext: string): Array<{
       }
 
       // Track if we have actual changes (not just context)
-      if (firstChar === '+' || firstChar === '-') {
+      if (firstChar === "+" || firstChar === "-") {
         hasChanges = true;
       }
 
@@ -71,8 +70,8 @@ function extractDiffs(rawContext: string): Array<{
       // End of diff block - only add if it has actual changes
       if (hasChanges) {
         diffs.push({
-          diff: currentDiff.join('\n'),
-          language: 'typescript', // Default to TypeScript
+          diff: currentDiff.join("\n"),
+          language: "typescript", // Default to TypeScript
         });
       }
       currentDiff = [];
@@ -84,8 +83,8 @@ function extractDiffs(rawContext: string): Array<{
   // Add remaining diff if any and has changes
   if (currentDiff.length > 0 && hasChanges) {
     diffs.push({
-      diff: currentDiff.join('\n'),
-      language: 'typescript',
+      diff: currentDiff.join("\n"),
+      language: "typescript",
     });
   }
 
@@ -95,10 +94,7 @@ function extractDiffs(rawContext: string): Array<{
 /**
  * Generate SVG content for the memory card
  */
-async function generateSVG(
-  frame: Frame,
-  options: Required<RenderOptions>
-): Promise<string> {
+async function generateSVG(frame: Frame, options: Required<RenderOptions>): Promise<string> {
   const { dimensions, colorScheme, fontConfig, rawContext } = options;
   const dynamicHeight = calculateCardHeight(frame, dimensions);
 
@@ -113,9 +109,7 @@ async function generateSVG(
   );
 
   // Background
-  svgParts.push(
-    `<rect width="100%" height="100%" fill="${colorScheme.background}"/>`
-  );
+  svgParts.push(`<rect width="100%" height="100%" fill="${colorScheme.background}"/>`);
 
   // Title
   svgParts.push(
@@ -175,7 +169,8 @@ async function generateSVG(
       );
       yOffset += lineHeight;
 
-      for (const { diff, language } of diffs.slice(0, 2)) { // Limit to 2 diffs
+      for (const { diff, language } of diffs.slice(0, 2)) {
+        // Limit to 2 diffs
         // Apply smart truncation
         const truncatedDiff = renderDiff(diff, { maxLines: 20, contextLines: 2 });
         const stats = getDiffStats(diff);
@@ -187,14 +182,14 @@ async function generateSVG(
         yOffset += lineHeight;
 
         // Render diff lines (simplified for SVG - no full syntax highlighting in SVG)
-        const diffLines = truncatedDiff.split('\n').slice(0, 15); // Limit lines
+        const diffLines = truncatedDiff.split("\n").slice(0, 15); // Limit lines
         for (const line of diffLines) {
           let color = colorScheme.text;
-          if (line.startsWith('+')) {
+          if (line.startsWith("+")) {
             color = colorScheme.diffAddition;
-          } else if (line.startsWith('-')) {
+          } else if (line.startsWith("-")) {
             color = colorScheme.diffDeletion;
-          } else if (line.includes('lines omitted') || line.includes('more lines')) {
+          } else if (line.includes("lines omitted") || line.includes("more lines")) {
             color = colorScheme.diffContext;
           }
 
@@ -210,9 +205,9 @@ async function generateSVG(
   }
 
   // Close SVG
-  svgParts.push('</svg>');
+  svgParts.push("</svg>");
 
-  return svgParts.join('\n');
+  return svgParts.join("\n");
 }
 
 /**
@@ -220,20 +215,17 @@ async function generateSVG(
  */
 function escapeXml(text: string): string {
   return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
 }
 
 /**
  * Render memory card as PNG image
  */
-export async function renderMemoryCard(
-  frame: Frame,
-  rawContext?: string
-): Promise<Buffer> {
+export async function renderMemoryCard(frame: Frame, rawContext?: string): Promise<Buffer> {
   return renderMemoryCardWithOptions(frame, { rawContext });
 }
 
@@ -249,16 +241,14 @@ export async function renderMemoryCardWithOptions(
     dimensions: options.dimensions || DEFAULT_DIMENSIONS,
     colorScheme: options.colorScheme || DARK_COLOR_SCHEME,
     fontConfig: options.fontConfig || MONOSPACE_FONT,
-    rawContext: options.rawContext || '',
+    rawContext: options.rawContext || "",
   };
 
   // Generate SVG
   const svg = await generateSVG(frame, fullOptions);
 
   // Convert SVG to PNG using Sharp
-  const buffer = await sharp(Buffer.from(svg))
-    .png()
-    .toBuffer();
+  const buffer = await sharp(Buffer.from(svg)).png().toBuffer();
 
   return buffer;
 }

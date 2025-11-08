@@ -13,5 +13,5 @@
  */
 
 // Export core types
-export type { Policy } from './shared/types/policy.js';
-export type { Frame } from './shared/types/frame.js';
+export type { Policy } from "./shared/types/policy.js";
+export type { Frame } from "./shared/types/frame.js";

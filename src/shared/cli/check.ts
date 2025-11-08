@@ -1,11 +1,11 @@
 /**
  * CLI Command: lex check
- * 
+ *
  * Wrapper around policy/check for user-friendly policy violation reporting.
  */
 
-import { readFileSync, existsSync } from 'fs';
-import { resolve } from 'path';
+import { readFileSync, existsSync } from "fs";
+import { resolve } from "path";
 
 export interface CheckOptions {
   json?: boolean;
@@ -87,10 +87,10 @@ export async function check(
     }
 
     // Load files
-    const scannerContent = readFileSync(resolvedMergedPath, 'utf-8');
+    const scannerContent = readFileSync(resolvedMergedPath, "utf-8");
     const scannerOutput: MergedScannerOutput = JSON.parse(scannerContent);
 
-    const policyContent = readFileSync(resolvedPolicyPath, 'utf-8');
+    const policyContent = readFileSync(resolvedPolicyPath, "utf-8");
     const policy: Policy = JSON.parse(policyContent);
 
     // Run policy check
@@ -98,11 +98,17 @@ export async function check(
 
     // Output results
     if (options.json) {
-      console.log(JSON.stringify({
-        violations,
-        count: violations.length,
-        ticket: options.ticket,
-      }, null, 2));
+      console.log(
+        JSON.stringify(
+          {
+            violations,
+            count: violations.length,
+            ticket: options.ticket,
+          },
+          null,
+          2
+        )
+      );
     } else {
       displayViolations(violations, options.ticket);
     }
@@ -174,7 +180,7 @@ function checkPolicy(scannerOutput: MergedScannerOutput, policy: Policy): Violat
   if (scannerOutput.module_edges) {
     for (const edge of scannerOutput.module_edges) {
       const toModule = policy.modules[edge.to_module];
-      
+
       if (toModule && toModule.forbidden_callers) {
         for (const forbidden of toModule.forbidden_callers) {
           if (matchPattern(edge.from_module, forbidden)) {
@@ -218,7 +224,7 @@ function resolveImportToModule(importPath: string, policy: Policy): string | nul
   if (policy.modules[importPath]) {
     return importPath;
   }
-  
+
   // Try to match by namespace first (PHP style)
   for (const [moduleId, module] of Object.entries(policy.modules)) {
     if (module.owns_namespaces) {
@@ -248,10 +254,7 @@ function resolveImportToModule(importPath: string, policy: Policy): string | nul
  * Match file path against pattern with glob support
  */
 function matchPath(filePath: string, pattern: string): boolean {
-  const regexPattern = pattern
-    .replace(/\*\*/g, ".*")
-    .replace(/\*/g, "[^/]*")
-    .replace(/\//g, "\\/");
+  const regexPattern = pattern.replace(/\*\*/g, ".*").replace(/\*/g, "[^/]*").replace(/\//g, "\\/");
   const regex = new RegExp(`^${regexPattern}$`);
   return regex.test(filePath);
 }
@@ -270,11 +273,13 @@ function matchPattern(value: string, pattern: string): boolean {
  */
 function displayViolations(violations: Violation[], ticket?: string): void {
   if (violations.length === 0) {
-    console.log('\n✅ No policy violations found\n');
+    console.log("\n✅ No policy violations found\n");
     return;
   }
 
-  console.log(`\n❌ Found ${violations.length} policy violation(s)${ticket ? ` (ticket: ${ticket})` : ''}:\n`);
+  console.log(
+    `\n❌ Found ${violations.length} policy violation(s)${ticket ? ` (ticket: ${ticket})` : ""}:\n`
+  );
 
   for (let i = 0; i < violations.length; i++) {
     const v = violations[i];
@@ -285,7 +290,7 @@ function displayViolations(violations: Violation[], ticket?: string): void {
     if (v.details) {
       console.log(`   ${v.details}`);
     }
-    console.log('');
+    console.log("");
   }
 
   console.log(`Exit code: 1 (violations found)\n`);

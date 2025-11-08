@@ -20,14 +20,14 @@
  * ```
  */
 export interface StatusSnapshot {
-    /** What needs to happen next */
-    next_action: string;
-    /** General blockers preventing progress */
-    blockers?: string[];
-    /** Specific reasons merge is blocked */
-    merge_blockers?: string[];
-    /** Test names that were failing during this session */
-    tests_failing?: string[];
+  /** What needs to happen next */
+  next_action: string;
+  /** General blockers preventing progress */
+  blockers?: string[];
+  /** Specific reasons merge is blocked */
+  merge_blockers?: string[];
+  /** Test names that were failing during this session */
+  tests_failing?: string[];
 }
 /**
  * Frame metadata representing a timestamped work session snapshot.
@@ -57,32 +57,32 @@ export interface StatusSnapshot {
  * ```
  */
 export interface Frame {
-    /** Unique identifier for this Frame (e.g., "frame-001" or UUID) */
-    id: string;
-    /** ISO 8601 timestamp when Frame was captured (e.g., "2025-11-01T16:04:12-05:00") */
-    timestamp: string;
-    /** Git branch name where work was happening */
-    branch: string;
-    /** Module IDs from lexmap.policy.json that were touched during this work session */
-    module_scope: string[];
-    /** Human-readable one-line summary of what was happening */
-    summary_caption: string;
-    /** Human-memorable anchor phrase for fuzzy recall (e.g., "that auth deadlock") */
-    reference_point: string;
-    /** Current state of work */
-    status_snapshot: StatusSnapshot;
-    /** Ticket ID if work is tracked in Jira/Linear/etc. */
-    jira?: string;
-    /** Tags for search/filtering */
-    keywords?: string[];
-    /** Link to associated Atlas Frame (spatial neighborhood) */
-    atlas_frame_id?: string;
-    /** Flags that were active during this session */
-    feature_flags?: string[];
-    /** Permissions required for this work */
-    permissions?: string[];
-    /** Image attachment IDs (references to images table) */
-    image_ids?: string[];
+  /** Unique identifier for this Frame (e.g., "frame-001" or UUID) */
+  id: string;
+  /** ISO 8601 timestamp when Frame was captured (e.g., "2025-11-01T16:04:12-05:00") */
+  timestamp: string;
+  /** Git branch name where work was happening */
+  branch: string;
+  /** Module IDs from lexmap.policy.json that were touched during this work session */
+  module_scope: string[];
+  /** Human-readable one-line summary of what was happening */
+  summary_caption: string;
+  /** Human-memorable anchor phrase for fuzzy recall (e.g., "that auth deadlock") */
+  reference_point: string;
+  /** Current state of work */
+  status_snapshot: StatusSnapshot;
+  /** Ticket ID if work is tracked in Jira/Linear/etc. */
+  jira?: string;
+  /** Tags for search/filtering */
+  keywords?: string[];
+  /** Link to associated Atlas Frame (spatial neighborhood) */
+  atlas_frame_id?: string;
+  /** Flags that were active during this session */
+  feature_flags?: string[];
+  /** Permissions required for this work */
+  permissions?: string[];
+  /** Image attachment IDs (references to images table) */
+  image_ids?: string[];
 }
 /**
  * Atlas Frame containing spatial neighborhood data for visualizing module relationships.
@@ -103,23 +103,23 @@ export interface Frame {
  * ```
  */
 export interface AtlasFrame {
-    /** Unique identifier for this Atlas Frame */
-    id: string;
-    /** The module at the center of this spatial view */
-    center_module: string;
-    /** Maximum distance from center to include in the neighborhood */
-    fold_radius: number;
-    /** Modules within the fold radius with their spatial relationships */
-    neighbors: Array<{
-        /** Module ID from lexmap.policy.json */
-        module_id: string;
-        /** Distance from the center module (in graph hops or spatial units) */
-        distance: number;
-        /** Spatial coordinates for visual layout [x, y] */
-        coords: [number, number];
-    }>;
-    /** ISO 8601 timestamp when this Atlas Frame was generated */
-    timestamp: string;
+  /** Unique identifier for this Atlas Frame */
+  id: string;
+  /** The module at the center of this spatial view */
+  center_module: string;
+  /** Maximum distance from center to include in the neighborhood */
+  fold_radius: number;
+  /** Modules within the fold radius with their spatial relationships */
+  neighbors: Array<{
+    /** Module ID from lexmap.policy.json */
+    module_id: string;
+    /** Distance from the center module (in graph hops or spatial units) */
+    distance: number;
+    /** Spatial coordinates for visual layout [x, y] */
+    coords: [number, number];
+  }>;
+  /** ISO 8601 timestamp when this Atlas Frame was generated */
+  timestamp: string;
 }
 /**
  * Validates that an unknown value conforms to the Frame interface.

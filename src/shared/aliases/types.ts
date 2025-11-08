@@ -1,6 +1,6 @@
 /**
  * Type definitions for Module ID Alias Resolution
- * 
+ *
  * Provides interfaces for alias table structure and resolution results.
  */
 
@@ -10,10 +10,10 @@
 export interface AliasEntry {
   /** The canonical module ID in lexmap.policy.json */
   canonical: string;
-  
+
   /** Confidence score (1.0 for explicit aliases) */
   confidence: number;
-  
+
   /** Human-readable reason for the alias (e.g., "shorthand", "refactored 2025-10-15") */
   reason?: string;
 }
@@ -32,15 +32,15 @@ export interface AliasTable {
 export interface AliasResolution {
   /** The canonical module ID to use (may be same as original if no alias found) */
   canonical: string;
-  
+
   /** Confidence score (1.0 for exact match or explicit alias, 0.0 for unknown) */
   confidence: number;
-  
+
   /** The original input string */
   original: string;
-  
+
   /** Source of the resolution */
-  source: 'exact' | 'alias' | 'fuzzy' | 'substring';
+  source: "exact" | "alias" | "fuzzy" | "substring";
 }
 
 /**
@@ -49,10 +49,10 @@ export interface AliasResolution {
 export interface ResolverOptions {
   /** Disable substring matching (default: false) */
   noSubstring?: boolean;
-  
+
   /** Minimum substring length for matching (default: 3) */
   minSubstringLength?: number;
-  
+
   /** Maximum number of ambiguous matches to show in error (default: 5) */
   maxAmbiguousMatches?: number;
 }
@@ -67,13 +67,13 @@ export class AmbiguousSubstringError extends Error {
   constructor(substring: string, matches: string[], maxShow: number = 5) {
     const showMatches = matches.slice(0, maxShow);
     const moreCount = matches.length - maxShow;
-    const matchList = showMatches.map(m => `  - ${m}`).join('\n');
-    const moreText = moreCount > 0 ? `  ... and ${moreCount} more` : '';
-    
+    const matchList = showMatches.map((m) => `  - ${m}`).join("\n");
+    const moreText = moreCount > 0 ? `  ... and ${moreCount} more` : "";
+
     super(
-      `Ambiguous substring '${substring}' matches:\n${matchList}${moreText ? '\n' + moreText : ''}\nPlease use full module ID or add to alias table.`
+      `Ambiguous substring '${substring}' matches:\n${matchList}${moreText ? "\n" + moreText : ""}\nPlease use full module ID or add to alias table.`
     );
-    this.name = 'AmbiguousSubstringError';
+    this.name = "AmbiguousSubstringError";
     this.substring = substring;
     this.matches = matches;
   }
@@ -87,11 +87,9 @@ export class NoMatchFoundError extends Error {
   public readonly suggestions: string[];
 
   constructor(moduleId: string, suggestions: string[] = []) {
-    const suggestionText = suggestions.length > 0 
-      ? ` Did you mean '${suggestions[0]}'?`
-      : '';
+    const suggestionText = suggestions.length > 0 ? ` Did you mean '${suggestions[0]}'?` : "";
     super(`Module '${moduleId}' not found in policy.${suggestionText}`);
-    this.name = 'NoMatchFoundError';
+    this.name = "NoMatchFoundError";
     this.moduleId = moduleId;
     this.suggestions = suggestions;
   }

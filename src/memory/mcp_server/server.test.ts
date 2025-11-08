@@ -81,14 +81,8 @@ describe("MCP Server - Protocol", () => {
         response.content[0].text.includes("✅ Frame stored"),
         "Should confirm Frame storage"
       );
-      assert.ok(
-        response.content[0].text.includes("test memory"),
-        "Should include reference point"
-      );
-      assert.ok(
-        response.content[0].text.includes("Atlas Frame"),
-        "Should include Atlas Frame"
-      );
+      assert.ok(response.content[0].text.includes("test memory"), "Should include reference point");
+      assert.ok(response.content[0].text.includes("Atlas Frame"), "Should include Atlas Frame");
     } finally {
       teardown();
     }
@@ -150,18 +144,12 @@ describe("MCP Server - Protocol", () => {
       });
 
       assert.ok(response.content, "Response should have content");
-      assert.ok(
-        response.content[0].text.includes("Found 1 Frame"),
-        "Should find 1 Frame"
-      );
+      assert.ok(response.content[0].text.includes("Found 1 Frame"), "Should find 1 Frame");
       assert.ok(
         response.content[0].text.includes("authentication refactoring"),
         "Should include reference point"
       );
-      assert.ok(
-        response.content[0].text.includes("Atlas Frame"),
-        "Should include Atlas Frame"
-      );
+      assert.ok(response.content[0].text.includes("Atlas Frame"), "Should include Atlas Frame");
     } finally {
       teardown();
     }
@@ -251,22 +239,10 @@ describe("MCP Server - Protocol", () => {
       });
 
       assert.ok(response.content, "Response should have content");
-      assert.ok(
-        response.content[0].text.includes("Recent Frames (2)"),
-        "Should list 2 frames"
-      );
-      assert.ok(
-        response.content[0].text.includes("frame one"),
-        "Should include first frame"
-      );
-      assert.ok(
-        response.content[0].text.includes("frame two"),
-        "Should include second frame"
-      );
-      assert.ok(
-        response.content[0].text.includes("Atlas Frame"),
-        "Should include Atlas Frames"
-      );
+      assert.ok(response.content[0].text.includes("Recent Frames (2)"), "Should list 2 frames");
+      assert.ok(response.content[0].text.includes("frame one"), "Should include first frame");
+      assert.ok(response.content[0].text.includes("frame two"), "Should include second frame");
+      assert.ok(response.content[0].text.includes("Atlas Frame"), "Should include Atlas Frames");
     } finally {
       teardown();
     }
@@ -312,18 +288,9 @@ describe("MCP Server - Protocol", () => {
       });
 
       assert.ok(response.content, "Response should have content");
-      assert.ok(
-        response.content[0].text.includes("Recent Frames (1)"),
-        "Should list 1 frame"
-      );
-      assert.ok(
-        response.content[0].text.includes("auth work"),
-        "Should include auth frame"
-      );
-      assert.ok(
-        !response.content[0].text.includes("ui work"),
-        "Should not include ui frame"
-      );
+      assert.ok(response.content[0].text.includes("Recent Frames (1)"), "Should list 1 frame");
+      assert.ok(response.content[0].text.includes("auth work"), "Should include auth frame");
+      assert.ok(!response.content[0].text.includes("ui work"), "Should not include ui frame");
     } finally {
       teardown();
     }
@@ -578,10 +545,7 @@ describe("MCP Server - Protocol", () => {
       });
 
       assert.ok(response.error, "Should return error for typo");
-      assert.ok(
-        response.error.message.includes("indexr"),
-        "Error should mention the typo"
-      );
+      assert.ok(response.error.message.includes("indexr"), "Error should mention the typo");
       assert.ok(
         response.error.message.includes("Did you mean"),
         "Error should provide suggestions"
@@ -647,14 +611,11 @@ describe("MCP Server - Protocol", () => {
         "Error should mention the invalid module"
       );
       // Valid modules should only appear in "Available modules" list, not as errors
-      const errorLines = response.error.message.split('\n').filter(line => line.includes('•'));
-      const hasValidModuleError = errorLines.some(line =>
-        line.includes("indexer") || line.includes("ts")
+      const errorLines = response.error.message.split("\n").filter((line) => line.includes("•"));
+      const hasValidModuleError = errorLines.some(
+        (line) => line.includes("indexer") || line.includes("ts")
       );
-      assert.ok(
-        !hasValidModuleError,
-        "Error should not flag valid modules as invalid"
-      );
+      assert.ok(!hasValidModuleError, "Error should not flag valid modules as invalid");
     } finally {
       teardown();
     }

@@ -1,18 +1,18 @@
 /**
  * Token Estimation for Atlas Frames
- * 
+ *
  * Estimates the token count of an Atlas Frame for LLM context window management.
  * Uses simple heuristics based on JSON serialization size.
  */
 
-import type { AtlasFrame } from './types.js';
+import type { AtlasFrame } from "./types.js";
 
 /**
  * Estimate the number of tokens in an Atlas Frame
- * 
+ *
  * Uses a simple heuristic: 1 token ≈ 4 characters in JSON
  * This is approximate but sufficient for auto-tuning decisions.
- * 
+ *
  * @param atlasFrame - The Atlas Frame to estimate
  * @returns Estimated token count
  */
@@ -25,10 +25,10 @@ export function estimateTokens(atlasFrame: AtlasFrame): number {
 
 /**
  * Auto-tune fold radius to fit within token limit
- * 
+ *
  * Starts with the requested radius and reduces it if the resulting
  * Atlas Frame exceeds the token limit. Stops at radius 0 (seed only).
- * 
+ *
  * @param generateFn - Function that generates an Atlas Frame for a given radius
  * @param initialRadius - Starting radius to try
  * @param maxTokens - Maximum token count allowed
@@ -60,7 +60,7 @@ export function autoTuneRadius(
     if (currentRadius > 0) {
       const oldRadius = currentRadius;
       currentRadius--;
-      
+
       if (onAdjustment) {
         onAdjustment(oldRadius, currentRadius, tokens, maxTokens);
       }
@@ -86,14 +86,14 @@ export function autoTuneRadius(
 
 /**
  * Estimate if a given radius will exceed token limit
- * 
+ *
  * Rough estimate based on:
  * - Number of seed modules
  * - Expected graph density
  * - Fold radius
- * 
+ *
  * This is used for quick checks before actually generating the frame.
- * 
+ *
  * @param seedCount - Number of seed modules
  * @param radius - Fold radius
  * @param avgDegree - Average node degree in graph (default: 3)
@@ -109,7 +109,7 @@ export function estimateTokensBeforeGeneration(
   // Estimate module count using graph expansion formula
   // For radius r: modules ≈ seed × (1 + degree + degree^2 + ... + degree^r)
   let estimatedModules = seedCount;
-  
+
   if (radius > 0) {
     // Handle special case where avgDegree is 1 (linear graph)
     if (avgDegree === 1) {

@@ -5,9 +5,10 @@
  * Implements full policy graph traversal with N-hop neighborhood extraction.
  */
 
-import { loadPolicy } from '../policy/loader.js';
-import type { PolicyModule } from '../types/policy.js';
-import { extractNeighborhood, generateCoordinates } from './graph.js';export interface AtlasFrame {
+import { loadPolicy } from "../policy/loader.js";
+import type { PolicyModule } from "../types/policy.js";
+import { extractNeighborhood, generateCoordinates } from "./graph.js";
+export interface AtlasFrame {
   atlas_timestamp: string;
   seed_modules: string[];
   fold_radius: number;
@@ -72,10 +73,7 @@ export function generateAtlasFrame(
   const neighborhood = extractNeighborhood(policy, seedModules, foldRadius);
 
   // Generate coordinates for visualization
-  const coordinates = generateCoordinates(
-    neighborhood.modules,
-    neighborhood.edges
-  );
+  const coordinates = generateCoordinates(neighborhood.modules, neighborhood.edges);
 
   // Build AtlasModule objects with full metadata
   const modules: AtlasModule[] = [];
@@ -130,8 +128,8 @@ export function generateAtlasFrame(
   const edges: AtlasEdge[] = neighborhood.edges.map((edge) => ({
     from: edge.from,
     to: edge.to,
-    allowed: edge.type === 'allowed',
-    reason: edge.type === 'forbidden' ? 'forbidden_caller' : undefined,
+    allowed: edge.type === "allowed",
+    reason: edge.type === "forbidden" ? "forbidden_caller" : undefined,
   }));
 
   return {
@@ -140,8 +138,7 @@ export function generateAtlasFrame(
     fold_radius: foldRadius,
     modules,
     edges,
-    critical_rule:
-      "Every module name MUST match the IDs in lexmap.policy.json. No ad hoc naming.",
+    critical_rule: "Every module name MUST match the IDs in lexmap.policy.json. No ad hoc naming.",
   };
 }
 
