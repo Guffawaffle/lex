@@ -34,6 +34,7 @@
     "test:benchmarks": "npx tsx --test src/memory/benchmarks.test.ts",
     "test:all": "npm test && npm run test:integration",
     "test:coverage": "npm run test",
+    "test:smoke": "./scripts/consumer-smoke-test.sh",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "local-ci": "./scripts/local-ci-run.sh",
