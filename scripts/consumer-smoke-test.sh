@@ -21,7 +21,7 @@ TARBALL=$(ls -t lex-*.tgz | head -1)
 echo "Created: $TARBALL"
 echo ""
 
-# Step 2: Create temporary consumer project
+# Step 3: Create temporary consumer project
 TEST_DIR=$(mktemp -d)
 echo "==> Step 3: Creating test consumer project in $TEST_DIR"
 
@@ -40,7 +40,7 @@ EOF
 echo "==> Step 4: Installing tarball"
 npm install "$REPO_ROOT/$TARBALL" --no-save --no-audit --no-fund
 
-# Step 3: Create test files for each subpath export
+# Step 5: Create test files for each subpath export
 echo "==> Step 5: Creating test files"
 
 # Test 1: Main entry point (lex)
@@ -100,7 +100,7 @@ if (typeof detectViolations !== 'function' ||
 }
 EOF
 
-# Step 4: Run the tests
+# Step 6: Run the tests
 echo "==> Step 6: Running import tests"
 echo ""
 
@@ -116,7 +116,7 @@ echo "--- Test 3: Policy subpath (lex/policy/*) ---"
 node test-policy.mjs
 echo ""
 
-# Step 5: Cleanup
+# Step 7: Cleanup
 echo "==> Step 7: Cleaning up"
 cd "$REPO_ROOT"
 rm -rf "$TEST_DIR"
