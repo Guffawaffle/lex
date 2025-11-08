@@ -34,11 +34,39 @@ export interface ReportResult {
  * @param strict - Whether to treat warnings as errors
  * @returns Report result with exit code and formatted content
  */
+// Backward-compatible generateReport supporting legacy signature:
+//   generateReport(violations, policy, format)
+// New preferred signature:
+//   generateReport(violations, { policy, format, strict })
 export function generateReport(
   violations: Violation[],
-  opts: { policy?: Policy; format?: ReportFormat; strict?: boolean } = {}
+  policyOrOpts: Policy | { policy?: Policy; format?: ReportFormat; strict?: boolean } = {},
+  legacyFormat?: ReportFormat
 ): ReportResult {
-  const { policy, format = "text" } = opts;
+  let policy: Policy | undefined;
+  let format: ReportFormat = "text";
+
+  // Detect legacy invocation where second arg is a Policy object and third arg is the format.
+  const isPlainObject = (v: unknown): v is Record<string, unknown> =>
+    typeof v === "object" && v !== null;
+  const isPolicyObject = (val: unknown): val is Policy =>
+    isPlainObject(val) &&
+    Object.prototype.hasOwnProperty.call(val, "modules") &&
+    !Object.prototype.hasOwnProperty.call(val, "policy");
+
+  if (isPolicyObject(policyOrOpts) && legacyFormat) {
+    policy = policyOrOpts as Policy;
+    format = legacyFormat;
+  } else if (isPolicyObject(policyOrOpts) && !legacyFormat) {
+    // Legacy call without explicit format (defaults to text)
+    policy = policyOrOpts as Policy;
+  } else {
+    // New opts signature
+    const opts = policyOrOpts as { policy?: Policy; format?: ReportFormat; strict?: boolean };
+    policy = opts.policy;
+    format = opts.format ?? "text";
+  }
+
   const exitCode = violations.length > 0 ? 1 : 0;
 
   let content: string;
