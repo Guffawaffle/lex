@@ -29,12 +29,12 @@
  * ```
  */
 export type PolicyEdge = {
-    /** Source module ID */
-    from: string;
-    /** Target module ID */
-    to: string;
-    /** Whether this relationship is allowed or forbidden */
-    type: 'allowed' | 'forbidden';
+  /** Source module ID */
+  from: string;
+  /** Target module ID */
+  to: string;
+  /** Whether this relationship is allowed or forbidden */
+  type: "allowed" | "forbidden";
 };
 /**
  * Definition of a single module in the policy file.
@@ -55,58 +55,58 @@ export type PolicyEdge = {
  * ```
  */
 export interface PolicyModule {
-    /**
-     * Glob patterns for files this module owns (e.g., ["web-ui/userAdmin/**"])
-     * Note: Either owns_paths or owns_namespaces (or both) should be specified
-     * to define what this module owns.
-     */
-    owns_paths?: string[];
-    /**
-     * Language-specific package/module namespace patterns this module owns
-     * (e.g., ["App\\UserAdmin\\*"] for PHP, ["com.example.useradmin.*"] for Java)
-     * Note: Either owns_paths or owns_namespaces (or both) should be specified
-     * to define what this module owns.
-     */
-    owns_namespaces?: string[];
-    /**
-     * Exported symbols or APIs that this module exposes to callers
-     * (e.g., ["UserAdminService", "CreateUserCommand"])
-     */
-    exposes?: string[];
-    /**
-     * Spatial coordinates for visual layout [x, y]
-     * Used by shared/atlas/ to render Atlas Frames with proper positioning
-     */
-    coords?: [number, number];
-    /**
-     * Module IDs that are allowed to call this module
-     * Empty array [] means no one can call this (e.g., UI components should not be called by backend)
-     */
-    allowed_callers?: string[];
-    /**
-     * Module IDs explicitly forbidden from calling this module
-     * Overrides would-be allowed edges (used for kill patterns / migration enforcement)
-     */
-    forbidden_callers?: string[];
-    /**
-     * Feature flags that gate access to this module
-     * Example: ["beta_user_admin"] means this module is only accessible when that flag is on
-     */
-    feature_flags?: string[];
-    /**
-     * Permissions required to use this module
-     * Example: ["can_manage_users"] means caller must have that permission
-     */
-    requires_permissions?: string[];
-    /**
-     * Anti-patterns being removed from this module
-     * Example: ["duplicate_auth_logic"] signals "we're actively removing this pattern, don't add more"
-     */
-    kill_patterns?: string[];
-    /**
-     * Human-readable context or migration plan
-     */
-    notes?: string;
+  /**
+   * Glob patterns for files this module owns (e.g., ["web-ui/userAdmin/**"])
+   * Note: Either owns_paths or owns_namespaces (or both) should be specified
+   * to define what this module owns.
+   */
+  owns_paths?: string[];
+  /**
+   * Language-specific package/module namespace patterns this module owns
+   * (e.g., ["App\\UserAdmin\\*"] for PHP, ["com.example.useradmin.*"] for Java)
+   * Note: Either owns_paths or owns_namespaces (or both) should be specified
+   * to define what this module owns.
+   */
+  owns_namespaces?: string[];
+  /**
+   * Exported symbols or APIs that this module exposes to callers
+   * (e.g., ["UserAdminService", "CreateUserCommand"])
+   */
+  exposes?: string[];
+  /**
+   * Spatial coordinates for visual layout [x, y]
+   * Used by shared/atlas/ to render Atlas Frames with proper positioning
+   */
+  coords?: [number, number];
+  /**
+   * Module IDs that are allowed to call this module
+   * Empty array [] means no one can call this (e.g., UI components should not be called by backend)
+   */
+  allowed_callers?: string[];
+  /**
+   * Module IDs explicitly forbidden from calling this module
+   * Overrides would-be allowed edges (used for kill patterns / migration enforcement)
+   */
+  forbidden_callers?: string[];
+  /**
+   * Feature flags that gate access to this module
+   * Example: ["beta_user_admin"] means this module is only accessible when that flag is on
+   */
+  feature_flags?: string[];
+  /**
+   * Permissions required to use this module
+   * Example: ["can_manage_users"] means caller must have that permission
+   */
+  requires_permissions?: string[];
+  /**
+   * Anti-patterns being removed from this module
+   * Example: ["duplicate_auth_logic"] signals "we're actively removing this pattern, don't add more"
+   */
+  kill_patterns?: string[];
+  /**
+   * Human-readable context or migration plan
+   */
+  notes?: string;
 }
 /**
  * Top-level policy container with module definitions.
@@ -147,18 +147,18 @@ export interface PolicyModule {
  * ```
  */
 export interface Policy {
-    /** Map of module ID to module definition */
-    modules: Record<string, PolicyModule>;
-    /**
-     * Global anti-patterns that apply across all modules
-     * Used to enforce organization-wide code quality standards
-     */
-    global_kill_patterns?: Array<{
-        /** Pattern identifier */
-        pattern: string;
-        /** Human-readable description of the pattern and why it's being removed */
-        description: string;
-    }>;
+  /** Map of module ID to module definition */
+  modules: Record<string, PolicyModule>;
+  /**
+   * Global anti-patterns that apply across all modules
+   * Used to enforce organization-wide code quality standards
+   */
+  global_kill_patterns?: Array<{
+    /** Pattern identifier */
+    pattern: string;
+    /** Human-readable description of the pattern and why it's being removed */
+    description: string;
+  }>;
 }
 /**
  * Validates that an unknown value conforms to the PolicyModule interface.

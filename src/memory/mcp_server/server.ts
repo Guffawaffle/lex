@@ -63,7 +63,7 @@ export class MCPServer {
     try {
       // If repoRoot is provided, construct the policy path directly
       const policyPath = this.repoRoot
-        ? join(this.repoRoot, 'policy/policy_spec/lexmap.policy.json')
+        ? join(this.repoRoot, "policy/policy_spec/lexmap.policy.json")
         : undefined;
       this.policy = loadPolicy(policyPath);
     } catch (error: any) {
@@ -112,12 +112,12 @@ export class MCPServer {
     return {
       protocolVersion: "2024-11-05",
       capabilities: {
-        tools: {}
+        tools: {},
       },
       serverInfo: {
         name: "lex-memory-mcp-server",
-        version: "0.1.0"
-      }
+        version: "0.1.0",
+      },
     } as any;
   }
 
@@ -193,16 +193,17 @@ export class MCPServer {
       if (!validationResult.valid && validationResult.errors) {
         // Format error message with suggestions
         const errorMessages = validationResult.errors.map((error: ModuleIdError) => {
-          const suggestions = error.suggestions.length > 0
-            ? `\n  Did you mean: ${error.suggestions.join(', ')}?`
-            : '';
+          const suggestions =
+            error.suggestions.length > 0
+              ? `\n  Did you mean: ${error.suggestions.join(", ")}?`
+              : "";
           return `  • ${error.message}${suggestions}`;
         });
 
         throw new Error(
-          `Invalid module IDs in module_scope:\n${errorMessages.join('\n')}\n\n` +
-          `Module IDs must match those defined in lexmap.policy.json.\n` +
-          `Available modules: ${Object.keys(this.policy.modules).join(', ')}`
+          `Invalid module IDs in module_scope:\n${errorMessages.join("\n")}\n\n` +
+            `Module IDs must match those defined in lexmap.policy.json.\n` +
+            `Available modules: ${Object.keys(this.policy.modules).join(", ")}`
         );
       }
 
@@ -231,7 +232,7 @@ export class MCPServer {
     } else {
       // When no repoRoot is provided and no env override, avoid auto-detecting
       // from the runner's repository; use 'unknown' to indicate no branch context.
-      frameBranch = 'unknown';
+      frameBranch = "unknown";
     }
 
     const frame = {
@@ -239,7 +240,7 @@ export class MCPServer {
       timestamp,
       branch: frameBranch,
       jira: jira || null,
-      module_scope: canonicalModuleScope,  // Store canonical IDs only
+      module_scope: canonicalModuleScope, // Store canonical IDs only
       summary_caption,
       reference_point,
       status_snapshot,
@@ -257,11 +258,7 @@ export class MCPServer {
         try {
           // Decode base64 image data
           const imageBuffer = Buffer.from(img.data, "base64");
-          const imageId = this.imageManager.storeImage(
-            frameId,
-            imageBuffer,
-            img.mime_type
-          );
+          const imageId = this.imageManager.storeImage(frameId, imageBuffer, img.mime_type);
           imageIds.push(imageId);
         } catch (error: any) {
           // If image storage fails, clean up the Frame and rethrow
@@ -279,9 +276,7 @@ export class MCPServer {
     const atlasFrame = generateAtlasFrame(canonicalModuleScope);
     const atlasOutput = formatAtlasFrame(atlasFrame);
 
-    const imageInfo = imageIds.length > 0
-      ? `🖼️  Images: ${imageIds.length} attached\n`
-      : "";
+    const imageInfo = imageIds.length > 0 ? `🖼️  Images: ${imageIds.length} attached\n` : "";
 
     return {
       content: [
@@ -309,9 +304,7 @@ export class MCPServer {
     const { reference_point, jira, branch, limit = 10 } = args;
 
     if (!reference_point && !jira && !branch) {
-      throw new Error(
-        "At least one search parameter required: reference_point, jira, or branch"
-      );
+      throw new Error("At least one search parameter required: reference_point, jira, or branch");
     }
 
     let frames: Frame[];
@@ -325,7 +318,7 @@ export class MCPServer {
     } catch (error: any) {
       // FTS5 search can fail with special characters (e.g., "zzz-nonexistent-query-zzz")
       // Treat search errors as empty results rather than propagating the error
-      if (error.code === 'SQLITE_ERROR' || error.message?.includes('no such column')) {
+      if (error.code === "SQLITE_ERROR" || error.message?.includes("no such column")) {
         frames = [];
       } else {
         throw error;

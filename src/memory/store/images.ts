@@ -1,6 +1,6 @@
 /**
  * Image Manager for Frame Attachments
- * 
+ *
  * Manages binary image storage in SQLite for Frame visual snapshots.
  * Supports multiple image formats with validation and efficient retrieval.
  */
@@ -46,7 +46,7 @@ export class ImageManager {
 
   /**
    * Store an image attachment for a Frame
-   * 
+   *
    * @param frameId - ID of the Frame to attach the image to
    * @param data - Binary image data as Buffer
    * @param mimeType - MIME type of the image (e.g., "image/png")
@@ -69,10 +69,8 @@ export class ImageManager {
     }
 
     // Validate frameId exists
-    const frameExists = this.db
-      .prepare("SELECT id FROM frames WHERE id = ?")
-      .get(frameId);
-    
+    const frameExists = this.db.prepare("SELECT id FROM frames WHERE id = ?").get(frameId);
+
     if (!frameExists) {
       throw new Error(`Frame not found: ${frameId}`);
     }
@@ -93,7 +91,7 @@ export class ImageManager {
 
   /**
    * Retrieve an image by its ID
-   * 
+   *
    * @param imageId - The image_id to retrieve
    * @returns Object containing image data and MIME type, or null if not found
    */
@@ -102,9 +100,7 @@ export class ImageManager {
       SELECT data, mime_type FROM images WHERE image_id = ?
     `);
 
-    const row = stmt.get(imageId) as
-      | { data: Buffer; mime_type: string }
-      | undefined;
+    const row = stmt.get(imageId) as { data: Buffer; mime_type: string } | undefined;
 
     if (!row) {
       return null;
@@ -118,7 +114,7 @@ export class ImageManager {
 
   /**
    * List all images attached to a Frame
-   * 
+   *
    * @param frameId - The Frame ID to list images for
    * @returns Array of image metadata (without binary data)
    */
@@ -154,7 +150,7 @@ export class ImageManager {
 
   /**
    * Delete an image by its ID
-   * 
+   *
    * @param imageId - The image_id to delete
    * @returns True if image was deleted, false if not found
    */
@@ -169,26 +165,26 @@ export class ImageManager {
 
   /**
    * Get total count of images in storage
-   * 
+   *
    * @returns Total number of images
    */
   getImageCount(): number {
-    const result = this.db
-      .prepare("SELECT COUNT(*) as count FROM images")
-      .get() as { count: number };
+    const result = this.db.prepare("SELECT COUNT(*) as count FROM images").get() as {
+      count: number;
+    };
 
     return result.count;
   }
 
   /**
    * Get total size of all images in storage (in bytes)
-   * 
+   *
    * @returns Total size in bytes
    */
   getTotalImageSize(): number {
-    const result = this.db
-      .prepare("SELECT SUM(LENGTH(data)) as total FROM images")
-      .get() as { total: number | null };
+    const result = this.db.prepare("SELECT SUM(LENGTH(data)) as total FROM images").get() as {
+      total: number | null;
+    };
 
     return result.total || 0;
   }

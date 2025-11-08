@@ -1,6 +1,6 @@
 /**
  * Tests for Frame storage
- * 
+ *
  * Run with: npm test
  * Or directly with tsx: npx tsx --test store.test.ts
  */
@@ -323,4 +323,6 @@ describe("Frame Storage Tests", () => {
 });
 
 // Summary message
-console.log("\n✅ Frame Storage Tests - covering CRUD, FTS5 search, queries, and concurrent access\n");
+console.log(
+  "\n✅ Frame Storage Tests - covering CRUD, FTS5 search, queries, and concurrent access\n"
+);

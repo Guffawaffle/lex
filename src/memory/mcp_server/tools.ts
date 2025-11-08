@@ -1,6 +1,6 @@
 /**
  * MCP Tools for Frame Memory
- * 
+ *
  * Defines the tools exposed via Model Context Protocol for AI assistants.
  * Each tool can search, create, or list Frames with Atlas Frame neighborhoods.
  */
@@ -24,17 +24,11 @@ export const MCP_TOOLS: MCPTool[] = [
     description: "Store a Frame (episodic memory snapshot)",
     inputSchema: {
       type: "object",
-      required: [
-        "reference_point",
-        "summary_caption",
-        "status_snapshot",
-        "module_scope",
-      ],
+      required: ["reference_point", "summary_caption", "status_snapshot", "module_scope"],
       properties: {
         reference_point: {
           type: "string",
-          description:
-            'What you were working on (e.g., "refactoring UserAuth module")',
+          description: 'What you were working on (e.g., "refactoring UserAuth module")',
         },
         summary_caption: {
           type: "string",
@@ -56,8 +50,7 @@ export const MCP_TOOLS: MCPTool[] = [
         module_scope: {
           type: "array",
           items: { type: "string" },
-          description:
-            'Module IDs from lexmap.policy.json (e.g., ["auth/core", "auth/password"])',
+          description: 'Module IDs from lexmap.policy.json (e.g., ["auth/core", "auth/password"])',
         },
         branch: {
           type: "string",
@@ -70,8 +63,7 @@ export const MCP_TOOLS: MCPTool[] = [
         keywords: {
           type: "array",
           items: { type: "string" },
-          description:
-            'Optional search tags (e.g., ["refactoring", "authentication"])',
+          description: 'Optional search tags (e.g., ["refactoring", "authentication"])',
         },
         atlas_frame_id: {
           type: "string",
@@ -93,8 +85,7 @@ export const MCP_TOOLS: MCPTool[] = [
             },
             required: ["data", "mime_type"],
           },
-          description:
-            "Optional array of image attachments (base64-encoded with MIME type)",
+          description: "Optional array of image attachments (base64-encoded with MIME type)",
         },
       },
     },

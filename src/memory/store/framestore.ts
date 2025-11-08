@@ -124,4 +124,3 @@ export class FrameStore {
     return this.db;
   }
 }
-

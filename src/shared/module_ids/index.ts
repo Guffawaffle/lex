@@ -5,7 +5,7 @@
  * between Frame metadata and lexmap.policy.json
  */
 
-export { validateModuleIds } from './validator.js';
-export { resolveModuleId } from '../aliases/resolver.js';
-export { ModuleNotFoundError } from '../types/validation.js';
-export type { ValidationResult, ModuleIdError, ResolutionResult } from '../types/validation.js';
+export { validateModuleIds } from "./validator.js";
+export { resolveModuleId } from "../aliases/resolver.js";
+export { ModuleNotFoundError } from "../types/validation.js";
+export type { ValidationResult, ModuleIdError, ResolutionResult } from "../types/validation.js";

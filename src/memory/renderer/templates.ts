@@ -48,24 +48,24 @@ export const DEFAULT_DIMENSIONS: CardDimensions = {
  * Optimized for readability in vision models
  */
 export const DARK_COLOR_SCHEME: ColorScheme = {
-  background: '#1a1a1a',
-  text: '#e0e0e0',
-  heading: '#ffffff',
-  accent: '#4a9eff',
-  muted: '#888888',
-  warning: '#ffaa00',
-  error: '#ff4444',
-  diffAddition: '#22863a',
-  diffDeletion: '#b31d28',
-  diffUnchanged: '#6a737d',
-  diffContext: '#586069',
+  background: "#1a1a1a",
+  text: "#e0e0e0",
+  heading: "#ffffff",
+  accent: "#4a9eff",
+  muted: "#888888",
+  warning: "#ffaa00",
+  error: "#ff4444",
+  diffAddition: "#22863a",
+  diffDeletion: "#b31d28",
+  diffUnchanged: "#6a737d",
+  diffContext: "#586069",
 };
 
 /**
  * Monospace font configuration for technical content
  */
 export const MONOSPACE_FONT: FontConfig = {
-  family: 'monospace',
+  family: "monospace",
   sizeTitle: 28,
   sizeHeading: 20,
   sizeBody: 16,
@@ -91,22 +91,18 @@ export function truncateText(text: string, maxLength: number): string {
   if (text.length <= maxLength) {
     return text;
   }
-  return text.substring(0, maxLength - 3) + '...';
+  return text.substring(0, maxLength - 3) + "...";
 }
 
 /**
  * Wrap text to fit within a given width
  * Returns array of lines
  */
-export function wrapText(
-  text: string,
-  maxWidth: number,
-  charWidth: number
-): string[] {
+export function wrapText(text: string, maxWidth: number, charWidth: number): string[] {
   const maxCharsPerLine = Math.floor(maxWidth / charWidth);
-  const words = text.split(' ');
+  const words = text.split(" ");
   const lines: string[] = [];
-  let currentLine = '';
+  let currentLine = "";
 
   for (const word of words) {
     const testLine = currentLine ? `${currentLine} ${word}` : word;
@@ -130,10 +126,7 @@ export function wrapText(
 /**
  * Calculate dynamic card height based on content
  */
-export function calculateCardHeight(
-  frame: any,
-  dimensions: CardDimensions
-): number {
+export function calculateCardHeight(frame: any, dimensions: CardDimensions): number {
   let lines = 0;
 
   // Title + timestamp + branch + divider
@@ -151,18 +144,14 @@ export function calculateCardHeight(
   // Status snapshot
   lines += 2; // heading + next action
   const nextActionLines = Math.ceil(
-    truncateText(frame.status_snapshot.next_action, TEXT_LIMITS.nextAction)
-      .length / 60
+    truncateText(frame.status_snapshot.next_action, TEXT_LIMITS.nextAction).length / 60
   );
   lines += nextActionLines;
 
   // Blockers
   if (frame.status_snapshot.blockers?.length > 0) {
     lines += 1; // heading
-    const blockerCount = Math.min(
-      frame.status_snapshot.blockers.length,
-      TEXT_LIMITS.maxBlockers
-    );
+    const blockerCount = Math.min(frame.status_snapshot.blockers.length, TEXT_LIMITS.maxBlockers);
     lines += blockerCount;
   }
 
@@ -179,10 +168,7 @@ export function calculateCardHeight(
   // Tests failing
   if (frame.status_snapshot.tests_failing?.length > 0) {
     lines += 1; // heading
-    const testCount = Math.min(
-      frame.status_snapshot.tests_failing.length,
-      TEXT_LIMITS.maxBlockers
-    );
+    const testCount = Math.min(frame.status_snapshot.tests_failing.length, TEXT_LIMITS.maxBlockers);
     lines += testCount;
   }
 

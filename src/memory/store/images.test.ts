@@ -101,11 +101,7 @@ describe("Image Manager", () => {
 
       assert.ok(retrieved, "Image should be retrieved");
       assert.strictEqual(retrieved!.mimeType, mimeType, "MIME type should match");
-      assert.deepStrictEqual(
-        retrieved!.data,
-        imageData,
-        "Image data should match"
-      );
+      assert.deepStrictEqual(retrieved!.data, imageData, "Image data should match");
     } finally {
       teardown();
     }

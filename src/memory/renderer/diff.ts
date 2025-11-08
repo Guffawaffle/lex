@@ -4,7 +4,7 @@
  */
 
 export interface DiffLine {
-  type: 'addition' | 'deletion' | 'unchanged' | 'context';
+  type: "addition" | "deletion" | "unchanged" | "context";
   content: string;
   lineNumber?: number;
 }
@@ -31,7 +31,7 @@ const DEFAULT_TRUNCATION_OPTIONS: Required<TruncationOptions> = {
  * Parse a unified diff string into structured diff lines
  */
 export function parseDiff(diff: string): DiffLine[] {
-  const lines = diff.split('\n');
+  const lines = diff.split("\n");
   const parsedLines: DiffLine[] = [];
 
   for (const line of lines) {
@@ -40,26 +40,26 @@ export function parseDiff(diff: string): DiffLine[] {
     }
 
     const firstChar = line[0];
-    
-    if (firstChar === '+') {
+
+    if (firstChar === "+") {
       parsedLines.push({
-        type: 'addition',
+        type: "addition",
         content: line.substring(1),
       });
-    } else if (firstChar === '-') {
+    } else if (firstChar === "-") {
       parsedLines.push({
-        type: 'deletion',
+        type: "deletion",
         content: line.substring(1),
       });
-    } else if (firstChar === ' ') {
+    } else if (firstChar === " ") {
       parsedLines.push({
-        type: 'unchanged',
+        type: "unchanged",
         content: line.substring(1),
       });
     } else {
       // Context lines (headers, etc.)
       parsedLines.push({
-        type: 'context',
+        type: "context",
         content: line,
       });
     }
@@ -72,23 +72,20 @@ export function parseDiff(diff: string): DiffLine[] {
  * Apply intelligent truncation to a diff
  * Shows changed lines + context, collapses large unchanged sections
  */
-export function truncateDiff(
-  lines: DiffLine[],
-  options: TruncationOptions = {}
-): DiffLine[] {
+export function truncateDiff(lines: DiffLine[], options: TruncationOptions = {}): DiffLine[] {
   const opts = { ...DEFAULT_TRUNCATION_OPTIONS, ...options };
 
   // Find all changed line indices
   const changedIndices = new Set<number>();
   lines.forEach((line, idx) => {
-    if (line.type === 'addition' || line.type === 'deletion') {
+    if (line.type === "addition" || line.type === "deletion") {
       changedIndices.add(idx);
     }
   });
 
   // Build set of lines to include (changed + context)
   const includedIndices = new Set<number>();
-  
+
   changedIndices.forEach((idx) => {
     // Include the changed line and context around it
     for (
@@ -120,7 +117,7 @@ export function truncateDiff(
       // Only collapse if section is large enough
       if (excludedCount >= opts.collapseThreshold) {
         result.push({
-          type: 'context',
+          type: "context",
           content: `... ${excludedCount} lines omitted ...`,
         });
       } else {
@@ -136,7 +133,7 @@ export function truncateDiff(
   if (result.length > opts.maxLines) {
     const truncated = result.slice(0, opts.maxLines);
     truncated.push({
-      type: 'context',
+      type: "context",
       content: `... ${result.length - opts.maxLines} more lines ...`,
     });
     return truncated;
@@ -152,28 +149,25 @@ export function formatDiff(lines: DiffLine[]): string {
   return lines
     .map((line) => {
       switch (line.type) {
-        case 'addition':
+        case "addition":
           return `+${line.content}`;
-        case 'deletion':
+        case "deletion":
           return `-${line.content}`;
-        case 'unchanged':
+        case "unchanged":
           return ` ${line.content}`;
-        case 'context':
+        case "context":
           return line.content;
         default:
           return line.content;
       }
     })
-    .join('\n');
+    .join("\n");
 }
 
 /**
  * Smart diff rendering: parse, truncate, and format
  */
-export function renderDiff(
-  diff: string,
-  options: TruncationOptions = {}
-): string {
+export function renderDiff(diff: string, options: TruncationOptions = {}): string {
   const parsed = parseDiff(diff);
   const truncated = truncateDiff(parsed, options);
   return formatDiff(truncated);
@@ -191,7 +185,7 @@ export interface DiffStats {
 
 export function getDiffStats(diff: string): DiffStats {
   const lines = parseDiff(diff);
-  
+
   const stats: DiffStats = {
     additions: 0,
     deletions: 0,
@@ -200,9 +194,9 @@ export function getDiffStats(diff: string): DiffStats {
   };
 
   lines.forEach((line) => {
-    if (line.type === 'addition') stats.additions++;
-    else if (line.type === 'deletion') stats.deletions++;
-    else if (line.type === 'unchanged') stats.unchanged++;
+    if (line.type === "addition") stats.additions++;
+    else if (line.type === "deletion") stats.deletions++;
+    else if (line.type === "unchanged") stats.unchanged++;
   });
 
   return stats;

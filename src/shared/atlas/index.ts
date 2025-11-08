@@ -35,8 +35,4 @@ export {
 } from "./cache.js";
 
 // Export auto-tuning utilities
-export {
-  estimateTokens,
-  autoTuneRadius,
-  estimateTokensBeforeGeneration,
-} from "./auto-tune.js";
+export { estimateTokens, autoTuneRadius, estimateTokensBeforeGeneration } from "./auto-tune.js";
