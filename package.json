@@ -44,7 +44,10 @@
     "local-ci:nonet": "./scripts/ci-nonet.sh",
     "changeset": "changeset",
     "version-packages": "changeset version",
-    "release": "npm run build && changeset publish"
+    "release": "npm run build && changeset publish",
+    "prepack": "npm run build",
+	"prepare": "npm run build",
+    "postbuild": "chmod +x dist/shared/cli/lex.js"
   },
   "keywords": [
     "memory",
