@@ -25,15 +25,6 @@ export interface ReportResult {
   content: string;
 }
 
-/**
- * Generate a violation report
- *
- * @param violations - List of violations to report
- * @param policy - Policy for Atlas Frame context
- * @param format - Output format (text, json, or markdown)
- * @param strict - Whether to treat warnings as errors
- * @returns Report result with exit code and formatted content
- */
 // Backward-compatible generateReport supporting legacy signature:
 //   generateReport(violations, policy, format)
 // New preferred signature:
@@ -46,7 +37,6 @@ export function generateReport(
   let policy: Policy | undefined;
   let format: ReportFormat = "text";
 
-  // Detect legacy invocation where second arg is a Policy object and third arg is the format.
   const isPlainObject = (v: unknown): v is Record<string, unknown> =>
     typeof v === "object" && v !== null;
   const isPolicyObject = (val: unknown): val is Policy =>
@@ -58,10 +48,8 @@ export function generateReport(
     policy = policyOrOpts as Policy;
     format = legacyFormat;
   } else if (isPolicyObject(policyOrOpts) && !legacyFormat) {
-    // Legacy call without explicit format (defaults to text)
     policy = policyOrOpts as Policy;
   } else {
-    // New opts signature
     const opts = policyOrOpts as { policy?: Policy; format?: ReportFormat; strict?: boolean };
     policy = opts.policy;
     format = opts.format ?? "text";

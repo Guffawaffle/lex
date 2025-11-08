@@ -167,7 +167,6 @@ graph TD
 Add new subprojects by creating `src/<area>/<name>/tsconfig.json` that `extends" ../../../tsconfig.base.json"` and setting `"composite": true`, then add its path to `tsconfig.build.json` references.
 
 > Runtime Note: Keep import specifiers with explicit `.js` extensions for local relative imports; `NodeNext` maps them to the emitted `.js` outputs while TypeScript resolves against `.ts` sources.
-
 ## License
 
 MIT
