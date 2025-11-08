@@ -27,9 +27,9 @@
     "LICENSE"
   ],
   "scripts": {
-    "build": "tsc -b",
-    "clean": "rimraf dist",
-    "type-check": "tsc --noEmit",
+    "build": "tsc -b tsconfig.build.json",
+    "clean": "tsc -b tsconfig.build.json --clean && rimraf dist",
+    "type-check": "tsc -p tsconfig.build.json --noEmit",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "test": "npx tsx --test 'src/**/*.test.{ts,mts}' && node --test 'src/**/*.test.mjs'",

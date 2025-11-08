@@ -100,6 +100,74 @@ The goal of this repo is to ship them as one system called **Lex** with one CLI 
 
 `src/` is **TypeScript-only**. JavaScript files (`.js`) under `src/` were legacy compiled artifacts and have been removed. Build output is emitted to `dist/` via `tsc -b` (see `package.json` exports). Add new code in `.ts`/`.tsx` only; do not commit generated `.js` siblings.
 
+## Build Graph (Project References)
+
+Lex now uses a **TypeScript solution build** for deterministic layering and parallelizable incremental builds.
+
+### Files
+
+- `tsconfig.base.json` – Shared compiler options (ES2022 target, `NodeNext` resolver, single `dist/` outDir, declarations + source maps).
+- `tsconfig.build.json` – Solution file with explicit `references` (no `include` / `files`).
+
+### Rationale
+
+1. Single ESM configuration (`NodeNext`) keeps runtime `.js` specifiers working.
+2. Declarations (`.d.ts`) emitted for all subprojects to support downstream tooling.
+3. Stable `dist/` layout (no per-package scattered outputs) simplifies exports.
+4. References encode dependency order (types → aliases/module_ids → policy/atlas → memory → cli) enabling incremental rebuilds.
+
+### Reference Graph
+
+```mermaid
+graph TD
+	shared_types[shared/types]
+	shared_aliases[shared/aliases]
+	shared_module_ids[shared/module_ids]
+	shared_policy[shared/policy]
+	shared_atlas[shared/atlas]
+	shared_git[shared/git]
+	memory_renderer[memory/renderer]
+	memory_store[memory/store]
+	memory_mcp[memory/mcp_server]
+	policy_merge[policy/merge]
+	policy_check[policy/check]
+	shared_cli[shared/cli]
+
+	shared_types --> shared_aliases
+	shared_types --> shared_module_ids
+	shared_types --> shared_policy
+	shared_policy --> shared_atlas
+	shared_types --> shared_atlas
+	shared_types --> memory_store
+	shared_types --> memory_renderer
+	shared_types --> memory_mcp
+	shared_policy --> memory_mcp
+	shared_atlas --> memory_mcp
+	shared_module_ids --> shared_cli
+	shared_policy --> shared_cli
+	shared_atlas --> shared_cli
+	memory_store --> shared_cli
+	memory_renderer --> shared_cli
+	memory_store --> memory_mcp
+	policy_merge --> policy_check
+	shared_policy --> policy_merge
+	shared_types --> policy_merge
+	shared_types --> policy_check
+	shared_policy --> policy_check
+	shared_atlas --> policy_check
+	shared_module_ids --> policy_check
+```
+
+### Commands
+
+- `npm run build` → `tsc -b tsconfig.build.json`
+- `npm run clean` → cleans build graph & removes `dist/`
+- `npm run type-check` → `--noEmit` solution validation
+
+Add new subprojects by creating `src/<area>/<name>/tsconfig.json` that `extends" ../../../tsconfig.base.json"` and setting `"composite": true`, then add its path to `tsconfig.build.json` references.
+
+> Runtime Note: Keep import specifiers with explicit `.js` extensions for local relative imports; `NodeNext` maps them to the emitted `.js` outputs while TypeScript resolves against `.ts` sources.
+
 ## License
 
 MIT

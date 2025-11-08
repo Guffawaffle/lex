@@ -1,3 +1,4 @@
+"use strict";
 /**
  * Frame storage interface
  *
@@ -11,64 +12,68 @@
  *   const frame = await getFrameById(db, 'frame-001');
  *   const results = await searchFrames(db, 'auth deadlock');
  */
-import { createDatabase, getDefaultDbPath } from "./db.js";
-export {
-  saveFrame,
-  getFrameById,
-  searchFrames,
-  getFramesByBranch,
-  getFramesByJira,
-  getFramesByModuleScope,
-  getAllFrames,
-  deleteFrame,
-  getFrameCount,
-} from "./queries.js";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.getDefaultDbPath = exports.createDatabase = exports.getFrameCount = exports.deleteFrame = exports.getAllFrames = exports.getFramesByModuleScope = exports.getFramesByJira = exports.getFramesByBranch = exports.searchFrames = exports.getFrameById = exports.saveFrame = void 0;
+exports.getDb = getDb;
+exports.closeDb = closeDb;
+var db_js_1 = require("./db.js");
+var queries_js_1 = require("./queries.js");
+Object.defineProperty(exports, "saveFrame", { enumerable: true, get: function () { return queries_js_1.saveFrame; } });
+Object.defineProperty(exports, "getFrameById", { enumerable: true, get: function () { return queries_js_1.getFrameById; } });
+Object.defineProperty(exports, "searchFrames", { enumerable: true, get: function () { return queries_js_1.searchFrames; } });
+Object.defineProperty(exports, "getFramesByBranch", { enumerable: true, get: function () { return queries_js_1.getFramesByBranch; } });
+Object.defineProperty(exports, "getFramesByJira", { enumerable: true, get: function () { return queries_js_1.getFramesByJira; } });
+Object.defineProperty(exports, "getFramesByModuleScope", { enumerable: true, get: function () { return queries_js_1.getFramesByModuleScope; } });
+Object.defineProperty(exports, "getAllFrames", { enumerable: true, get: function () { return queries_js_1.getAllFrames; } });
+Object.defineProperty(exports, "deleteFrame", { enumerable: true, get: function () { return queries_js_1.deleteFrame; } });
+Object.defineProperty(exports, "getFrameCount", { enumerable: true, get: function () { return queries_js_1.getFrameCount; } });
 // Singleton database instance
-let dbInstance = null;
-let dbPath = null;
+var dbInstance = null;
+var dbPath = null;
 /**
  * Get or create the database instance
  * @param customPath Optional custom database path (defaults to ~/.lex/frames.db)
  */
-export function getDb(customPath) {
-  const targetPath = customPath || getDefaultDbPath();
-  // Create new instance if path changed or no instance exists
-  if (!dbInstance || (customPath && dbPath !== customPath)) {
-    // Close existing instance if path is changing
-    if (dbInstance && dbPath !== targetPath) {
-      dbInstance.close();
+function getDb(customPath) {
+    var targetPath = customPath || (0, db_js_1.getDefaultDbPath)();
+    // Create new instance if path changed or no instance exists
+    if (!dbInstance || (customPath && dbPath !== customPath)) {
+        // Close existing instance if path is changing
+        if (dbInstance && dbPath !== targetPath) {
+            dbInstance.close();
+        }
+        dbInstance = (0, db_js_1.createDatabase)(targetPath);
+        dbPath = targetPath;
     }
-    dbInstance = createDatabase(targetPath);
-    dbPath = targetPath;
-  }
-  return dbInstance;
+    return dbInstance;
 }
 /**
  * Close the database connection gracefully
  */
-export function closeDb() {
-  if (dbInstance) {
-    dbInstance.close();
-    dbInstance = null;
-    dbPath = null;
-  }
+function closeDb() {
+    if (dbInstance) {
+        dbInstance.close();
+        dbInstance = null;
+        dbPath = null;
+    }
 }
 /**
  * Handle graceful shutdown on process termination
  */
 function setupGracefulShutdown() {
-  const shutdown = () => {
-    closeDb();
-    process.exit(0);
-  };
-  process.on("SIGINT", shutdown);
-  process.on("SIGTERM", shutdown);
-  process.on("beforeExit", () => {
-    closeDb();
-  });
+    var shutdown = function () {
+        closeDb();
+        process.exit(0);
+    };
+    process.on("SIGINT", shutdown);
+    process.on("SIGTERM", shutdown);
+    process.on("beforeExit", function () {
+        closeDb();
+    });
 }
 // Setup shutdown handlers when module is imported
 setupGracefulShutdown();
 // Export database creation for testing
-export { createDatabase, getDefaultDbPath } from "./db.js";
-//# sourceMappingURL=index.js.map
+var db_js_2 = require("./db.js");
+Object.defineProperty(exports, "createDatabase", { enumerable: true, get: function () { return db_js_2.createDatabase; } });
+Object.defineProperty(exports, "getDefaultDbPath", { enumerable: true, get: function () { return db_js_2.getDefaultDbPath; } });

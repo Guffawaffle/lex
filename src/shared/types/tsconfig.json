@@ -1,20 +1,9 @@
 {
+  "extends": "../../../tsconfig.base.json",
   "compilerOptions": {
-    "target": "ES2022",
-    "module": "ES2022",
-    "moduleResolution": "node",
-    "outDir": "./dist",
-    "rootDir": ".",
-    "strict": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
-    "resolveJsonModule": true,
-    "declaration": true,
-    "declarationMap": true,
-    "sourceMap": true,
-    "composite": true
+    "composite": true,
+    "types": ["node"]
   },
-  "include": ["*.ts"],
-  "exclude": ["node_modules", "dist"]
+  "include": ["./*.ts"],
+  "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.test.mjs"]
 }
