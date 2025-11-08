@@ -7,7 +7,7 @@
  * - Status updates over time
  */
 
-import type { Frame } from './types.js';
+import type { Frame } from "./types.js";
 
 /**
  * Timeline entry representing a single Frame in the timeline
@@ -26,7 +26,7 @@ export interface TimelineEntry {
 export interface TimelineOptions {
   since?: Date;
   until?: Date;
-  format?: 'text' | 'json' | 'html';
+  format?: "text" | "json" | "html";
 }
 
 /**
@@ -54,10 +54,10 @@ export function buildTimeline(frames: Frame[]): TimelineEntry[] {
     ]);
 
     // Calculate changes
-    const modulesAdded = Array.from(currentModules).filter(m => !previousModules.has(m));
-    const modulesRemoved = Array.from(previousModules).filter(m => !currentModules.has(m));
-    const blockersAdded = Array.from(currentBlockers).filter(b => !previousBlockers.has(b));
-    const blockersRemoved = Array.from(previousBlockers).filter(b => !currentBlockers.has(b));
+    const modulesAdded = Array.from(currentModules).filter((m) => !previousModules.has(m));
+    const modulesRemoved = Array.from(previousModules).filter((m) => !currentModules.has(m));
+    const blockersAdded = Array.from(currentBlockers).filter((b) => !previousBlockers.has(b));
+    const blockersRemoved = Array.from(previousBlockers).filter((b) => !currentBlockers.has(b));
 
     timeline.push({
       frame,
@@ -85,16 +85,12 @@ export function filterTimeline(
 
   if (options.since) {
     const sinceDate = options.since;
-    filtered = filtered.filter(
-      entry => new Date(entry.frame.timestamp) >= sinceDate
-    );
+    filtered = filtered.filter((entry) => new Date(entry.frame.timestamp) >= sinceDate);
   }
 
   if (options.until) {
     const untilDate = options.until;
-    filtered = filtered.filter(
-      entry => new Date(entry.frame.timestamp) <= untilDate
-    );
+    filtered = filtered.filter((entry) => new Date(entry.frame.timestamp) <= untilDate);
   }
 
   return filtered;
@@ -103,47 +99,44 @@ export function filterTimeline(
 /**
  * Render timeline as text
  */
-export function renderTimelineText(
-  timeline: TimelineEntry[],
-  title: string
-): string {
+export function renderTimelineText(timeline: TimelineEntry[], title: string): string {
   if (timeline.length === 0) {
     return `\n${title}\nNo frames found.\n`;
   }
 
   const lines: string[] = [];
-  lines.push('');
+  lines.push("");
   lines.push(title);
-  lines.push('═'.repeat(title.length));
-  lines.push('');
+  lines.push("═".repeat(title.length));
+  lines.push("");
 
   for (let i = 0; i < timeline.length; i++) {
     const entry = timeline[i];
     const frame = entry.frame;
     const date = new Date(frame.timestamp);
-    const dateStr = date.toLocaleString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
+    const dateStr = date.toLocaleString("en-US", {
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     });
 
     // Frame header
     lines.push(`${dateStr}  [Frame #${frame.id.slice(0, 8)}]  ${frame.summary_caption}`);
 
     // Consistent indentation for all frame details
-    const modulePrefix = '              ';
+    const modulePrefix = "              ";
 
     // Modules
     if (frame.module_scope.length > 0) {
-      lines.push(`${modulePrefix}Modules: ${frame.module_scope.join(', ')}`);
+      lines.push(`${modulePrefix}Modules: ${frame.module_scope.join(", ")}`);
 
       // Show module changes
       if (entry.modulesAdded.length > 0) {
-        lines.push(`${modulePrefix}         + Added: ${entry.modulesAdded.join(', ')}`);
+        lines.push(`${modulePrefix}         + Added: ${entry.modulesAdded.join(", ")}`);
       }
       if (entry.modulesRemoved.length > 0) {
-        lines.push(`${modulePrefix}         - Removed: ${entry.modulesRemoved.join(', ')}`);
+        lines.push(`${modulePrefix}         - Removed: ${entry.modulesRemoved.join(", ")}`);
       }
     }
 
@@ -160,7 +153,7 @@ export function renderTimelineText(
     if (allBlockers.length > 0) {
       for (const blocker of allBlockers) {
         const isNew = entry.blockersAdded.includes(blocker);
-        const marker = isNew ? '+ ' : '  ';
+        const marker = isNew ? "+ " : "  ";
         lines.push(`${modulePrefix}         ${marker}⚠️  ${blocker}`);
       }
     }
@@ -178,29 +171,30 @@ export function renderTimelineText(
       }
     }
 
-    lines.push('');
+    lines.push("");
   }
 
-  lines.push('═'.repeat(title.length));
-  lines.push('');
+  lines.push("═".repeat(title.length));
+  lines.push("");
 
-  return lines.join('\n');
+  return lines.join("\n");
 }
 
 /**
  * Get status indicator emoji for a frame
  */
 function getStatusIndicator(frame: Frame): string {
-  const hasBlockers = (frame.status_snapshot.blockers?.length || 0) > 0 ||
-                      (frame.status_snapshot.merge_blockers?.length || 0) > 0;
+  const hasBlockers =
+    (frame.status_snapshot.blockers?.length || 0) > 0 ||
+    (frame.status_snapshot.merge_blockers?.length || 0) > 0;
   const hasTestFailures = (frame.status_snapshot.tests_failing?.length || 0) > 0;
 
   if (hasBlockers) {
-    return '⚠️  Blocked';
+    return "⚠️  Blocked";
   } else if (hasTestFailures) {
-    return '❌ Tests failing';
+    return "❌ Tests failing";
   } else {
-    return '✅ In progress';
+    return "✅ In progress";
   }
 }
 
@@ -209,19 +203,19 @@ function getStatusIndicator(frame: Frame): string {
  */
 export function renderModuleScopeEvolution(timeline: TimelineEntry[]): string {
   if (timeline.length === 0) {
-    return '';
+    return "";
   }
 
   const lines: string[] = [];
-  lines.push('');
-  lines.push('Module Scope Evolution:');
-  lines.push('');
+  lines.push("");
+  lines.push("Module Scope Evolution:");
+  lines.push("");
 
   // Collect all modules that appear in any frame
   const moduleAppearances = new Map<string, Set<number>>();
 
   timeline.forEach((entry, index) => {
-    entry.frame.module_scope.forEach(module => {
+    entry.frame.module_scope.forEach((module) => {
       if (!moduleAppearances.has(module)) {
         moduleAppearances.set(module, new Set());
       }
@@ -233,20 +227,22 @@ export function renderModuleScopeEvolution(timeline: TimelineEntry[]): string {
   });
 
   // Render each module with a visual representation
-  const maxModuleNameLength = Math.max(...Array.from(moduleAppearances.keys()).map(m => m.length));
+  const maxModuleNameLength = Math.max(
+    ...Array.from(moduleAppearances.keys()).map((m) => m.length)
+  );
 
   for (const [module, appearances] of Array.from(moduleAppearances.entries()).sort()) {
     const paddedModule = module.padEnd(maxModuleNameLength);
     const graph = Array.from({ length: timeline.length }, (_, i) =>
-      appearances.has(i) ? '█' : ' '
-    ).join('');
+      appearances.has(i) ? "█" : " "
+    ).join("");
 
     const frameCount = `(${appearances.size}/${timeline.length} frames)`;
     lines.push(`${paddedModule}  ${graph}  ${frameCount}`);
   }
 
-  lines.push('');
-  return lines.join('\n');
+  lines.push("");
+  return lines.join("\n");
 }
 
 /**
@@ -254,13 +250,13 @@ export function renderModuleScopeEvolution(timeline: TimelineEntry[]): string {
  */
 export function renderBlockerTracking(timeline: TimelineEntry[]): string {
   if (timeline.length === 0) {
-    return '';
+    return "";
   }
 
   const lines: string[] = [];
-  lines.push('');
-  lines.push('Blocker Tracking:');
-  lines.push('');
+  lines.push("");
+  lines.push("Blocker Tracking:");
+  lines.push("");
 
   for (let i = 0; i < timeline.length; i++) {
     const entry = timeline[i];
@@ -284,13 +280,17 @@ export function renderBlockerTracking(timeline: TimelineEntry[]): string {
       }
     }
 
-    if (allBlockers.length === 0 && entry.blockersAdded.length === 0 && entry.blockersRemoved.length === 0) {
+    if (
+      allBlockers.length === 0 &&
+      entry.blockersAdded.length === 0 &&
+      entry.blockersRemoved.length === 0
+    ) {
       lines.push(`  No blockers`);
     }
   }
 
-  lines.push('');
-  return lines.join('\n');
+  lines.push("");
+  return lines.join("\n");
 }
 
 /**
@@ -405,7 +405,7 @@ export function renderTimelineHTML(timeline: TimelineEntry[], title: string): st
 <body>
   <h1>${title}</h1>
   <div class="timeline">
-    ${timeline.map(entry => renderEntryHTML(entry)).join('\n')}
+    ${timeline.map((entry) => renderEntryHTML(entry)).join("\n")}
   </div>
 </body>
 </html>
@@ -435,21 +435,29 @@ function renderEntryHTML(entry: TimelineEntry): string {
       <div class="frame-id">Frame #${frame.id.slice(0, 8)}</div>
       <div class="summary">${escapeHtml(frame.summary_caption)}</div>
       <div class="modules">
-        <strong>Modules:</strong> ${frame.module_scope.join(', ')}
-        ${entry.modulesAdded.length > 0 ? `<span class="change">+ ${entry.modulesAdded.join(', ')}</span>` : ''}
-        ${entry.modulesRemoved.length > 0 ? `<span class="change">- ${entry.modulesRemoved.join(', ')}</span>` : ''}
+        <strong>Modules:</strong> ${frame.module_scope.join(", ")}
+        ${entry.modulesAdded.length > 0 ? `<span class="change">+ ${entry.modulesAdded.join(", ")}</span>` : ""}
+        ${entry.modulesRemoved.length > 0 ? `<span class="change">- ${entry.modulesRemoved.join(", ")}</span>` : ""}
       </div>
       <div class="status ${statusClass}">${statusText}</div>
-      ${allBlockers.length > 0 ? `
+      ${
+        allBlockers.length > 0
+          ? `
         <div class="blockers">
-          ${allBlockers.map(b => `<div class="blocker">${escapeHtml(b)}</div>`).join('')}
+          ${allBlockers.map((b) => `<div class="blocker">${escapeHtml(b)}</div>`).join("")}
         </div>
-      ` : ''}
-      ${entry.blockersRemoved.length > 0 ? `
+      `
+          : ""
+      }
+      ${
+        entry.blockersRemoved.length > 0
+          ? `
         <div style="color: #4CAF50; margin-top: 10px;">
-          ✅ Resolved: ${entry.blockersRemoved.join(', ')}
+          ✅ Resolved: ${entry.blockersRemoved.join(", ")}
         </div>
-      ` : ''}
+      `
+          : ""
+      }
     </div>
   `;
 }
@@ -458,13 +466,14 @@ function renderEntryHTML(entry: TimelineEntry): string {
  * Get status CSS class for a frame
  */
 function getStatusClass(frame: Frame): string {
-  const hasBlockers = (frame.status_snapshot.blockers?.length || 0) > 0 ||
-                      (frame.status_snapshot.merge_blockers?.length || 0) > 0;
+  const hasBlockers =
+    (frame.status_snapshot.blockers?.length || 0) > 0 ||
+    (frame.status_snapshot.merge_blockers?.length || 0) > 0;
   const hasTestFailures = (frame.status_snapshot.tests_failing?.length || 0) > 0;
 
-  if (hasBlockers) return 'blocked';
-  if (hasTestFailures) return 'failing';
-  return 'progress';
+  if (hasBlockers) return "blocked";
+  if (hasTestFailures) return "failing";
+  return "progress";
 }
 
 /**
@@ -472,11 +481,11 @@ function getStatusClass(frame: Frame): string {
  */
 function escapeHtml(text: string): string {
   const map: Record<string, string> = {
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    '"': '&quot;',
-    "'": '&#039;',
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#039;",
   };
-  return text.replace(/[&<>"']/g, m => map[m]);
+  return text.replace(/[&<>"']/g, (m) => map[m]);
 }

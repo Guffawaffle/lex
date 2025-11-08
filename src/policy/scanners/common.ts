@@ -1,12 +1,12 @@
 /**
  * Common utilities for LexMap scanners
- * 
+ *
  * Shared path matching, module resolution, and glob pattern utilities
  * used by TypeScript, Python, and PHP scanners.
  */
 
-import { minimatch } from 'minimatch';
-import * as path from 'path';
+import { minimatch } from "minimatch";
+import * as path from "path";
 
 /**
  * Policy module definition (subset needed for scanners)
@@ -42,7 +42,7 @@ export interface ModuleEdge {
 
 /**
  * Check if a file path matches any of the owns_paths glob patterns
- * 
+ *
  * @param filePath - Relative file path to check
  * @param ownsPathsPatterns - Array of glob patterns from module's owns_paths
  * @returns true if the file matches any pattern
@@ -53,12 +53,12 @@ export function matchesOwnsPaths(filePath: string, ownsPathsPatterns: string[]):
   }
 
   // Normalize the file path to use forward slashes
-  const normalizedPath = filePath.replace(/\\/g, '/');
+  const normalizedPath = filePath.replace(/\\/g, "/");
 
   for (const pattern of ownsPathsPatterns) {
     // Normalize pattern to use forward slashes
-    const normalizedPattern = pattern.replace(/\\/g, '/');
-    
+    const normalizedPattern = pattern.replace(/\\/g, "/");
+
     if (minimatch(normalizedPath, normalizedPattern, { dot: true })) {
       return true;
     }
@@ -69,7 +69,7 @@ export function matchesOwnsPaths(filePath: string, ownsPathsPatterns: string[]):
 
 /**
  * Find which module owns a given file path
- * 
+ *
  * @param filePath - Relative file path to resolve
  * @param policy - The loaded policy configuration
  * @returns Module ID if found, undefined otherwise
@@ -85,10 +85,10 @@ export function resolveFileToModule(filePath: string, policy: Policy): string | 
 
 /**
  * Resolve an import path to a module
- * 
+ *
  * This is a simplified heuristic - scanners are "dumb" and just match imports
  * to file paths that might belong to modules.
- * 
+ *
  * @param importPath - The import/require path (e.g., './other', '../services/auth')
  * @param currentFilePath - The file doing the importing
  * @param policy - The loaded policy configuration
@@ -100,60 +100,60 @@ export function resolveImportToModule(
   policy: Policy
 ): string | undefined {
   // Relative imports: resolve relative to current file
-  if (importPath.startsWith('./') || importPath.startsWith('../')) {
+  if (importPath.startsWith("./") || importPath.startsWith("../")) {
     const currentDir = path.dirname(currentFilePath);
     let resolvedPath = path.join(currentDir, importPath);
-    
+
     // Normalize path separators
-    resolvedPath = resolvedPath.replace(/\\/g, '/');
-    
+    resolvedPath = resolvedPath.replace(/\\/g, "/");
+
     // Try with common extensions
-    const extensions = ['', '.ts', '.tsx', '.js', '.jsx', '.py', '.php'];
+    const extensions = ["", ".ts", ".tsx", ".js", ".jsx", ".py", ".php"];
     for (const ext of extensions) {
       const pathWithExt = resolvedPath + ext;
       const moduleId = resolveFileToModule(pathWithExt, policy);
       if (moduleId) {
         return moduleId;
       }
-      
+
       // Try index files
-      const indexPath = path.join(resolvedPath, 'index' + ext).replace(/\\/g, '/');
+      const indexPath = path.join(resolvedPath, "index" + ext).replace(/\\/g, "/");
       const indexModuleId = resolveFileToModule(indexPath, policy);
       if (indexModuleId) {
         return indexModuleId;
       }
     }
   }
-  
+
   // Absolute/package imports: check if any module owns_paths matches
   // For example, import from '@/services/auth' or 'services/auth'
-  const normalizedImport = importPath.replace(/^@\//, '');
-  
+  const normalizedImport = importPath.replace(/^@\//, "");
+
   for (const [moduleId, moduleConfig] of Object.entries(policy.modules)) {
     if (moduleConfig.owns_paths) {
       for (const ownPath of moduleConfig.owns_paths) {
         // Check if import path starts with the module's path prefix
-        const pathPrefix = ownPath.replace(/\/\*\*$/, '').replace(/\/\*$/, '');
+        const pathPrefix = ownPath.replace(/\/\*\*$/, "").replace(/\/\*$/, "");
         if (normalizedImport.startsWith(pathPrefix)) {
           return moduleId;
         }
       }
     }
   }
-  
+
   return undefined;
 }
 
 /**
  * Detect feature flag checks in code using common patterns
- * 
+ *
  * Patterns detected (case-sensitive):
  * - flags.flag_name
  * - flags['flag_name']
  * - featureFlags.isEnabled('flag_name')
  * - FeatureFlags.enabled('flag_name')
  * - useFeatureFlag('flag_name')
- * 
+ *
  * @param content - Source code content
  * @returns Array of detected flag names
  */
@@ -199,13 +199,13 @@ export function detectFeatureFlags(content: string): string[] {
 
 /**
  * Detect permission checks in code using common patterns
- * 
+ *
  * Patterns detected:
  * - user.can('permission_name')
  * - hasPermission('permission_name')
  * - usePermission('permission_name')
  * - checkPermission('permission_name')
- * 
+ *
  * @param content - Source code content
  * @returns Array of detected permission names
  */

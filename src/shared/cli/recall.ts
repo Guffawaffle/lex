@@ -5,12 +5,7 @@
  */
 
 import type { Frame } from "../types/frame.js";
-import {
-  getDb,
-  searchFrames,
-  getFramesByJira,
-  getFrameById,
-} from "../../memory/store/index.js";
+import { getDb, searchFrames, getFramesByJira, getFrameById } from "../../memory/store/index.js";
 import { loadPolicy } from "../policy/loader.js";
 import {
   generateAtlasFrame,
@@ -32,10 +27,7 @@ export interface RecallOptions {
  * Execute the 'lex recall' command
  * Searches for Frames and displays results with Atlas Frame context
  */
-export async function recall(
-  query: string,
-  options: RecallOptions = {}
-): Promise<void> {
+export async function recall(query: string, options: RecallOptions = {}): Promise<void> {
   try {
     const db = getDb();
     let frames: Frame[] = [];
@@ -108,10 +100,7 @@ export async function recall(
 /**
  * Display a Frame with Atlas Frame context
  */
-async function displayFrame(
-  frame: Frame,
-  options: RecallOptions
-): Promise<void> {
+async function displayFrame(frame: Frame, options: RecallOptions): Promise<void> {
   console.log(`\n📋 Frame: ${frame.jira || frame.id}`);
   console.log(`   Timestamp: ${new Date(frame.timestamp).toLocaleString()}`);
   console.log(`   Branch: ${frame.branch}`);
@@ -120,30 +109,21 @@ async function displayFrame(
 
   console.log(`\n   Next action: ${frame.status_snapshot.next_action}`);
 
-  if (
-    frame.status_snapshot.blockers &&
-    frame.status_snapshot.blockers.length > 0
-  ) {
+  if (frame.status_snapshot.blockers && frame.status_snapshot.blockers.length > 0) {
     console.log(`\n   Blockers:`);
     for (const blocker of frame.status_snapshot.blockers) {
       console.log(`     • ${blocker}`);
     }
   }
 
-  if (
-    frame.status_snapshot.merge_blockers &&
-    frame.status_snapshot.merge_blockers.length > 0
-  ) {
+  if (frame.status_snapshot.merge_blockers && frame.status_snapshot.merge_blockers.length > 0) {
     console.log(`\n   Merge blockers:`);
     for (const blocker of frame.status_snapshot.merge_blockers) {
       console.log(`     • ${blocker}`);
     }
   }
 
-  if (
-    frame.status_snapshot.tests_failing &&
-    frame.status_snapshot.tests_failing.length > 0
-  ) {
+  if (frame.status_snapshot.tests_failing && frame.status_snapshot.tests_failing.length > 0) {
     console.log(`\n   Tests failing:`);
     for (const test of frame.status_snapshot.tests_failing) {
       console.log(`     • ${test}`);
@@ -173,9 +153,7 @@ async function displayFrame(
   }
 
   if (atlasFrame) {
-    console.log(
-      `\n   Neighborhood (${atlasFrame.modules.length} modules within radius):`
-    );
+    console.log(`\n   Neighborhood (${atlasFrame.modules.length} modules within radius):`);
 
     // Just list all modules in the atlas
     for (const module of atlasFrame.modules) {
@@ -188,9 +166,7 @@ async function displayFrame(
       for (const edge of atlasFrame.edges.slice(0, 5)) {
         // Show max 5 edges
         const symbol = edge.reason === "allowed" ? "✓" : "✗";
-        console.log(
-          `     ${symbol} ${edge.from} → ${edge.to} (${edge.reason})`
-        );
+        console.log(`     ${symbol} ${edge.from} → ${edge.to} (${edge.reason})`);
       }
       if (atlasFrame.edges.length > 5) {
         console.log(`     ... and ${atlasFrame.edges.length - 5} more`);
@@ -261,11 +237,7 @@ async function generateAtlasFrameWithAutoTune(
     }
 
     // Normal generation without auto-tuning
-    const atlasFrame = computeFoldRadius(
-      frame.module_scope,
-      requestedRadius,
-      policy
-    );
+    const atlasFrame = computeFoldRadius(frame.module_scope, requestedRadius, policy);
     const tokens = estimateTokens(atlasFrame);
 
     return {

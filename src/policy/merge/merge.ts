@@ -1,24 +1,18 @@
 /**
  * Scanner output merge logic
- * 
+ *
  * Combines multiple language scanner outputs into a single unified view.
  * Handles deduplication, conflict detection, and edge aggregation.
  */
 
-import {
-  ScanResult,
-  MergedScanResult,
-  FileData,
-  ModuleEdge,
-  FileConflict,
-} from './types.js';
+import { ScanResult, MergedScanResult, FileData, ModuleEdge, FileConflict } from "./types.js";
 
 /** Current version of the merged output format */
-export const MERGE_FORMAT_VERSION = '1.0.0';
+export const MERGE_FORMAT_VERSION = "1.0.0";
 
 /**
  * Merges multiple scanner outputs into a single unified result
- * 
+ *
  * @param scanOutputs - Array of scanner outputs to merge
  * @returns Merged scan result with deduplicated files and edges
  * @throws Error if file conflicts are detected (same file claimed by multiple scanners)
@@ -49,7 +43,7 @@ export function mergeScans(scanOutputs: ScanResult[]): MergedScanResult {
         // File already seen - check for conflict
         if (existingEntry.language !== scanner.language) {
           // Different scanner claiming same file - this is a conflict
-          const existingConflict = conflicts.find(c => c.file_path === file.path);
+          const existingConflict = conflicts.find((c) => c.file_path === file.path);
           if (existingConflict) {
             if (!existingConflict.languages.includes(scanner.language)) {
               existingConflict.languages.push(scanner.language);
@@ -69,17 +63,9 @@ export function mergeScans(scanOutputs: ScanResult[]): MergedScanResult {
           existingFile.permissions = [
             ...new Set([...existingFile.permissions, ...file.permissions]),
           ].sort();
-          existingFile.warnings = [
-            ...new Set([...existingFile.warnings, ...file.warnings]),
-          ];
-          existingFile.declarations = [
-            ...existingFile.declarations,
-            ...file.declarations,
-          ];
-          existingFile.imports = [
-            ...existingFile.imports,
-            ...file.imports,
-          ];
+          existingFile.warnings = [...new Set([...existingFile.warnings, ...file.warnings])];
+          existingFile.declarations = [...existingFile.declarations, ...file.declarations];
+          existingFile.imports = [...existingFile.imports, ...file.imports];
         } else {
           // Same scanner reporting same file multiple times - merge metadata
           const existingFile = existingEntry.file;
@@ -89,9 +75,7 @@ export function mergeScans(scanOutputs: ScanResult[]): MergedScanResult {
           existingFile.permissions = [
             ...new Set([...existingFile.permissions, ...file.permissions]),
           ].sort();
-          existingFile.warnings = [
-            ...new Set([...existingFile.warnings, ...file.warnings]),
-          ];
+          existingFile.warnings = [...new Set([...existingFile.warnings, ...file.warnings])];
         }
       } else {
         // New file - add to map
@@ -121,17 +105,17 @@ export function mergeScans(scanOutputs: ScanResult[]): MergedScanResult {
   // Report conflicts as errors
   if (conflicts.length > 0) {
     const conflictMessages = conflicts.map(
-      c => `File "${c.file_path}" claimed by multiple scanners: ${c.languages.join(', ')}`
+      (c) => `File "${c.file_path}" claimed by multiple scanners: ${c.languages.join(", ")}`
     );
     throw new Error(
-      `File ownership conflicts detected:\n${conflictMessages.join('\n')}\n\n` +
-      `Each file should be scanned by exactly one language scanner.`
+      `File ownership conflicts detected:\n${conflictMessages.join("\n")}\n\n` +
+        `Each file should be scanned by exactly one language scanner.`
     );
   }
 
   // Extract files from map
   const files = Array.from(fileMap.values())
-    .map(entry => entry.file)
+    .map((entry) => entry.file)
     .sort((a, b) => a.path.localeCompare(b.path));
 
   return {
@@ -147,7 +131,7 @@ export function mergeScans(scanOutputs: ScanResult[]): MergedScanResult {
  * Deduplicates edges by creating a canonical key for each edge.
  * This is a standalone utility function that can be used to deduplicate
  * edges from other sources or in post-processing scenarios.
- * 
+ *
  * @param edges - Array of edges to deduplicate
  * @returns Deduplicated array of edges
  */
@@ -157,7 +141,7 @@ export function deduplicateEdges(edges: ModuleEdge[]): ModuleEdge[] {
   for (const edge of edges) {
     // Create canonical key: from -> to
     const key = `${edge.from}|||${edge.to}`;
-    
+
     if (!edgeMap.has(key)) {
       edgeMap.set(key, edge);
     }
@@ -169,7 +153,7 @@ export function deduplicateEdges(edges: ModuleEdge[]): ModuleEdge[] {
 
 /**
  * Validates that scanner outputs are well-formed
- * 
+ *
  * @param scanOutputs - Array of scanner outputs to validate
  * @returns Object with validation result and any errors
  */
@@ -180,7 +164,7 @@ export function validateScanOutputs(scanOutputs: ScanResult[]): {
   const errors: string[] = [];
 
   if (!Array.isArray(scanOutputs)) {
-    errors.push('scanOutputs must be an array');
+    errors.push("scanOutputs must be an array");
     return { valid: false, errors };
   }
 
@@ -191,13 +175,13 @@ export function validateScanOutputs(scanOutputs: ScanResult[]): {
 
   for (let i = 0; i < scanOutputs.length; i++) {
     const scanner = scanOutputs[i];
-    
-    if (typeof scanner !== 'object' || scanner === null) {
+
+    if (typeof scanner !== "object" || scanner === null) {
       errors.push(`Scanner output at index ${i} is not an object`);
       continue;
     }
 
-    if (typeof scanner.language !== 'string' || scanner.language.trim() === '') {
+    if (typeof scanner.language !== "string" || scanner.language.trim() === "") {
       errors.push(`Scanner output at index ${i} missing or invalid 'language' field`);
     }
 
@@ -209,8 +193,8 @@ export function validateScanOutputs(scanOutputs: ScanResult[]): {
     // Validate each file
     for (let j = 0; j < scanner.files.length; j++) {
       const file = scanner.files[j];
-      
-      if (typeof file.path !== 'string') {
+
+      if (typeof file.path !== "string") {
         errors.push(`Scanner ${i}, file ${j}: missing or invalid 'path' field`);
       }
 
