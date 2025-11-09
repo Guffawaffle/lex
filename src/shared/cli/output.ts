@@ -152,3 +152,12 @@ export function createOutput(opts: OutputOptions = {}): CliOutput {
  * Scope set to "cli" for general commands
  */
 export const output = createOutput({ scope: "cli" });
+
+// Backward-compatible exports for existing CLI commands
+// These delegate to the default output instance
+export const info = output.info.bind(output);
+export const success = output.success.bind(output);
+export const warn = output.warn.bind(output);
+export const error = output.error.bind(output);
+export const debug = output.debug.bind(output);
+export const json = output.json.bind(output);
