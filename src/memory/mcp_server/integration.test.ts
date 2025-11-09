@@ -54,8 +54,8 @@ describe("MCP Server Integration Tests", () => {
             next_action: "Verify recall works",
             blockers: [],
           },
-          module_scope: ["indexer"],
-          keywords: ["integration", "mcp", "cycle"],
+          module_scope: ["policy/scanners"],
+          keywords: ["integration", "memory/mcp", "cycle"],
         };
 
         const rememberResponse = await srv.handleRequest({
@@ -106,13 +106,13 @@ describe("MCP Server Integration Tests", () => {
             reference_point: "first frame",
             summary_caption: "First test frame",
             status_snapshot: { next_action: "Test" },
-            module_scope: ["indexer"],
+            module_scope: ["policy/scanners"],
           },
           {
             reference_point: "second frame",
             summary_caption: "Second test frame",
             status_snapshot: { next_action: "Test" },
-            module_scope: ["ts"],
+            module_scope: ["shared/types"],
           },
         ];
 
@@ -209,7 +209,7 @@ describe("MCP Server Integration Tests", () => {
               reference_point: "typo test",
               summary_caption: "Testing fuzzy matching",
               status_snapshot: { next_action: "Test" },
-              module_scope: ["indexr"], // Typo: should be "indexer"
+              module_scope: ["indexr"], // Typo: should be "policy/scanners"
             },
           },
         });
@@ -232,7 +232,7 @@ describe("MCP Server Integration Tests", () => {
               reference_point: "all valid modules",
               summary_caption: "Testing with all valid modules",
               status_snapshot: { next_action: "Test" },
-              module_scope: ["indexer", "ts", "php", "mcp"],
+              module_scope: ["policy/scanners", "shared/types", "memory/mcp"],
             },
           },
         });
@@ -258,7 +258,7 @@ describe("MCP Server Integration Tests", () => {
               reference_point: "authentication refactoring work",
               summary_caption: "Refactored auth system",
               status_snapshot: { next_action: "Test" },
-              module_scope: ["indexer"],
+              module_scope: ["policy/scanners"],
             },
           },
         });
@@ -295,7 +295,7 @@ describe("MCP Server Integration Tests", () => {
               reference_point: "payment system",
               summary_caption: "Stripe integration for payment processing",
               status_snapshot: { next_action: "Deploy" },
-              module_scope: ["indexer"],
+              module_scope: ["policy/scanners"],
               keywords: ["payment", "stripe", "integration"],
             },
           },
@@ -350,7 +350,7 @@ describe("MCP Server Integration Tests", () => {
               reference_point: "database optimization",
               summary_caption: "Optimized database queries",
               status_snapshot: { next_action: "Benchmark" },
-              module_scope: ["indexer"],
+              module_scope: ["policy/scanners"],
               keywords: ["database", "performance"],
             },
           },
@@ -391,7 +391,7 @@ describe("MCP Server Integration Tests", () => {
               reference_point: "indexer work",
               summary_caption: "Indexer module",
               status_snapshot: { next_action: "Test" },
-              module_scope: ["indexer"],
+              module_scope: ["policy/scanners"],
             },
           },
         });
@@ -404,7 +404,7 @@ describe("MCP Server Integration Tests", () => {
               reference_point: "typescript work",
               summary_caption: "TS module",
               status_snapshot: { next_action: "Test" },
-              module_scope: ["ts"],
+              module_scope: ["shared/types"],
             },
           },
         });
@@ -415,7 +415,7 @@ describe("MCP Server Integration Tests", () => {
           params: {
             name: "lex.list_frames",
             arguments: {
-              module: "indexer",
+              module: "policy/scanners",
               limit: 10,
             },
           },
@@ -448,7 +448,7 @@ describe("MCP Server Integration Tests", () => {
                 reference_point: `frame ${i}`,
                 summary_caption: `Frame ${i}`,
                 status_snapshot: { next_action: "Test" },
-                module_scope: ["indexer"],
+                module_scope: ["policy/scanners"],
               },
             },
           });

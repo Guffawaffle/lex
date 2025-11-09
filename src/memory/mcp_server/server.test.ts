@@ -65,7 +65,7 @@ describe("MCP Server - Protocol", () => {
           next_action: "Verify storage",
           blockers: [],
         },
-        module_scope: ["indexer"],
+        module_scope: ["policy/scanners"],
       };
 
       const response = await srv.handleRequest({
@@ -127,7 +127,7 @@ describe("MCP Server - Protocol", () => {
               next_action: "Add unit tests",
               blockers: [],
             },
-            module_scope: ["ts"],
+            module_scope: ["shared/types"],
           },
         },
       });
@@ -211,7 +211,7 @@ describe("MCP Server - Protocol", () => {
             reference_point: "frame one",
             summary_caption: "First test frame",
             status_snapshot: { next_action: "Test" },
-            module_scope: ["indexer"],
+            module_scope: ["policy/scanners"],
           },
         },
       });
@@ -224,7 +224,7 @@ describe("MCP Server - Protocol", () => {
             reference_point: "frame two",
             summary_caption: "Second test frame",
             status_snapshot: { next_action: "Test" },
-            module_scope: ["ts"],
+            module_scope: ["shared/types"],
           },
         },
       });
@@ -260,7 +260,7 @@ describe("MCP Server - Protocol", () => {
             reference_point: "auth work",
             summary_caption: "Auth module work",
             status_snapshot: { next_action: "Test" },
-            module_scope: ["php"],
+            module_scope: ["policy/scanners"],
           },
         },
       });
@@ -273,7 +273,7 @@ describe("MCP Server - Protocol", () => {
             reference_point: "ui work",
             summary_caption: "UI module work",
             status_snapshot: { next_action: "Test" },
-            module_scope: ["mcp"],
+            module_scope: ["memory/mcp"],
           },
         },
       });
@@ -283,7 +283,7 @@ describe("MCP Server - Protocol", () => {
         method: "tools/call",
         params: {
           name: "lex.list_frames",
-          arguments: { module: "php", limit: 10 },
+          arguments: { module: "policy/scanners", limit: 10 },
         },
       });
 
@@ -347,7 +347,7 @@ describe("MCP Server - Protocol", () => {
         status_snapshot: {
           next_action: "Verify image storage",
         },
-        module_scope: ["indexer"], // Use valid module from policy
+        module_scope: ["policy/scanners"], // Use valid module from policy
         images: [
           {
             data: testImageData,
@@ -390,7 +390,7 @@ describe("MCP Server - Protocol", () => {
         status_snapshot: {
           next_action: "Verify multi-image storage",
         },
-        module_scope: ["ts"], // Use valid module from policy
+        module_scope: ["shared/types"], // Use valid module from policy
         images: [
           { data: image1, mime_type: "image/png" },
           { data: image2, mime_type: "image/jpeg" },
@@ -426,7 +426,7 @@ describe("MCP Server - Protocol", () => {
         status_snapshot: {
           next_action: "Should fail",
         },
-        module_scope: ["php"], // Use valid module from policy
+        module_scope: ["policy/scanners"], // Use valid module from policy
         images: [
           {
             data: testImageData,
@@ -466,7 +466,7 @@ describe("MCP Server - Protocol", () => {
         status_snapshot: {
           next_action: "Should fail",
         },
-        module_scope: ["mcp"], // Use valid module from policy
+        module_scope: ["memory/mcp"], // Use valid module from policy
         images: [
           {
             data: testImageData,
@@ -539,7 +539,7 @@ describe("MCP Server - Protocol", () => {
             reference_point: "typo test",
             summary_caption: "Testing fuzzy matching",
             status_snapshot: { next_action: "Test" },
-            module_scope: ["indexr"], // Typo: should be "indexer"
+            module_scope: ["indexr"], // Typo: should be "policy/scanners"
           },
         },
       });
@@ -600,7 +600,7 @@ describe("MCP Server - Protocol", () => {
             reference_point: "mixed validity test",
             summary_caption: "Testing mixed valid/invalid modules",
             status_snapshot: { next_action: "Test" },
-            module_scope: ["indexer", "invalid-module", "ts"],
+            module_scope: ["policy/scanners", "invalid-module", "shared/types"],
           },
         },
       });
@@ -613,7 +613,7 @@ describe("MCP Server - Protocol", () => {
       // Valid modules should only appear in "Available modules" list, not as errors
       const errorLines = response.error.message.split("\n").filter((line) => line.includes("•"));
       const hasValidModuleError = errorLines.some(
-        (line) => line.includes("indexer") || line.includes("ts")
+        (line) => line.includes("policy/scanners") || line.includes("shared/types")
       );
       assert.ok(!hasValidModuleError, "Error should not flag valid modules as invalid");
     } finally {
@@ -632,7 +632,7 @@ describe("MCP Server - Protocol", () => {
             reference_point: "all valid modules",
             summary_caption: "Testing with all policy modules",
             status_snapshot: { next_action: "Test" },
-            module_scope: ["indexer", "ts", "php", "mcp"],
+            module_scope: ["policy/scanners", "shared/types", "memory/mcp"],
           },
         },
       });
@@ -643,7 +643,9 @@ describe("MCP Server - Protocol", () => {
         "Should confirm Frame storage"
       );
       assert.ok(
-        response.content[0].text.includes("indexer, ts, php, mcp"),
+        response.content[0].text.includes("policy/scanners") &&
+        response.content[0].text.includes("shared/types") &&
+        response.content[0].text.includes("memory/mcp"),
         "Should include all modules"
       );
     } finally {
@@ -662,7 +664,7 @@ describe("MCP Server - Protocol", () => {
           next_action: "Verify branch detection",
           blockers: [],
         },
-        module_scope: ["indexer"],
+        module_scope: ["policy/scanners"],
       };
 
       const response = await srv.handleRequest({
@@ -692,7 +694,7 @@ describe("MCP Server - Protocol", () => {
           next_action: "Verify manual branch",
           blockers: [],
         },
-        module_scope: ["indexer"],
+        module_scope: ["policy/scanners"],
         branch: "custom-branch-name",
       };
 

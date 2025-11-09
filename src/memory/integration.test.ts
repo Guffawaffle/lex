@@ -33,10 +33,9 @@ import { renderMemoryCard } from "./renderer/card.js";
 // Mock policy for module validation tests
 const mockPolicy = {
   modules: {
-    indexer: { owns_paths: ["indexer/**"] },
-    ts: { owns_paths: ["ts/**"] },
-    php: { owns_paths: ["php/**"] },
-    mcp: { owns_paths: ["mcp/**"] },
+    "policy/scanners": { owns_paths: ["src/policy/scanners/**"] },
+    "shared/types": { owns_paths: ["src/shared/types/**"] },
+    "memory/mcp": { owns_paths: ["src/memory/mcp_server/**"] },
   },
 };
 
@@ -70,7 +69,7 @@ describe("Memory Integration Tests", () => {
         timestamp: new Date().toISOString(),
         branch: "feature/integration-test",
         jira: "TEST-001",
-        module_scope: ["indexer", "ts"],
+        module_scope: ["policy/scanners", "shared/types"],
         summary_caption: "Integration test for Frame lifecycle",
         reference_point: "full lifecycle test",
         status_snapshot: {
@@ -114,7 +113,7 @@ describe("Memory Integration Tests", () => {
         id: "lifecycle-002",
         timestamp: new Date().toISOString(),
         branch: "main",
-        module_scope: ["indexer", "ts", "php", "mcp"],
+        module_scope: ["policy/scanners", "shared/types", "memory/mcp"],
         summary_caption: "Testing module validation in lifecycle",
         reference_point: "module validation test",
         status_snapshot: {
@@ -160,7 +159,7 @@ describe("Memory Integration Tests", () => {
         id: "lifecycle-003",
         timestamp: new Date().toISOString(),
         branch: "feature/atlas-integration",
-        module_scope: ["indexer"],
+        module_scope: ["policy/scanners"],
         summary_caption: "Testing Atlas Frame integration",
         reference_point: "atlas frame test",
         status_snapshot: {
@@ -192,7 +191,7 @@ describe("Memory Integration Tests", () => {
         id: "lifecycle-004",
         timestamp: new Date().toISOString(),
         branch: "feature/rendering",
-        module_scope: ["indexer", "ts"],
+        module_scope: ["policy/scanners", "shared/types"],
         summary_caption: "Testing memory card rendering",
         reference_point: "rendering test",
         status_snapshot: {
@@ -223,7 +222,7 @@ describe("Memory Integration Tests", () => {
           id: "multi-001",
           timestamp: "2025-11-01T10:00:00Z",
           branch,
-          module_scope: ["indexer"],
+          module_scope: ["policy/scanners"],
           summary_caption: "First frame on branch",
           reference_point: "first work",
           status_snapshot: { next_action: "Continue" },
@@ -232,7 +231,7 @@ describe("Memory Integration Tests", () => {
           id: "multi-002",
           timestamp: "2025-11-02T10:00:00Z",
           branch,
-          module_scope: ["ts"],
+          module_scope: ["shared/types"],
           summary_caption: "Second frame on branch",
           reference_point: "second work",
           status_snapshot: { next_action: "Complete" },
@@ -256,7 +255,7 @@ describe("Memory Integration Tests", () => {
           id: "search-001",
           timestamp: new Date().toISOString(),
           branch: "main",
-          module_scope: ["indexer"],
+          module_scope: ["policy/scanners"],
           summary_caption: "Authentication refactoring work",
           reference_point: "auth refactor",
           status_snapshot: { next_action: "Test" },
@@ -266,7 +265,7 @@ describe("Memory Integration Tests", () => {
           id: "search-002",
           timestamp: new Date().toISOString(),
           branch: "main",
-          module_scope: ["ts"],
+          module_scope: ["shared/types"],
           summary_caption: "Database optimization",
           reference_point: "db perf",
           status_snapshot: { next_action: "Benchmark" },
@@ -276,7 +275,7 @@ describe("Memory Integration Tests", () => {
           id: "search-003",
           timestamp: new Date().toISOString(),
           branch: "main",
-          module_scope: ["php"],
+          module_scope: ["policy/scanners"],
           summary_caption: "UI authentication flow",
           reference_point: "ui auth",
           status_snapshot: { next_action: "Design" },
@@ -309,7 +308,7 @@ describe("Memory Integration Tests", () => {
         id: "minimal-001",
         timestamp: new Date().toISOString(),
         branch: "main",
-        module_scope: ["indexer"],
+        module_scope: ["policy/scanners"],
         summary_caption: "Minimal frame",
         reference_point: "minimal test",
         status_snapshot: {
@@ -336,7 +335,7 @@ describe("Memory Integration Tests", () => {
         id: "update-001",
         timestamp: new Date().toISOString(),
         branch: "main",
-        module_scope: ["indexer"],
+        module_scope: ["policy/scanners"],
         summary_caption: "Original caption",
         reference_point: "original ref",
         status_snapshot: {
@@ -377,7 +376,7 @@ describe("Memory Integration Tests", () => {
         id: `concurrent-${i}`,
         timestamp: new Date().toISOString(),
         branch: "concurrent-test",
-        module_scope: ["indexer"],
+        module_scope: ["policy/scanners"],
         summary_caption: `Concurrent frame ${i}`,
         reference_point: `concurrent ${i}`,
         status_snapshot: {
