@@ -12,6 +12,10 @@
     "declaration": true,
     "sourceMap": true,
     "rootDir": "src",
-    "outDir": "dist"
+    "outDir": "dist",
+    "baseUrl": ".",
+    "paths": {
+      "@app/*": ["./src/*"]
+    }
   }
 }

@@ -4,8 +4,8 @@
   "compilerOptions": {
     // keep compiler options from the base tsconfig
   },
-  // Include the whole src tree so ESLint's parser/project can see tests
-  "include": ["src/**/*"],
+  // Include the whole src tree and test tree so ESLint's parser/project can see tests
+  "include": ["src/**/*", "test/**/*"],
   // Do not exclude test files here — ESLint needs to parse them for type-aware rules
   "exclude": ["node_modules", "dist"]
 }

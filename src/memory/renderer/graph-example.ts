@@ -1,12 +1,11 @@
 #!/usr/bin/env node
-/**
- * Example script demonstrating graph rendering
- * Run with: npx tsx memory/renderer/graph-example.ts
- */
-
+import { getLogger } from "lex/logger";
 import { renderAtlasFrameGraph, exportGraphAsPNG, type AtlasFrame } from "./graph.js";
 import { writeFileSync, mkdirSync } from "fs";
 import { join } from "path";
+
+
+const logger = getLogger("memory:renderer:graph-example");
 
 // Create example Atlas Frame based on the test policy
 const exampleAtlasFrame: AtlasFrame = {
@@ -79,14 +78,14 @@ const exampleAtlasFrame: AtlasFrame = {
 };
 
 async function main() {
-  console.log("🎨 Atlas Frame Graph Rendering Example\n");
+  logger.info("🎨 Atlas Frame Graph Rendering Example\n");
 
   // Create output directory
   const outputDir = "/tmp/atlas-graph-examples";
   mkdirSync(outputDir, { recursive: true });
 
   // Example 1: Basic force-directed layout
-  console.log("Rendering force-directed layout...");
+  logger.info("Rendering force-directed layout...");
   const forceDirectedSVG = renderAtlasFrameGraph(exampleAtlasFrame, {
     layout: "force-directed",
     width: 800,
@@ -94,10 +93,10 @@ async function main() {
   });
   const forceDirectedPath = join(outputDir, "force-directed.svg");
   writeFileSync(forceDirectedPath, forceDirectedSVG);
-  console.log(`✓ Saved: ${forceDirectedPath}\n`);
+  logger.info(`✓ Saved: ${forceDirectedPath}\n`);
 
   // Example 2: Hierarchical layout
-  console.log("Rendering hierarchical layout...");
+  logger.info("Rendering hierarchical layout...");
   const hierarchicalSVG = renderAtlasFrameGraph(exampleAtlasFrame, {
     layout: "hierarchical",
     width: 800,
@@ -105,10 +104,10 @@ async function main() {
   });
   const hierarchicalPath = join(outputDir, "hierarchical.svg");
   writeFileSync(hierarchicalPath, hierarchicalSVG);
-  console.log(`✓ Saved: ${hierarchicalPath}\n`);
+  logger.info(`✓ Saved: ${hierarchicalPath}\n`);
 
   // Example 3: Custom colors
-  console.log("Rendering with custom colors...");
+  logger.info("Rendering with custom colors...");
   const customColorsSVG = renderAtlasFrameGraph(exampleAtlasFrame, {
     nodeColors: {
       "ui/admin-panel": "#FF6B6B",
@@ -119,29 +118,29 @@ async function main() {
   });
   const customColorsPath = join(outputDir, "custom-colors.svg");
   writeFileSync(customColorsPath, customColorsSVG);
-  console.log(`✓ Saved: ${customColorsPath}\n`);
+  logger.info(`✓ Saved: ${customColorsPath}\n`);
 
   // Example 4: Export as PNG
-  console.log("Exporting as PNG...");
+  logger.info("Exporting as PNG...");
   const svg = renderAtlasFrameGraph(exampleAtlasFrame);
   const png = await exportGraphAsPNG(svg, { width: 800, height: 600 });
   const pngPath = join(outputDir, "graph.png");
   writeFileSync(pngPath, png);
-  console.log(`✓ Saved: ${pngPath} (${png.length} bytes)\n`);
+  logger.info(`✓ Saved: ${pngPath} (${png.length} bytes)\n`);
 
-  console.log("✨ Example complete!");
-  console.log(`\nGenerated files:`);
-  console.log(`  ${forceDirectedPath}`);
-  console.log(`  ${hierarchicalPath}`);
-  console.log(`  ${customColorsPath}`);
-  console.log(`  ${pngPath}`);
-  console.log(`\nVisualization features:`);
-  console.log(`  ✓ Seed modules highlighted with bold borders`);
-  console.log(`  ✓ Green arrows for allowed dependencies`);
-  console.log(`  ✓ Red dashed arrows with ⚠️ for forbidden dependencies`);
-  console.log(`  ✓ Node size based on number of dependencies`);
-  console.log(`  ✓ Color coding by module type`);
-  console.log(`  ✓ Interactive hover tooltips (in SVG)`);
+  logger.info("✨ Example complete!");
+  logger.info(`\nGenerated files:`);
+  logger.info(`  ${forceDirectedPath}`);
+  logger.info(`  ${hierarchicalPath}`);
+  logger.info(`  ${customColorsPath}`);
+  logger.info(`  ${pngPath}`);
+  logger.info(`\nVisualization features:`);
+  logger.info(`  ✓ Seed modules highlighted with bold borders`);
+  logger.info(`  ✓ Green arrows for allowed dependencies`);
+  logger.info(`  ✓ Red dashed arrows with ⚠️ for forbidden dependencies`);
+  logger.info(`  ✓ Node size based on number of dependencies`);
+  logger.info(`  ✓ Color coding by module type`);
+  logger.info(`  ✓ Interactive hover tooltips (in SVG)`);
 }
 
-main().catch(console.error);
+main().catch(logger.error);

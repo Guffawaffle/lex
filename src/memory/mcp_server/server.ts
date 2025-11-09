@@ -1,11 +1,4 @@
-/**
- * Lex Memory MCP Server
- *
- * Handles MCP protocol requests for Frame storage and recall.
- * Integrates with FrameStore (SQLite + FTS5) and Atlas Frame generation.
- */
-
-// @ts-ignore - importing from compiled dist directories
+import { getLogger } from "lex/logger";
 import { FrameStore } from "../store/framestore.js";
 // @ts-ignore - importing from compiled dist directories
 import { ImageManager } from "../store/images.js";
@@ -24,6 +17,9 @@ import { loadPolicy } from "../../shared/policy/loader.js";
 import { getCurrentBranch } from "../../shared/git/branch.js";
 import { randomUUID } from "crypto";
 import { join } from "path";
+
+
+const logger = getLogger("memory:mcp_server:server");
 
 export interface MCPRequest {
   method: string;
@@ -68,8 +64,8 @@ export class MCPServer {
       this.policy = loadPolicy(policyPath);
     } catch (error: any) {
       if (process.env.LEX_DEBUG) {
-        console.error(`[LEX] Policy not available: ${error.message}`);
-        console.error(`[LEX] Operating without policy enforcement`);
+        logger.error(`[LEX] Policy not available: ${error.message}`);
+        logger.error(`[LEX] Operating without policy enforcement`);
       }
       this.policy = null;
     }
@@ -212,7 +208,7 @@ export class MCPServer {
         canonicalModuleScope = validationResult.canonical;
       }
     } else if (process.env.LEX_DEBUG) {
-      console.error(`[LEX] Skipping module validation (no policy loaded)`);
+      logger.error(`[LEX] Skipping module validation (no policy loaded)`);
     }
 
     // Generate Frame ID and timestamp
@@ -228,7 +224,7 @@ export class MCPServer {
     } else if (this.repoRoot || process.env.LEX_DEFAULT_BRANCH) {
       frameBranch = getCurrentBranch();
       // Log branch detection for debugging
-      console.log(`[lex.remember] Auto-detected branch: ${frameBranch}`);
+      logger.info(`[lex.remember] Auto-detected branch: ${frameBranch}`);
     } else {
       // When no repoRoot is provided and no env override, avoid auto-detecting
       // from the runner's repository; use 'unknown' to indicate no branch context.

@@ -8,6 +8,13 @@ import { z } from "zod";
  * Represents a timestamped work session snapshot with human-memorable reference points
  */
 
+export const FrameSpendMetadata = z.object({
+  prompts: z.number().optional(),
+  tokens_estimated: z.number().optional(),
+});
+
+export type FrameSpendMetadata = z.infer<typeof FrameSpendMetadata>;
+
 export const FrameStatusSnapshot = z.object({
   next_action: z.string(),
   blockers: z.array(z.string()).optional(),
@@ -30,9 +37,20 @@ export const Frame = z.object({
   atlas_frame_id: z.string().optional(), // Link to Atlas Frame (spatial neighborhood)
   feature_flags: z.array(z.string()).optional(),
   permissions: z.array(z.string()).optional(),
+  // Merge-weave metadata (v2)
+  runId: z.string().optional(),
+  planHash: z.string().optional(),
+  spend: FrameSpendMetadata.optional(),
 });
 
 export type Frame = z.infer<typeof Frame>;
+
+/**
+ * Frame schema version constant
+ * v1: Initial schema (pre-0.4.0)
+ * v2: Added runId, planHash, spend fields for merge-weave provenance (0.4.0)
+ */
+export const FRAME_SCHEMA_VERSION = 2;
 
 /**
  * Frame search query interface

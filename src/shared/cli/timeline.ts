@@ -17,6 +17,7 @@ import {
   type TimelineOptions,
 } from "../../memory/renderer/timeline.js";
 import { writeFileSync } from "fs";
+import * as output from "./output.js";
 
 export interface TimelineCommandOptions {
   since?: string;
@@ -56,8 +57,8 @@ export async function timeline(
     }
 
     if (frames.length === 0) {
-      console.log(`\n❌ No frames found for: "${ticketOrBranch}"\n`);
-      console.log("Try using a Jira ticket ID (e.g., TICKET-123) or a branch name.\n");
+      output.error(`\n❌ No frames found for: "${ticketOrBranch}"\n`);
+      output.info("Try using a Jira ticket ID (e.g., TICKET-123) or a branch name.\n");
       process.exit(1);
     }
 
@@ -81,39 +82,39 @@ export async function timeline(
       timelineData = filterTimeline(timelineData, timelineOptions);
 
       if (timelineData.length === 0) {
-        console.log(`\n❌ No frames found in the specified date range.\n`);
+        output.error(`\n❌ No frames found in the specified date range.\n`);
         process.exit(1);
       }
     }
 
     // Render timeline based on format
     const format = options.format || (options.json ? "json" : "text");
-    let output: string;
+    let result: string;
 
     switch (format) {
       case "json":
-        output = renderTimelineJSON(timelineData);
+        result = renderTimelineJSON(timelineData);
         break;
       case "html":
-        output = renderTimelineHTML(timelineData, title);
+        result = renderTimelineHTML(timelineData, title);
         break;
       case "text":
       default:
-        output = renderTimelineText(timelineData, title);
-        output += renderModuleScopeEvolution(timelineData);
-        output += renderBlockerTracking(timelineData);
+        result = renderTimelineText(timelineData, title);
+        result += renderModuleScopeEvolution(timelineData);
+        result += renderBlockerTracking(timelineData);
         break;
     }
 
     // Write to file or stdout
     if (options.output) {
-      writeFileSync(options.output, output, "utf-8");
-      console.log(`\n✅ Timeline written to: ${options.output}\n`);
+      writeFileSync(options.output, result, "utf-8");
+      output.success(`\n✅ Timeline written to: ${options.output}\n`);
     } else {
-      console.log(output);
+      output.raw(result);
     }
   } catch (error: any) {
-    console.error(`\n❌ Error: ${error.message}\n`);
+    output.error(`\n❌ Error: ${error.message}\n`);
     process.exit(2);
   }
 }

@@ -10,6 +10,11 @@ export interface StatusSnapshot {
   tests_failing?: string[];
 }
 
+export interface SpendMetadata {
+  prompts?: number;
+  tokens_estimated?: number;
+}
+
 export interface Frame {
   id: string;
   timestamp: string;
@@ -24,7 +29,18 @@ export interface Frame {
   feature_flags?: string[];
   permissions?: string[];
   image_ids?: string[];
+  // Merge-weave metadata (v2)
+  runId?: string;
+  planHash?: string;
+  spend?: SpendMetadata;
 }
+
+/**
+ * Frame schema version constant
+ * v1: Initial schema (pre-0.4.0)
+ * v2: Added runId, planHash, spend fields for merge-weave provenance (0.4.0)
+ */
+export const FRAME_SCHEMA_VERSION = 2;
 
 export function validateFrameMetadata(frame: unknown): frame is Frame {
   if (typeof frame !== "object" || frame === null) return false;
@@ -64,6 +80,15 @@ export function validateFrameMetadata(frame: unknown): frame is Frame {
   if (f.permissions !== undefined) {
     if (!Array.isArray(f.permissions)) return false;
     if (!f.permissions.every((p: unknown) => typeof p === "string")) return false;
+  }
+  // Validate v2 fields (optional, backward compatible)
+  if (f.runId !== undefined && typeof f.runId !== "string") return false;
+  if (f.planHash !== undefined && typeof f.planHash !== "string") return false;
+  if (f.spend !== undefined) {
+    if (typeof f.spend !== "object" || f.spend === null) return false;
+    const spend = f.spend as Record<string, unknown>;
+    if (spend.prompts !== undefined && typeof spend.prompts !== "number") return false;
+    if (spend.tokens_estimated !== undefined && typeof spend.tokens_estimated !== "number") return false;
   }
   return true;
 }
