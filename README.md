@@ -99,6 +99,49 @@ npm install lex
 npm run setup-local
 ```
 
+### Quick Start
+
+Here's the complete workflow from creating a Frame to recalling it and viewing your timeline:
+
+#### 1. Create a Frame
+
+```bash
+lex remember \
+  --reference-point "Implementing user authentication" \
+  --summary "Added login form and JWT validation" \
+  --next "Wire up password reset flow" \
+  --modules "ui/login,services/auth" \
+  --keywords "auth,security"
+```
+
+#### 2. Recall It Later
+
+```bash
+# Search by keyword
+lex recall "authentication"
+
+# Search by ticket
+lex recall "TICKET-123"
+
+# JSON output
+lex recall "auth" --json
+```
+
+#### 3. View Timeline
+
+```bash
+# For current branch
+lex timeline main
+
+# For a ticket
+lex timeline TICKET-123
+
+# With date range
+lex timeline main --since "2025-11-01"
+```
+
+See [RECEIPTS.md](./RECEIPTS.md) for a detailed walkthrough.
+
 ### Basic Usage
 
 ```typescript
