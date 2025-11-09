@@ -6,8 +6,10 @@
     "strict": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,
-    "allowSyntheticDefaultImports": true,
-    "esModuleInterop": true,
+    // Disabled per Phase 3H: Pure ESM codebase doesn't need CJS interop flags
+    // All dependencies work correctly without these flags
+    "allowSyntheticDefaultImports": false,
+    "esModuleInterop": false,
     "forceConsistentCasingInFileNames": true,
     "declaration": true,
     "sourceMap": true,
