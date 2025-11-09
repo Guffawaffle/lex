@@ -33,6 +33,9 @@ __pycache__/
 .env
 .env.local
 
+# Configuration (working config, not the example)
+.lex.config.json
+
 # Databases
 *.sqlite
 *.sqlite3
