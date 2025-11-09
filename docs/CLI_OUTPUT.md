@@ -77,7 +77,20 @@ Colors are automatically enabled when:
 
 ### JSONL Mode (Machine-Readable)
 
-Outputs one JSON event per line conforming to CliEvent v1 schema:
+Outputs one JSON event per line conforming to CliEvent v1 schema.
+
+**📌 Stream Routing (Critical for Shell Scripting):**
+- Events with `level: "error"` or `level: "warn"` → **stderr**
+- All other levels (`info`, `success`, `debug`) → **stdout**
+
+**Canonical JSONL Example:**
+
+```jsonl
+{"v":1,"ts":"2025-01-09T12:34:56.789Z","level":"info","scope":"cli","message":"Processing Frame"}
+{"v":1,"ts":"2025-01-09T12:34:57.123Z","level":"error","scope":"cli","message":"Policy violation detected","code":"POLICY_ERROR","hint":"Add module to lexmap.policy.json"}
+```
+
+Note: The first line goes to **stdout**, the second to **stderr**.
 
 ```bash
 $ LEX_CLI_OUTPUT_MODE=jsonl lex remember --reference "test" --caption "test"
