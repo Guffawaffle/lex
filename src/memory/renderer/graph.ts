@@ -403,7 +403,10 @@ export async function exportGraphAsPNG(
   options: { width?: number; height?: number } = {}
 ): Promise<Buffer> {
   // Import sharp dynamically to avoid issues if not installed
-  const sharp = (await import("sharp")).default;
+  // Sharp uses CommonJS-style 'export =' syntax, so we import as namespace
+  // and cast to the correct type (works without esModuleInterop flag)
+  const sharpModule = await import("sharp");
+  const sharp = sharpModule as unknown as typeof import("sharp");
 
   const buffer = Buffer.from(svgContent);
   let image = sharp(buffer);
