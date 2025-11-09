@@ -9,7 +9,6 @@ import { test, describe } from "node:test";
 // Adjusted import path to built dist output
 import {
   validateModuleIds,
-  validateModuleIdsSync,
 } from "../../../dist/shared/module_ids/validator.js";
 
 // Sample policy for testing
@@ -41,119 +40,6 @@ const samplePolicy = {
     },
   },
 };
-
-describe("validateModuleIdsSync (legacy - no alias resolution)", () => {
-  test("valid module IDs pass validation", () => {
-    const result = validateModuleIdsSync(
-      ["services/auth-core", "ui/user-admin-panel"],
-      samplePolicy
-    );
-
-    assert.equal(result.valid, true);
-    assert.equal(result.errors, undefined);
-  });
-
-  test("invalid module IDs fail with error messages", () => {
-    const result = validateModuleIdsSync(["auth-core", "ui/user-admin-panel"], samplePolicy);
-
-    assert.equal(result.valid, false);
-    assert.ok(result.errors);
-    assert.equal(result.errors.length, 1);
-    assert.equal(result.errors[0].module, "auth-core");
-    assert.ok(result.errors[0].message.includes("not found in policy"));
-  });
-
-  test("fuzzy matching suggests similar module names", () => {
-    const result = validateModuleIdsSync(["auth-core"], samplePolicy);
-
-    assert.equal(result.valid, false);
-    assert.ok(result.errors);
-    assert.equal(result.errors[0].module, "auth-core");
-    assert.ok(result.errors[0].suggestions.length > 0);
-    assert.equal(result.errors[0].suggestions[0], "services/auth-core");
-    assert.ok(result.errors[0].message.includes("Did you mean"));
-  });
-
-  test("empty module_scope is allowed", () => {
-    const result = validateModuleIdsSync([], samplePolicy);
-
-    assert.equal(result.valid, true);
-    assert.equal(result.errors, undefined);
-  });
-
-  test("case sensitivity is enforced", () => {
-    const result = validateModuleIdsSync(
-      ["Services/Auth-Core"], // Wrong case
-      samplePolicy
-    );
-
-    assert.equal(result.valid, false);
-    assert.ok(result.errors);
-    assert.equal(result.errors[0].module, "Services/Auth-Core");
-  });
-
-  test("multiple invalid modules all reported", () => {
-    const result = validateModuleIdsSync(["auth-core", "user-panel", "login"], samplePolicy);
-
-    assert.equal(result.valid, false);
-    assert.ok(result.errors);
-    assert.equal(result.errors.length, 3);
-    assert.equal(result.errors[0].module, "auth-core");
-    assert.equal(result.errors[1].module, "user-panel");
-    assert.equal(result.errors[2].module, "login");
-  });
-
-  test("mix of valid and invalid modules reported correctly", () => {
-    const result = validateModuleIdsSync(
-      ["services/auth-core", "invalid-module", "ui/user-admin-panel"],
-      samplePolicy
-    );
-
-    assert.equal(result.valid, false);
-    assert.ok(result.errors);
-    assert.equal(result.errors.length, 1);
-    assert.equal(result.errors[0].module, "invalid-module");
-  });
-
-  test("suggestions are limited and relevant", () => {
-    const result = validateModuleIdsSync(["user-panel"], samplePolicy);
-
-    assert.equal(result.valid, false);
-    assert.ok(result.errors);
-    assert.ok(result.errors[0].suggestions.length <= 3); // Max 3 suggestions
-    assert.ok(result.errors[0].suggestions.some((s) => s.includes("user-admin-panel")));
-  });
-
-  test("no suggestions for very dissimilar names", () => {
-    const result = validateModuleIdsSync(["completely-unrelated-xyz-123"], samplePolicy);
-
-    assert.equal(result.valid, false);
-    assert.ok(result.errors);
-    // May have no suggestions if edit distance is too large
-    assert.ok(result.errors[0].suggestions.length >= 0);
-  });
-
-  test("special characters in module IDs are validated", () => {
-    const policyWithSpecialChars = {
-      modules: {
-        "services/auth-core_v2": {
-          description: "Auth v2",
-          owns_paths: ["services/auth-v2/**"],
-        },
-      },
-    };
-
-    const result = validateModuleIdsSync(["services/auth-core_v2"], policyWithSpecialChars);
-
-    assert.equal(result.valid, true);
-  });
-
-  test("undefined moduleScope is treated as empty", () => {
-    const result = validateModuleIdsSync(undefined, samplePolicy);
-
-    assert.equal(result.valid, true);
-  });
-});
 
 // Sample alias table for async tests
 const sampleAliasTable = {
