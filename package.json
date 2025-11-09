@@ -22,7 +22,11 @@
     "lex": "./dist/shared/cli/lex.js"
   },
   "files": [
-    "dist",
+    "dist/**/*.js",
+    "dist/**/*.d.ts",
+    "dist/**/*.js.map",
+    "!dist/**/*.test.*",
+    "!dist/**/*.tsbuildinfo",
     "README.md",
     "LICENSE"
   ],
