@@ -14,6 +14,7 @@
 import Database from "better-sqlite3";
 export type { FrameRow } from "./db.js";
 export type { Frame, FrameStatusSnapshot } from "../frames/types.js";
+export type { SearchResult } from "./queries.js";
 export {
   saveFrame,
   getFrameById,

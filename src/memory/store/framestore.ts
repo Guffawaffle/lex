@@ -87,7 +87,8 @@ export class FrameStore {
     limit?: number;
   }): any[] {
     if (query.reference_point) {
-      return search(this.db, query.reference_point);
+      // Return just the frames array from SearchResult for backward compatibility
+      return search(this.db, query.reference_point).frames;
     }
 
     if (query.jira) {
