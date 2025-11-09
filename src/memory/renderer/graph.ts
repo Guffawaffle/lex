@@ -224,7 +224,7 @@ function generateSVG(
       .node:hover { opacity: 0.8; }
       .edge-allowed { stroke: #4CAF50; fill: none; }
       .edge-forbidden { stroke: #F44336; fill: none; stroke-dasharray: 5,5; }
-      .node-label { 
+      .node-label {
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         font-size: 12px;
         fill: #333;
@@ -242,7 +242,7 @@ function generateSVG(
         rx: 4;
       }
     </style>
-    
+
     <!-- Arrow markers for edges -->
     <marker id="arrow-allowed" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
       <path d="M0,0 L0,6 L9,3 z" fill="#4CAF50" />
@@ -403,17 +403,20 @@ export async function exportGraphAsPNG(
   options: { width?: number; height?: number } = {}
 ): Promise<Buffer> {
   // Import sharp dynamically to avoid issues if not installed
-  // Sharp uses CommonJS-style 'export =' syntax, so we import as namespace
-  // and cast to the correct type (works without esModuleInterop flag)
-  const sharpModule = await import("sharp");
-  const sharp = sharpModule as unknown as typeof import("sharp");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
+  const sharpModule = (await import("sharp")) as any;
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+  const sharp = sharpModule.default || sharpModule;
 
   const buffer = Buffer.from(svgContent);
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
   let image = sharp(buffer);
 
   if (options.width || options.height) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
     image = image.resize(options.width, options.height);
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
   return image.png().toBuffer();
 }

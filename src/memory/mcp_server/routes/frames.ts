@@ -4,10 +4,10 @@
  * POST /api/frames - Ingest a new Frame with deduplication
  */
 
-import { Router, Request, Response } from "express";
+import { Router, Request, Response, NextFunction } from "express";
 import type Database from "better-sqlite3";
 import { Frame } from "../../frames/types.js";
-import { saveFrame, getFrameById } from "../../store/queries.js";
+import { saveFrame } from "../../store/queries.js";
 import { createHash } from "crypto";
 import { randomUUID } from "crypto";
 
@@ -59,6 +59,7 @@ export function generateFrameContentHash(frame: {
 export function findFrameByContentHash(db: Database.Database, contentHash: string): Frame | null {
   // Get all frames and check their content hashes
   const stmt = db.prepare("SELECT * FROM frames ORDER BY timestamp DESC LIMIT 1000");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const rows = stmt.all() as any[];
 
   for (const row of rows) {
@@ -87,6 +88,7 @@ export function findFrameByContentHash(db: Database.Database, contentHash: strin
 /**
  * Validate Frame request body
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function validateFrameRequest(body: any): { valid: boolean; error?: ApiErrorResponse } {
   // Check required fields
   if (!body.reference_point || typeof body.reference_point !== "string") {
@@ -152,7 +154,7 @@ export function createFramesRouter(db: Database.Database, apiKey?: string): Rout
 
   // Authentication middleware
   if (apiKey) {
-    router.use((req: Request, res: Response, next) => {
+    router.use((req: Request, res: Response, next: NextFunction) => {
       const authHeader = req.headers.authorization;
       const providedKey = authHeader?.replace("Bearer ", "");
 
@@ -233,11 +235,12 @@ export function createFramesRouter(db: Database.Database, apiKey?: string): Rout
         id: frameId,
         status: "created",
       } as FrameCreateResponse);
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Handle database or other internal errors
+      const errorMessage = error instanceof Error ? error.message : "An internal error occurred";
       return res.status(500).json({
         error: "INTERNAL_ERROR",
-        message: error.message || "An internal error occurred",
+        message: errorMessage,
         code: 500,
       } as ApiErrorResponse);
     }
