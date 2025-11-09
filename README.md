@@ -166,6 +166,168 @@ lex check merged-facts.json --policy /path/to/custom-policy.json
 
 See the [RECEIPTS.md](./RECEIPTS.md) for a complete end-to-end walkthrough.
 
+### Subpath Exports
+
+Lex provides multiple entry points for different functionality. All subpath imports are fully typed with TypeScript declarations.
+
+#### Main Entry Point
+
+The main entry exports core frame storage operations:
+
+```typescript
+import { saveFrame, getDb, closeDb, searchFrames, getFrameById } from 'lex';
+
+// Initialize database
+const db = getDb('./memory.db');
+
+// Save a frame
+await saveFrame(db, {
+  referencePoint: 'authentication flow',
+  summaryCaption: 'Added password validation',
+  // ... other frame properties
+});
+
+// Search frames
+const results = await searchFrames(db, { referencePoint: 'authentication' });
+
+closeDb(db);
+```
+
+**Available exports:**
+- `getDb(path?)` - Get/create database connection
+- `closeDb(db?)` - Close database connection
+- `saveFrame(db, frame)` - Save a new frame
+- `getFrameById(db, id)` - Retrieve frame by ID
+- `searchFrames(db, query)` - Search frames by query
+
+#### CLI Entry Point
+
+Programmatic access to CLI functionality:
+
+```typescript
+import { createProgram, run } from 'lex/cli';
+
+// Create CLI program instance
+const program = createProgram();
+
+// Run with custom arguments
+await run(['node', 'lex', 'remember', '--jira', 'AUTH-123']);
+```
+
+**Available exports:**
+- `createProgram()` - Create Commander.js program instance
+- `run(argv?)` - Execute CLI with arguments
+
+#### Memory Store
+
+Direct access to frame storage operations (same as main entry):
+
+```typescript
+import { getDb, saveFrame, searchFrames } from 'lex/memory/store';
+
+const db = getDb();
+const frame = await getFrameById(db, 'frame-id');
+```
+
+**Available exports:**
+- All frame storage operations: `saveFrame`, `getFrameById`, `searchFrames`, `getFramesByBranch`, `getFramesByJira`, `getFramesByModuleScope`, `getAllFrames`, `deleteFrame`, `getFrameCount`
+- Database operations: `getDb`, `closeDb`, `createDatabase`, `getDefaultDbPath`
+
+#### Policy Utilities
+
+Load and work with policy files:
+
+```typescript
+import { loadPolicy, clearPolicyCache } from 'lex/shared/policy';
+
+// Load policy from default or custom path
+const policy = loadPolicy(); // Uses LEX_POLICY_PATH env or default
+const customPolicy = loadPolicy('/path/to/policy.json');
+
+// Clear cache if needed
+clearPolicyCache();
+```
+
+**Available exports:**
+- `loadPolicy(path?)` - Load policy file with caching
+- `clearPolicyCache()` - Clear policy cache
+
+#### Atlas Frame Generation
+
+Generate policy-aware spatial neighborhoods:
+
+```typescript
+import { 
+  generateAtlasFrame, 
+  buildPolicyGraph, 
+  computeFoldRadius 
+} from 'lex/shared/atlas';
+
+// Load policy first
+import { loadPolicy } from 'lex/shared/policy';
+const policy = loadPolicy();
+
+// Build graph from policy
+const graph = buildPolicyGraph(policy);
+
+// Generate atlas frame for specific modules
+const atlasFrame = generateAtlasFrame({
+  policy,
+  graph,
+  moduleScope: ['services/auth-core', 'services/password'],
+  foldRadius: 1
+});
+
+console.log(atlasFrame.modules); // Module details with permissions, flags
+console.log(atlasFrame.edges);   // Allowed/forbidden caller relationships
+```
+
+**Available exports:**
+- `generateAtlasFrame(options)` - Generate atlas frame with fold radius
+- `buildPolicyGraph(policy)` - Build graph from policy
+- `getNeighbors(graph, moduleId, radius)` - Get neighboring modules
+- `computeFoldRadius(options)` - Compute fold radius neighbors
+- `estimateTokens(atlasFrame)` - Estimate token count
+- `autoTuneRadius(options)` - Auto-tune radius for token limits
+- Cache utilities: `getCache`, `setEnableCache`, `resetCache`, `getCacheStats`
+
+#### Shared Utilities
+
+Additional utility modules available:
+
+```typescript
+// Module ID validation and fuzzy matching
+import { validateModuleIds, fuzzyMatchModule } from 'lex/shared/module_ids';
+
+// Module alias resolution
+import { resolveAlias, loadAliases } from 'lex/shared/aliases';
+
+// Git branch utilities
+import { getCurrentBranch } from 'lex/shared/git';
+
+// Type definitions
+import type { Policy, Frame, AtlasFrame } from 'lex/shared/types';
+```
+
+**Package structure:**
+- `lex/shared/module_ids` - Module ID validation and fuzzy matching
+- `lex/shared/aliases` - Module alias resolution
+- `lex/shared/git` - Git branch detection
+- `lex/shared/types` - TypeScript type definitions
+
+#### Policy CLI Scripts
+
+The policy checker and merge tools are available as CLI scripts but not as importable library functions. Use them via command line:
+
+```bash
+# Check policy violations
+lex check merged-facts.json
+
+# For direct script access (if needed):
+node node_modules/lex/dist/policy/check/lexmap-check.js merged.json policy.json
+node node_modules/lex/dist/policy/merge/lexmap-merge.js scan1.json scan2.json
+```
+
 ---
 
 ## What Are Receipts?
