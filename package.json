@@ -14,6 +14,11 @@
       "types": "./dist/shared/cli/index.d.ts",
       "import": "./dist/shared/cli/index.js"
     },
+    "./cli-output": {
+      "types": "./dist/shared/cli/output.d.ts",
+      "import": "./dist/shared/cli/output.js"
+    },
+    "./schemas/cli-output.v1.schema.json": "./schemas/cli-output.v1.schema.json",
     "./logger": {
       "types": "./dist/shared/logger/index.d.ts",
       "import": "./dist/shared/logger/index.js"
@@ -30,6 +35,7 @@
     "dist/**/*.d.ts",
     "dist/**/*.js.map",
     "!dist/**/*.tsbuildinfo",
+    "schemas/**/*.json",
     "README.md",
     "LICENSE"
   ],
