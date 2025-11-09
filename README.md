@@ -81,6 +81,130 @@ This shared vocabulary is what lets Lex answer:
 
 **Module ID Validation & Aliasing:** To help prevent typos and improve usability, Lex provides fuzzy matching with helpful suggestions when module IDs don't match. When you use an invalid module ID, you'll get suggestions for similar modules. In the future, explicit alias tables will support team shorthand conventions (e.g., `auth` → `services/auth-core`) and historical renames. See `src/shared/aliases/README.md` for details.
 
+---
+
+## Quickstart
+
+### Installation
+
+```bash
+npm install lex
+```
+
+### Basic Usage
+
+```typescript
+import { saveFrame, searchFrames, getDb, closeDb } from "lex";
+
+// Initialize the database
+const db = getDb("./memory.db");
+
+// Capture a work session snapshot
+const frame = await saveFrame(db, {
+  referencePoint: "implementing user authentication flow",
+  summaryCaption: "Added password validation to AuthService",
+  statusSnapshot: {
+    nextAction: "Wire up permission check before allowing login",
+    blockers: ["Need access to PermissionService - forbidden edge in policy"],
+  },
+  moduleScope: ["services/auth-core", "services/password"],
+  branch: "feature/auth-improvements",
+  jira: "AUTH-123",
+  keywords: ["authentication", "security"],
+});
+
+console.log(`Frame captured: ${frame.id}`);
+
+// Later: recall what you were working on
+const recalled = await searchFrames(db, {
+  referencePoint: "authentication",
+  limit: 5,
+});
+
+recalled.forEach((f) => {
+  console.log(`[${f.branch}] ${f.summaryCaption}`);
+  console.log(`  Next: ${f.statusSnapshot.nextAction}`);
+});
+
+closeDb(db);
+```
+
+### CLI Usage
+
+```bash
+# Capture a memory frame
+lex remember \
+  --jira AUTH-123 \
+  --summary "Added password validation to AuthService" \
+  --next "Wire up permission check" \
+  --modules "services/auth-core,services/password" \
+  --blockers "Need access to PermissionService - forbidden edge"
+
+# Recall previous work
+lex recall "authentication flow"
+lex recall AUTH-123
+
+# Check policy compliance
+lex check merged-facts.json lexmap.policy.json
+```
+
+**CLI outputs:**
+- `lex remember` → Confirmation with Frame ID and summary
+- `lex recall` → Matching frames with context (branch, blockers, next action, module neighborhood)
+- `lex check` → Policy violations report with forbidden edges, missing permissions, kill pattern matches
+
+See the [RECEIPTS.md](./RECEIPTS.md) for a complete end-to-end walkthrough.
+
+---
+
+## What Are Receipts?
+
+A **receipt** is a human-readable artifact that maps acceptance criteria to the gates that verified them and the outputs those gates produced. Think of it as an audit trail that shows:
+
+- **Input**: What you asked for (feature spec, policy rule, test requirement)
+- **Gate**: What automated check ran (policy scanner, test suite, linter)
+- **Output**: What the gate found (violations, test results, coverage)
+- **Verdict**: Pass/fail + actionable next steps
+
+Receipts appear in:
+- **CLI output** (e.g., `lex check` shows which edges are forbidden and why)
+- **CI logs** (automated gates produce structured JSON receipts)
+- **Atlas Frames** (recalled frames include gate results from when they were captured)
+
+This gives you **continuity with proof**: not just "what happened," but "what was checked, what passed, what failed, and what to do next."
+
+---
+
+## Why TypeScript-Only + NodeNext?
+
+### The Problem
+Mixing `.ts` source files with committed `.js` artifacts creates confusion:
+- Which `.js` files are hand-written vs. build output?
+- Are imports broken because someone edited generated code?
+- Do CI checks run against source or compiled artifacts?
+
+### The Solution
+**`src/` contains only TypeScript.** All `.js` files are build outputs in `dist/`.
+
+**`NodeNext` module resolution** means:
+- Runtime code uses `.js` extensions in imports (`import x from "./foo.js"`)
+- TypeScript resolves those imports against `.ts` sources during compilation
+- After build, the emitted `.js` files resolve correctly in Node.js
+
+**Why this works:**
+1. Single source of truth: `src/` is the canonical code
+2. Type safety: TypeScript checks everything before build
+3. Runtime correctness: Node ESM import rules work in `dist/`
+4. Deterministic builds: `tsc -b` with project references ensures layered, incremental compilation
+
+**CI guards:**
+- `scripts/check-no-js-in-src.mjs` fails if any `.js` appears in `src/`
+- ESLint enforces `.js` extensions in imports for runtime correctness
+
+See [docs/adr/0001-ts-only-nodenext.md](./docs/adr/0001-ts-only-nodenext.md) for the full decision record.
+
+---
+
 ## Status
 Early alpha. We are actively converging two previously separate codebases:
 - LexBrain (episodic Frames and recall)

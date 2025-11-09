@@ -1,6 +1,7 @@
 {
   "files": [],
   "references": [
+    { "path": "src" },
     { "path": "src/shared/types" },
     { "path": "src/shared/aliases" },
     { "path": "src/shared/module_ids" },
