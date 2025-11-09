@@ -500,3 +500,51 @@ test("explicit mode option overrides env var", () => {
     }
   }
 });
+
+test("json output conforms to schema (info)", async () => {
+  const { validateCliEvent } = await import("../../helpers/validate-cli-event.mjs");
+  const out = createOutput({ mode: "jsonl", scope: "test-scope" });
+  const logs: string[] = [];
+  const originalLog = console.log;
+  console.log = (msg: string) => logs.push(msg);
+
+  try {
+    out.info("Test info message", { test: "data" }, "TEST_CODE");
+    assert.equal(logs.length, 1);
+
+    const event = JSON.parse(logs[0]);
+    const result = validateCliEvent(event);
+
+    assert.ok(result.valid, `Validation errors: ${result.errors.join(", ")}`);
+    assert.equal(event.level, "info");
+    assert.equal(event.scope, "test-scope");
+    assert.equal(event.message, "Test info message");
+    assert.equal(event.code, "TEST_CODE");
+  } finally {
+    console.log = originalLog;
+  }
+});
+
+test("json output conforms to schema (error to stderr)", async () => {
+  const { validateCliEvent } = await import("../../helpers/validate-cli-event.mjs");
+  const out = createOutput({ mode: "jsonl" });
+  const errors: string[] = [];
+  const originalError = console.error;
+  console.error = (msg: string) => errors.push(msg);
+
+  try {
+    out.error("Test error message", { errorData: "details" }, "ERROR_CODE", "Try fixing it");
+    assert.equal(errors.length, 1);
+
+    const event = JSON.parse(errors[0]);
+    const result = validateCliEvent(event);
+
+    assert.ok(result.valid, `Validation errors: ${result.errors.join(", ")}`);
+    assert.equal(event.level, "error");
+    assert.equal(event.message, "Test error message");
+    assert.equal(event.code, "ERROR_CODE");
+    assert.equal(event.hint, "Try fixing it");
+  } finally {
+    console.error = originalError;
+  }
+});
