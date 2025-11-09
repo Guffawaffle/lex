@@ -403,6 +403,28 @@ export async function exportGraphAsPNG(
   options: { width?: number; height?: number } = {}
 ): Promise<Buffer> {
   // Import sharp dynamically to avoid issues if not installed
+
+  // CRITICAL: DO NOT REMOVE THESE ESLINT-DISABLES WITHOUT EXPLICIT APPROVAL
+  // The 'sharp' library uses a complex CommonJS/ESM hybrid export system that TypeScript
+  // cannot properly type when using dynamic imports. We MUST use 'any' here because:
+  //
+  // 1. Dynamic imports of CommonJS modules don't have proper type information at runtime
+  // 2. Sharp's types assume static imports, but we use dynamic imports for optional deps
+  // 3. The .default fallback pattern is required for ESM/CJS interop but isn't typed
+  // 4. Attempting to type this correctly would require:
+  //    - Runtime type introspection (defeats TypeScript's purpose)
+  //    - Assuming import patterns that may break across Node versions
+  //    - Complex conditional types that are harder to maintain than this pragma
+  //
+  // This pattern is documented in the sharp library itself for optional installations.
+  // See: https://sharp.pixelplumbing.com/install#cross-platform
+  //
+  // If you believe you can fix this, you must:
+  // 1. Ensure it works with both ESM and CommonJS Node.js configurations
+  // 2. Test with sharp installed AND uninstalled (should gracefully fail)
+  // 3. Verify across Node.js versions 18, 20, and 22
+  // 4. Document the fix in the PR description with test evidence
+  //
   // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
   const sharpModule = (await import("sharp")) as any;
   // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
