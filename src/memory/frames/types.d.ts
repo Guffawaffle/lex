@@ -57,4 +57,3 @@ export interface FrameSearchResult {
   frames: Frame[];
   total: number;
 }
-//# sourceMappingURL=types.d.ts.map
