@@ -6,7 +6,7 @@
 
 import { strict as assert } from "assert";
 import { test, describe } from "node:test";
-import { loadPolicy, clearPolicyCache } from "../../../src/shared/policy/loader.js";
+import { loadPolicy, clearPolicyCache } from "@app/shared/policy/loader.js";
 import { fileURLToPath } from "url";
 import { dirname, resolve, join } from "path";
 import { existsSync, readFileSync, unlinkSync, mkdirSync, writeFileSync } from "fs";

@@ -7,7 +7,7 @@
 
 import { strict as assert } from "assert";
 import { test, describe } from "node:test";
-import { validateModuleIds } from "../../../src/shared/module_ids/validator.js";
+import { validateModuleIds } from "@app/shared/module_ids/validator.js";
 
 // Sample policy for testing
 const samplePolicy = {

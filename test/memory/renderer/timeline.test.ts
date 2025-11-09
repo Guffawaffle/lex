@@ -10,7 +10,7 @@ import {
   renderModuleScopeEvolution,
   renderBlockerTracking,
   filterTimeline,
-} from "../../../src/memory/renderer/timeline.js";
+} from "@app/memory/renderer/timeline.js";
 
 test("buildTimeline: creates timeline entries with module changes", () => {
   const frames = [

@@ -14,7 +14,7 @@
 
 import { test, describe, before, after } from "node:test";
 import assert from "node:assert";
-import { MCPServer } from "../../../src/memory/mcp_server/server.js";
+import { MCPServer } from "@app/memory/mcp_server/server.js";
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";

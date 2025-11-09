@@ -22,7 +22,7 @@
 import { test, describe, before, after } from "node:test";
 import assert from "node:assert";
 // @ts-ignore
-import { validateModuleIds } from "../../../src/shared/module_ids/validator.js";
+import { validateModuleIds } from "@app/shared/module_ids/validator.js";
 import { mkdtempSync, rmSync, writeFileSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";

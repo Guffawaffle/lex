@@ -24,11 +24,11 @@ import {
   searchFrames,
   getAllFrames,
   deleteFrame,
-} from "../../src/memory/store/index.js";
-import type { Frame } from "../../src/memory/frames/types.js";
-import { validateModuleIds } from "../../src/shared/module_ids/validator.js";
-import { renderMemoryCard } from "../../src/memory/renderer/card.js";
-import type { Policy } from "../../src/shared/types/policy.js";
+} from "@app/memory/store/index.js";
+import type { Frame } from "@app/memory/frames/types.js";
+import { validateModuleIds } from "@app/shared/module_ids/validator.js";
+import { renderMemoryCard } from "@app/memory/renderer/card.js";
+import type { Policy } from "@app/shared/types/policy.js";
 
 // Mock policy for module validation tests
 const mockPolicy: Policy = {

@@ -6,8 +6,8 @@
 
 import { test, describe } from "node:test";
 import assert from "node:assert";
-import { FrameStore } from "../../../src/memory/store/framestore.js";
-import { ImageManager } from "../../../src/memory/store/images.js";
+import { FrameStore } from "@app/memory/store/framestore.js";
+import { ImageManager } from "@app/memory/store/images.js";
 import { mkdtempSync, rmSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";

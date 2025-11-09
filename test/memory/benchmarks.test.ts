@@ -23,9 +23,9 @@ import {
   searchFrames,
   getAllFrames,
   deleteFrame,
-} from "../../src/memory/store/index.js";
-import type { Frame } from "../../src/memory/frames/types.js";
-import { renderMemoryCard } from "../../src/memory/renderer/card.js";
+} from "@app/memory/store/index.js";
+import type { Frame } from "@app/memory/frames/types.js";
+import { renderMemoryCard } from "@app/memory/renderer/card.js";
 
 // Test database path
 const BENCH_DB_PATH = join(tmpdir(), `benchmark-${Date.now()}.db`);

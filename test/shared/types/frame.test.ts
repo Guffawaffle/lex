@@ -7,7 +7,7 @@
 
 import { test, describe } from "node:test";
 import assert from "node:assert";
-import { validateFrameMetadata, FRAME_SCHEMA_VERSION } from "../../../src/shared/types/frame.js";
+import { validateFrameMetadata, FRAME_SCHEMA_VERSION } from "@app/shared/types/frame.js";
 
 describe("Frame Type Validation", () => {
   test("should export FRAME_SCHEMA_VERSION", () => {

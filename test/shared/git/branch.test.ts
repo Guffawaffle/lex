@@ -12,7 +12,7 @@
 
 import { test, describe, beforeEach } from "node:test";
 import assert from "node:assert";
-import { getCurrentBranch, clearBranchCache } from "../../../src/shared/git/branch.js";
+import { getCurrentBranch, clearBranchCache } from "@app/shared/git/branch.js";
 import { execSync } from "child_process";
 import { mkdtempSync, rmSync } from "fs";
 import { join } from "path";

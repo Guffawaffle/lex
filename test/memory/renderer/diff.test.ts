@@ -11,7 +11,7 @@ import {
   renderDiff,
   getDiffStats,
   type DiffLine,
-} from "../../../src/memory/renderer/diff.js";
+} from "@app/memory/renderer/diff.js";
 
 describe("Diff Formatting", () => {
   test("parseDiff - additions", () => {

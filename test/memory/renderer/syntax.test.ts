@@ -10,7 +10,7 @@ import {
   detectLanguageFromExtension,
   isLanguageSupported,
   SUPPORTED_LANGUAGES,
-} from "../../../src/memory/renderer/syntax.js";
+} from "@app/memory/renderer/syntax.js";
 
 describe("Syntax Highlighting", () => {
   test("highlightCode - TypeScript", async () => {
