@@ -10,7 +10,7 @@
 
 import { test, describe } from "node:test";
 import assert from "node:assert";
-import { resolveModuleId, loadAliasTable } from "../../../dist/shared/aliases/resolver.js";
+import { resolveModuleId } from "../../../dist/shared/aliases/resolver.js";
 import type { Policy } from "../../../dist/shared/types/policy.js";
 
 // Sample policy for LexRunner testing
@@ -171,10 +171,11 @@ describe("LexRunner: Merge Sequence Continuity", () => {
 
   test("should allow querying frames with either old or new module ID", async () => {
     // Simulate frame data with both old and new IDs
-    const frames = [
-      { id: "frame-1", moduleScope: ["services/user-access-api"] }, // Old frame
-      { id: "frame-2", moduleScope: ["api/user-access"] }, // New frame
-    ];
+    // Note: In practice, frames would be queried from database
+    // const frames = [
+    //   { id: "frame-1", moduleScope: ["services/user-access-api"] },
+    //   { id: "frame-2", moduleScope: ["api/user-access"] },
+    // ];
 
     // Resolve both to canonical form
     const resolution1 = await resolveModuleId(

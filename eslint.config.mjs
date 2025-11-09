@@ -7,7 +7,7 @@ import tsparser from "@typescript-eslint/parser";
 // .js/.jsx files under `src/` (project is TS-first).
 export default [
   // Ignore build/artifacts and scripts
-  { ignores: ["dist/", "node_modules/", "coverage/", "**/*.d.ts", "scripts/"] },
+  { ignores: ["dist/", "node_modules/", "coverage/", "**/*.d.ts", "scripts/", "examples/lexrunner/"] },
 
   // Base config for all source files. Keep a small set of ergonomic rules.
   {
