@@ -6,7 +6,11 @@
  */
 
 // Frame types
-export type { Frame, StatusSnapshot, AtlasFrame } from "./frame.js";
+export type { Frame, StatusSnapshot } from "./frame.js";
+// AtlasFrame is defined in the shared atlas package (spatial neighborhood types).
+// We re-export it here so consumers can import all shared types from
+// `shared/types` while keeping atlas-specific implementation separate.
+export type { AtlasFrame } from "../atlas/types.js";
 
 export { validateFrameMetadata } from "./frame.js";
 
