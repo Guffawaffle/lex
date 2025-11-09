@@ -6,8 +6,8 @@ import tsparser from "@typescript-eslint/parser";
 // TypeScript files and add a narrow override that forbids committing any
 // .js/.jsx files under `src/` (project is TS-first).
 export default [
-  // Ignore build/artifacts and scripts
-  { ignores: ["dist/", "node_modules/", "coverage/", "**/*.d.ts", "scripts/", "examples/lexrunner/"] },
+  // Ignore build/artifacts, scripts, and examples
+  { ignores: ["dist/", "node_modules/", "coverage/", "**/*.d.ts", "scripts/", "examples/"] },
 
   // Base config for all source files. Keep a small set of ergonomic rules.
   {
