@@ -35,10 +35,7 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Run alias resolution tests
-        run: npm run test:aliases
-
-      - name: Check alias test coverage
+      - name: Run alias tests with coverage
         run: |
           npx c8 --reporter=text \
              --reporter=json-summary \
@@ -50,16 +47,12 @@ jobs:
 
       - name: Verify coverage requirements (90%+)
         run: |
-          npx c8 --check-coverage \
+          npx c8 check-coverage \
              --branches 90 \
              --functions 90 \
              --lines 90 \
              --statements 90 \
-             --include=src/shared/aliases/**/*.ts \
-             --include=src/shared/aliases/**/*.mts \
-             --exclude=**/*.test.* \
-             --exclude=**/*.spec.* \
-             npm run test:aliases
+             coverage-summary.json
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
