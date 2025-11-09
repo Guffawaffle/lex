@@ -45,7 +45,7 @@ jobs:
       - name: Check alias test coverage
         if: matrix.node == '20'
         run: |
-          c8 --reporter=text \
+          npx c8 --reporter=text \
              --reporter=json-summary \
              --include=src/shared/aliases/**/*.ts \
              --include=src/shared/aliases/**/*.mts \
@@ -56,7 +56,7 @@ jobs:
       - name: Verify coverage requirements (90%+)
         if: matrix.node == '20'
         run: |
-          c8 --check-coverage \
+          npx c8 --check-coverage \
              --branches 90 \
              --functions 90 \
              --lines 90 \
