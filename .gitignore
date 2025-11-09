@@ -75,3 +75,4 @@ docker-compose.override.yml
 # TypeScript build info files
 *.tsbuildinfo
 *.tgz
+current-lint.json
