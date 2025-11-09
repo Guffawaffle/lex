@@ -355,9 +355,162 @@ describe("Frame Storage Tests", () => {
       assert.ok(result.hint.includes("v0 3 0 release") || result.hint.includes("release"), "Hint should suggest simplified query");
     });
   });
+
+  describe("Frame Schema v2: Merge-Weave Metadata", () => {
+    test("should save and retrieve Frame with merge-weave metadata", async () => {
+      const frameWithMergeWeave: Frame = {
+        id: "frame-mw-001",
+        timestamp: "2025-11-09T12:00:00Z",
+        branch: "feat/merge-weave",
+        module_scope: ["core"],
+        summary_caption: "Merge-weave test frame",
+        reference_point: "merge weave test",
+        status_snapshot: {
+          next_action: "Complete merge-weave",
+        },
+        runId: "lexrunner-20251109-abc123",
+        planHash: "sha256:7f8c9d1234567890abcdef",
+        spend: {
+          prompts: 3,
+          tokens_estimated: 1500,
+        },
+      };
+
+      saveFrame(db, frameWithMergeWeave);
+      const retrieved = getFrameById(db, "frame-mw-001");
+
+      assert.ok(retrieved, "Frame should be retrieved");
+      assert.strictEqual(retrieved!.runId, "lexrunner-20251109-abc123", "runId should match");
+      assert.strictEqual(retrieved!.planHash, "sha256:7f8c9d1234567890abcdef", "planHash should match");
+      assert.ok(retrieved!.spend, "spend should be present");
+      assert.strictEqual(retrieved!.spend!.prompts, 3, "spend.prompts should match");
+      assert.strictEqual(retrieved!.spend!.tokens_estimated, 1500, "spend.tokens_estimated should match");
+
+      deleteFrame(db, "frame-mw-001");
+    });
+
+    test("should handle partial merge-weave metadata", async () => {
+      const framePartial: Frame = {
+        id: "frame-mw-002",
+        timestamp: "2025-11-09T12:10:00Z",
+        branch: "feat/merge-weave",
+        module_scope: ["core"],
+        summary_caption: "Partial merge-weave metadata",
+        reference_point: "partial test",
+        status_snapshot: {
+          next_action: "Test partial fields",
+        },
+        runId: "lexrunner-20251109-def456",
+        // planHash and spend are omitted
+      };
+
+      saveFrame(db, framePartial);
+      const retrieved = getFrameById(db, "frame-mw-002");
+
+      assert.ok(retrieved, "Frame should be retrieved");
+      assert.strictEqual(retrieved!.runId, "lexrunner-20251109-def456", "runId should match");
+      assert.strictEqual(retrieved!.planHash, undefined, "planHash should be undefined");
+      assert.strictEqual(retrieved!.spend, undefined, "spend should be undefined");
+
+      deleteFrame(db, "frame-mw-002");
+    });
+
+    test("should handle spend with only one field", async () => {
+      const framePartialSpend: Frame = {
+        id: "frame-mw-003",
+        timestamp: "2025-11-09T12:20:00Z",
+        branch: "feat/merge-weave",
+        module_scope: ["core"],
+        summary_caption: "Partial spend metadata",
+        reference_point: "partial spend",
+        status_snapshot: {
+          next_action: "Test partial spend",
+        },
+        spend: {
+          prompts: 5,
+          // tokens_estimated is omitted
+        },
+      };
+
+      saveFrame(db, framePartialSpend);
+      const retrieved = getFrameById(db, "frame-mw-003");
+
+      assert.ok(retrieved, "Frame should be retrieved");
+      assert.ok(retrieved!.spend, "spend should be present");
+      assert.strictEqual(retrieved!.spend!.prompts, 5, "spend.prompts should match");
+      assert.strictEqual(retrieved!.spend!.tokens_estimated, undefined, "spend.tokens_estimated should be undefined");
+
+      deleteFrame(db, "frame-mw-003");
+    });
+
+    test("should maintain backward compatibility with legacy frames", async () => {
+      const legacyFrame: Frame = {
+        id: "frame-legacy-001",
+        timestamp: "2025-11-09T12:30:00Z",
+        branch: "main",
+        module_scope: ["core"],
+        summary_caption: "Legacy frame without v2 fields",
+        reference_point: "legacy test",
+        status_snapshot: {
+          next_action: "Test backward compatibility",
+        },
+        // No merge-weave fields
+      };
+
+      saveFrame(db, legacyFrame);
+      const retrieved = getFrameById(db, "frame-legacy-001");
+
+      assert.ok(retrieved, "Legacy frame should be retrieved");
+      assert.strictEqual(retrieved!.id, "frame-legacy-001", "id should match");
+      assert.strictEqual(retrieved!.runId, undefined, "runId should be undefined for legacy frame");
+      assert.strictEqual(retrieved!.planHash, undefined, "planHash should be undefined for legacy frame");
+      assert.strictEqual(retrieved!.spend, undefined, "spend should be undefined for legacy frame");
+
+      deleteFrame(db, "frame-legacy-001");
+    });
+
+    test("should allow updating frame from v1 to v2", async () => {
+      const v1Frame: Frame = {
+        id: "frame-upgrade-001",
+        timestamp: "2025-11-09T12:40:00Z",
+        branch: "main",
+        module_scope: ["core"],
+        summary_caption: "Frame to upgrade",
+        reference_point: "upgrade test",
+        status_snapshot: {
+          next_action: "Upgrade to v2",
+        },
+      };
+
+      saveFrame(db, v1Frame);
+      let retrieved = getFrameById(db, "frame-upgrade-001");
+      assert.strictEqual(retrieved!.runId, undefined, "Should start without runId");
+
+      // Update with v2 fields
+      const v2Frame: Frame = {
+        ...v1Frame,
+        runId: "lexrunner-20251109-ghi789",
+        planHash: "sha256:updated",
+        spend: {
+          prompts: 2,
+          tokens_estimated: 800,
+        },
+      };
+
+      saveFrame(db, v2Frame);
+      retrieved = getFrameById(db, "frame-upgrade-001");
+
+      assert.strictEqual(retrieved!.runId, "lexrunner-20251109-ghi789", "runId should be updated");
+      assert.strictEqual(retrieved!.planHash, "sha256:updated", "planHash should be updated");
+      assert.ok(retrieved!.spend, "spend should be present");
+      assert.strictEqual(retrieved!.spend!.prompts, 2, "spend should be updated");
+
+      deleteFrame(db, "frame-upgrade-001");
+    });
+  });
 });
 
 // Summary message
 console.log(
-  "\n✅ Frame Storage Tests - covering CRUD, FTS5 search, queries, and concurrent access\n"
+  "\n✅ Frame Storage Tests - covering CRUD, FTS5 search, queries, concurrent access, and Frame Schema v2\n"
 );

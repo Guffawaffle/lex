@@ -23,6 +23,10 @@ export interface FrameRow {
   atlas_frame_id: string | null;
   feature_flags: string | null; // JSON stringified array
   permissions: string | null; // JSON stringified array
+  // Merge-weave metadata (v2)
+  run_id: string | null;
+  plan_hash: string | null;
+  spend: string | null; // JSON stringified object
 }
 
 /**
@@ -116,6 +120,10 @@ export function initializeDatabase(db: Database.Database): void {
   if (currentVersion < 2) {
     applyMigrationV2(db);
     db.prepare("INSERT INTO schema_version (version) VALUES (?)").run(2);
+  }
+  if (currentVersion < 3) {
+    applyMigrationV3(db);
+    db.prepare("INSERT INTO schema_version (version) VALUES (?)").run(3);
   }
 }
 
@@ -213,6 +221,25 @@ function applyMigrationV2(db: Database.Database): void {
   // Create index for frame_id lookups
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_images_frame_id ON images(frame_id);
+  `);
+}
+
+/**
+ * Migration V3: Add merge-weave metadata fields (Frame schema v2)
+ */
+function applyMigrationV3(db: Database.Database): void {
+  // Add new optional columns for merge-weave provenance
+  // Safe to add with NULL default, backward compatible
+  db.exec(`
+    ALTER TABLE frames ADD COLUMN run_id TEXT;
+  `);
+
+  db.exec(`
+    ALTER TABLE frames ADD COLUMN plan_hash TEXT;
+  `);
+
+  db.exec(`
+    ALTER TABLE frames ADD COLUMN spend TEXT;
   `);
 }
 
