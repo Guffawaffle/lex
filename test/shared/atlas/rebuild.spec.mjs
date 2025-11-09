@@ -105,13 +105,13 @@ describe("rebuildAtlas", () => {
   test("does not create edges for temporally distant frames with no overlap", () => {
     const oneWeek = 7 * 24 * 60 * 60 * 1000;
     const frames = [
-      createTestFrame("frame-1", ["ui/admin"], 0),
-      createTestFrame("frame-2", ["api/users"], oneWeek + 1000), // More than 1 week later
+      createTestFrame("frame-1", ["ui/admin"], 0, "main"),
+      createTestFrame("frame-2", ["api/users"], oneWeek + 1000, "feature/new"), // More than 1 week later, different branch
     ];
 
     const atlas = rebuildAtlas(frames);
 
-    // Should have no edge (no module overlap, too far in time)
+    // Should have no edge (no module overlap, too far in time, different branch)
     const edge = atlas.edges.find((e) => e.from === "frame-1" && e.to === "frame-2");
     assert.ok(!edge, "Should not have edge for distant frames with no overlap");
   });
