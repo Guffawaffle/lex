@@ -1,10 +1,9 @@
-/**
- * Syntax highlighting wrapper using Shiki
- * Provides VS Code-quality syntax highlighting for code diffs
- */
-
+import { getLogger } from "lex/logger";
 import { codeToHtml, createHighlighter } from "shiki";
 import type { BundledLanguage } from "shiki";
+
+
+const logger = getLogger("memory:renderer:syntax");
 
 // Common languages supported
 export const SUPPORTED_LANGUAGES = [
@@ -91,7 +90,7 @@ export async function highlightCode(
     return html;
   } catch (error) {
     // Fallback to plain text if highlighting fails
-    console.error(`Syntax highlighting failed for ${language}:`, error);
+    logger.error({ err: error, language }, "Syntax highlighting failed");
     return `<pre><code>${escapeHtml(code)}</code></pre>`;
   }
 }
@@ -165,7 +164,7 @@ export async function highlightDiff(
 
     return `<div class="diff-container">${processedLines.join("\n")}</div>`;
   } catch (error) {
-    console.error("Diff highlighting failed:", error);
+    logger.error({ err: error }, "Diff highlighting failed");
     // Fallback to plain diff
     return `<pre class="diff-fallback"><code>${escapeHtml(diff)}</code></pre>`;
   }

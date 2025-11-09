@@ -6,6 +6,7 @@
 
 import { readFileSync, existsSync } from "fs";
 import { resolve } from "path";
+import * as output from "./output.js";
 
 export interface CheckOptions {
   json?: boolean;
@@ -77,12 +78,12 @@ export async function check(
     const resolvedPolicyPath = resolve(policyJsonPath);
 
     if (!existsSync(resolvedMergedPath)) {
-      console.error(`\n❌ Scanner output not found: ${mergedJsonPath}\n`);
+      output.error(`\n❌ Scanner output not found: ${mergedJsonPath}\n`);
       process.exit(2);
     }
 
     if (!existsSync(resolvedPolicyPath)) {
-      console.error(`\n❌ Policy file not found: ${policyJsonPath}\n`);
+      output.error(`\n❌ Policy file not found: ${policyJsonPath}\n`);
       process.exit(2);
     }
 
@@ -98,17 +99,11 @@ export async function check(
 
     // Output results
     if (options.json) {
-      console.log(
-        JSON.stringify(
-          {
-            violations,
-            count: violations.length,
-            ticket: options.ticket,
-          },
-          null,
-          2
-        )
-      );
+      output.json({
+        violations,
+        count: violations.length,
+        ticket: options.ticket,
+      });
     } else {
       displayViolations(violations, options.ticket);
     }
@@ -120,7 +115,7 @@ export async function check(
       process.exit(0);
     }
   } catch (error: any) {
-    console.error(`\n❌ Error: ${error.message}\n`);
+    output.error(`\n❌ Error: ${error.message}\n`);
     process.exit(2);
   }
 }
@@ -273,25 +268,25 @@ function matchPattern(value: string, pattern: string): boolean {
  */
 function displayViolations(violations: Violation[], ticket?: string): void {
   if (violations.length === 0) {
-    console.log("\n✅ No policy violations found\n");
+    output.success("\n✅ No policy violations found\n");
     return;
   }
 
-  console.log(
+  output.error(
     `\n❌ Found ${violations.length} policy violation(s)${ticket ? ` (ticket: ${ticket})` : ""}:\n`
   );
 
   for (let i = 0; i < violations.length; i++) {
     const v = violations[i];
-    console.log(`${i + 1}. ${v.file}`);
-    console.log(`   Module: ${v.module}`);
-    console.log(`   Type: ${v.type}`);
-    console.log(`   ${v.message}`);
+    output.info(`${i + 1}. ${v.file}`);
+    output.info(`   Module: ${v.module}`);
+    output.info(`   Type: ${v.type}`);
+    output.info(`   ${v.message}`);
     if (v.details) {
-      console.log(`   ${v.details}`);
+      output.info(`   ${v.details}`);
     }
-    console.log("");
+    output.info("");
   }
 
-  console.log(`Exit code: 1 (violations found)\n`);
+  output.info(`Exit code: 1 (violations found)\n`);
 }

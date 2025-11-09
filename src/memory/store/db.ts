@@ -7,8 +7,8 @@
 
 import Database from "better-sqlite3";
 import { homedir } from "os";
-import { join } from "path";
-import { mkdirSync, existsSync } from "fs";
+import { join, dirname } from "path";
+import { mkdirSync, existsSync, readFileSync } from "fs";
 
 export interface FrameRow {
   id: string;
@@ -23,6 +23,10 @@ export interface FrameRow {
   atlas_frame_id: string | null;
   feature_flags: string | null; // JSON stringified array
   permissions: string | null; // JSON stringified array
+  // Merge-weave metadata (v2)
+  run_id: string | null;
+  plan_hash: string | null;
+  spend: string | null; // JSON stringified object
 }
 
 /**
@@ -40,13 +44,13 @@ export function getDefaultDbPath(): string {
   try {
     const repoRoot = findRepoRoot(process.cwd());
     const localPath = join(repoRoot, ".smartergpt.local", "lex", "memory.db");
-    
+
     // Ensure directory exists
     const localDir = join(repoRoot, ".smartergpt.local", "lex");
     if (!existsSync(localDir)) {
       mkdirSync(localDir, { recursive: true });
     }
-    
+
     return localPath;
   } catch {
     // Fallback to home directory if not in repo
@@ -63,13 +67,12 @@ export function getDefaultDbPath(): string {
  */
 function findRepoRoot(startPath: string): string {
   let currentPath = startPath;
-  const { dirname: parentDir } = require("path");
 
-  while (currentPath !== parentDir(currentPath)) {
+  while (currentPath !== dirname(currentPath)) {
     const packageJsonPath = join(currentPath, "package.json");
     if (existsSync(packageJsonPath)) {
       try {
-        const packageJson = JSON.parse(require("fs").readFileSync(packageJsonPath, "utf-8"));
+        const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf-8"));
         if (packageJson.name === "lex") {
           return currentPath;
         }
@@ -77,7 +80,7 @@ function findRepoRoot(startPath: string): string {
         // Invalid package.json, continue searching
       }
     }
-    currentPath = parentDir(currentPath);
+    currentPath = dirname(currentPath);
   }
 
   throw new Error("Repository root not found");
@@ -116,6 +119,10 @@ export function initializeDatabase(db: Database.Database): void {
   if (currentVersion < 2) {
     applyMigrationV2(db);
     db.prepare("INSERT INTO schema_version (version) VALUES (?)").run(2);
+  }
+  if (currentVersion < 3) {
+    applyMigrationV3(db);
+    db.prepare("INSERT INTO schema_version (version) VALUES (?)").run(3);
   }
 }
 
@@ -213,6 +220,25 @@ function applyMigrationV2(db: Database.Database): void {
   // Create index for frame_id lookups
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_images_frame_id ON images(frame_id);
+  `);
+}
+
+/**
+ * Migration V3: Add merge-weave metadata fields (Frame schema v2)
+ */
+function applyMigrationV3(db: Database.Database): void {
+  // Add new optional columns for merge-weave provenance
+  // Safe to add with NULL default, backward compatible
+  db.exec(`
+    ALTER TABLE frames ADD COLUMN run_id TEXT;
+  `);
+
+  db.exec(`
+    ALTER TABLE frames ADD COLUMN plan_hash TEXT;
+  `);
+
+  db.exec(`
+    ALTER TABLE frames ADD COLUMN spend TEXT;
   `);
 }
 

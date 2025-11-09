@@ -21,11 +21,6 @@ const DEFAULT_POLICY_PATH = ".smartergpt.local/lex/lexmap.policy.json";
 const EXAMPLE_POLICY_PATH = "src/policy/policy_spec/lexmap.policy.json.example";
 
 /**
- * Legacy policy path (for backward compatibility during transition)
- */
-const LEGACY_POLICY_PATH = "src/policy/policy_spec/lexmap.policy.json";
-
-/**
  * Environment variable for custom policy path
  */
 const POLICY_PATH_ENV = "LEX_POLICY_PATH";
@@ -57,43 +52,6 @@ function findRepoRoot(startPath: string): string {
 }
 
 /**
- * Transform lexmap.policy.json format to Policy type format
- *
- * lexmap.policy.json uses a "patterns" array, but the Policy type expects
- * modules to be a Record<string, PolicyModule>
- */
-function transformPolicy(rawPolicy: any): Policy {
-  // If already in the correct format, return as-is
-  if (rawPolicy.modules && !rawPolicy.modules.patterns) {
-    return rawPolicy as Policy;
-  }
-
-  // Transform patterns format to modules format
-  const modules: Record<string, any> = {};
-
-  if (rawPolicy.modules?.patterns) {
-    for (const pattern of rawPolicy.modules.patterns) {
-      modules[pattern.name] = {
-        owns_paths: [pattern.match],
-        allowed_callers: [],
-        forbidden_callers: [],
-      };
-    }
-  }
-
-  return {
-    modules,
-    // NOTE: global_kill_patterns transformation is not currently used by module validation
-    // The kind/match fields may need verification if this feature is enabled in the future
-    // For now, this maps kind→pattern and match→description as a placeholder
-    global_kill_patterns: rawPolicy.kill_patterns?.map((kp: any) => ({
-      pattern: kp.kind,
-      description: kp.match,
-    })),
-  };
-}
-
-/**
  * Load policy from lexmap.policy.json
  *
  * @param path - Optional custom policy path (defaults to working file with fallback to example)
@@ -105,7 +63,6 @@ function transformPolicy(rawPolicy: any): Policy {
  * 2. Custom path parameter (if provided)
  * 3. .smartergpt.local/lex/lexmap.policy.json (working file)
  * 4. src/policy/policy_spec/lexmap.policy.json.example (example template)
- * 5. src/policy/policy_spec/lexmap.policy.json (legacy location)
  *
  * @example
  * ```typescript
@@ -132,10 +89,9 @@ export function loadPolicy(path?: string): Policy {
 
   // Determine policy path with fallback chain
   const envPath = process.env[POLICY_PATH_ENV];
-  
+
   try {
     let resolvedPath: string;
-    let usedFallback = false;
 
     if (envPath) {
       // Priority 1: Environment variable (explicit override)
@@ -144,9 +100,9 @@ export function loadPolicy(path?: string): Policy {
       // Priority 2: Custom path parameter
       resolvedPath = resolve(path);
     } else {
-      // Priority 3-5: Try working file, then example, then legacy
+      // Priority 3-4: Try working file, then example
       const repoRoot = findRepoRoot(process.cwd());
-      
+
       // Try working file first
       const workingPath = join(repoRoot, DEFAULT_POLICY_PATH);
       if (existsSync(workingPath)) {
@@ -156,22 +112,13 @@ export function loadPolicy(path?: string): Policy {
         const examplePath = join(repoRoot, EXAMPLE_POLICY_PATH);
         if (existsSync(examplePath)) {
           resolvedPath = examplePath;
-          usedFallback = true;
         } else {
-          // Last resort: try legacy location
-          const legacyPath = join(repoRoot, LEGACY_POLICY_PATH);
-          if (existsSync(legacyPath)) {
-            resolvedPath = legacyPath;
-            usedFallback = true;
-          } else {
-            throw new Error(
-              `Policy file not found. Tried:\n` +
-              `  1. ${workingPath}\n` +
-              `  2. ${examplePath}\n` +
-              `  3. ${legacyPath}\n\n` +
-              `Run 'npm run setup-local' to initialize working files.`
-            );
-          }
+          throw new Error(
+            `Policy file not found. Tried:\n` +
+            `  1. ${workingPath}\n` +
+            `  2. ${examplePath}\n\n` +
+            `Run 'npm run setup-local' to initialize working files.`
+          );
         }
       }
     }
@@ -180,8 +127,8 @@ export function loadPolicy(path?: string): Policy {
     const policyContent = readFileSync(resolvedPath, "utf-8");
     const rawPolicy = JSON.parse(policyContent);
 
-    // Transform to expected format
-    const policy = transformPolicy(rawPolicy);
+    // Cast to Policy type (no transformation needed - all policies use modules format)
+    const policy = rawPolicy as Policy;
 
     // Validate basic structure
     if (!policy.modules || typeof policy.modules !== "object") {

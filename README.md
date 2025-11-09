@@ -84,7 +84,7 @@ with
 This shared vocabulary is what lets Lex answer:
 > "You left this button disabled because this module was still calling a forbidden dependency. Your declared next step was to route through the approved service."
 
-**Module ID Validation & Aliasing:** To help prevent typos and improve usability, Lex provides fuzzy matching with helpful suggestions when module IDs don't match. When you use an invalid module ID, you'll get suggestions for similar modules. In the future, explicit alias tables will support team shorthand conventions (e.g., `auth` → `services/auth-core`) and historical renames. See `src/shared/aliases/README.md` for details.
+**Module ID Validation & Aliasing:** To help prevent typos and improve usability, Lex provides fuzzy matching with helpful suggestions when module IDs don't match. When you use an invalid module ID, you'll get suggestions for similar modules. Explicit alias tables support team shorthand conventions (e.g., `auth` → `services/auth-core`) and historical renames. See `src/shared/aliases/README.md` for implementation details, or `docs/LEXRUNNER_ALIASING.md` for LexRunner integration patterns.
 
 ---
 
@@ -98,6 +98,49 @@ npm install lex
 # Initialize working files (creates .smartergpt.local/lex/ with policy and DB)
 npm run setup-local
 ```
+
+### Quick Start
+
+Here's the complete workflow from creating a Frame to recalling it and viewing your timeline:
+
+#### 1. Create a Frame
+
+```bash
+lex remember \
+  --reference-point "Implementing user authentication" \
+  --summary "Added login form and JWT validation" \
+  --next "Wire up password reset flow" \
+  --modules "ui/login,services/auth" \
+  --keywords "auth,security"
+```
+
+#### 2. Recall It Later
+
+```bash
+# Search by keyword
+lex recall "authentication"
+
+# Search by ticket
+lex recall "TICKET-123"
+
+# JSON output
+lex recall "auth" --json
+```
+
+#### 3. View Timeline
+
+```bash
+# For current branch
+lex timeline main
+
+# For a ticket
+lex timeline TICKET-123
+
+# With date range
+lex timeline main --since "2025-11-01"
+```
+
+See [RECEIPTS.md](./RECEIPTS.md) for a detailed walkthrough.
 
 ### Basic Usage
 
@@ -137,6 +180,33 @@ recalled.forEach((f) => {
 closeDb(db);
 ```
 
+### CLI Output
+
+The Lex CLI provides two output modes for different use cases:
+
+- **Plain Mode** (default): Human-readable with colors and symbols (`✔`, `⚠`, `✖`)
+- **JSONL Mode**: Machine-readable events for automation and monitoring
+
+```bash
+# Human-readable output (default)
+lex remember --reference "test" --caption "test"
+# ✔ Frame created successfully!
+#   Frame ID: 550e8400-e29b-41d4-a716-446655440000
+#   Timestamp: 2025-01-09T12:34:56.789Z
+
+# Machine-readable JSONL output
+LEX_CLI_OUTPUT_MODE=jsonl lex remember --reference "test" --caption "test"
+# {"v":1,"ts":"2025-01-09T12:34:56.789Z","level":"success","message":"Frame created successfully!","data":{...}}
+```
+
+**Key Features:**
+- **Dual sinks**: Output goes to both console (for users) and optional diagnostic logger (pino)
+- **Stream routing**: Errors/warnings to stderr, info/success/debug to stdout
+- **Parseable events**: JSONL mode outputs [CliEvent v1](./schemas/cli-output.v1.schema.json) structures
+- **Type-safe**: Full TypeScript types available via `lex/cli-output` subpath export
+
+See [docs/CLI_OUTPUT.md](./docs/CLI_OUTPUT.md) for complete documentation, examples, and consumer integration guide.
+
 ### CLI Usage
 
 ```bash
@@ -165,6 +235,189 @@ lex check merged-facts.json --policy /path/to/custom-policy.json
 - `lex check` → Policy violations report with forbidden edges, missing permissions, kill pattern matches
 
 See the [RECEIPTS.md](./RECEIPTS.md) for a complete end-to-end walkthrough.
+
+### Environment Variables
+
+Lex respects the following environment variables for configuration:
+
+- **`LEX_LOG_LEVEL`** - Set log verbosity (`silent`, `trace`, `debug`, `info`, `warn`, `error`, `fatal`). Defaults to `silent` in tests, `info` otherwise.
+- **`LEX_LOG_PRETTY`** - Enable pretty-printed logs (`1` for enabled). Auto-enabled when output is a TTY.
+- **`LEX_POLICY_PATH`** - Override default policy file location (defaults to `.smartergpt.local/lex/lexmap.policy.json`).
+- **`LEX_DEFAULT_BRANCH`** - Override auto-detected default branch for frame operations.
+
+Example:
+```bash
+# Run with debug logging
+LEX_LOG_LEVEL=debug lex recall "authentication"
+
+# Pretty logs in non-TTY environments (CI, scripts)
+LEX_LOG_PRETTY=1 npm test
+
+# Use custom policy file
+LEX_POLICY_PATH=/custom/policy.json lex check facts.json
+```
+
+### Subpath Exports
+
+Lex provides multiple entry points for different functionality. All subpath imports are fully typed with TypeScript declarations.
+
+#### Main Entry Point
+
+The main entry exports core frame storage operations:
+
+```typescript
+import { saveFrame, getDb, closeDb, searchFrames, getFrameById } from 'lex';
+
+// Initialize database
+const db = getDb('./memory.db');
+
+// Save a frame
+await saveFrame(db, {
+  referencePoint: 'authentication flow',
+  summaryCaption: 'Added password validation',
+  // ... other frame properties
+});
+
+// Search frames
+const results = await searchFrames(db, { referencePoint: 'authentication' });
+
+closeDb(db);
+```
+
+**Available exports:**
+- `getDb(path?)` - Get/create database connection
+- `closeDb(db?)` - Close database connection
+- `saveFrame(db, frame)` - Save a new frame
+- `getFrameById(db, id)` - Retrieve frame by ID
+- `searchFrames(db, query)` - Search frames by query
+
+#### CLI Entry Point
+
+Programmatic access to CLI functionality:
+
+```typescript
+import { createProgram, run } from 'lex/cli';
+
+// Create CLI program instance
+const program = createProgram();
+
+// Run with custom arguments
+await run(['node', 'lex', 'remember', '--jira', 'AUTH-123']);
+```
+
+**Available exports:**
+- `createProgram()` - Create Commander.js program instance
+- `run(argv?)` - Execute CLI with arguments
+
+#### Memory Store
+
+Direct access to frame storage operations (same as main entry):
+
+```typescript
+import { getDb, saveFrame, searchFrames } from 'lex/memory/store';
+
+const db = getDb();
+const frame = await getFrameById(db, 'frame-id');
+```
+
+**Available exports:**
+- All frame storage operations: `saveFrame`, `getFrameById`, `searchFrames`, `getFramesByBranch`, `getFramesByJira`, `getFramesByModuleScope`, `getAllFrames`, `deleteFrame`, `getFrameCount`
+- Database operations: `getDb`, `closeDb`, `createDatabase`, `getDefaultDbPath`
+
+#### Policy Utilities
+
+Load and work with policy files:
+
+```typescript
+import { loadPolicy, clearPolicyCache } from 'lex/shared/policy';
+
+// Load policy from default or custom path
+const policy = loadPolicy(); // Uses LEX_POLICY_PATH env or default
+const customPolicy = loadPolicy('/path/to/policy.json');
+
+// Clear cache if needed
+clearPolicyCache();
+```
+
+**Available exports:**
+- `loadPolicy(path?)` - Load policy file with caching
+- `clearPolicyCache()` - Clear policy cache
+
+#### Atlas Frame Generation
+
+Generate policy-aware spatial neighborhoods:
+
+```typescript
+import {
+  generateAtlasFrame,
+  buildPolicyGraph,
+  computeFoldRadius
+} from 'lex/shared/atlas';
+
+// Load policy first
+import { loadPolicy } from 'lex/shared/policy';
+const policy = loadPolicy();
+
+// Build graph from policy
+const graph = buildPolicyGraph(policy);
+
+// Generate atlas frame for specific modules
+const atlasFrame = generateAtlasFrame({
+  policy,
+  graph,
+  moduleScope: ['services/auth-core', 'services/password'],
+  foldRadius: 1
+});
+
+console.log(atlasFrame.modules); // Module details with permissions, flags
+console.log(atlasFrame.edges);   // Allowed/forbidden caller relationships
+```
+
+**Available exports:**
+- `generateAtlasFrame(options)` - Generate atlas frame with fold radius
+- `buildPolicyGraph(policy)` - Build graph from policy
+- `getNeighbors(graph, moduleId, radius)` - Get neighboring modules
+- `computeFoldRadius(options)` - Compute fold radius neighbors
+- `estimateTokens(atlasFrame)` - Estimate token count
+- `autoTuneRadius(options)` - Auto-tune radius for token limits
+- Cache utilities: `getCache`, `setEnableCache`, `resetCache`, `getCacheStats`
+
+#### Shared Utilities
+
+Additional utility modules available:
+
+```typescript
+// Module ID validation and fuzzy matching
+import { validateModuleIds, fuzzyMatchModule } from 'lex/shared/module_ids';
+
+// Module alias resolution
+import { resolveAlias, loadAliases } from 'lex/shared/aliases';
+
+// Git branch utilities
+import { getCurrentBranch } from 'lex/shared/git';
+
+// Type definitions
+import type { Policy, Frame, AtlasFrame } from 'lex/shared/types';
+```
+
+**Package structure:**
+- `lex/shared/module_ids` - Module ID validation and fuzzy matching
+- `lex/shared/aliases` - Module alias resolution
+- `lex/shared/git` - Git branch detection
+- `lex/shared/types` - TypeScript type definitions
+
+#### Policy CLI Scripts
+
+The policy checker and merge tools are available as CLI scripts but not as importable library functions. Use them via command line:
+
+```bash
+# Check policy violations
+lex check merged-facts.json
+
+# For direct script access (if needed):
+node node_modules/lex/dist/policy/check/lexmap-check.js merged.json policy.json
+node node_modules/lex/dist/policy/merge/lexmap-merge.js scan1.json scan2.json
+```
 
 ---
 
@@ -230,6 +483,7 @@ The goal of this repo is to ship them as one system called **Lex** with one CLI 
 - [Architecture Loop](./docs/ARCHITECTURE_LOOP.md) — the full explainability story
 - [Adoption Guide](./docs/ADOPTION_GUIDE.md) — how to roll out Lex in phases
 - [Limitations](./docs/LIMITATIONS.md) — known constraints and future work
+- [Epic C Overlap Analysis](./docs/EPIC_C_OVERLAP.md) — coordination with existing PRs #72-#77
 
 ## Source Layout
 

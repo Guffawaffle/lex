@@ -4,6 +4,8 @@
     "composite": true,
     "baseUrl": ".",
     "paths": {
+      "lex/logger": ["../../shared/logger"],
+      "lex/logger/*": ["../../shared/logger/*"],
       "lex/policy": ["../../shared/policy"],
       "lex/policy/*": ["../../shared/policy/*"],
       "lex/types": ["../../shared/types"],
@@ -16,6 +18,7 @@
   "references": [
     { "path": "../../shared/types" },
     { "path": "../../shared/policy" },
+    { "path": "../../shared/logger" },
     { "path": "../../shared/atlas" },
     { "path": "../store" },
     { "path": "../../shared/module_ids" },

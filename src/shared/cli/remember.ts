@@ -12,6 +12,7 @@ import type { ResolutionResult } from "../types/validation.js";
 import { loadPolicy } from "../policy/loader.js";
 import { getDb, saveFrame } from "../../memory/store/index.js";
 import { getCurrentBranch } from "../git/branch.js";
+import * as output from "./output.js";
 
 export interface RememberOptions {
   jira?: string;
@@ -52,11 +53,11 @@ export async function remember(options: RememberOptions = {}): Promise<void> {
     const validationResult = await validateModuleIds(answers.modules || [], policy);
 
     if (!validationResult.valid) {
-      console.error(`\n❌ Module validation failed:\n`);
+      output.error(`\n❌ Module validation failed:\n`);
       for (const error of validationResult.errors || []) {
-        console.error(`  - ${error.message}`);
+        output.error(`  - ${error.message}`);
       }
-      console.error("");
+      output.error("");
       process.exit(1);
     }
 
@@ -87,20 +88,20 @@ export async function remember(options: RememberOptions = {}): Promise<void> {
 
     // Output result
     if (options.json) {
-      console.log(JSON.stringify({ id: frame.id, timestamp: frame.timestamp }, null, 2));
+      output.json({ id: frame.id, timestamp: frame.timestamp });
     } else {
-      console.log("\n✅ Frame created successfully!\n");
-      console.log(`Frame ID: ${frame.id}`);
-      console.log(`Timestamp: ${frame.timestamp}`);
-      console.log(`Branch: ${frame.branch}`);
+      output.success("\n✅ Frame created successfully!\n");
+      output.info(`Frame ID: ${frame.id}`);
+      output.info(`Timestamp: ${frame.timestamp}`);
+      output.info(`Branch: ${frame.branch}`);
       if (frame.jira) {
-        console.log(`Jira: ${frame.jira}`);
+        output.info(`Jira: ${frame.jira}`);
       }
-      console.log(`Reference: ${frame.reference_point}`);
-      console.log(`Modules: ${frame.module_scope.join(", ")}`);
+      output.info(`Reference: ${frame.reference_point}`);
+      output.info(`Modules: ${frame.module_scope.join(", ")}`);
     }
   } catch (error: any) {
-    console.error(`\n❌ Error: ${error.message}\n`);
+    output.error(`\n❌ Error: ${error.message}\n`);
     process.exit(2);
   }
 }

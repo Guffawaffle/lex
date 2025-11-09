@@ -1,15 +1,14 @@
 #!/usr/bin/env node
-/**
- * Integration demo: Memory card + syntax highlighting + diff rendering
- * Generates a comprehensive visual summary combining all renderer features
- */
-
+import { getLogger } from "lex/logger";
 import { renderMemoryCard } from "./card.js";
 import type { Frame } from "./types.js";
 import { writeFileSync, mkdirSync } from "fs";
 import { join } from "path";
 import { highlightDiff } from "./syntax.js";
 import { renderDiff, getDiffStats } from "./diff.js";
+
+
+const logger = getLogger("memory:renderer:integration-demo");
 
 // Example diff showing code changes (TypeScript)
 const typescriptDiff = `
@@ -79,22 +78,22 @@ Performance metrics:
 `;
 
 async function main() {
-  console.log("🎨 Syntax Highlighting Integration Test\n");
+  logger.info("🎨 Syntax Highlighting Integration Test\n");
 
   // Create output directory
   const outputDir = "/tmp/syntax-highlighting-demo";
   mkdirSync(outputDir, { recursive: true });
 
   // Test 1: Render memory card with code diffs
-  console.log("Test 1: Rendering memory card with syntax-highlighted diffs...");
+  logger.info("Test 1: Rendering memory card with syntax-highlighted diffs...");
   const cardBuffer = await renderMemoryCard(exampleFrame, rawContext);
   const cardPath = join(outputDir, "memory-card-with-diffs.png");
   writeFileSync(cardPath, cardBuffer);
-  console.log(`✓ Memory card rendered (${cardBuffer.length} bytes)`);
-  console.log(`  Saved to: ${cardPath}\n`);
+  logger.info(`✓ Memory card rendered (${cardBuffer.length} bytes)`);
+  logger.info(`  Saved to: ${cardPath}\n`);
 
   // Test 2: Test syntax highlighting directly
-  console.log("Test 2: Testing syntax highlighting directly...");
+  logger.info("Test 2: Testing syntax highlighting directly...");
   const startTime = Date.now();
   const highlightedHtml = await highlightDiff(typescriptDiff, "typescript");
   const highlightTime = Date.now() - startTime;
@@ -147,26 +146,26 @@ async function main() {
 </html>
   `;
   writeFileSync(htmlPath, htmlContent);
-  console.log(`✓ Syntax highlighting completed in ${highlightTime}ms`);
-  console.log(`  Saved to: ${htmlPath}\n`);
+  logger.info(`✓ Syntax highlighting completed in ${highlightTime}ms`);
+  logger.info(`  Saved to: ${htmlPath}\n`);
 
   // Test 3: Test diff statistics
-  console.log("Test 3: Testing diff statistics...");
+  logger.info("Test 3: Testing diff statistics...");
   const tsStats = getDiffStats(typescriptDiff);
   const pyStats = getDiffStats(pythonDiff);
 
-  console.log(`TypeScript diff stats:`);
-  console.log(`  Additions: ${tsStats.additions}`);
-  console.log(`  Deletions: ${tsStats.deletions}`);
-  console.log(`  Total lines: ${tsStats.total}`);
+  logger.info(`TypeScript diff stats:`);
+  logger.info(`  Additions: ${tsStats.additions}`);
+  logger.info(`  Deletions: ${tsStats.deletions}`);
+  logger.info(`  Total lines: ${tsStats.total}`);
 
-  console.log(`\nPython diff stats:`);
-  console.log(`  Additions: ${pyStats.additions}`);
-  console.log(`  Deletions: ${pyStats.deletions}`);
-  console.log(`  Total lines: ${pyStats.total}\n`);
+  logger.info(`\nPython diff stats:`);
+  logger.info(`  Additions: ${pyStats.additions}`);
+  logger.info(`  Deletions: ${pyStats.deletions}`);
+  logger.info(`  Total lines: ${pyStats.total}\n`);
 
   // Test 4: Test diff truncation
-  console.log("Test 4: Testing smart diff truncation...");
+  logger.info("Test 4: Testing smart diff truncation...");
 
   // Create a large diff
   let largeDiff = "";
@@ -181,12 +180,12 @@ async function main() {
   const truncated = renderDiff(largeDiff, { maxLines: 20, contextLines: 3 });
   const truncatedLines = truncated.split("\n").length;
 
-  console.log(`Original diff: 100 lines`);
-  console.log(`Truncated diff: ${truncatedLines} lines`);
-  console.log(`✓ Successfully truncated while preserving changes and context\n`);
+  logger.info(`Original diff: 100 lines`);
+  logger.info(`Truncated diff: ${truncatedLines} lines`);
+  logger.info(`✓ Successfully truncated while preserving changes and context\n`);
 
   // Test 5: Performance validation
-  console.log("Test 5: Performance validation...");
+  logger.info("Test 5: Performance validation...");
   const perfStart = Date.now();
 
   // Render 10 cards to test performance
@@ -197,19 +196,19 @@ async function main() {
   const perfEnd = Date.now();
   const avgTime = (perfEnd - perfStart) / 10;
 
-  console.log(`Average rendering time: ${avgTime.toFixed(2)}ms`);
+  logger.info(`Average rendering time: ${avgTime.toFixed(2)}ms`);
 
   if (avgTime < 100) {
-    console.log(`✓ Performance requirement met (<100ms)\n`);
+    logger.info(`✓ Performance requirement met (<100ms)\n`);
   } else {
-    console.log(`⚠ Performance requirement not met (${avgTime.toFixed(2)}ms > 100ms)\n`);
+    logger.info(`⚠ Performance requirement not met (${avgTime.toFixed(2)}ms > 100ms)\n`);
   }
 
-  console.log("✨ Integration test complete!");
-  console.log(`\nOutputs saved to: ${outputDir}`);
-  console.log("Open the files to verify:");
-  console.log(`  - ${cardPath} (PNG memory card)`);
-  console.log(`  - ${htmlPath} (HTML syntax-highlighted diff)`);
+  logger.info("✨ Integration test complete!");
+  logger.info(`\nOutputs saved to: ${outputDir}`);
+  logger.info("Open the files to verify:");
+  logger.info(`  - ${cardPath} (PNG memory card)`);
+  logger.info(`  - ${htmlPath} (HTML syntax-highlighted diff)`);
 }
 
-main().catch(console.error);
+main().catch(logger.error);

@@ -26,6 +26,11 @@ A Frame is a timestamped record of what you were doing, stored locally with stru
 - **`permissions`** (array of strings): Permissions required for this work
 - **`tests_failing`** (array of strings): Test names that were failing
 - **`image_ids`** (array of strings): Image attachment IDs (references to stored images)
+- **`runId`** (string): LexRunner execution identifier for merge-weave provenance (v2)
+- **`planHash`** (string): Hash of the merge-weave plan used (v2)
+- **`spend`** (object): Cost tracking metadata for merge-weave execution (v2)
+  - **`prompts`** (number, optional): Number of prompts used
+  - **`tokens_estimated`** (number, optional): Estimated token count
 
 ## Example
 
@@ -45,7 +50,13 @@ A Frame is a timestamped record of what you were doing, stored locally with stru
   },
   "keywords": ["auth", "timeout", "policy-violation"],
   "feature_flags": ["beta_user_admin"],
-  "permissions": ["can_manage_users"]
+  "permissions": ["can_manage_users"],
+  "runId": "lexrunner-20251109-abc123",
+  "planHash": "sha256:7f8c9d...",
+  "spend": {
+    "prompts": 3,
+    "tokens_estimated": 1500
+  }
 }
 ```
 
@@ -54,6 +65,15 @@ A Frame is a timestamped record of what you were doing, stored locally with stru
 Every string in `module_scope` MUST be a module ID that exists in `lexmap.policy.json`. This is enforced by `shared/module_ids/` validation.
 
 If vocabulary drifts (Frame uses "auth-core" but policy has "services/auth-core"), recall will fail. Future work: `shared/aliases/` will allow fuzzy matching with confidence scores.
+
+---
+
+## Schema Version History
+
+- **v1** (pre-0.4.0): Initial schema with core fields and optional metadata
+- **v2** (0.4.0): Added merge-weave provenance fields: `runId`, `planHash`, `spend`
+
+All v2 fields are optional and backward compatible. Legacy Frames without these fields will continue to work.
 
 ---
 
