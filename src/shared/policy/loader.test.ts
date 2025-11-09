@@ -8,7 +8,8 @@ import { strict as assert } from "assert";
 import { test, describe } from "node:test";
 import { loadPolicy, clearPolicyCache } from "./loader.js";
 import { fileURLToPath } from "url";
-import { dirname, resolve } from "path";
+import { dirname, resolve, join } from "path";
+import { existsSync, readFileSync, unlinkSync, mkdirSync, writeFileSync } from "fs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -44,11 +45,44 @@ describe("loadPolicy", () => {
   test("custom path overrides default", () => {
     clearPolicyCache();
 
-    const customPath = resolve(__dirname, "../../../src/policy/policy_spec/lexmap.policy.json");
+    const customPath = resolve(__dirname, "../../../src/policy/policy_spec/lexmap.policy.json.example");
     const policy = loadPolicy(customPath);
 
     assert.ok(policy);
     assert.ok(policy.modules);
+  });
+
+  test("falls back to example file when working file missing", () => {
+    clearPolicyCache();
+    
+    const repoRoot = resolve(__dirname, "../../..");
+    const workingPath = join(repoRoot, ".smartergpt.local/lex/lexmap.policy.json");
+    
+    let workingFileExisted = false;
+    let workingFileContent = null;
+    
+    try {
+      if (existsSync(workingPath)) {
+        workingFileExisted = true;
+        workingFileContent = readFileSync(workingPath, "utf-8");
+        unlinkSync(workingPath);
+      }
+      
+      // Should still load from example file
+      const policy = loadPolicy();
+      assert.ok(policy);
+      assert.ok(policy.modules);
+    } finally {
+      // Restore working file if it existed
+      if (workingFileExisted && workingFileContent) {
+        const dir = dirname(workingPath);
+        if (!existsSync(dir)) {
+          mkdirSync(dir, { recursive: true });
+        }
+        writeFileSync(workingPath, workingFileContent);
+      }
+      clearPolicyCache();
+    }
   });
 
   test("throws error for non-existent file", () => {
@@ -72,7 +106,7 @@ describe("loadPolicy", () => {
     try {
       process.env.LEX_POLICY_PATH = resolve(
         __dirname,
-        "../../../src/policy/policy_spec/lexmap.policy.json"
+        "../../../src/policy/policy_spec/lexmap.policy.json.example"
       );
       const policy = loadPolicy();
 

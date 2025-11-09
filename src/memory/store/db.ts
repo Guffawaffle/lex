@@ -26,7 +26,8 @@ export interface FrameRow {
 }
 
 /**
- * Get default database path: ~/.lex/frames.db
+ * Get default database path: .smartergpt.local/lex/memory.db (relative to repo root)
+ * Falls back to ~/.lex/frames.db if not in a lex repository
  * Can be overridden with LEX_DB_PATH environment variable
  */
 export function getDefaultDbPath(): string {
@@ -35,11 +36,51 @@ export function getDefaultDbPath(): string {
     return process.env.LEX_DB_PATH;
   }
 
-  const lexDir = join(homedir(), ".lex");
-  if (!existsSync(lexDir)) {
-    mkdirSync(lexDir, { recursive: true });
+  // Try to find repo root
+  try {
+    const repoRoot = findRepoRoot(process.cwd());
+    const localPath = join(repoRoot, ".smartergpt.local", "lex", "memory.db");
+    
+    // Ensure directory exists
+    const localDir = join(repoRoot, ".smartergpt.local", "lex");
+    if (!existsSync(localDir)) {
+      mkdirSync(localDir, { recursive: true });
+    }
+    
+    return localPath;
+  } catch {
+    // Fallback to home directory if not in repo
+    const lexDir = join(homedir(), ".lex");
+    if (!existsSync(lexDir)) {
+      mkdirSync(lexDir, { recursive: true });
+    }
+    return join(lexDir, "frames.db");
   }
-  return join(lexDir, "frames.db");
+}
+
+/**
+ * Find repository root by looking for package.json with name "lex"
+ */
+function findRepoRoot(startPath: string): string {
+  let currentPath = startPath;
+  const { dirname: parentDir } = require("path");
+
+  while (currentPath !== parentDir(currentPath)) {
+    const packageJsonPath = join(currentPath, "package.json");
+    if (existsSync(packageJsonPath)) {
+      try {
+        const packageJson = JSON.parse(require("fs").readFileSync(packageJsonPath, "utf-8"));
+        if (packageJson.name === "lex") {
+          return currentPath;
+        }
+      } catch {
+        // Invalid package.json, continue searching
+      }
+    }
+    currentPath = parentDir(currentPath);
+  }
+
+  throw new Error("Repository root not found");
 }
 
 /**

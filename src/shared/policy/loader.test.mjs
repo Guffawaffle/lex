@@ -45,7 +45,7 @@ describe("loadPolicy", () => {
   test("custom path overrides default", () => {
     clearPolicyCache();
 
-    const customPath = resolve(__dirname, "../../policy/policy_spec/lexmap.policy.json");
+    const customPath = resolve(__dirname, "../../policy/policy_spec/lexmap.policy.json.example");
     const policy = loadPolicy(customPath);
 
     assert.ok(policy);
@@ -68,7 +68,7 @@ describe("loadPolicy", () => {
     try {
       process.env.LEX_POLICY_PATH = resolve(
         __dirname,
-        "../../policy/policy_spec/lexmap.policy.json"
+        "../../policy/policy_spec/lexmap.policy.json.example"
       );
       const policy = loadPolicy();
 
