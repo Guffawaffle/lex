@@ -7,8 +7,8 @@
 
 import Database from "better-sqlite3";
 import { homedir } from "os";
-import { join } from "path";
-import { mkdirSync, existsSync } from "fs";
+import { join, dirname } from "path";
+import { mkdirSync, existsSync, readFileSync } from "fs";
 
 export interface FrameRow {
   id: string;
@@ -44,13 +44,13 @@ export function getDefaultDbPath(): string {
   try {
     const repoRoot = findRepoRoot(process.cwd());
     const localPath = join(repoRoot, ".smartergpt.local", "lex", "memory.db");
-    
+
     // Ensure directory exists
     const localDir = join(repoRoot, ".smartergpt.local", "lex");
     if (!existsSync(localDir)) {
       mkdirSync(localDir, { recursive: true });
     }
-    
+
     return localPath;
   } catch {
     // Fallback to home directory if not in repo
@@ -67,13 +67,12 @@ export function getDefaultDbPath(): string {
  */
 function findRepoRoot(startPath: string): string {
   let currentPath = startPath;
-  const { dirname: parentDir } = require("path");
 
-  while (currentPath !== parentDir(currentPath)) {
+  while (currentPath !== dirname(currentPath)) {
     const packageJsonPath = join(currentPath, "package.json");
     if (existsSync(packageJsonPath)) {
       try {
-        const packageJson = JSON.parse(require("fs").readFileSync(packageJsonPath, "utf-8"));
+        const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf-8"));
         if (packageJson.name === "lex") {
           return currentPath;
         }
@@ -81,7 +80,7 @@ function findRepoRoot(startPath: string): string {
         // Invalid package.json, continue searching
       }
     }
-    currentPath = parentDir(currentPath);
+    currentPath = dirname(currentPath);
   }
 
   throw new Error("Repository root not found");
