@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2025-11-08
+
 ### ⚠️ Breaking Changes
 - **Module ID Validation Strictness** ([#119](https://github.com/Guffawaffle/lex/pull/119)): Substring matching is now disabled in the validator
   - **Previous behavior**: `'auth-core'` would match `'services/auth-core'` automatically
@@ -52,7 +54,7 @@ All changes were integrated via umbrella PR [#121](https://github.com/Guffawaffl
 
 The 5 PRs were merged locally in dependency order:
 1. PR #112 - Documentation updates (independent)
-2. PR #118 - ESM test fix (independent)  
+2. PR #118 - ESM test fix (independent)
 3. PR #117 - Performance & caching (independent)
 4. PR #119 - Validator strictness (depends on #117)
 5. PR #120 - Empty search handling (independent)
@@ -61,7 +63,7 @@ All gates (lint, typecheck, test) passed locally before integration.
 
 ## Upgrade Notes
 
-### From 0.2.0 to Unreleased
+### From 0.2.0 to 0.3.0
 
 #### Module ID Validation Changes
 
@@ -116,5 +118,6 @@ Initial release with unified single-package structure after monorepo consolidati
 - TypeScript with strict type checking
 - Comprehensive test coverage
 
-[Unreleased]: https://github.com/Guffawaffle/lex/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/Guffawaffle/lex/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/Guffawaffle/lex/releases/tag/v0.3.0
 [0.2.0]: https://github.com/Guffawaffle/lex/releases/tag/v0.2.0
