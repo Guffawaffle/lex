@@ -88,16 +88,50 @@ $ LEX_CLI_OUTPUT_MODE=jsonl lex remember --reference "test" --caption "test"
 
 See [schemas/cli-output.v1.schema.json](../schemas/cli-output.v1.schema.json) for full JSON Schema.
 
+**Canonical Field Definitions:**
+
 ```typescript
 interface CliEvent<T = unknown> {
-  v: 1;                    // Schema version
-  ts: string;              // ISO 8601 timestamp
-  level: CliLevel;         // "info" | "success" | "warn" | "error" | "debug"
-  scope?: string;          // Component scope (e.g., "cli", "mcp", "policy")
-  code?: string;           // Machine-readable event code
-  message?: string;        // Human-readable message
-  data?: T;                // Arbitrary structured data
-  hint?: string;           // Optional hint for error resolution
+  v: 1;                    // Schema version (always 1 for v1 events)
+  ts: string;              // ISO 8601 timestamp (UTC, e.g., "2025-01-09T12:34:56.789Z")
+  level: CliLevel;         // Event severity: "info" | "success" | "warn" | "error" | "debug"
+  scope?: string;          // Component scope (e.g., "cli", "mcp", "policy", "cli:remember")
+  code?: string;           // Machine-readable event code (e.g., "FRAME_CREATED", "POLICY_VIOLATION")
+  message?: string;        // Human-readable message (short summary)
+  data?: T;                // Arbitrary structured data (event-specific payload)
+  hint?: string;           // Optional actionable hint for error resolution
+}
+
+type CliLevel = "info" | "success" | "warn" | "error" | "debug";
+```
+
+**Field Semantics:**
+
+| Field | Required | Type | Description |
+|-------|----------|------|-------------|
+| `v` | ✅ Yes | `number` | Schema version. Always `1` for v1 events. Use this to handle schema evolution. |
+| `ts` | ✅ Yes | `string` | ISO 8601 timestamp in UTC. Format: `YYYY-MM-DDTHH:mm:ss.sssZ`. Produced by `new Date().toISOString()`. |
+| `level` | ✅ Yes | `CliLevel` | Event severity. Maps to log levels: `info`=informational, `success`=operation succeeded, `warn`=potential issue, `error`=failure, `debug`=verbose diagnostic. |
+| `scope` | ❌ No | `string` | Categorizes event origin. Examples: `"cli"` (CLI layer), `"mcp"` (MCP server), `"policy"` (policy checker), `"cli:remember"` (specific command). Useful for filtering logs. |
+| `code` | ❌ No | `string` | Machine-readable event identifier. Use SCREAMING_SNAKE_CASE (e.g., `FRAME_CREATED`, `MODULE_NOT_FOUND`). Consumers can switch on this for programmatic handling. |
+| `message` | ❌ No | `string` | Human-readable summary. Should be concise (1-2 sentences). Suitable for displaying to end users. |
+| `data` | ❌ No | `any` | Event-specific structured payload. Type varies by event. Examples: `{id: "...", timestamp: "..."}` for frame creation, `{violations: [...]}` for policy errors. |
+| `hint` | ❌ No | `string` | Actionable guidance for resolving errors. E.g., "Run `lex check` to validate policy" or "Add module to lexmap.policy.json". |
+
+**Stream Routing in JSONL Mode:**
+
+- Events with `level: "error"` or `level: "warn"` → **stderr**
+- All other levels (`info`, `success`, `debug`) → **stdout**
+
+This allows shell scripts to separate errors from normal output:
+
+```bash
+# Capture only successful output, errors go to terminal
+lex recall "auth" 2>/dev/null | jq '.data'
+
+# Capture only errors
+lex check policy.json 2>&1 >/dev/null | jq -r '.message'
+```
 }
 ```
 

@@ -1,7 +1,7 @@
 # Legacy Code Audit
 
-**Generated:** 2025-11-09  
-**Branch:** merge-weave-2025-11-09  
+**Generated:** 2025-11-09
+**Branch:** merge-weave-2025-11-09
 **Purpose:** Identify and catalog all backwards-compatibility/legacy code for removal
 
 ## Executive Summary
