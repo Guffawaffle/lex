@@ -1,0 +1,47 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/Guffawaffle/lex/blob/main/.lex.config.schema.json",
+  "title": "Lex Configuration",
+  "description": "Configuration schema for the Lex memory system",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "JSON schema reference"
+    },
+    "paths": {
+      "type": "object",
+      "description": "File system paths used by Lex",
+      "properties": {
+        "appRoot": {
+          "type": "string",
+          "description": "Application root directory. Used for: Path aliases in imports, CI/CD scripts, test setup. Environment variable: LEX_APP_ROOT. Default: Current working directory",
+          "examples": [
+            "/srv/lex-mcp/lex",
+            "/home/user/projects/lex"
+          ]
+        },
+        "database": {
+          "type": "string",
+          "description": "Database file path (relative to appRoot if not absolute). Environment variable: LEX_DB_PATH. Default: ./lex-memory.db",
+          "examples": [
+            "./lex-memory.db",
+            "/var/lib/lex/memory.db",
+            "./data/lex-memory.db"
+          ]
+        },
+        "policy": {
+          "type": "string",
+          "description": "Policy file path (relative to appRoot if not absolute). Environment variable: LEX_POLICY_PATH. Default: ./lexmap.policy.json",
+          "examples": [
+            "./lexmap.policy.json",
+            "/etc/lex/policy.json",
+            "./config/policy.json"
+          ]
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
