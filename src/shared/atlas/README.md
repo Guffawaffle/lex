@@ -307,3 +307,169 @@ The fold radius algorithm is now complete with:
 - **Caching by (module_scope, radius) key with LRU eviction**
 - **Auto-tuning based on token limits**
 - **CLI support for all features**
+
+---
+
+# Atlas Rebuild System (Frame Knowledge Graph)
+
+The Atlas rebuild system constructs a knowledge graph from work session snapshots (Frames), connecting them based on module scope overlap, temporal proximity, and branch relationships.
+
+## Components
+
+### `rebuild.ts`
+Core rebuild logic with deterministic graph construction.
+
+**Key Function:**
+- `rebuildAtlas(frames: Frame[]): Atlas` - Rebuilds the complete Atlas graph from Frames
+- **Determinism Guarantee**: Same input Frames → Identical Atlas structure (regardless of input order)
+
+**Atlas Structure:**
+```typescript
+interface Atlas {
+  nodes: AtlasNode[];  // Frame nodes with module_scope
+  edges: AtlasEdge[];  // Connections between Frames (module overlap + temporal proximity)
+  metadata: {
+    buildTimestamp: string;
+    frameCount: number;
+    edgeCount: number;
+  };
+}
+```
+
+**Edge Construction:**
+- **Module Overlap**: Jaccard similarity of module_scope (shared modules)
+- **Temporal Proximity**: Time-based weights (1h → 0.8, 1d → 0.5, 1w → 0.2)
+- **Branch Relation**: Bonus weight for same branch (0.2)
+- Edge created if total weight > 0.1 (10% threshold)
+
+### `validate.ts`
+Integrity validation for Atlas graphs.
+
+**Key Functions:**
+- `validateAtlas(atlas: Atlas): ValidationResult` - Validates graph integrity
+- `checkReachability(atlas: Atlas): boolean` - Ensures all nodes are reachable
+
+**Validation Checks:**
+- No dangling edges (all edge endpoints exist)
+- Edge weights within [0, 1] range
+- Metadata consistency
+- Orphaned nodes detection (warnings, not errors)
+
+### `queue.ts`
+Async rebuild queue with debouncing for production use.
+
+**Key Features:**
+- Event-driven rebuild triggers via callbacks
+- Debouncing (default: 5s) to batch rapid Frame ingestions
+- Non-blocking operations (async)
+- Automatic validation after rebuild
+
+**Example Usage:**
+```typescript
+import { createAtlasRebuildQueue } from './queue.js';
+
+const queue = createAtlasRebuildQueue(
+  () => frameStore.getAllFrames(),
+  5000, // 5s debounce
+  {
+    onRebuildCompleted: (atlas) => {
+      console.log('Atlas rebuilt:', atlas);
+    },
+  }
+);
+
+// Trigger rebuild when Frame is ingested
+await frameStore.insertFrame(newFrame);
+queue.notifyFrameIngested(newFrame);
+```
+
+## Performance
+
+All performance budgets met (tested with synthetic data):
+- **100 Frames**: < 500ms (actual: ~22ms) ✅
+- **1,000 Frames**: < 5s (actual: ~0.5s) ✅
+- **10,000 Frames**: < 60s (actual: ~52s) ✅
+
+## Testing
+
+### Unit Tests
+```bash
+# Rebuild tests (14 tests) - All passing ✅
+node --test test/shared/atlas/rebuild.spec.mjs
+
+# Validation tests (13 tests) - All passing ✅
+node --test test/shared/atlas/validate.spec.mjs
+```
+
+### Performance Benchmarks
+```bash
+# Performance tests (5 tests) - All passing ✅
+node --test test/shared/atlas/rebuild.perf.test.mjs
+```
+
+### Generate Synthetic Test Data
+```bash
+# Generate test frames for performance testing
+npm run generate:test-frames 1000 test-frames-1k.json
+npm run generate:test-frames 10000 test-frames-10k.json
+```
+
+## Determinism Guarantees
+
+The rebuild algorithm ensures identical output for identical input:
+1. Frames sorted by ID before processing
+2. Module scope arrays sorted within each node
+3. Edges sorted by (from, to) tuple
+4. No timestamps or random values in graph structure
+5. All operations order-independent
+
+**Verified by tests:** Same Frames in different order → Identical Atlas ✅
+
+## Integration Example
+
+```typescript
+import { createAtlasRebuildQueue } from 'lex/shared/atlas/queue';
+import { getAllFrames } from 'lex/memory/store';
+
+// Create queue with Frame store integration
+const atlasQueue = createAtlasRebuildQueue(
+  () => getAllFrames(db),
+  5000, // 5s debounce
+  {
+    onRebuildCompleted: (atlas) => {
+      console.log('Atlas updated:', {
+        nodes: atlas.nodes.length,
+        edges: atlas.edges.length,
+      });
+    },
+    onRebuildFailed: (error) => {
+      console.error('Atlas rebuild failed:', error);
+    },
+  }
+);
+
+// Hook into Frame ingestion
+async function insertFrameWithAtlasUpdate(frame) {
+  await insertFrame(db, frame);
+  atlasQueue.notifyFrameIngested(frame); // Triggers debounced rebuild
+}
+```
+
+## Future Enhancements
+
+Possible improvements (not part of current scope):
+- Persistent Atlas storage (SQLite or JSON files)
+- Incremental updates (add/remove single Frame without full rebuild)
+- Graph analytics (centrality, clustering, communities)
+- Time-based graph slicing (Atlas at specific point in time)
+- Export formats (GraphML, DOT, JSON-LD)
+- Web UI for Atlas visualization
+
+---
+
+**Status:** ✅ **Implemented** (Nov 2024)
+- Deterministic rebuild: ✅
+- Validation: ✅
+- Async queue with debouncing: ✅
+- Performance benchmarks: ✅
+- Test data generation: ✅

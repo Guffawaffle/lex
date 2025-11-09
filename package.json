@@ -62,6 +62,7 @@
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "local-ci": "./scripts/local-ci-run.sh",
     "local-ci:nonet": "./scripts/ci-nonet.sh",
+    "generate:test-frames": "node scripts/generate-test-frames.mjs",
     "changeset": "changeset",
     "version-packages": "changeset version",
     "release": "npm run build && changeset publish",
