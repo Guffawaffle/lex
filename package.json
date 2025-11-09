@@ -11,8 +11,8 @@
       "import": "./dist/index.js"
     },
     "./cli": {
-      "types": "./dist/cli/index.d.ts",
-      "import": "./dist/cli/index.js"
+      "types": "./dist/shared/cli/index.d.ts",
+      "import": "./dist/shared/cli/index.js"
     },
     "./policy/*": "./dist/policy/*",
     "./memory/*": "./dist/memory/*",
@@ -61,7 +61,7 @@
   "author": "Guffawaffle",
   "license": "MIT",
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=20 <23"
   },
   "dependencies": {
     "better-sqlite3": "^12.4.1",
