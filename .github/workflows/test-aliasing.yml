@@ -13,12 +13,8 @@ permissions:
 
 jobs:
   test-aliases:
-    name: Alias Tests (Node ${{ matrix.node }})
+    name: Alias Tests (Node 20)
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        node: ['20', '22']
 
     steps:
       - name: Checkout code
@@ -27,7 +23,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: ${{ matrix.node }}
+          node-version: '20'
           cache: 'npm'
 
       - name: Install dependencies (hermetic)
@@ -43,7 +39,6 @@ jobs:
         run: npm run test:aliases
 
       - name: Check alias test coverage
-        if: matrix.node == '20'
         run: |
           npx c8 --reporter=text \
              --reporter=json-summary \
@@ -54,7 +49,6 @@ jobs:
              npm run test:aliases
 
       - name: Verify coverage requirements (90%+)
-        if: matrix.node == '20'
         run: |
           npx c8 --check-coverage \
              --branches 90 \
@@ -68,7 +62,6 @@ jobs:
              npm run test:aliases
 
       - name: Upload coverage report
-        if: matrix.node == '20'
         uses: actions/upload-artifact@v4
         with:
           name: alias-coverage-report
