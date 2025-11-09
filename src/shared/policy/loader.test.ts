@@ -25,10 +25,10 @@ describe("loadPolicy", () => {
     assert.equal(typeof policy.modules, "object");
 
     // Verify it has the expected modules from lexmap.policy.json
-    assert.ok(policy.modules["indexer"]);
-    assert.ok(policy.modules["ts"]);
-    assert.ok(policy.modules["php"]);
-    assert.ok(policy.modules["mcp"]);
+    assert.ok(policy.modules["memory/store"]);
+    assert.ok(policy.modules["policy/check"]);
+    assert.ok(policy.modules["shared/types"]);
+    assert.ok(policy.modules["cli"]);
   });
 
   test("caches policy on subsequent loads", () => {
