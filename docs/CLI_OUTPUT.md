@@ -301,22 +301,27 @@ rules: {
    - Wrapped in try/catch to prevent CLI breakage
    - Pluggable via `createOutput({ logger })`
 
-### Backward Compatibility
+### Named Function Exports
 
 The wrapper exports both:
 - `output` instance: Default CLI output (scope="cli")
 - Individual functions: `info`, `success`, `warn`, `error`, `debug`, `json`
 
-This allows existing CLI commands to continue using namespace imports:
+This allows CLI commands to use either pattern:
 
 ```typescript
-import * as output from "./output.js";
-output.info("Works as before");
+// Pattern 1: Object methods
+import { output } from "./output.js";
+output.info("Works with object");
+
+// Pattern 2: Direct function imports
+import { info, success } from "./output.js";
+info("Direct function call");
 ```
 
 ### `json()` Function Semantics
 
-The backward-compatible `json()` function outputs raw JSON (bypassing the wrapper):
+The exported `json()` function outputs raw JSON (bypassing the wrapper):
 
 ```typescript
 import { json } from "./output.js";
@@ -339,9 +344,9 @@ output.error("error message");
 ```
 
 **After:**
-No changes needed! Backward compatibility layer maintains old API.
+No changes needed! Exports remain consistent.
 
-**Optional modernization:**
+**Modern alternative:**
 ```typescript
 import { output } from "./output.js";
 output.info("message", { key: "value" }, "INFO_CODE");

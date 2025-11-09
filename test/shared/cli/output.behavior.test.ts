@@ -6,7 +6,7 @@
  * - Dual sinks (console + logger)
  * - stdout/stderr routing
  * - Color/symbol rendering based on TTY
- * - Backward-compatible exports
+ * - Named function exports
  */
 
 import { test } from "node:test";
@@ -29,7 +29,7 @@ test("default output instance is exported", () => {
   assert.equal(typeof output.info, "function");
 });
 
-test("backward-compatible function exports exist", () => {
+test("named function exports are available", () => {
   assert.equal(typeof info, "function");
   assert.equal(typeof success, "function");
   assert.equal(typeof warn, "function");
@@ -283,21 +283,21 @@ test("broken logger does not crash CLI output", () => {
   }
 });
 
-test("backward-compatible info export works", () => {
+test("named info export works", () => {
   const logs: string[] = [];
   const originalLog = console.log;
   console.log = (msg: string) => logs.push(msg);
 
   try {
-    info("backward compatible test");
+    info("info function test");
     assert.equal(logs.length, 1);
-    assert.ok(logs[0].includes("backward compatible test"));
+    assert.ok(logs[0].includes("info function test"));
   } finally {
     console.log = originalLog;
   }
 });
 
-test("backward-compatible success export works", () => {
+test("named success export works", () => {
   const logs: string[] = [];
   const originalLog = console.log;
   console.log = (msg: string) => logs.push(msg);
@@ -311,7 +311,7 @@ test("backward-compatible success export works", () => {
   }
 });
 
-test("backward-compatible warn export works", () => {
+test("named warn export works", () => {
   const errors: string[] = [];
   const originalError = console.error;
   console.error = (msg: string) => errors.push(msg);
@@ -325,7 +325,7 @@ test("backward-compatible warn export works", () => {
   }
 });
 
-test("backward-compatible error export works", () => {
+test("named error export works", () => {
   const errors: string[] = [];
   const originalError = console.error;
   console.error = (msg: string) => errors.push(msg);
@@ -339,7 +339,7 @@ test("backward-compatible error export works", () => {
   }
 });
 
-test("backward-compatible debug export works", () => {
+test("named debug export works", () => {
   const logs: string[] = [];
   const originalLog = console.log;
   console.log = (msg: string) => logs.push(msg);
@@ -353,7 +353,7 @@ test("backward-compatible debug export works", () => {
   }
 });
 
-test("backward-compatible json export works", () => {
+test("named json export works", () => {
   const logs: string[] = [];
   const originalLog = console.log;
   console.log = (msg: string) => logs.push(msg);
