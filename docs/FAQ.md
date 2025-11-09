@@ -132,24 +132,47 @@ If you break it, the assistant can't line up your Frames with architectural rule
 
 ### How It's Enforced
 
-When you call `/remember`, the system validates each module ID:
+When you call `/remember`, the system validates each module ID through alias resolution:
 
-1. **Exact match** → ✅ Frame stored, no warnings
-2. **Typo detected** → ❌ Error with suggestions: "Did you mean 'indexer'?"
-3. **Shorthand used** → ❌ Error (future: explicit aliases will support this)
+1. **Exact match** → ✅ Frame stored with canonical ID
+2. **Explicit alias** → ✅ Resolved to canonical ID and stored
+3. **Unique substring match** → ✅ Resolved to canonical ID (if only one match)
+4. **Ambiguous substring** → ❌ Error: multiple matches, be more specific
+5. **Typo detected** → ❌ Error with suggestions: "Did you mean 'indexer'?"
+6. **No match** → ❌ Error with suggestions if available
 
 Example:
 ```bash
-/remember "Auth work" --modules "indexr"
-# Error: Module 'indexr' not found. Did you mean 'indexer'?
-
-/remember "Auth work" --modules "indexer"
+# Exact match
+/remember "Auth work" --modules "services/auth-core"
 # ✅ Frame stored
+
+# Using an alias (requires aliases.json)
+/remember "Auth work" --modules "auth"
+# ✅ Resolved to services/auth-core, Frame stored
+
+# Unique substring match
+/remember "Auth work" --modules "auth-core"
+# ✅ If only one module contains "auth-core", resolved and stored
+
+# Ambiguous substring
+/remember "Auth work" --modules "user"
+# ❌ Error: Multiple modules match (user-access-api, user-profile-service, etc.)
+
+# Typo
+/remember "Auth work" --modules "indexr"
+# ❌ Error: Module 'indexr' not found. Did you mean 'indexer'?
+
+# Disable substring matching (strict mode for CI)
+/remember "Auth work" --modules "auth-core" --no-substring
+# ❌ Error if "auth-core" is not exact or explicit alias
 ```
 
-### Future: Alias Tables
+For comprehensive documentation and troubleshooting, see [Aliasing for LexRunner](./ALIASING_FOR_RUNNER.md).
 
-Planned enhancement for team shorthand and historical renames:
+### Alias Tables (✅ Implemented)
+
+You can now use alias tables for team shorthand and historical renames:
 
 ```json
 {
@@ -163,9 +186,9 @@ Planned enhancement for team shorthand and historical renames:
 }
 ```
 
-This will allow `/remember "Auth work" --modules "auth"` while storing the canonical ID internally.
+This allows `/remember "Auth work" --modules "auth"` while storing the canonical ID internally.
 
-See `src/shared/aliases/README.md` for details.
+See [Aliasing for LexRunner](./ALIASING_FOR_RUNNER.md) for comprehensive documentation and troubleshooting.
 
 ---
 
@@ -443,9 +466,9 @@ Just correct the typo and retry. The fuzzy matching uses Levenshtein distance to
 
 ## Can I use shorthand like "auth" instead of "services/auth-core"?
 
-**Not yet.** Currently, only exact module IDs are accepted.
+**Yes! ✅ Implemented**
 
-**Future enhancement:** Explicit alias tables will support team shorthand conventions:
+Explicit alias tables now support team shorthand conventions. Edit `src/shared/aliases/aliases.json`:
 
 ```json
 {
@@ -459,9 +482,11 @@ Just correct the typo and retry. The fuzzy matching uses Levenshtein distance to
 }
 ```
 
-When implemented, you'll be able to use `--modules "auth"` and it will store `services/auth-core` internally.
+After rebuilding (`npm run build`), you can use `--modules "auth"` and it will store `services/auth-core` internally.
 
-For now, use the exact module IDs from `lexmap.policy.json`.
+You can also use substring matching (enabled by default). For example, `--modules "auth-core"` will work if only one module contains that substring.
+
+For detailed documentation and troubleshooting, see [Aliasing for LexRunner](./ALIASING_FOR_RUNNER.md).
 
 ---
 
@@ -471,7 +496,7 @@ When you refactor and rename a module (e.g., `services/user-access-api` → `api
 
 1. Update `lexmap.policy.json` with the new name
 2. Old Frames with the old name will still exist in your database
-3. **Future:** Alias tables will let you map old → new names:
+3. **✅ Use alias tables** to map old → new names:
 
 ```json
 {
@@ -485,9 +510,9 @@ When you refactor and rename a module (e.g., `services/user-access-api` → `api
 }
 ```
 
-This will allow recall to work seamlessly across the rename.
+This allows recall to work seamlessly across the rename. New Frames can use either the old alias or the new canonical name.
 
-For now, old Frames remain searchable by their original module names, but new Frames must use the current module IDs.
+For detailed documentation, see [Aliasing for LexRunner](./ALIASING_FOR_RUNNER.md).
 
 ---
 
