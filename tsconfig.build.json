@@ -8,6 +8,7 @@
     { "path": "src/shared/policy" },
     { "path": "src/shared/atlas" },
     { "path": "src/shared/git" },
+    { "path": "src/shared/config" },
     { "path": "src/shared/cli" },
     { "path": "src/policy/check" },
     { "path": "src/policy/merge" },
