@@ -39,6 +39,7 @@
     "lint:baseline:check": "npx eslint . --format=json 2>&1 | grep -v '^>' > current-lint.json && node scripts/lint-budget.mjs current-lint.json lint-baseline.json && rm current-lint.json",
     "lint:baseline:update": "npx eslint . --format=json 2>&1 | grep -v '^>' > lint-baseline.json && echo 'Baseline updated. Please commit lint-baseline.json.'",
     "test": "npx tsx --test 'src/**/*.test.{ts,mts}' && node --test 'src/**/*.test.mjs'",
+    "test:aliases": "node --test src/shared/aliases/substring.spec.mjs src/shared/aliases/collision.spec.mjs src/shared/aliases/case-sensitivity.spec.mjs src/shared/aliases/resolution.spec.mjs",
     "test:integration": "npx tsx --test src/memory/integration.test.ts && node src/policy/integration.test.mjs",
     "test:benchmarks": "npx tsx --test src/memory/benchmarks.test.ts",
     "test:all": "npm test && npm run test:integration",
