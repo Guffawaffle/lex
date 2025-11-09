@@ -199,28 +199,28 @@ describe("Frame Storage Tests", () => {
     });
 
     test("should search Frames with FTS5 (reference_point match)", async () => {
-      const results = searchFrames(db, "auth deadlock");
-      assert.ok(results.length > 0, "Should find frames matching 'auth deadlock'");
+      const result = searchFrames(db, "auth deadlock");
+      assert.ok(result.frames.length > 0, "Should find frames matching 'auth deadlock'");
       assert.ok(
-        results.some((f) => f.id === "frame-001"),
+        result.frames.some((f) => f.id === "frame-001"),
         "Should find frame-001"
       );
     });
 
     test("should search Frames with FTS5 (keywords match)", async () => {
-      const results = searchFrames(db, "payment");
-      assert.ok(results.length > 0, "Should find frames matching 'payment'");
+      const result = searchFrames(db, "payment");
+      assert.ok(result.frames.length > 0, "Should find frames matching 'payment'");
       assert.ok(
-        results.some((f) => f.id === "frame-002"),
+        result.frames.some((f) => f.id === "frame-002"),
         "Should find frame-002"
       );
     });
 
     test("should search Frames with FTS5 (summary_caption match)", async () => {
-      const results = searchFrames(db, "Stripe");
-      assert.ok(results.length > 0, "Should find frames matching 'Stripe'");
+      const result = searchFrames(db, "Stripe");
+      assert.ok(result.frames.length > 0, "Should find frames matching 'Stripe'");
       assert.ok(
-        results.some((f) => f.id === "frame-002"),
+        result.frames.some((f) => f.id === "frame-002"),
         "Should find frame-002"
       );
     });
@@ -277,8 +277,9 @@ describe("Frame Storage Tests", () => {
     });
 
     test("should return empty array for non-matching searches", async () => {
-      const results = searchFrames(db, "zzzznonexistent");
-      assert.strictEqual(results.length, 0, "Should return empty array for no matches");
+      const result = searchFrames(db, "zzzznonexistent");
+      assert.strictEqual(result.frames.length, 0, "Should return empty array for no matches");
+      assert.strictEqual(result.hint, undefined, "Should not have hint for normal non-matching search");
     });
   });
 
@@ -311,13 +312,47 @@ describe("Frame Storage Tests", () => {
 
   describe("FTS5 Fuzzy Search", () => {
     test("should support fuzzy matching with wildcards", async () => {
-      const results = searchFrames(db, "auth*");
-      assert.ok(results.length > 0, "Should find frames with auth prefix");
+      const result = searchFrames(db, "auth*");
+      assert.ok(result.frames.length > 0, "Should find frames with auth prefix");
     });
 
     test("should support multiple search terms", async () => {
-      const results = searchFrames(db, "auth timeout");
-      assert.ok(results.length > 0, "Should find frames matching multiple terms");
+      const result = searchFrames(db, "auth timeout");
+      assert.ok(result.frames.length > 0, "Should find frames matching multiple terms");
+    });
+  });
+
+  describe("FTS5 Special Character Handling", () => {
+    test("should handle period (.) without throwing error", async () => {
+      const result = searchFrames(db, "0.3.0");
+      assert.strictEqual(result.frames.length, 0, "Should return empty results");
+      assert.ok(result.hint, "Should provide a hint");
+      assert.ok(result.hint.includes("special characters"), "Hint should mention special characters");
+    });
+
+    test("should handle colon (:) without throwing error", async () => {
+      const result = searchFrames(db, "TICKET-123:");
+      assert.strictEqual(result.frames.length, 0, "Should return empty results");
+      assert.ok(result.hint, "Should provide a hint");
+    });
+
+    test("should handle asterisk at start without throwing error", async () => {
+      const result = searchFrames(db, "*test");
+      assert.strictEqual(result.frames.length, 0, "Should return empty results");
+      assert.ok(result.hint, "Should provide a hint");
+    });
+
+    test("should handle hyphen (-) at start without throwing error", async () => {
+      const result = searchFrames(db, "-test");
+      assert.strictEqual(result.frames.length, 0, "Should return empty results");
+      assert.ok(result.hint, "Should provide a hint");
+    });
+
+    test("should suggest simplified query in hint", async () => {
+      const result = searchFrames(db, "v0.3.0 release");
+      assert.strictEqual(result.frames.length, 0, "Should return empty results");
+      assert.ok(result.hint, "Should provide a hint");
+      assert.ok(result.hint.includes("v0 3 0 release") || result.hint.includes("release"), "Hint should suggest simplified query");
     });
   });
 });
