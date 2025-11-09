@@ -59,6 +59,15 @@ export function generateFrameContentHash(frame: {
 export function findFrameByContentHash(db: Database.Database, contentHash: string): Frame | null {
   // Get all frames and check their content hashes
   const stmt = db.prepare("SELECT * FROM frames ORDER BY timestamp DESC LIMIT 1000");
+
+  // CRITICAL: DO NOT REMOVE THIS ESLINT-DISABLE
+  // Database rows from better-sqlite3 are returned as generic objects with dynamic properties.
+  // TypeScript cannot know the exact shape at compile time since it depends on the SQL query.
+  // Using 'any' here is REQUIRED - attempting to type this will either:
+  // 1. Break runtime safety by assuming a type that might not match the actual DB schema
+  // 2. Require complex type generation that duplicates the schema definition
+  // This is a well-understood limitation of SQL libraries in TypeScript.
+  // See: https://github.com/WiseLibs/better-sqlite3/blob/master/docs/api.md#allbindparameters---array-of-rows
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const rows = stmt.all() as any[];
 
@@ -87,6 +96,20 @@ export function findFrameByContentHash(db: Database.Database, contentHash: strin
 
 /**
  * Validate Frame request body
+ */
+/**
+ * Validates incoming Frame creation request body
+ * Returns validation result with error details if invalid
+ *
+ * CRITICAL: DO NOT REMOVE THIS ESLINT-DISABLE
+ * The 'body' parameter MUST be 'any' because it comes from express req.body which is
+ * unvalidated user input. The entire PURPOSE of this function is to validate and narrow
+ * the type from 'any' to a known safe type. If we pre-typed it, we would:
+ * 1. Defeat the purpose of validation (assuming it's already the correct type)
+ * 2. Have no way to handle malformed requests
+ * 3. Create a false sense of type safety where none exists
+ * This is the industry-standard pattern for validation functions in TypeScript.
+ * See: https://www.typescriptlang.org/docs/handbook/2/narrowing.html#using-type-predicates
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function validateFrameRequest(body: any): { valid: boolean; error?: ApiErrorResponse } {
