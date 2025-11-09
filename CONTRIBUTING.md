@@ -319,7 +319,7 @@ Example:
 /**
  * Load and validate a policy file.
  *
- * @param path - Path to lexmap.policy.json
+ * @param path - Path to policy file (defaults to .smartergpt.local/lex/lexmap.policy.json)
  * @returns Validated policy object
  * @throws {PolicyValidationError} If policy is invalid
  */

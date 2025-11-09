@@ -63,7 +63,12 @@ Frames are timestamped work session snapshots. You create them with `/remember` 
 Frames live locally (e.g. SQLite). No telemetry. No forced HTTP service. Access is via MCP over stdio.
 
 ### Policy (lex/policy)
-Policy is machine-readable architecture boundaries. `lexmap.policy.json` defines which modules own which code, which calls are allowed, which are forbidden, which permissions/flags gate them, and which kill patterns are being removed. Language scanners ("dumb by design") emit facts from code; `lex check` compares facts vs policy and can fail CI.
+Policy is machine-readable architecture boundaries. The policy file defines which modules own which code, which calls are allowed, which are forbidden, which permissions/flags gate them, and which kill patterns are being removed. Language scanners ("dumb by design") emit facts from code; `lex check` compares facts vs policy and can fail CI.
+
+**Policy File Location:**
+- Working file: `.smartergpt.local/lex/lexmap.policy.json` (created by `npm run setup-local`)
+- Example template: `src/policy/policy_spec/lexmap.policy.json.example`
+- Override via environment: `LEX_POLICY_PATH=/custom/path/policy.json`
 
 ### Fold radius & Atlas Frame (lex/shared/atlas)
 When you recall a Frame, Lex does **not** dump the whole monolith into context. Instead, it exports an Atlas Frame: the touched modules (`module_scope`) plus their 1-hop neighborhood in the policy graph (allowed callers, forbidden callers, required flags/permissions). That's fold radius = 1.
@@ -71,7 +76,7 @@ When you recall a Frame, Lex does **not** dump the whole monolith into context. 
 That gives you and your assistant a "map page," not a firehose.
 
 ### THE CRITICAL RULE
-Every module name in `module_scope` MUST match a module ID in `lexmap.policy.json`. No ad hoc naming. If the vocabulary drifts, you lose the ability to line up:
+Every module name in `module_scope` MUST match a module ID in the policy file (`.smartergpt.local/lex/lexmap.policy.json`). No ad hoc naming. If the vocabulary drifts, you lose the ability to line up:
 - "what happened last night"
 with
 - "what the architecture is supposed to allow."
@@ -89,6 +94,9 @@ This shared vocabulary is what lets Lex answer:
 
 ```bash
 npm install lex
+
+# Initialize working files (creates .smartergpt.local/lex/ with policy and DB)
+npm run setup-local
 ```
 
 ### Basic Usage
@@ -144,8 +152,11 @@ lex remember \
 lex recall "authentication flow"
 lex recall AUTH-123
 
-# Check policy compliance
-lex check merged-facts.json lexmap.policy.json
+# Check policy compliance (uses .smartergpt.local/lex/lexmap.policy.json by default)
+lex check merged-facts.json
+
+# Or specify custom policy path
+lex check merged-facts.json --policy /path/to/custom-policy.json
 ```
 
 **CLI outputs:**

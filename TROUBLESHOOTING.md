@@ -124,14 +124,25 @@ npm rebuild better-sqlite3
 ### Policy File Not Found
 
 **Problem:**
-`lex check` can't find `lexmap.policy.json`.
+`lex check` can't find the policy file.
 
 **Solution:**
-Policy file should be at: `src/policy/policy_spec/lexmap.policy.json`
-
-If you have it elsewhere, specify the path:
+Run the setup script to initialize working files:
 ```bash
-lex check --policy /path/to/lexmap.policy.json
+npm run setup-local
+```
+
+This creates `.smartergpt.local/lex/lexmap.policy.json` from the example template.
+
+**Alternative:**
+Specify a custom policy path:
+```bash
+lex check --policy /path/to/custom-policy.json
+```
+
+Or use environment variable:
+```bash
+LEX_POLICY_PATH=/path/to/custom-policy.json lex check
 ```
 
 ---
