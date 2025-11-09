@@ -105,7 +105,7 @@ describe("Alias Resolution Performance Benchmarks", () => {
         "Exact match validation (10 modules policy)",
         1000,
         async () => {
-          await validateModuleIds(["policy/scanners", "shared/types", "policy/scanners"], policy10);
+          await validateModuleIds(["policy/scanners", "shared/types", "memory/mcp"], policy10);
         }
       );
 
@@ -141,7 +141,7 @@ describe("Alias Resolution Performance Benchmarks", () => {
     test("should handle multiple exact matches efficiently", async () => {
       const avgTime = await benchmark("Multiple exact matches (6 modules)", 1000, async () => {
         await validateModuleIds(
-          ["policy/scanners", "shared/types", "policy/scanners", "memory/mcp", "services/auth-core", "ui/main-panel"],
+          ["policy/scanners", "shared/types", "shared/policy", "memory/mcp", "services/auth-core", "ui/main-panel"],
           policy100
         );
       });
@@ -217,7 +217,7 @@ describe("Alias Resolution Performance Benchmarks", () => {
       // Simulate "before": just checking Set membership (O(1))
       const exactOnlyTime = await benchmark("Before (exact-only, no fuzzy)", 10000, async () => {
         const moduleSet = new Set(Object.keys(policy100.modules));
-        const modules = ["policy/scanners", "shared/types", "policy/scanners"];
+        const modules = ["policy/scanners", "shared/types", "shared/policy"];
         for (const mod of modules) {
           moduleSet.has(mod); // Just check, don't do fuzzy
         }
@@ -225,7 +225,7 @@ describe("Alias Resolution Performance Benchmarks", () => {
 
       // Current implementation with fuzzy fallback
       const withFuzzyTime = await benchmark("After (with fuzzy fallback)", 10000, async () => {
-        await validateModuleIds(["policy/scanners", "shared/types", "policy/scanners"], policy100);
+        await validateModuleIds(["policy/scanners", "shared/types", "shared/policy"], policy100);
       });
 
       const regression = ((withFuzzyTime - exactOnlyTime) / exactOnlyTime) * 100;

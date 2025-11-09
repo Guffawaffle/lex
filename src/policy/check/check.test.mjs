@@ -419,7 +419,7 @@ describe("detectViolations", () => {
 
     const merged = {
       version: "1.0.0",
-      sources: ["policy/scanners"],
+      sources: ["php"],
       files: [
         {
           path: "app/Controllers/UserController.php",

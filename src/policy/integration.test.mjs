@@ -35,7 +35,7 @@ describe("Policy Integration Tests", () => {
       };
 
       const phpScan = {
-        language: "policy/scanners",
+        language: "php",
         files: [
           {
             path: "app/Controllers/UserController.php",
@@ -54,7 +54,7 @@ describe("Policy Integration Tests", () => {
       assert.equal(merged.sources.length, 2, "Should include both sources");
       assert.equal(merged.files.length, 2, "Should include both files");
       assert.ok(merged.sources.includes("typescript"));
-      assert.ok(merged.sources.includes("policy/scanners"));
+      assert.ok(merged.sources.includes("php"));
     });
 
     test("should pass clean pipeline with no violations", () => {
@@ -107,7 +107,7 @@ describe("Policy Integration Tests", () => {
           ],
         },
         {
-          language: "policy/scanners",
+          language: "php",
           files: [
             {
               path: "legacy/api/endpoints.php",
@@ -126,7 +126,7 @@ describe("Policy Integration Tests", () => {
       assert.equal(merged.files.length, 3, "Should include all files");
       assert.ok(merged.sources.includes("typescript"));
       assert.ok(merged.sources.includes("python"));
-      assert.ok(merged.sources.includes("policy/scanners"));
+      assert.ok(merged.sources.includes("php"));
     });
 
     test("should deduplicate edges across scans", () => {

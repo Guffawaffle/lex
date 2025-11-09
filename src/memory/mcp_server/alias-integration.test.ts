@@ -380,7 +380,7 @@ describe("MCP Server Alias Resolution Integration Tests", () => {
               status_snapshot: {
                 next_action: "Continue",
               },
-              module_scope: ["policy/scanners", "shared/types", "policy/scanners", "memory/mcp", "services/auth-core", "ui/main-panel"],
+              module_scope: ["policy/scanners", "shared/types", "shared/policy", "memory/mcp", "services/auth-core", "ui/main-panel"],
             },
           },
         });
