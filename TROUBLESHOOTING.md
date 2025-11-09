@@ -109,6 +109,64 @@ npm rebuild better-sqlite3
 
 ---
 
+## Aliasing and Module ID Issues
+
+### Ambiguous Substring Error
+
+**Problem:**
+A substring matches multiple module IDs and the system cannot determine which one you meant.
+
+**Example Error:**
+```
+Ambiguous substring 'user' matches:
+  - services/user-access-api
+  - services/user-profile-service
+  - ui/user-admin-panel
+```
+
+**Solution:**
+1. Use a more specific substring: `lex remember --modules user-access`
+2. Use the full module ID: `lex remember --modules services/user-access-api`
+3. Add an alias in `src/shared/aliases/aliases.json`
+4. Disable substring matching for strict mode: `lex remember --modules user --no-substring`
+
+See [Aliasing for LexRunner](./docs/ALIASING_FOR_RUNNER.md) for detailed troubleshooting.
+
+### Module Not Found with Typo
+
+**Problem:**
+You mistyped a module ID and the system suggests similar matches.
+
+**Example Error:**
+```
+Module 'servcies/auth-core' not found in policy. Did you mean 'services/auth-core'?
+```
+
+**Solution:**
+1. Use the suggested correction
+2. Check available modules: `cat .smartergpt.local/lex/lexmap.policy.json | jq '.modules | keys'`
+3. Add an alias to avoid future typos
+
+### Missing Module ID
+
+**Problem:**
+The module ID doesn't exist in the policy.
+
+**Example Error:**
+```
+Module 'payment-gateway' not found in policy.
+```
+
+**Solution:**
+1. Verify the module exists in `lexmap.policy.json`
+2. Add the module to the policy if it should exist
+3. Use the correct module ID from the policy
+4. Create an alias once you find the correct name
+
+For comprehensive aliasing documentation, see [docs/ALIASING_FOR_RUNNER.md](./docs/ALIASING_FOR_RUNNER.md).
+
+---
+
 ## Runtime Issues
 
 ### CLI Command Not Found
@@ -204,7 +262,8 @@ import { types } from "lex/shared/types";
 If you're still having issues:
 
 1. Check [FAQ](./docs/FAQ.md) for common questions
-2. Open an issue on GitHub with:
+2. Check [Aliasing for LexRunner](./docs/ALIASING_FOR_RUNNER.md) for module ID and aliasing issues
+3. Open an issue on GitHub with:
    - Your Node.js version (`node --version`)
    - Your npm version (`npm --version`)
    - Full error output

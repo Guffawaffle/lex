@@ -25,36 +25,18 @@ export interface ReportResult {
   content: string;
 }
 
-// Backward-compatible generateReport supporting legacy signature:
-//   generateReport(violations, policy, format)
-// New preferred signature:
-//   generateReport(violations, { policy, format, strict })
+/**
+ * Generate a policy violation report
+ *
+ * @param violations - Array of detected violations
+ * @param options - Report options (policy, format, strict)
+ * @returns Report result with formatted content and exit code
+ */
 export function generateReport(
   violations: Violation[],
-  policyOrOpts: Policy | { policy?: Policy; format?: ReportFormat; strict?: boolean } = {},
-  legacyFormat?: ReportFormat
+  options: { policy?: Policy; format?: ReportFormat; strict?: boolean } = {}
 ): ReportResult {
-  let policy: Policy | undefined;
-  let format: ReportFormat = "text";
-
-  const isPlainObject = (v: unknown): v is Record<string, unknown> =>
-    typeof v === "object" && v !== null;
-  const isPolicyObject = (val: unknown): val is Policy =>
-    isPlainObject(val) &&
-    Object.prototype.hasOwnProperty.call(val, "modules") &&
-    !Object.prototype.hasOwnProperty.call(val, "policy");
-
-  if (isPolicyObject(policyOrOpts) && legacyFormat) {
-    policy = policyOrOpts as Policy;
-    format = legacyFormat;
-  } else if (isPolicyObject(policyOrOpts) && !legacyFormat) {
-    policy = policyOrOpts as Policy;
-  } else {
-    const opts = policyOrOpts as { policy?: Policy; format?: ReportFormat; strict?: boolean };
-    policy = opts.policy;
-    format = opts.format ?? "text";
-  }
-
+  const { policy, format = "text" } = options;
   const exitCode = violations.length > 0 ? 1 : 0;
 
   let content: string;

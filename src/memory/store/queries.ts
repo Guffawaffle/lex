@@ -25,6 +25,10 @@ function frameToRow(frame: Frame): FrameRow {
     atlas_frame_id: frame.atlas_frame_id || null,
     feature_flags: frame.feature_flags ? JSON.stringify(frame.feature_flags) : null,
     permissions: frame.permissions ? JSON.stringify(frame.permissions) : null,
+    // Merge-weave metadata (v2)
+    run_id: frame.runId || null,
+    plan_hash: frame.planHash || null,
+    spend: frame.spend ? JSON.stringify(frame.spend) : null,
   };
 }
 
@@ -45,6 +49,10 @@ function rowToFrame(row: FrameRow): Frame {
     atlas_frame_id: row.atlas_frame_id || undefined,
     feature_flags: row.feature_flags ? JSON.parse(row.feature_flags) : undefined,
     permissions: row.permissions ? JSON.parse(row.permissions) : undefined,
+    // Merge-weave metadata (v2) - backward compatible, defaults to undefined
+    runId: row.run_id || undefined,
+    planHash: row.plan_hash || undefined,
+    spend: row.spend ? JSON.parse(row.spend) : undefined,
   };
 }
 
@@ -58,8 +66,8 @@ export function saveFrame(db: Database.Database, frame: Frame): void {
     INSERT OR REPLACE INTO frames (
       id, timestamp, branch, jira, module_scope, summary_caption,
       reference_point, status_snapshot, keywords, atlas_frame_id,
-      feature_flags, permissions
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      feature_flags, permissions, run_id, plan_hash, spend
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   stmt.run(
@@ -74,7 +82,10 @@ export function saveFrame(db: Database.Database, frame: Frame): void {
     row.keywords,
     row.atlas_frame_id,
     row.feature_flags,
-    row.permissions
+    row.permissions,
+    row.run_id,
+    row.plan_hash,
+    row.spend
   );
 }
 
