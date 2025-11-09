@@ -209,6 +209,27 @@ lex check merged-facts.json --policy /path/to/custom-policy.json
 
 See the [RECEIPTS.md](./RECEIPTS.md) for a complete end-to-end walkthrough.
 
+### Environment Variables
+
+Lex respects the following environment variables for configuration:
+
+- **`LEX_LOG_LEVEL`** - Set log verbosity (`silent`, `trace`, `debug`, `info`, `warn`, `error`, `fatal`). Defaults to `silent` in tests, `info` otherwise.
+- **`LEX_LOG_PRETTY`** - Enable pretty-printed logs (`1` for enabled). Auto-enabled when output is a TTY.
+- **`LEX_POLICY_PATH`** - Override default policy file location (defaults to `.smartergpt.local/lex/lexmap.policy.json`).
+- **`LEX_DEFAULT_BRANCH`** - Override auto-detected default branch for frame operations.
+
+Example:
+```bash
+# Run with debug logging
+LEX_LOG_LEVEL=debug lex recall "authentication"
+
+# Pretty logs in non-TTY environments (CI, scripts)
+LEX_LOG_PRETTY=1 npm test
+
+# Use custom policy file
+LEX_POLICY_PATH=/custom/policy.json lex check facts.json
+```
+
 ### Subpath Exports
 
 Lex provides multiple entry points for different functionality. All subpath imports are fully typed with TypeScript declarations.
@@ -300,10 +321,10 @@ clearPolicyCache();
 Generate policy-aware spatial neighborhoods:
 
 ```typescript
-import { 
-  generateAtlasFrame, 
-  buildPolicyGraph, 
-  computeFoldRadius 
+import {
+  generateAtlasFrame,
+  buildPolicyGraph,
+  computeFoldRadius
 } from 'lex/shared/atlas';
 
 // Load policy first
