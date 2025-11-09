@@ -1,8 +1,16 @@
 {
   "extends": "../../../tsconfig.base.json",
   "compilerOptions": {
-    "composite": true
+    "composite": true,
+    "baseUrl": ".",
+    "paths": {
+      "lex/logger": ["../../shared/logger"],
+      "lex/logger/*": ["../../shared/logger/*"]
+    }
   },
   "include": ["./*.ts"],
-  "exclude": ["node_modules", "dist", "integration-demo.ts", "*.test.ts"]
+  "exclude": ["node_modules", "dist", "integration-demo.ts", "*.test.ts"],
+  "references": [
+    { "path": "../../shared/logger" }
+  ]
 }

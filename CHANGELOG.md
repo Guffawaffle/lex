@@ -7,6 +7,83 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2025-11-09
+
+### ⚠️ Breaking Changes (Internal APIs)
+
+**Note:** These changes only affect internal APIs. Lex has no external adopters yet (internal dogfooding phase only).
+
+- **Legacy Module ID Validator Removed** ([#173](https://github.com/Guffawaffle/lex/pull/173)): Deleted `validateModuleIdsSync()` function and its test suite
+  - **Previous behavior**: Synchronous validator without alias resolution support
+  - **New behavior**: Use `validateModuleIds()` (async) which provides full alias resolution
+  - **Migration**: Replace all `validateModuleIdsSync(ids, policy)` calls with `await validateModuleIds(ids, policy, aliasTable)`
+  - **Why**: Async validator is strictly superior with alias support; sync version was deprecated and unused
+
+- **Policy Reporter Signature Modernized** ([#173](https://github.com/Guffawaffle/lex/pull/173)): Enforced modern `generateReport()` signature
+  - **Previous behavior**: Accepted 3 arguments `generateReport(violations, policy, format)` with legacy type detection
+  - **New behavior**: Single object parameter `generateReport(violations, { policy, format })`
+  - **Migration**: Change `generateReport(violations, policy, "json")` → `generateReport(violations, { policy, format: "json" })`
+  - **Why**: Modern signature is clearer, easier to extend, and removes legacy type detection code
+
+- **Legacy Policy Loader Cleanup** ([#173](https://github.com/Guffawaffle/lex/pull/173)): Removed `LEGACY_POLICY_PATH` and `transformPolicy()` fallbacks
+  - **Previous behavior**: Attempted to load legacy policy format and transform to current schema
+  - **New behavior**: Only loads current "modules" format from standard paths
+  - **Migration**: Ensure all policy files use current schema with `"modules"` key
+  - **Why**: All policy files already use current format; legacy fallbacks were unused dead code
+
+### Added
+
+- **Structured Logging System** ([#173](https://github.com/Guffawaffle/lex/pull/173)): Pino-based logger with subpath export
+  - `lex/logger` subpath provides `getLogger(scope?)` function
+  - Respects `LEX_LOG_LEVEL` env var (silent/trace/debug/info/warn/error/fatal)
+  - Respects `LEX_LOG_PRETTY` env var for TTY-aware formatting
+  - Tests default to `silent` level to avoid pollution
+  - Scope support for categorizing log entries (`{scope: "cli:remember"}`)
+  - **pino-pretty** moved to `optionalDependencies` - gracefully falls back to JSON if not installed
+
+- **CLI Output Wrapper** ([#173](https://github.com/Guffawaffle/lex/pull/173)): Centralized console output system
+  - `src/shared/cli/output.ts` provides dual-sink output (console + diagnostic logger)
+  - Supports plain mode (default, human-readable) and JSONL mode (machine-parseable)
+  - Stream routing: errors/warnings → stderr, info/success/debug → stdout
+  - Controlled via `LEX_CLI_OUTPUT_MODE` env var
+  - See `docs/CLI_OUTPUT.md` and `schemas/cli-output.v1.schema.json` for details
+
+- **ESLint Legacy Guards** ([#173](https://github.com/Guffawaffle/lex/pull/173)): Prevent reintroduction of removed patterns
+  - Added `no-restricted-imports` rules forbidding `**/framestore` and `**/validateModuleIdsSync*`
+  - Enforced `no-console` globally with narrow override only for `src/shared/cli/output.ts`
+  - Helpful error messages guide developers to correct alternatives
+
+### Changed
+
+- **ESM Imports in Database Layer** ([#173](https://github.com/Guffawaffle/lex/pull/173)): Converted `require()` to ESM imports
+  - `src/memory/store/db.ts` now uses proper `import { readFileSync } from "fs"` instead of `require()`
+  - Better TypeScript type inference and IDE support
+  - Aligns with pure ESM codebase policy
+
+- **Test/Docs Terminology Updates** ([#173](https://github.com/Guffawaffle/lex/pull/173)): Clarified "backward-compatible" → "named exports"
+  - Test descriptions updated to reflect these are intentional current APIs, not legacy compatibility layers
+  - `docs/CLI_OUTPUT.md` terminology clarified
+
+### Fixed
+
+- **ESLint Configuration Optimized** ([#173](https://github.com/Guffawaffle/lex/pull/173)): Reduced type-safety warnings by 94.6%
+  - Lint warnings reduced from 661 → 154 (73% overall reduction)
+  - Type-safety rules (no-unsafe-*) exempted for test files and data boundary layers
+  - Core business logic in `src/memory` and `src/policy` remains strictly typed
+  - Zero hard-stop errors
+
+### Performance
+
+- **CI Cost Optimization** ([#173](https://github.com/Guffawaffle/lex/pull/173)): Reduced GitHub Actions runs by 25%
+  - Removed duplicate Node 22 matrix entry from alias tests
+  - Maintains Node 20 LTS coverage
+
+### Documentation
+
+- **Legacy Removal Plan** ([#173](https://github.com/Guffawaffle/lex/pull/173)): Added `docs/legacy-removal-plan.md` documenting Phase 2-3 cleanup strategy
+- **CLI Output Documentation** ([#173](https://github.com/Guffawaffle/lex/pull/173)): Enhanced `docs/CLI_OUTPUT.md` with usage patterns and schema reference
+- **README Updates** ([#173](https://github.com/Guffawaffle/lex/pull/173)): Added Quick Start section and environment variable documentation
+
 ## [0.3.0] - 2025-11-08
 
 ### ⚠️ Breaking Changes

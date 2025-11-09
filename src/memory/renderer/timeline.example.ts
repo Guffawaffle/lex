@@ -1,9 +1,4 @@
-/**
- * Timeline Example
- *
- * Demonstrates the timeline visualization for Frame evolution.
- */
-
+import { getLogger } from "lex/logger";
 import {
   buildTimeline,
   renderTimelineText,
@@ -13,6 +8,9 @@ import {
 } from "./timeline.js";
 import type { Frame } from "./types.js";
 import { writeFileSync } from "fs";
+
+
+const logger = getLogger("memory:renderer:timeline.example");
 
 // Example frames for TICKET-123: Add user authentication
 const frames: Frame[] = [
@@ -72,37 +70,39 @@ const frames: Frame[] = [
 const timeline = buildTimeline(frames);
 
 // Render text output
-console.log("=".repeat(80));
-console.log("TIMELINE TEXT OUTPUT");
-console.log("=".repeat(80));
-console.log();
+logger.info("=".repeat(80));
+logger.info("TIMELINE TEXT OUTPUT");
+logger.info("=".repeat(80));
+logger.info("TIMELINE TEXT OUTPUT");
+logger.info("=".repeat(80));
+logger.info("");
 const textOutput = renderTimelineText(timeline, "TICKET-123: Add user authentication");
-console.log(textOutput);
+logger.info(textOutput);
 
 // Module scope evolution
-console.log("=".repeat(80));
-console.log("MODULE SCOPE EVOLUTION");
-console.log("=".repeat(80));
+logger.info("=".repeat(80));
+logger.info("MODULE SCOPE EVOLUTION");
+logger.info("=".repeat(80));
 const evolutionGraph = renderModuleScopeEvolution(timeline);
-console.log(evolutionGraph);
+logger.info(evolutionGraph);
 
 // Blocker tracking
-console.log("=".repeat(80));
-console.log("BLOCKER TRACKING");
-console.log("=".repeat(80));
+logger.info("=".repeat(80));
+logger.info("BLOCKER TRACKING");
+logger.info("=".repeat(80));
 const blockerTracking = renderBlockerTracking(timeline);
-console.log(blockerTracking);
+logger.info(blockerTracking);
 
 // Generate HTML output (optional)
 const htmlOutput = renderTimelineHTML(timeline, "TICKET-123: Add user authentication");
-console.log("=".repeat(80));
-console.log("HTML OUTPUT (preview)");
-console.log("=".repeat(80));
-console.log("HTML file would be written to disk.");
-console.log("Length:", htmlOutput.length, "characters");
-console.log("Contains title:", htmlOutput.includes("TICKET-123"));
-console.log();
+logger.info("=".repeat(80));
+logger.info("HTML OUTPUT (preview)");
+logger.info("=".repeat(80));
+logger.info("HTML file would be written to disk.");
+logger.info(`Length: ${htmlOutput.length} characters`);
+logger.info(`Contains title: ${htmlOutput.includes("TICKET-123")}`);
+logger.info("");
 
 // Uncomment to write HTML to file:
 // writeFileSync('/tmp/timeline-example.html', htmlOutput, 'utf-8');
-// console.log('✓ HTML timeline written to /tmp/timeline-example.html');
+// logger.info('✓ HTML timeline written to /tmp/timeline-example.html');
