@@ -24,6 +24,24 @@ export default [
       // Enforce no-console globally (default to error)
       // Only src/shared/cli/output.ts is allowed (see override below)
       "no-console": "error",
+
+      // Forbid imports from removed legacy paths
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["**/framestore", "**/framestore.js"],
+              message: "FrameStore is removed. Use modular API from db.js and queries.js",
+            },
+            {
+              group: ["**/validateModuleIdsSync*"],
+              message: "validateModuleIdsSync is removed. Use async validateModuleIds",
+            },
+          ],
+        },
+      ],
+
       "@typescript-eslint/no-explicit-any": "warn",
       "@typescript-eslint/explicit-function-return-type": "off",
       "@typescript-eslint/no-unused-vars": [
