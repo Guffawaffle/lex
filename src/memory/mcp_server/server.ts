@@ -1,5 +1,7 @@
 import { getLogger } from "lex/logger";
-import { FrameStore } from "../store/framestore.js";
+import { createDatabase } from "../store/db.js";
+import { saveFrame, deleteFrame, searchFrames, getFramesByBranch, getFramesByJira, getAllFrames } from "../store/queries.js";
+import type Database from "better-sqlite3";
 // @ts-ignore - importing from compiled dist directories
 import { ImageManager } from "../store/images.js";
 // @ts-ignore - importing from compiled dist directories
@@ -44,14 +46,14 @@ export interface ToolCallParams {
  * MCP Server - handles protocol requests
  */
 export class MCPServer {
-  private frameStore: FrameStore;
+  private db: Database.Database;
   private imageManager: ImageManager;
   private policy: any | null; // Cached policy for validation (null if not available)
   private repoRoot: string | null; // Repository root path
 
   constructor(dbPath: string, repoRoot?: string) {
-    this.frameStore = new FrameStore(dbPath);
-    this.imageManager = new ImageManager(this.frameStore.getDatabase());
+    this.db = createDatabase(dbPath);
+    this.imageManager = new ImageManager(this.db);
     this.repoRoot = repoRoot || null;
 
     // Load policy once at initialization for better performance
@@ -245,7 +247,7 @@ export class MCPServer {
       image_ids: [] as string[],
     };
 
-    this.frameStore.insertFrame(frame);
+    saveFrame(this.db, frame);
 
     // Process image attachments if provided
     const imageIds: string[] = [];
@@ -258,14 +260,14 @@ export class MCPServer {
           imageIds.push(imageId);
         } catch (error: any) {
           // If image storage fails, clean up the Frame and rethrow
-          this.frameStore.deleteFrame(frameId);
+          deleteFrame(this.db, frameId);
           throw new Error(`Failed to store image: ${error.message}`);
         }
       }
 
       // Update frame with image IDs
       frame.image_ids = imageIds;
-      this.frameStore.insertFrame(frame);
+      saveFrame(this.db, frame);
     }
 
     // Generate Atlas Frame for the module scope
@@ -305,12 +307,17 @@ export class MCPServer {
 
     let frames: Frame[];
     try {
-      frames = this.frameStore.searchFrames({
-        reference_point,
-        jira,
-        branch,
-        limit,
-      });
+      if (reference_point) {
+        // Use FTS5 full-text search for reference_point
+        const result = searchFrames(this.db, reference_point);
+        frames = result.frames.slice(0, limit);
+      } else if (jira) {
+        frames = getFramesByJira(this.db, jira).slice(0, limit);
+      } else if (branch) {
+        frames = getFramesByBranch(this.db, branch).slice(0, limit);
+      } else {
+        frames = [];
+      }
     } catch (error: any) {
       // FTS5 search can fail with special characters (e.g., "zzz-nonexistent-query-zzz")
       // Treat search errors as empty results rather than propagating the error
@@ -383,15 +390,13 @@ export class MCPServer {
   private handleListFrames(args: any): MCPResponse {
     const { branch, module, limit = 10, since } = args;
 
-    // Build search query
-    const query: any = { limit };
-
+    // Get frames based on filters
+    let frames: Frame[];
     if (branch) {
-      query.branch = branch;
+      frames = getFramesByBranch(this.db, branch);
+    } else {
+      frames = getAllFrames(this.db);
     }
-
-    // Search frames (if no filters, searchFrames returns recent frames)
-    let frames = this.frameStore.searchFrames(query);
 
     // Filter by module if specified
     if (module) {
@@ -403,6 +408,9 @@ export class MCPServer {
       const sinceDate = new Date(since);
       frames = frames.filter((f: Frame) => new Date(f.timestamp) >= sinceDate);
     }
+
+    // Apply limit
+    frames = frames.slice(0, limit);
 
     if (frames.length === 0) {
       return {
@@ -446,6 +454,6 @@ export class MCPServer {
    * Close database connection
    */
   close() {
-    this.frameStore.close();
+    this.db.close();
   }
 }
