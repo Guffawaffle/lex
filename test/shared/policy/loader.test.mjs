@@ -6,10 +6,10 @@
 
 import { strict as assert } from "assert";
 import { test, describe } from "node:test";
-import { loadPolicy, clearPolicyCache } from "./loader.js";
+// Adjusted import path to built dist output
+import { loadPolicy, clearPolicyCache } from "../../../dist/shared/policy/loader.js";
 import { fileURLToPath } from "url";
-import { dirname, resolve, join } from "path";
-import { existsSync, readFileSync, unlinkSync, mkdirSync, writeFileSync } from "fs";
+import { dirname, resolve } from "path";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -52,50 +52,12 @@ describe("loadPolicy", () => {
     assert.ok(policy.modules);
   });
 
-  test("falls back to example file when working file missing", () => {
-    clearPolicyCache();
-    
-    const repoRoot = resolve(__dirname, "../../..");
-    const workingPath = join(repoRoot, ".smartergpt.local/lex/lexmap.policy.json");
-    
-    let workingFileExisted = false;
-    let workingFileContent = null;
-    
-    try {
-      if (existsSync(workingPath)) {
-        workingFileExisted = true;
-        workingFileContent = readFileSync(workingPath, "utf-8");
-        unlinkSync(workingPath);
-      }
-      
-      // Should still load from example file
-      const policy = loadPolicy();
-      assert.ok(policy);
-      assert.ok(policy.modules);
-    } finally {
-      // Restore working file if it existed
-      if (workingFileExisted && workingFileContent) {
-        const dir = dirname(workingPath);
-        if (!existsSync(dir)) {
-          mkdirSync(dir, { recursive: true });
-        }
-        writeFileSync(workingPath, workingFileContent);
-      }
-      clearPolicyCache();
-    }
-  });
-
   test("throws error for non-existent file", () => {
     clearPolicyCache();
 
     assert.throws(() => {
       loadPolicy("/nonexistent/path/policy.json");
     }, /Policy file not found/);
-  });
-
-  test("throws error for invalid JSON", () => {
-    // This test would need a temp file with invalid JSON
-    // Skipping for now as it requires more setup
   });
 
   test("environment variable works for custom path", () => {

@@ -13,7 +13,7 @@
 
 import { test, describe, before, after } from "node:test";
 import assert from "node:assert";
-import { unlinkSync, existsSync, mkdtempSync } from "fs";
+import { unlinkSync, existsSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import {
@@ -24,14 +24,14 @@ import {
   searchFrames,
   getAllFrames,
   deleteFrame,
-  createDatabase,
-} from "./store/index.js";
-import type { Frame } from "./frames/types.js";
-import { validateModuleIds } from "../shared/module_ids/validator.js";
-import { renderMemoryCard } from "./renderer/card.js";
+} from "../../src/memory/store/index.js";
+import type { Frame } from "../../src/memory/frames/types.js";
+import { validateModuleIds } from "../../src/shared/module_ids/validator.js";
+import { renderMemoryCard } from "../../src/memory/renderer/card.js";
+import type { Policy } from "../../src/shared/types/policy.js";
 
 // Mock policy for module validation tests
-const mockPolicy = {
+const mockPolicy: Policy = {
   modules: {
     "policy/scanners": { owns_paths: ["src/policy/scanners/**"] },
     "shared/types": { owns_paths: ["src/shared/types/**"] },
@@ -90,9 +90,9 @@ describe("Memory Integration Tests", () => {
 
       // Step 4: Recall by search (FTS5)
       const searchResults = searchFrames(db, "lifecycle test");
-      assert.ok(searchResults.length > 0, "Should find Frame via FTS5 search");
+      assert.ok(searchResults.frames.length > 0, "Should find Frame via FTS5 search");
       assert.ok(
-        searchResults.some((f) => f.id === frame.id),
+        searchResults.frames.some((f) => f.id === frame.id),
         "Search should include our Frame"
       );
 
@@ -122,7 +122,7 @@ describe("Memory Integration Tests", () => {
       };
 
       // Validate modules before storage
-      const validationResult = await validateModuleIds(validFrame.module_scope, mockPolicy as any);
+      const validationResult = await validateModuleIds(validFrame.module_scope, mockPolicy);
       assert.strictEqual(validationResult.valid, true, "Valid module IDs should pass validation");
 
       // Store and retrieve
@@ -142,7 +142,7 @@ describe("Memory Integration Tests", () => {
     test("should reject Frame with invalid module IDs", async () => {
       const invalidModules = ["invalid-module", "another-bad-one"];
 
-      const validationResult = await validateModuleIds(invalidModules, mockPolicy as any);
+      const validationResult = await validateModuleIds(invalidModules, mockPolicy);
       assert.strictEqual(
         validationResult.valid,
         false,
@@ -288,12 +288,15 @@ describe("Memory Integration Tests", () => {
 
       // Search for "authentication" - should find 2 frames
       const authResults = searchFrames(db, "authentication");
-      assert.ok(authResults.length >= 2, "Should find at least 2 frames with 'authentication'");
+      assert.ok(
+        authResults.frames.length >= 2,
+        "Should find at least 2 frames with 'authentication'"
+      );
 
       // Search for "database" - should find 1 frame
       const dbResults = searchFrames(db, "database");
       assert.ok(
-        dbResults.some((f) => f.id === "search-002"),
+        dbResults.frames.some((f) => f.id === "search-002"),
         "Should find database optimization frame"
       );
 
@@ -368,7 +371,7 @@ describe("Memory Integration Tests", () => {
 
     test("should return empty results for non-existent searches", async () => {
       const results = searchFrames(db, "zzznonexistentquerywhere");
-      assert.strictEqual(results.length, 0, "Should return empty array");
+      assert.strictEqual(results.frames.length, 0, "Should return empty array");
     });
 
     test("should handle concurrent Frame operations", async () => {

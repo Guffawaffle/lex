@@ -14,7 +14,7 @@
 
 import { test, describe, before, after } from "node:test";
 import assert from "node:assert";
-import { MCPServer } from "./server.js";
+import { MCPServer } from "../../../src/memory/mcp_server/server.js";
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
@@ -142,7 +142,10 @@ describe("MCP Server Alias Resolution Integration Tests", () => {
         assert.ok(response.error, "Should return error for typo");
         assert.ok(response.error.message.includes("scannrs"), "Error should mention the typo");
         assert.ok(response.error.message.includes("Did you mean"), "Should provide suggestion");
-        assert.ok(response.error.message.includes("policy/scanners"), "Should suggest 'policy/scanners'");
+        assert.ok(
+          response.error.message.includes("policy/scanners"),
+          "Should suggest 'policy/scanners'"
+        );
       } finally {
         teardown();
       }
@@ -382,7 +385,14 @@ describe("MCP Server Alias Resolution Integration Tests", () => {
               status_snapshot: {
                 next_action: "Continue",
               },
-              module_scope: ["policy/scanners", "shared/types", "shared/policy", "memory/mcp", "services/auth-core", "ui/main-panel"],
+              module_scope: [
+                "policy/scanners",
+                "shared/types",
+                "shared/policy",
+                "memory/mcp",
+                "services/auth-core",
+                "ui/main-panel",
+              ],
             },
           },
         });

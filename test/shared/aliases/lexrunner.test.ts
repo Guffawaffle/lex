@@ -143,12 +143,9 @@ describe("LexRunner: PR Module ID Validation", () => {
   test("should reject invalid module IDs", async () => {
     const invalidModule = "nonexistent-module";
 
-    const resolution = await resolveModuleId(
-      invalidModule,
-      lexrunnerPolicy,
-      lexrunnerAliases,
-      { noSubstring: true }
-    );
+    const resolution = await resolveModuleId(invalidModule, lexrunnerPolicy, lexrunnerAliases, {
+      noSubstring: true,
+    });
 
     assert.equal(resolution.confidence, 0);
     assert.equal(resolution.original, invalidModule);
@@ -232,9 +229,14 @@ describe("LexRunner: Merge Sequence Continuity", () => {
 
 describe("LexRunner: Strict Mode (CI)", () => {
   test("should accept exact matches in strict mode", async () => {
-    const resolution = await resolveModuleId("services/auth-core", lexrunnerPolicy, lexrunnerAliases, {
-      noSubstring: true,
-    });
+    const resolution = await resolveModuleId(
+      "services/auth-core",
+      lexrunnerPolicy,
+      lexrunnerAliases,
+      {
+        noSubstring: true,
+      }
+    );
 
     assert.equal(resolution.confidence, 1.0);
     assert.equal(resolution.source, "exact");
@@ -260,9 +262,14 @@ describe("LexRunner: Strict Mode (CI)", () => {
   });
 
   test("should reject typos in strict mode", async () => {
-    const resolution = await resolveModuleId("services/auth-cor", lexrunnerPolicy, lexrunnerAliases, {
-      noSubstring: true,
-    });
+    const resolution = await resolveModuleId(
+      "services/auth-cor",
+      lexrunnerPolicy,
+      lexrunnerAliases,
+      {
+        noSubstring: true,
+      }
+    );
 
     assert.equal(resolution.confidence, 0);
   });

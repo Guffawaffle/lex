@@ -7,7 +7,7 @@
 
 import { test, describe } from "node:test";
 import assert from "node:assert";
-import { validateFrameMetadata, FRAME_SCHEMA_VERSION } from "./frame.js";
+import { validateFrameMetadata, FRAME_SCHEMA_VERSION } from "../../../src/shared/types/frame.js";
 
 describe("Frame Type Validation", () => {
   test("should export FRAME_SCHEMA_VERSION", () => {
@@ -93,7 +93,10 @@ describe("Frame Type Validation", () => {
       },
     };
 
-    assert.ok(validateFrameMetadata(frameWithPartialSpend), "Frame with partial spend should be valid");
+    assert.ok(
+      validateFrameMetadata(frameWithPartialSpend),
+      "Frame with partial spend should be valid"
+    );
   });
 
   test("should reject invalid runId type", () => {
@@ -110,7 +113,11 @@ describe("Frame Type Validation", () => {
       runId: 123, // Should be string
     };
 
-    assert.strictEqual(validateFrameMetadata(invalidFrame), false, "Frame with invalid runId should be rejected");
+    assert.strictEqual(
+      validateFrameMetadata(invalidFrame),
+      false,
+      "Frame with invalid runId should be rejected"
+    );
   });
 
   test("should reject invalid planHash type", () => {
@@ -127,7 +134,11 @@ describe("Frame Type Validation", () => {
       planHash: true, // Should be string
     };
 
-    assert.strictEqual(validateFrameMetadata(invalidFrame), false, "Frame with invalid planHash should be rejected");
+    assert.strictEqual(
+      validateFrameMetadata(invalidFrame),
+      false,
+      "Frame with invalid planHash should be rejected"
+    );
   });
 
   test("should reject invalid spend type", () => {
@@ -144,7 +155,11 @@ describe("Frame Type Validation", () => {
       spend: "invalid", // Should be object
     };
 
-    assert.strictEqual(validateFrameMetadata(invalidFrame), false, "Frame with invalid spend should be rejected");
+    assert.strictEqual(
+      validateFrameMetadata(invalidFrame),
+      false,
+      "Frame with invalid spend should be rejected"
+    );
   });
 
   test("should reject invalid spend.prompts type", () => {
@@ -163,7 +178,11 @@ describe("Frame Type Validation", () => {
       },
     };
 
-    assert.strictEqual(validateFrameMetadata(invalidFrame), false, "Frame with invalid spend.prompts should be rejected");
+    assert.strictEqual(
+      validateFrameMetadata(invalidFrame),
+      false,
+      "Frame with invalid spend.prompts should be rejected"
+    );
   });
 
   test("should reject invalid spend.tokens_estimated type", () => {
@@ -182,7 +201,11 @@ describe("Frame Type Validation", () => {
       },
     };
 
-    assert.strictEqual(validateFrameMetadata(invalidFrame), false, "Frame with invalid spend.tokens_estimated should be rejected");
+    assert.strictEqual(
+      validateFrameMetadata(invalidFrame),
+      false,
+      "Frame with invalid spend.tokens_estimated should be rejected"
+    );
   });
 
   test("should reject missing required fields", () => {
@@ -192,7 +215,11 @@ describe("Frame Type Validation", () => {
       // Missing branch, module_scope, etc.
     };
 
-    assert.strictEqual(validateFrameMetadata(invalidFrame), false, "Frame with missing required fields should be rejected");
+    assert.strictEqual(
+      validateFrameMetadata(invalidFrame),
+      false,
+      "Frame with missing required fields should be rejected"
+    );
   });
 
   test("should reject null Frame", () => {

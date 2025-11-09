@@ -23,7 +23,7 @@ import {
   deleteFrame,
   getFrameCount,
   createDatabase,
-} from "./index.js";
+} from "../../../src/memory/store/index.js";
 import type { Frame } from "../frames/types.js";
 
 // Test database path
@@ -279,7 +279,11 @@ describe("Frame Storage Tests", () => {
     test("should return empty array for non-matching searches", async () => {
       const result = searchFrames(db, "zzzznonexistent");
       assert.strictEqual(result.frames.length, 0, "Should return empty array for no matches");
-      assert.strictEqual(result.hint, undefined, "Should not have hint for normal non-matching search");
+      assert.strictEqual(
+        result.hint,
+        undefined,
+        "Should not have hint for normal non-matching search"
+      );
     });
   });
 
@@ -327,7 +331,10 @@ describe("Frame Storage Tests", () => {
       const result = searchFrames(db, "0.3.0");
       assert.strictEqual(result.frames.length, 0, "Should return empty results");
       assert.ok(result.hint, "Should provide a hint");
-      assert.ok(result.hint.includes("special characters"), "Hint should mention special characters");
+      assert.ok(
+        result.hint.includes("special characters"),
+        "Hint should mention special characters"
+      );
     });
 
     test("should handle colon (:) without throwing error", async () => {
@@ -352,7 +359,10 @@ describe("Frame Storage Tests", () => {
       const result = searchFrames(db, "v0.3.0 release");
       assert.strictEqual(result.frames.length, 0, "Should return empty results");
       assert.ok(result.hint, "Should provide a hint");
-      assert.ok(result.hint.includes("v0 3 0 release") || result.hint.includes("release"), "Hint should suggest simplified query");
+      assert.ok(
+        result.hint.includes("v0 3 0 release") || result.hint.includes("release"),
+        "Hint should suggest simplified query"
+      );
     });
   });
 
@@ -381,10 +391,18 @@ describe("Frame Storage Tests", () => {
 
       assert.ok(retrieved, "Frame should be retrieved");
       assert.strictEqual(retrieved!.runId, "lexrunner-20251109-abc123", "runId should match");
-      assert.strictEqual(retrieved!.planHash, "sha256:7f8c9d1234567890abcdef", "planHash should match");
+      assert.strictEqual(
+        retrieved!.planHash,
+        "sha256:7f8c9d1234567890abcdef",
+        "planHash should match"
+      );
       assert.ok(retrieved!.spend, "spend should be present");
       assert.strictEqual(retrieved!.spend!.prompts, 3, "spend.prompts should match");
-      assert.strictEqual(retrieved!.spend!.tokens_estimated, 1500, "spend.tokens_estimated should match");
+      assert.strictEqual(
+        retrieved!.spend!.tokens_estimated,
+        1500,
+        "spend.tokens_estimated should match"
+      );
 
       deleteFrame(db, "frame-mw-001");
     });
@@ -438,7 +456,11 @@ describe("Frame Storage Tests", () => {
       assert.ok(retrieved, "Frame should be retrieved");
       assert.ok(retrieved!.spend, "spend should be present");
       assert.strictEqual(retrieved!.spend!.prompts, 5, "spend.prompts should match");
-      assert.strictEqual(retrieved!.spend!.tokens_estimated, undefined, "spend.tokens_estimated should be undefined");
+      assert.strictEqual(
+        retrieved!.spend!.tokens_estimated,
+        undefined,
+        "spend.tokens_estimated should be undefined"
+      );
 
       deleteFrame(db, "frame-mw-003");
     });
@@ -463,7 +485,11 @@ describe("Frame Storage Tests", () => {
       assert.ok(retrieved, "Legacy frame should be retrieved");
       assert.strictEqual(retrieved!.id, "frame-legacy-001", "id should match");
       assert.strictEqual(retrieved!.runId, undefined, "runId should be undefined for legacy frame");
-      assert.strictEqual(retrieved!.planHash, undefined, "planHash should be undefined for legacy frame");
+      assert.strictEqual(
+        retrieved!.planHash,
+        undefined,
+        "planHash should be undefined for legacy frame"
+      );
       assert.strictEqual(retrieved!.spend, undefined, "spend should be undefined for legacy frame");
 
       deleteFrame(db, "frame-legacy-001");

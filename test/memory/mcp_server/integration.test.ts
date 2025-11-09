@@ -13,7 +13,7 @@
 
 import { test, describe, before, after } from "node:test";
 import assert from "node:assert";
-import { MCPServer } from "./server.js";
+import { MCPServer } from "../../../src/memory/mcp_server/server.js";
 import { mkdtempSync, rmSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";

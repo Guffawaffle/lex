@@ -22,7 +22,7 @@
 import { test, describe, before, after } from "node:test";
 import assert from "node:assert";
 // @ts-ignore
-import { validateModuleIds } from "../../shared/module_ids/validator.js";
+import { validateModuleIds } from "../../../src/shared/module_ids/validator.js";
 import { mkdtempSync, rmSync, writeFileSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
@@ -200,7 +200,14 @@ describe("Alias Resolution Performance Benchmarks", () => {
     test("should handle multiple exact matches efficiently", async () => {
       const avgTime = await benchmark("Multiple exact matches (6 modules)", 1000, async () => {
         await validateModuleIds(
-          ["policy/scanners", "shared/types", "shared/policy", "memory/mcp", "services/auth-core", "ui/main-panel"],
+          [
+            "policy/scanners",
+            "shared/types",
+            "shared/policy",
+            "memory/mcp",
+            "services/auth-core",
+            "ui/main-panel",
+          ],
           policy100
         );
       });

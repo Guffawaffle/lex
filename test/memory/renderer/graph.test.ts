@@ -3,7 +3,7 @@
  * Run with: node --test memory/renderer/dist/renderer/graph.test.js
  */
 
-import { renderAtlasFrameGraph, exportGraphAsPNG, type AtlasFrame } from "./graph.js";
+import { renderAtlasFrameGraph, exportGraphAsPNG, type AtlasFrame } from "../../../src/memory/renderer/graph.js";
 import { writeFileSync, mkdirSync } from "fs";
 import { join } from "path";
 

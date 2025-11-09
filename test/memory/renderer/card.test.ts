@@ -3,8 +3,8 @@
  * Run with: node --loader tsx memory/renderer/card.test.ts
  */
 
-import { renderMemoryCard, renderMemoryCardWithOptions } from "./card.js";
-import type { Frame } from "./types.js";
+import { renderMemoryCard, renderMemoryCardWithOptions } from "../../../src/memory/renderer/card.js";
+import type { Frame } from "../../../src/memory/frames/types.js";
 import { writeFileSync, mkdirSync } from "fs";
 import { join } from "path";
 

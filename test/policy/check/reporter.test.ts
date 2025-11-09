@@ -4,9 +4,9 @@
 
 import { test } from "node:test";
 import { strict as assert } from "node:assert";
-import type { Policy, PolicyModule } from "../../shared/types/policy.js";
-import type { Violation } from "./violations.js";
-import { generateReport } from "./reporter.js";
+import type { Policy, PolicyModule } from "../../../src/shared/types/policy.js";
+import type { Violation } from "../../../src/policy/check/violations.js";
+import { generateReport } from "../../../src/policy/check/reporter.js";
 
 function makeViolation(overrides: Partial<Violation> = {}): Violation {
   const base: Violation = {
