@@ -21,8 +21,9 @@ export default [
     },
     plugins: { "@typescript-eslint": tseslint },
     rules: {
-      // prefer warn by default for consoles; more specific overrides below
-      "no-console": "warn",
+      // Enforce no-console globally (default to error)
+      // Only src/shared/cli/output.ts is allowed (see override below)
+      "no-console": "error",
       "@typescript-eslint/no-explicit-any": "warn",
       "@typescript-eslint/explicit-function-return-type": "off",
       "@typescript-eslint/no-unused-vars": [
@@ -61,6 +62,14 @@ export default [
       "@typescript-eslint/no-unsafe-call": "warn",
       "@typescript-eslint/no-unsafe-return": "warn",
       "@typescript-eslint/restrict-template-expressions": "warn",
+    },
+  },
+
+  // Allow console ONLY in the CLI output wrapper (single chokepoint)
+  {
+    files: ["src/shared/cli/output.ts"],
+    rules: {
+      "no-console": "off",
     },
   },
 
