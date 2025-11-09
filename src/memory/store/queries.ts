@@ -90,21 +90,50 @@ export function getFrameById(db: Database.Database, id: string): Frame | null {
   return rowToFrame(row);
 }
 
+export interface SearchResult {
+  frames: Frame[];
+  hint?: string;
+}
+
 /**
  * Search Frames using FTS5 full-text search
  * @param query Natural language query string (searches reference_point, summary_caption, keywords)
+ * @returns SearchResult with frames array and optional hint for FTS5 syntax errors
  */
-export function searchFrames(db: Database.Database, query: string): Frame[] {
-  const stmt = db.prepare(`
-    SELECT f.*
-    FROM frames f
-    JOIN frames_fts fts ON f.rowid = fts.rowid
-    WHERE frames_fts MATCH ?
-    ORDER BY f.timestamp DESC
-  `);
+export function searchFrames(db: Database.Database, query: string): SearchResult {
+  try {
+    const stmt = db.prepare(`
+      SELECT f.*
+      FROM frames f
+      JOIN frames_fts fts ON f.rowid = fts.rowid
+      WHERE frames_fts MATCH ?
+      ORDER BY f.timestamp DESC
+    `);
 
-  const rows = stmt.all(query) as FrameRow[];
-  return rows.map(rowToFrame);
+    const rows = stmt.all(query) as FrameRow[];
+    return { frames: rows.map(rowToFrame) };
+  } catch (error: any) {
+    // Check if this is an FTS5-related error (caused by special characters)
+    if (
+      error?.code === "SQLITE_ERROR" &&
+      (error?.message?.includes("fts5: syntax error") ||
+        error?.message?.includes("no such column") ||
+        error?.message?.includes("unknown special query"))
+    ) {
+      // Extract a simpler search term by removing special characters
+      const simplifiedQuery = query.replace(/[^a-zA-Z0-9\s]/g, " ").trim();
+      const hint = simplifiedQuery
+        ? `Search contained special characters. Try simpler terms (e.g., '${simplifiedQuery}')`
+        : "Search contained special characters. Try simpler terms";
+
+      return {
+        frames: [],
+        hint,
+      };
+    }
+    // Re-throw non-FTS5 errors
+    throw error;
+  }
 }
 
 /**
