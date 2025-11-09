@@ -31,6 +31,7 @@ export async function recall(query: string, options: RecallOptions = {}): Promis
   try {
     const db = getDb();
     let frames: Frame[] = [];
+    let searchHint: string | undefined;
 
     // Try different search strategies
     // 1. Try as Frame ID (exact match)
@@ -44,11 +45,17 @@ export async function recall(query: string, options: RecallOptions = {}): Promis
         frames = framesByJira;
       } else {
         // 3. Try as reference point (fuzzy search)
-        frames = searchFrames(db, query);
+        const searchResult = searchFrames(db, query);
+        frames = searchResult.frames;
+        searchHint = searchResult.hint;
       }
     }
 
     if (frames.length === 0) {
+      // Print hint to stderr if FTS5 syntax error occurred
+      if (searchHint) {
+        console.error(`\n⚠️  ${searchHint}\n`);
+      }
       console.log(`\n❌ No frames found matching: "${query}"\n`);
       process.exit(1);
     }
