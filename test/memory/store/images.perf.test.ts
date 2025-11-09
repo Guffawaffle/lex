@@ -1,38 +1,34 @@
-/**
- * Performance Tests for Image Storage
- *
- * Tests image storage and retrieval performance with large datasets.
- */
-
 import { test, describe } from "node:test";
 import assert from "node:assert";
-import { FrameStore } from "@app/memory/store/framestore.js";
+import { createDatabase } from "@app/memory/store/db.js";
+import { saveFrame } from "@app/memory/store/queries.js";
 import { ImageManager } from "@app/memory/store/images.js";
 import { mkdtempSync, rmSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
+import type Database from "better-sqlite3";
 
 describe("Image Manager - Performance", () => {
-  let frameStore: FrameStore;
+  let db: Database.Database;
   let imageManager: ImageManager;
   let testDbPath: string;
 
   function setup() {
     const tmpDir = mkdtempSync(join(tmpdir(), "lex-perf-test-"));
     testDbPath = join(tmpDir, "test-perf.db");
-    frameStore = new FrameStore(testDbPath);
-    imageManager = new ImageManager(frameStore.getDatabase());
-    return { frameStore, imageManager };
+    db = createDatabase(testDbPath);
+    imageManager = new ImageManager(db);
+    return { db, imageManager };
   }
 
   function teardown() {
-    if (frameStore) {
-      frameStore.close();
+    if (db) {
+      db.close();
     }
     if (testDbPath) {
       try {
         rmSync(testDbPath, { force: true });
-      } catch (e) {
+      } catch (_e) {
         // Ignore cleanup errors
       }
     }
@@ -50,12 +46,12 @@ describe("Image Manager - Performance", () => {
         next_action: "Test action",
       },
     };
-    frameStore.insertFrame(frame);
+    saveFrame(db, frame);
     return frame;
   }
 
   test("store and retrieve 100 images efficiently", () => {
-    const { frameStore, imageManager } = setup();
+    const { imageManager } = setup();
     try {
       const imageCount = 100;
       const imageSize = 1024; // 1KB per image
@@ -103,7 +99,7 @@ describe("Image Manager - Performance", () => {
   });
 
   test("list images for frames with many attachments", () => {
-    const { frameStore, imageManager } = setup();
+    const { imageManager } = setup();
     try {
       const imagesPerFrame = 20;
       const frameCount = 10;
@@ -155,7 +151,7 @@ describe("Image Manager - Performance", () => {
   });
 
   test("delete operations with large datasets", () => {
-    const { frameStore, imageManager } = setup();
+    const { imageManager } = setup();
     try {
       const imageCount = 50;
       const frame = createTestFrame("delete-test-frame");
@@ -194,7 +190,7 @@ describe("Image Manager - Performance", () => {
   });
 
   test("total storage size calculation with many images", () => {
-    const { frameStore, imageManager } = setup();
+    const { imageManager } = setup();
     try {
       const imageSize = 2048; // 2KB per image
       const imageCount = 100;
@@ -223,7 +219,7 @@ describe("Image Manager - Performance", () => {
   });
 
   test("cascading delete performance with many images", () => {
-    const { frameStore, imageManager } = setup();
+    const { imageManager } = setup();
     try {
       const framesCount = 5;
       const imagesPerFrame = 20;
@@ -244,7 +240,8 @@ describe("Image Manager - Performance", () => {
       // Delete frames (should cascade to images)
       const startCascade = Date.now();
       for (let f = 0; f < framesCount; f++) {
-        frameStore.deleteFrame(`cascade-frame-${f}`);
+        const deleteStmt = db.prepare("DELETE FROM frames WHERE id = ?");
+        deleteStmt.run(`cascade-frame-${f}`);
       }
       const cascadeTime = Date.now() - startCascade;
 
