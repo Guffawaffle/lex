@@ -6,13 +6,12 @@
  */
 
 // Frame types
-export type { Frame, StatusSnapshot } from "./frame.js";
+export type { Frame, StatusSnapshot, SpendMetadata } from "./frame.js";
+export { FRAME_SCHEMA_VERSION, validateFrameMetadata } from "./frame.js";
 // AtlasFrame is defined in the shared atlas package (spatial neighborhood types).
 // We re-export it here so consumers can import all shared types from
 // `shared/types` while keeping atlas-specific implementation separate.
 export type { AtlasFrame } from "../atlas/types.js";
-
-export { validateFrameMetadata } from "./frame.js";
 
 // Policy types
 export type { PolicyModule, PolicyEdge, Policy } from "./policy.js";
