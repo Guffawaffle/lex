@@ -136,25 +136,7 @@ jobs:
         run: npm run build
 
       - name: Lint alias table for case sensitivity
-        run: |
-          node -e "
-          import('./dist/shared/aliases/case-sensitivity.spec.mjs').then(module => {
-            const { lintAliasTableCase } = module;
-            const { loadAliasTable } = await import('./dist/shared/aliases/resolver.js');
-            
-            const aliasTable = loadAliasTable();
-            const errors = lintAliasTableCase(aliasTable);
-            
-            if (errors.length === 0) {
-              console.log('✅ Alias table passes case sensitivity checks');
-              process.exit(0);
-            } else {
-              console.error('❌ Alias table has case sensitivity issues:');
-              errors.forEach(err => console.error('  -', err.message));
-              process.exit(1);
-            }
-          });
-          "
+        run: node scripts/lint-alias-table.mjs
 
   test-summary:
     name: Alias Tests Summary
