@@ -3,6 +3,13 @@
  *
  * This example demonstrates all documented subpath exports from the Lex package.
  * It validates that the imports compile and basic operations work.
+ *
+ * NOTE: This file is for documentation purposes. To run it against the packaged tarball:
+ * 1. Fix pre-existing build errors (missing @types/node)
+ * 2. npm run build
+ * 3. npm pack
+ * 4. Install tarball in test project
+ * 5. Run with tsx
  */
 
 // Main entry point
