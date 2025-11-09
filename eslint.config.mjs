@@ -73,6 +73,14 @@ export default [
     },
   },
 
+  // Allow console in MCP server entry points (stdio protocol requires it)
+  {
+    files: ["**/mcp_server/**/*.mjs", "**/mcp_server/**/*-mcp.ts"],
+    rules: {
+      "no-console": "off",
+    },
+  },
+
   // Forbid committing any .js/.jsx files under `src/` (TS-only source tree).
   {
     files: ["src/**/*.{js,jsx}"],
@@ -91,6 +99,7 @@ export default [
   // Tests commonly call functions that return promises without awaiting
   // at top-level; disable the floating-promises rule for test files only.
   // Also relax type-safety rules since tests often deal with mock data.
+  // Allow console in tests for debugging (but prefer test assertions).
   {
     files: [
       "**/*.test.ts", "**/*.test.mts", "**/*.test.mjs",
@@ -99,6 +108,7 @@ export default [
       "**/test_*.ts", "**/*_test.ts", // Test utility files
     ],
     rules: {
+      "no-console": "off",
       "@typescript-eslint/no-floating-promises": "off",
       "@typescript-eslint/strict-boolean-expressions": "off",
       "@typescript-eslint/no-unsafe-assignment": "off",
