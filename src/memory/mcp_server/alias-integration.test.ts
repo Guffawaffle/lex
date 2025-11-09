@@ -359,7 +359,9 @@ describe("MCP Server Alias Resolution Integration Tests", () => {
         const elapsed = performance.now() - start;
 
         console.log(`  Module validation time: ${elapsed.toFixed(2)}ms`);
-        assert.ok(elapsed < 10, `Validation took ${elapsed.toFixed(2)}ms, expected <10ms`);
+        // Allow up to 50ms (generous threshold for CI/test environments with GC variance)
+        // Typical runs are <10ms, but first runs may be slower due to JIT warmup
+        assert.ok(elapsed < 50, `Validation took ${elapsed.toFixed(2)}ms, expected <50ms`);
       } finally {
         teardown();
       }
