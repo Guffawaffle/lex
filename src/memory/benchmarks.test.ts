@@ -66,7 +66,7 @@ function createTestFrame(id: string): Frame {
     id,
     timestamp: new Date().toISOString(),
     branch: "benchmark-test",
-    module_scope: ["indexer"],
+    module_scope: ["policy/scanners"],
     summary_caption: `Benchmark frame ${id}`,
     reference_point: `benchmark ${id}`,
     status_snapshot: {
@@ -208,7 +208,7 @@ describe("Performance Benchmarks", () => {
           id: `fts-${i}`,
           timestamp: new Date().toISOString(),
           branch: "benchmark",
-          module_scope: ["indexer"],
+          module_scope: ["policy/scanners"],
           summary_caption: `Frame about ${keyword} testing`,
           reference_point: `${keyword} work ${i}`,
           status_snapshot: {
@@ -281,7 +281,7 @@ describe("Performance Benchmarks", () => {
         timestamp: new Date().toISOString(),
         branch: "feature/complex-frame",
         jira: "BENCH-123",
-        module_scope: ["indexer", "ts", "php", "mcp"],
+        module_scope: ["policy/scanners", "shared/types", "memory/mcp"],
         summary_caption:
           "Complex frame with all fields populated to test rendering performance with long text and multiple sections",
         reference_point: "Complex rendering benchmark with detailed information",
@@ -344,7 +344,7 @@ describe("Performance Benchmarks", () => {
         id: "render-minimal",
         timestamp: new Date().toISOString(),
         branch: "main",
-        module_scope: ["indexer"],
+        module_scope: ["policy/scanners"],
         summary_caption: "Minimal",
         reference_point: "minimal",
         status_snapshot: {
