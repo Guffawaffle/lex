@@ -84,7 +84,7 @@ with
 This shared vocabulary is what lets Lex answer:
 > "You left this button disabled because this module was still calling a forbidden dependency. Your declared next step was to route through the approved service."
 
-**Module ID Validation & Aliasing:** To help prevent typos and improve usability, Lex provides fuzzy matching with helpful suggestions when module IDs don't match. When you use an invalid module ID, you'll get suggestions for similar modules. In the future, explicit alias tables will support team shorthand conventions (e.g., `auth` → `services/auth-core`) and historical renames. See `src/shared/aliases/README.md` for details.
+**Module ID Validation & Aliasing:** To help prevent typos and improve usability, Lex provides fuzzy matching with helpful suggestions when module IDs don't match. When you use an invalid module ID, you'll get suggestions for similar modules. Explicit alias tables support team shorthand conventions (e.g., `auth` → `services/auth-core`) and historical renames. See `src/shared/aliases/README.md` for implementation details, or `docs/LEXRUNNER_ALIASING.md` for LexRunner integration patterns.
 
 ---
 
