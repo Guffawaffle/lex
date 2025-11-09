@@ -129,6 +129,49 @@ jobs:
       - name: Build all packages
         run: npm run build
 
+      - name: Pack (dry run)
+        if: matrix.node-version == '22'
+        run: npm pack --json > pack.json
+
+      - name: Pack guard
+        if: matrix.node-version == '22'
+        run: |
+          node -e "
+            const fs = require('fs');
+            const packData = JSON.parse(fs.readFileSync('pack.json', 'utf8'));
+            const files = packData[0].files.map(x => x.path);
+            const allowed = ['README.md', 'LICENSE', 'package.json'];
+            const bad = files.filter(p => !/^dist\//.test(p) && !allowed.includes(p));
+            if (bad.length) {
+              console.error('❌ Unexpected files in tarball:', bad);
+              process.exit(1);
+            }
+            console.log('✅ Pack guard passed: only dist/, README.md, LICENSE, package.json');
+          "
+
+      - name: Bin guard (shebang + exec)
+        if: matrix.node-version == '22'
+        run: |
+          if ! head -1 dist/shared/cli/lex.js | grep -q '^#!/usr/bin/env node'; then
+            echo "❌ Missing shebang in dist/shared/cli/lex.js"
+            exit 1
+          fi
+          if ! test -x dist/shared/cli/lex.js; then
+            echo "❌ dist/shared/cli/lex.js is not executable"
+            exit 1
+          fi
+          echo "✅ Bin guard passed: shebang and executable bit present"
+
+      - name: No tests in dist
+        if: matrix.node-version == '22'
+        run: |
+          if find dist -type f -name '*test*' -print | grep -q .; then
+            echo "❌ Found test files in dist/"
+            find dist -type f -name '*test*' -print
+            exit 1
+          fi
+          echo "✅ No tests in dist: dist/ is clean"
+
       - name: Enforce TS-only rule (no .js in src/)
         run: npm run guard:no-js-src
 
