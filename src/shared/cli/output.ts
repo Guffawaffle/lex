@@ -163,3 +163,9 @@ export const debug = output.debug.bind(output);
 export function json(data: unknown): void {
   console.log(JSON.stringify(data, null, 2));
 }
+
+// Backward-compatible raw export: outputs unformatted text (bypasses wrapper)
+// Used for timeline and other formatted output that shouldn't have symbols
+export function raw(message: string): void {
+  console.log(message);
+}
