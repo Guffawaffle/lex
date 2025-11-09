@@ -7,14 +7,16 @@
 
 import { test, describe } from "node:test";
 import assert from "node:assert";
-import { FrameStore } from "@app/memory/store/framestore.js";
+import { createDatabase } from "@app/memory/store/db.js";
+import { saveFrame } from "@app/memory/store/queries.js";
 import { ImageManager, MAX_IMAGE_SIZE } from "@app/memory/store/images.js";
 import { mkdtempSync, rmSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
+import type Database from "better-sqlite3";
 
 describe("Image Manager", () => {
-  let frameStore: FrameStore;
+  let db: Database.Database;
   let imageManager: ImageManager;
   let testDbPath: string;
 
@@ -22,20 +24,20 @@ describe("Image Manager", () => {
   function setup() {
     const tmpDir = mkdtempSync(join(tmpdir(), "lex-img-test-"));
     testDbPath = join(tmpDir, "test-images.db");
-    frameStore = new FrameStore(testDbPath);
-    imageManager = new ImageManager(frameStore.getDatabase());
-    return { frameStore, imageManager };
+    db = createDatabase(testDbPath);
+    imageManager = new ImageManager(db);
+    return { db, imageManager };
   }
 
   // Teardown: close database and cleanup
   function teardown() {
-    if (frameStore) {
-      frameStore.close();
+    if (db) {
+      db.close();
     }
     if (testDbPath) {
       try {
         rmSync(testDbPath, { force: true });
-      } catch (e) {
+      } catch (_e) {
         // Ignore cleanup errors
       }
     }
@@ -54,12 +56,12 @@ describe("Image Manager", () => {
         next_action: "Test action",
       },
     };
-    frameStore.insertFrame(frame);
+    saveFrame(db, frame);
     return frame;
   }
 
   test("storeImage stores a PNG image successfully", () => {
-    const { frameStore, imageManager } = setup();
+    const { imageManager } = setup();
     try {
       const frame = createTestFrame();
       const imageData = Buffer.from("fake-png-data");
@@ -75,7 +77,7 @@ describe("Image Manager", () => {
   });
 
   test("storeImage stores a JPEG image successfully", () => {
-    const { frameStore, imageManager } = setup();
+    const { imageManager } = setup();
     try {
       const frame = createTestFrame();
       const imageData = Buffer.from("fake-jpeg-data");
@@ -90,7 +92,7 @@ describe("Image Manager", () => {
   });
 
   test("getImage retrieves stored PNG image", () => {
-    const { frameStore, imageManager } = setup();
+    const { imageManager } = setup();
     try {
       const frame = createTestFrame();
       const imageData = Buffer.from("fake-png-data");
@@ -108,7 +110,7 @@ describe("Image Manager", () => {
   });
 
   test("getImage retrieves stored JPEG image", () => {
-    const { frameStore, imageManager } = setup();
+    const { imageManager } = setup();
     try {
       const frame = createTestFrame();
       const imageData = Buffer.from("fake-jpeg-data");
@@ -125,7 +127,7 @@ describe("Image Manager", () => {
   });
 
   test("storeImage rejects image exceeding 10MB size limit", () => {
-    const { frameStore, imageManager } = setup();
+    const { imageManager } = setup();
     try {
       const frame = createTestFrame();
       // Create buffer larger than 10MB
@@ -143,7 +145,7 @@ describe("Image Manager", () => {
   });
 
   test("storeImage rejects invalid MIME type", () => {
-    const { frameStore, imageManager } = setup();
+    const { imageManager } = setup();
     try {
       const frame = createTestFrame();
       const imageData = Buffer.from("fake-data");
@@ -160,7 +162,7 @@ describe("Image Manager", () => {
   });
 
   test("storeImage rejects image for non-existent Frame", () => {
-    const { frameStore, imageManager } = setup();
+    const { imageManager } = setup();
     try {
       const imageData = Buffer.from("fake-png-data");
       const mimeType = "image/png";
@@ -176,7 +178,7 @@ describe("Image Manager", () => {
   });
 
   test("listFrameImages returns all images for a Frame", () => {
-    const { frameStore, imageManager } = setup();
+    const { imageManager } = setup();
     try {
       const frame = createTestFrame();
       const imageData1 = Buffer.from("image-1");
@@ -205,7 +207,7 @@ describe("Image Manager", () => {
   });
 
   test("listFrameImages returns empty array for Frame with no images", () => {
-    const { frameStore, imageManager } = setup();
+    const { imageManager } = setup();
     try {
       const frame = createTestFrame();
       const images = imageManager.listFrameImages(frame.id);
@@ -217,7 +219,7 @@ describe("Image Manager", () => {
   });
 
   test("deleteImage removes image from storage", () => {
-    const { frameStore, imageManager } = setup();
+    const { imageManager } = setup();
     try {
       const frame = createTestFrame();
       const imageData = Buffer.from("fake-png-data");
@@ -235,7 +237,7 @@ describe("Image Manager", () => {
   });
 
   test("deleteImage returns false for non-existent image", () => {
-    const { frameStore, imageManager } = setup();
+    const { imageManager } = setup();
     try {
       const deleted = imageManager.deleteImage("nonexistent-image-id");
       assert.strictEqual(deleted, false, "Should return false for non-existent image");
@@ -245,7 +247,7 @@ describe("Image Manager", () => {
   });
 
   test("multiple images per Frame are supported", () => {
-    const { frameStore, imageManager } = setup();
+    const { imageManager } = setup();
     try {
       const frame = createTestFrame();
       const imageIds: string[] = [];
@@ -275,7 +277,7 @@ describe("Image Manager", () => {
   });
 
   test("image metadata includes size and created_at", () => {
-    const { frameStore, imageManager } = setup();
+    const { imageManager } = setup();
     try {
       const frame = createTestFrame();
       const imageData = Buffer.from("test-image-data");
@@ -299,7 +301,7 @@ describe("Image Manager", () => {
   });
 
   test("getImageCount returns total number of images", () => {
-    const { frameStore, imageManager } = setup();
+    const { imageManager } = setup();
     try {
       const frame1 = createTestFrame("frame-1");
       const frame2 = createTestFrame("frame-2");
@@ -317,7 +319,7 @@ describe("Image Manager", () => {
   });
 
   test("getTotalImageSize returns sum of all image sizes", () => {
-    const { frameStore, imageManager } = setup();
+    const { imageManager } = setup();
     try {
       const frame = createTestFrame();
 
@@ -335,7 +337,7 @@ describe("Image Manager", () => {
   });
 
   test("SVG images are supported", () => {
-    const { frameStore, imageManager } = setup();
+    const { imageManager } = setup();
     try {
       const frame = createTestFrame();
       const svgData = Buffer.from('<svg><circle r="10"/></svg>');
@@ -351,7 +353,7 @@ describe("Image Manager", () => {
   });
 
   test("image with exactly 10MB is accepted", () => {
-    const { frameStore, imageManager } = setup();
+    const { imageManager } = setup();
     try {
       const frame = createTestFrame();
       const imageData = Buffer.alloc(MAX_IMAGE_SIZE); // Exactly 10MB
@@ -364,7 +366,7 @@ describe("Image Manager", () => {
   });
 
   test("cascading delete removes images when Frame is deleted", () => {
-    const { frameStore, imageManager } = setup();
+    const { imageManager } = setup();
     try {
       const frame = createTestFrame();
       const imageData = Buffer.from("test-image");
@@ -376,7 +378,8 @@ describe("Image Manager", () => {
       assert.ok(retrieved, "Image should exist");
 
       // Delete the Frame (this should cascade to images via foreign key)
-      frameStore.deleteFrame(frame.id);
+      const deleteStmt = db.prepare("DELETE FROM frames WHERE id = ?");
+      deleteStmt.run(frame.id);
 
       // Verify image was deleted
       retrieved = imageManager.getImage(imageId);
