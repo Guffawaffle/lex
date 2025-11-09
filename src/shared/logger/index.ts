@@ -24,12 +24,20 @@ export type Log = Logger;
  * @returns Logger instance
  */
 export function getLogger(scope?: string): Log {
-  const pretty = process.env.LEX_LOG_PRETTY === "1" || process.stdout.isTTY;
+  const shouldUsePretty = process.env.LEX_LOG_PRETTY === "1" || process.stdout.isTTY;
 
-  // Attempt pretty mode if requested/TTY detected, but gracefully fall back to JSON
-  // if pino-pretty is unavailable. Transport will be undefined if pino-pretty missing,
-  // causing pino to default to JSON output.
-  const transport = pretty ? { target: "pino-pretty", options: { singleLine: true, colorize: true } } : undefined;
+  // Best-effort pretty transport: only use if pino-pretty is available
+  let transport: LoggerOptions["transport"];
+  if (shouldUsePretty) {
+    try {
+      // Attempt to require pino-pretty; if it fails, fall back to JSON silently
+      require.resolve("pino-pretty");
+      transport = { target: "pino-pretty", options: { singleLine: true, colorize: true } };
+    } catch {
+      // pino-pretty not available, fall back to JSON silently
+      transport = undefined;
+    }
+  }
 
   const root = pino({ ...baseOpts, transport });
 
