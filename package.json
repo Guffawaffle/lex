@@ -1,6 +1,6 @@
 {
   "name": "lex",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Policy-aware work continuity with receipts. Unified LexBrain + LexMap.",
   "type": "module",
   "main": "dist/index.js",
