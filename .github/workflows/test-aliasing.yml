@@ -101,17 +101,17 @@ jobs:
         run: npm run build
 
       - name: Run snapshot tests
-        run: node --test src/shared/aliases/resolution.spec.mjs
+        run: node --test test/shared/aliases/resolution.spec.mjs
 
       - name: Check for uncommitted snapshot changes
         run: |
-          if git diff --exit-code src/shared/aliases/__snapshots__/; then
+          if git diff --exit-code test/shared/aliases/__snapshots__/; then
             echo "✅ Snapshots are up to date"
           else
             echo "❌ Snapshot changes detected but not committed"
             echo "Run: LEX_UPDATE_SNAPSHOTS=1 npm run test:aliases"
             echo "Then commit the updated snapshots"
-            git diff src/shared/aliases/__snapshots__/
+            git diff test/shared/aliases/__snapshots__/
             exit 1
           fi
 

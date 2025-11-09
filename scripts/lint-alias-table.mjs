@@ -5,7 +5,7 @@
  */
 
 import { loadAliasTable } from '../dist/shared/aliases/resolver.js';
-import { lintAliasTableCase } from '../src/shared/aliases/case-sensitivity.spec.mjs';
+import { lintAliasTableCase } from '../test/shared/aliases/case-sensitivity.spec.mjs';
 
 try {
   const aliasTable = loadAliasTable();
