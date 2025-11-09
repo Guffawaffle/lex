@@ -4,7 +4,7 @@
  * Provides REST API endpoints for Frame ingestion from external tools
  */
 
-import express, { Express } from "express";
+import express, { Express, Request, Response } from "express";
 import type Database from "better-sqlite3";
 import { createFramesRouter } from "./routes/frames.js";
 import { getLogger } from "lex/logger";
@@ -29,7 +29,7 @@ export function createHttpServer(
   app.use(express.json());
 
   // Health check endpoint
-  app.get("/health", (req, res) => {
+  app.get("/health", (req: Request, res: Response) => {
     res.json({ status: "ok" });
   });
 
