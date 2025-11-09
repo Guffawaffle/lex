@@ -1,4 +1,5 @@
 {
+  "$comment": "This is an example/template policy file. The working copy is at .smartergpt.local/lex/lexmap.policy.json (created by 'npm run setup-local')",
   "modules": {
     "memory/store": {
       "coords": [0, 0],

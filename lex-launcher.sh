@@ -26,12 +26,17 @@ fi
 # Get the directory where this script is located
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
+# Default database path (can be overridden by LEX_MEMORY_DB env var)
+DEFAULT_DB_PATH="$SCRIPT_DIR/.smartergpt.local/lex/memory.db"
+LEX_MEMORY_DB="${LEX_MEMORY_DB:-$DEFAULT_DB_PATH}"
+export LEX_MEMORY_DB
+
 # Log startup info when debug is enabled
 if [ "$LEX_DEBUG" = "true" ] || [ "$LEX_DEBUG" = "1" ]; then
   echo "[LEX] Starting MCP server" >&2
   echo "[LEX] Node: $NODE_BIN" >&2
   echo "[LEX] Script dir: $SCRIPT_DIR" >&2
-  echo "[LEX] DB path: ${LEX_MEMORY_DB:-$SCRIPT_DIR/lex-memory.db}" >&2
+  echo "[LEX] DB path: $LEX_MEMORY_DB" >&2
 fi
 
 # Run the MCP server with absolute path
