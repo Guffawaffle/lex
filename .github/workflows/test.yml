@@ -42,6 +42,9 @@ jobs:
     - name: Install dependencies (hermetic)
       run: npm ci --ignore-scripts
 
+    - name: Initialize working files
+      run: npm run setup-local
+
     - name: Type check
       run: npm run type-check
 
@@ -69,6 +72,9 @@ jobs:
     - name: Install dependencies (hermetic)
       run: npm ci --ignore-scripts
 
+    - name: Initialize working files
+      run: npm run setup-local
+
     - name: Build
       run: npm run build
 
@@ -94,6 +100,9 @@ jobs:
 
     - name: Install dependencies (hermetic)
       run: npm ci --ignore-scripts
+
+    - name: Initialize working files
+      run: npm run setup-local
 
     - name: Build
       run: npm run build
