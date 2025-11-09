@@ -14,6 +14,7 @@ import {
   estimateTokens,
   getCacheStats,
 } from "../atlas/index.js";
+import * as output from "./output.js";
 
 export interface RecallOptions {
   json?: boolean;
@@ -54,9 +55,9 @@ export async function recall(query: string, options: RecallOptions = {}): Promis
     if (frames.length === 0) {
       // Print hint to stderr if FTS5 syntax error occurred
       if (searchHint) {
-        console.error(`\n⚠️  ${searchHint}\n`);
+        output.error(`\n⚠️  ${searchHint}\n`);
       }
-      console.log(`\n❌ No frames found matching: "${query}"\n`);
+      output.info(`\n❌ No frames found matching: "${query}"\n`);
       process.exit(1);
     }
 
@@ -74,12 +75,12 @@ export async function recall(query: string, options: RecallOptions = {}): Promis
           tokens: atlasResult.tokens,
         });
       }
-      console.log(JSON.stringify(results, null, 2));
+      output.json(results);
     } else {
       // Pretty print results
       for (let i = 0; i < frames.length; i++) {
         if (i > 0) {
-          console.log("\n" + "─".repeat(80) + "\n");
+          output.info("\n" + "─".repeat(80) + "\n");
         }
         await displayFrame(frames[i], options);
       }
@@ -90,16 +91,16 @@ export async function recall(query: string, options: RecallOptions = {}): Promis
         const total = stats.hits + stats.misses;
         const hitRate = total === 0 ? 0 : (stats.hits / total) * 100;
 
-        console.log(`\n📊 Cache Statistics:`);
-        console.log(`   Hits: ${stats.hits}`);
-        console.log(`   Misses: ${stats.misses}`);
-        console.log(`   Hit Rate: ${hitRate.toFixed(1)}%`);
-        console.log(`   Cache Size: ${stats.size} entries`);
-        console.log(`   Evictions: ${stats.evictions}`);
+        output.info(`\n📊 Cache Statistics:`);
+        output.info(`   Hits: ${stats.hits}`);
+        output.info(`   Misses: ${stats.misses}`);
+        output.info(`   Hit Rate: ${hitRate.toFixed(1)}%`);
+        output.info(`   Cache Size: ${stats.size} entries`);
+        output.info(`   Evictions: ${stats.evictions}`);
       }
     }
   } catch (error: any) {
-    console.error(`\n❌ Error: ${error.message}\n`);
+    output.error(`\n❌ Error: ${error.message}\n`);
     process.exit(2);
   }
 }
@@ -108,44 +109,44 @@ export async function recall(query: string, options: RecallOptions = {}): Promis
  * Display a Frame with Atlas Frame context
  */
 async function displayFrame(frame: Frame, options: RecallOptions): Promise<void> {
-  console.log(`\n📋 Frame: ${frame.jira || frame.id}`);
-  console.log(`   Timestamp: ${new Date(frame.timestamp).toLocaleString()}`);
-  console.log(`   Branch: ${frame.branch}`);
-  console.log(`\n   Reference: "${frame.reference_point}"`);
-  console.log(`\n   Summary: ${frame.summary_caption}`);
+  output.info(`\n📋 Frame: ${frame.jira || frame.id}`);
+  output.info(`   Timestamp: ${new Date(frame.timestamp).toLocaleString()}`);
+  output.info(`   Branch: ${frame.branch}`);
+  output.info(`\n   Reference: "${frame.reference_point}"`);
+  output.info(`\n   Summary: ${frame.summary_caption}`);
 
-  console.log(`\n   Next action: ${frame.status_snapshot.next_action}`);
+  output.info(`\n   Next action: ${frame.status_snapshot.next_action}`);
 
   if (frame.status_snapshot.blockers && frame.status_snapshot.blockers.length > 0) {
-    console.log(`\n   Blockers:`);
+    output.info(`\n   Blockers:`);
     for (const blocker of frame.status_snapshot.blockers) {
-      console.log(`     • ${blocker}`);
+      output.info(`     • ${blocker}`);
     }
   }
 
   if (frame.status_snapshot.merge_blockers && frame.status_snapshot.merge_blockers.length > 0) {
-    console.log(`\n   Merge blockers:`);
+    output.info(`\n   Merge blockers:`);
     for (const blocker of frame.status_snapshot.merge_blockers) {
-      console.log(`     • ${blocker}`);
+      output.info(`     • ${blocker}`);
     }
   }
 
   if (frame.status_snapshot.tests_failing && frame.status_snapshot.tests_failing.length > 0) {
-    console.log(`\n   Tests failing:`);
+    output.info(`\n   Tests failing:`);
     for (const test of frame.status_snapshot.tests_failing) {
-      console.log(`     • ${test}`);
+      output.info(`     • ${test}`);
     }
   }
 
   if (frame.keywords && frame.keywords.length > 0) {
-    console.log(`\n   Keywords: ${frame.keywords.join(", ")}`);
+    output.info(`\n   Keywords: ${frame.keywords.join(", ")}`);
   }
 
   // Generate Atlas Frame with auto-tuning if enabled
   const atlasResult = await generateAtlasFrameWithAutoTune(frame, options);
 
   if (atlasResult.autoTuned) {
-    console.log(
+    output.info(
       `\n⚙️  Auto-tuned radius: ${atlasResult.requestedRadius} → ${atlasResult.actualRadius} (${atlasResult.tokens} tokens)`
     );
   }
@@ -153,40 +154,40 @@ async function displayFrame(frame: Frame, options: RecallOptions): Promise<void>
   const atlasFrame = atlasResult.atlasFrame;
   const foldRadius = atlasResult.actualRadius;
 
-  console.log(`\n🗺️  Atlas Frame (fold radius ${foldRadius}):`);
-  console.log(`\n   Modules in scope:`);
+  output.info(`\n🗺️  Atlas Frame (fold radius ${foldRadius}):`);
+  output.info(`\n   Modules in scope:`);
   for (const module of frame.module_scope) {
-    console.log(`     • ${module}`);
+    output.info(`     • ${module}`);
   }
 
   if (atlasFrame) {
-    console.log(`\n   Neighborhood (${atlasFrame.modules.length} modules within radius):`);
+    output.info(`\n   Neighborhood (${atlasFrame.modules.length} modules within radius):`);
 
     // Just list all modules in the atlas
     for (const module of atlasFrame.modules) {
-      console.log(`     • ${module.id}`);
+      output.info(`     • ${module.id}`);
     }
 
     // Show edges if any
     if (atlasFrame.edges && atlasFrame.edges.length > 0) {
-      console.log(`\n   Edges (${atlasFrame.edges.length}):`);
+      output.info(`\n   Edges (${atlasFrame.edges.length}):`);
       for (const edge of atlasFrame.edges.slice(0, 5)) {
         // Show max 5 edges
         const symbol = edge.reason === "allowed" ? "✓" : "✗";
-        console.log(`     ${symbol} ${edge.from} → ${edge.to} (${edge.reason})`);
+        output.info(`     ${symbol} ${edge.from} → ${edge.to} (${edge.reason})`);
       }
       if (atlasFrame.edges.length > 5) {
-        console.log(`     ... and ${atlasFrame.edges.length - 5} more`);
+        output.info(`     ... and ${atlasFrame.edges.length - 5} more`);
       }
     }
 
     // Show token estimate
     if (options.autoRadius || options.maxTokens) {
-      console.log(`\n   Token estimate: ${atlasResult.tokens} tokens`);
+      output.info(`\n   Token estimate: ${atlasResult.tokens} tokens`);
     }
   }
 
-  console.log("");
+  output.info("");
 }
 
 /**
@@ -227,7 +228,7 @@ async function generateAtlasFrameWithAutoTune(
         (oldRadius, newRadius, tokens, limit) => {
           // Only log adjustments when not in JSON mode
           if (!options.json) {
-            console.log(
+            output.info(
               `\n⚙️  Auto-tuning: radius ${oldRadius} → ${newRadius} (${tokens} tokens exceeded ${limit} limit)`
             );
           }

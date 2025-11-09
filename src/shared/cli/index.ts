@@ -9,6 +9,7 @@ import { remember, type RememberOptions } from "./remember.js";
 import { recall, type RecallOptions } from "./recall.js";
 import { check, type CheckOptions } from "./check.js";
 import { timeline, type TimelineCommandOptions } from "./timeline.js";
+import * as output from "./output.js";
 import { readFileSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
@@ -104,7 +105,7 @@ export function createProgram(): Command {
 
       // Validate auto-radius options
       if (options.autoRadius && !options.maxTokens) {
-        console.error("Error: --auto-radius requires --max-tokens to be specified");
+        output.error("Error: --auto-radius requires --max-tokens to be specified");
         process.exit(1);
       }
 

@@ -10,9 +10,10 @@
  */
 
 import { run } from "./index.js";
+import * as output from "./output.js";
 
 // Run the CLI
 run().catch((error) => {
-  console.error("Unexpected error:", error);
+  output.error("Unexpected error:" + String(error));
   process.exit(2);
 });
