@@ -9,7 +9,6 @@ import assert from "node:assert";
 import { unlinkSync, existsSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
-import express, { Express } from "express";
 import { createDatabase } from "@app/memory/store/db.js";
 import { createFramesRouter } from "@app/memory/mcp_server/routes/frames.js";
 import type Database from "better-sqlite3";
@@ -18,60 +17,12 @@ import type Database from "better-sqlite3";
 const TEST_DB_PATH = join(tmpdir(), `test-frames-api-${Date.now()}.db`);
 const TEST_API_KEY = "test-api-key-12345";
 
-// Helper to make requests to the router
-async function makeRequest(
-  app: Express,
-  options: {
-    method: string;
-    path: string;
-    body?: any;
-    headers?: Record<string, string>;
-  }
-): Promise<{
-  status: number;
-  body: any;
-}> {
-  return new Promise((resolve) => {
-    const req = {
-      method: options.method,
-      path: options.path,
-      body: options.body || {},
-      headers: options.headers || {},
-    } as any;
-
-    const res = {
-      statusCode: 200,
-      _body: null as any,
-      status(code: number) {
-        this.statusCode = code;
-        return this;
-      },
-      json(data: any) {
-        this._body = data;
-        resolve({
-          status: this.statusCode,
-          body: this._body,
-        });
-      },
-    } as any;
-
-    // Execute middleware stack
-    app._router.handle(req, res, () => {});
-  });
-}
-
 describe("Frame Ingestion API Tests", () => {
   let db: Database.Database;
-  let app: Express;
 
   before(() => {
     // Create test database
     db = createDatabase(TEST_DB_PATH);
-
-    // Create Express app with frames router
-    app = express();
-    app.use(express.json());
-    app.use("/api/frames", createFramesRouter(db, TEST_API_KEY));
   });
 
   after(() => {
