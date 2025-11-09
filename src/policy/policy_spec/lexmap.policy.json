@@ -1,46 +1,130 @@
 {
   "modules": {
-    "patterns": [
-      {
-        "name": "indexer",
-        "match": "src/policy/scanners/**"
-      },
-      {
-        "name": "ts",
-        "match": "src/**/*.ts"
-      },
-      {
-        "name": "php",
-        "match": "src/policy/scanners/php_scanner.py"
-      },
-      {
-        "name": "mcp",
-        "match": "src/memory/mcp_server/**"
-      }
-    ],
-    "allowed_deps": []
+    "memory/store": {
+      "coords": [0, 0],
+      "owns_paths": ["src/memory/store/**"],
+      "exposes": ["getDb", "closeDb", "saveFrame", "getFrameById", "searchFrames"],
+      "allowed_callers": ["memory/mcp", "memory/renderer", "cli"],
+      "forbidden_callers": ["policy/check", "policy/merge", "policy/scanners"],
+      "notes": "Core Frame storage layer - SQLite database operations"
+    },
+    "memory/frames": {
+      "coords": [0, 1],
+      "owns_paths": ["src/memory/frames/**"],
+      "exposes": ["Frame", "StatusSnapshot"],
+      "allowed_callers": ["memory/store", "memory/mcp", "memory/renderer", "cli"],
+      "forbidden_callers": [],
+      "notes": "Frame type definitions and interfaces"
+    },
+    "memory/mcp": {
+      "coords": [0, 2],
+      "owns_paths": ["src/memory/mcp_server/**"],
+      "exposes": ["LexBrainServer"],
+      "allowed_callers": [],
+      "forbidden_callers": [],
+      "notes": "MCP server for assistant integration - stdio interface"
+    },
+    "memory/renderer": {
+      "coords": [0, 3],
+      "owns_paths": ["src/memory/renderer/**"],
+      "exposes": ["renderMemoryCard", "renderTimeline"],
+      "allowed_callers": ["memory/mcp", "cli"],
+      "forbidden_callers": ["policy/check", "policy/merge"],
+      "notes": "Memory card and timeline visualization rendering"
+    },
+    "policy/check": {
+      "coords": [2, 0],
+      "owns_paths": ["src/policy/check/**"],
+      "exposes": ["checkPolicy", "LexMapChecker"],
+      "allowed_callers": ["cli"],
+      "forbidden_callers": ["memory/store", "memory/mcp"],
+      "notes": "Policy enforcement - compares scanner output against lexmap.policy.json"
+    },
+    "policy/merge": {
+      "coords": [2, 1],
+      "owns_paths": ["src/policy/merge/**"],
+      "exposes": ["mergeScannerOutputs"],
+      "allowed_callers": ["policy/check", "cli"],
+      "forbidden_callers": ["memory/store", "memory/mcp"],
+      "notes": "Merges multiple scanner outputs into unified JSON"
+    },
+    "policy/scanners": {
+      "coords": [2, 2],
+      "owns_paths": ["src/policy/scanners/**"],
+      "exposes": ["TypeScriptScanner", "PythonScanner", "PHPScanner"],
+      "allowed_callers": ["policy/merge"],
+      "forbidden_callers": ["memory/store", "memory/mcp"],
+      "notes": "Language-specific code scanners (dumb by design) - emit structural facts"
+    },
+    "shared/types": {
+      "coords": [1, 0],
+      "owns_paths": ["src/shared/types/**"],
+      "exposes": ["Policy", "PolicyModule", "Frame", "AtlasFrame"],
+      "allowed_callers": ["memory/store", "memory/frames", "memory/mcp", "policy/check", "policy/merge", "shared/atlas", "shared/policy", "shared/module_ids", "cli"],
+      "forbidden_callers": [],
+      "notes": "Shared TypeScript type definitions - used across all modules"
+    },
+    "shared/policy": {
+      "coords": [1, 1],
+      "owns_paths": ["src/shared/policy/**"],
+      "exposes": ["loadPolicy", "clearPolicyCache"],
+      "allowed_callers": ["memory/mcp", "policy/check", "policy/merge", "shared/atlas", "shared/module_ids", "cli"],
+      "forbidden_callers": [],
+      "notes": "Policy loading and caching utility - reads lexmap.policy.json"
+    },
+    "shared/atlas": {
+      "coords": [1, 2],
+      "owns_paths": ["src/shared/atlas/**"],
+      "exposes": ["computeFoldRadius", "generateAtlasFrame"],
+      "allowed_callers": ["memory/mcp", "cli"],
+      "forbidden_callers": ["policy/scanners"],
+      "notes": "Atlas Frame generation - fold-radius spatial neighborhood extraction"
+    },
+    "shared/module_ids": {
+      "coords": [1, 3],
+      "owns_paths": ["src/shared/module_ids/**"],
+      "exposes": ["validateModuleIds", "suggestModuleIds"],
+      "allowed_callers": ["memory/store", "memory/mcp", "cli"],
+      "forbidden_callers": ["policy/scanners"],
+      "notes": "THE CRITICAL RULE enforcement - validates module IDs against policy"
+    },
+    "shared/aliases": {
+      "coords": [1, 4],
+      "owns_paths": ["src/shared/aliases/**"],
+      "exposes": ["resolveAlias", "loadAliasTable"],
+      "allowed_callers": ["shared/module_ids", "memory/mcp", "cli"],
+      "forbidden_callers": ["policy/scanners"],
+      "notes": "Module ID alias resolution - supports team shorthand conventions"
+    },
+    "shared/git": {
+      "coords": [1, 5],
+      "owns_paths": ["src/shared/git/**"],
+      "exposes": ["getCurrentBranch", "getGitStatus", "getDiff"],
+      "allowed_callers": ["memory/mcp", "memory/renderer", "cli"],
+      "forbidden_callers": ["policy/check", "policy/merge"],
+      "notes": "Git integration utilities for Frame context"
+    },
+    "cli": {
+      "coords": [3, 0],
+      "owns_paths": ["src/cli/**", "src/shared/cli/**"],
+      "exposes": ["remember", "recall", "check", "timeline"],
+      "allowed_callers": [],
+      "forbidden_callers": [],
+      "notes": "Unified CLI surface - orchestrates memory and policy subsystems"
+    }
   },
-  "kill_patterns": [
+  "global_kill_patterns": [
     {
-      "kind": "generated",
-      "match": "**/dist/**"
+      "pattern": "**/dist/**",
+      "description": "Generated build output - should not be in source control"
     },
     {
-      "kind": "vendor",
-      "match": "**/node_modules/**"
+      "pattern": "**/node_modules/**",
+      "description": "Vendor dependencies - managed by package manager"
     },
     {
-      "kind": "vendor",
-      "match": "**/vendor/**"
+      "pattern": "**/vendor/**",
+      "description": "Vendor dependencies - managed by package manager"
     }
-  ],
-  "heuristics": {
-    "enable": true,
-    "di_patterns": [],
-    "confidence": {
-      "hard": 0.95,
-      "soft": 0.6
-    }
-  },
-  "determinism_target": 0.95
+  ]
 }

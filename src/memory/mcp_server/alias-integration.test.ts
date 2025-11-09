@@ -35,10 +35,9 @@ describe("MCP Server Alias Resolution Integration Tests", () => {
 
     const testPolicy = {
       modules: {
-        indexer: { owns_paths: ["indexer/**"] },
-        ts: { owns_paths: ["ts/**"] },
-        php: { owns_paths: ["php/**"] },
-        mcp: { owns_paths: ["mcp/**"] },
+        "policy/scanners": { owns_paths: ["src/policy/scanners/**"] },
+        "shared/types": { owns_paths: ["src/shared/types/**"] },
+        "memory/mcp": { owns_paths: ["src/memory/mcp_server/**"] },
         "services/auth-core": { owns_paths: ["services/auth/**"] },
         "ui/main-panel": { owns_paths: ["ui/main/**"] },
       },
@@ -108,7 +107,7 @@ describe("MCP Server Alias Resolution Integration Tests", () => {
               status_snapshot: {
                 next_action: "Continue",
               },
-              module_scope: ["indexer", "ts", "services/auth-core"],
+              module_scope: ["policy/scanners", "shared/types", "services/auth-core"],
             },
           },
         });
@@ -135,15 +134,15 @@ describe("MCP Server Alias Resolution Integration Tests", () => {
               status_snapshot: {
                 next_action: "Fix typo",
               },
-              module_scope: ["indexr"], // Typo: should be "indexer"
+              module_scope: ["policy/scannrs"], // Typo: should be "policy/scanners"
             },
           },
         });
 
         assert.ok(response.error, "Should return error for typo");
-        assert.ok(response.error.message.includes("indexr"), "Error should mention the typo");
+        assert.ok(response.error.message.includes("scannrs"), "Error should mention the typo");
         assert.ok(response.error.message.includes("Did you mean"), "Should provide suggestion");
-        assert.ok(response.error.message.includes("indexer"), "Should suggest 'indexer'");
+        assert.ok(response.error.message.includes("policy/scanners"), "Should suggest 'policy/scanners'");
       } finally {
         teardown();
       }
@@ -250,7 +249,7 @@ describe("MCP Server Alias Resolution Integration Tests", () => {
               status_snapshot: {
                 next_action: "Be more specific",
               },
-              module_scope: ["t"], // Could match "ts" or part of others
+              module_scope: ["t"], // Could match "shared/types" or part of others
             },
           },
         });
@@ -289,8 +288,8 @@ describe("MCP Server Alias Resolution Integration Tests", () => {
           "Should list available modules"
         );
         assert.ok(
-          response.error.message.includes("indexer"),
-          "Should include 'indexer' in available modules"
+          response.error.message.includes("policy/scanners"),
+          "Should include 'policy/scanners' in available modules"
         );
         assert.ok(
           response.error.message.includes("services/auth-core"),
@@ -316,7 +315,7 @@ describe("MCP Server Alias Resolution Integration Tests", () => {
               status_snapshot: {
                 next_action: "Fix invalid modules",
               },
-              module_scope: ["indexer", "invalid1", "ts", "invalid2"],
+              module_scope: ["policy/scanners", "invalid1", "shared/types", "invalid2"],
             },
           },
         });
@@ -352,7 +351,7 @@ describe("MCP Server Alias Resolution Integration Tests", () => {
               status_snapshot: {
                 next_action: "Measure time",
               },
-              module_scope: ["indexer", "ts", "php", "mcp"],
+              module_scope: ["policy/scanners", "shared/types", "memory/mcp"],
             },
           },
         });
@@ -381,7 +380,7 @@ describe("MCP Server Alias Resolution Integration Tests", () => {
               status_snapshot: {
                 next_action: "Continue",
               },
-              module_scope: ["indexer", "ts", "php", "mcp", "services/auth-core", "ui/main-panel"],
+              module_scope: ["policy/scanners", "shared/types", "policy/scanners", "memory/mcp", "services/auth-core", "ui/main-panel"],
             },
           },
         });
