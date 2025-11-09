@@ -489,7 +489,7 @@ describe("generateReport", () => {
     const violations = [];
     const policy = { modules: {} };
 
-    const report = generateReport(violations, policy, "text");
+    const report = generateReport(violations, { policy, format: "text" });
 
     assert.equal(report.exitCode, 0);
     assert.ok(report.content.includes("No violations"));
@@ -507,7 +507,7 @@ describe("generateReport", () => {
     ];
     const policy = { modules: { "test-module": { owns_paths: ["src/**"] } } };
 
-    const report = generateReport(violations, policy, "text");
+    const report = generateReport(violations, { policy, format: "text" });
 
     assert.equal(report.exitCode, 1);
     assert.ok(report.content.includes("violation"));
@@ -526,7 +526,7 @@ describe("generateReport", () => {
     ];
     const policy = { modules: {} };
 
-    const report = generateReport(violations, policy, "json");
+    const report = generateReport(violations, { policy, format: "json" });
 
     assert.equal(report.exitCode, 1);
 
@@ -548,7 +548,7 @@ describe("generateReport", () => {
     ];
     const policy = { modules: { "test-module": { owns_paths: ["src/**"] } } };
 
-    const report = generateReport(violations, policy, "markdown");
+    const report = generateReport(violations, { policy, format: "markdown" });
 
     assert.equal(report.exitCode, 1);
     assert.ok(report.content.includes("# Policy Check Report"));
