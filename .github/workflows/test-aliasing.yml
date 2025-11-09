@@ -35,22 +35,11 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Run alias resolution tests
-        run: npm run test:aliases
-
-      - name: Check alias test coverage
+      - name: Run alias tests with coverage
         run: |
           npx c8 --reporter=text \
              --reporter=json-summary \
-             --include=src/shared/aliases/**/*.ts \
-             --include=src/shared/aliases/**/*.mts \
-             --exclude=**/*.test.* \
-             --exclude=**/*.spec.* \
-             npm run test:aliases
-
-      - name: Verify coverage requirements (90%+)
-        run: |
-          npx c8 --check-coverage \
+             --check-coverage \
              --branches 90 \
              --functions 90 \
              --lines 90 \
