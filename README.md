@@ -230,6 +230,7 @@ The goal of this repo is to ship them as one system called **Lex** with one CLI 
 - [Architecture Loop](./docs/ARCHITECTURE_LOOP.md) — the full explainability story
 - [Adoption Guide](./docs/ADOPTION_GUIDE.md) — how to roll out Lex in phases
 - [Limitations](./docs/LIMITATIONS.md) — known constraints and future work
+- [Epic C Overlap Analysis](./docs/EPIC_C_OVERLAP.md) — coordination with existing PRs #72-#77
 
 ## Source Layout
 

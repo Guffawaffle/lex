@@ -162,6 +162,8 @@ import type { AliasResolution } from "lex/aliases/types";
 - **PR #86**: Add Epic/Subtask issue templates
 - **PR #87**: Lex OSS README badge + note
 
+**Note:** PRs #72-#77 are foundational to **Epic C: Frame ingestion & Atlas/Map sync pipeline**. See [docs/EPIC_C_OVERLAP.md](./docs/EPIC_C_OVERLAP.md) for detailed overlap analysis to prevent duplication in future sub-tasks.
+
 ## Commits
 
 All changes staged as single atomic commit:
