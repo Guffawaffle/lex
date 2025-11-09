@@ -180,6 +180,33 @@ recalled.forEach((f) => {
 closeDb(db);
 ```
 
+### CLI Output
+
+The Lex CLI provides two output modes for different use cases:
+
+- **Plain Mode** (default): Human-readable with colors and symbols (`✔`, `⚠`, `✖`)
+- **JSONL Mode**: Machine-readable events for automation and monitoring
+
+```bash
+# Human-readable output (default)
+lex remember --reference "test" --caption "test"
+# ✔ Frame created successfully!
+#   Frame ID: 550e8400-e29b-41d4-a716-446655440000
+#   Timestamp: 2025-01-09T12:34:56.789Z
+
+# Machine-readable JSONL output
+LEX_CLI_OUTPUT_MODE=jsonl lex remember --reference "test" --caption "test"
+# {"v":1,"ts":"2025-01-09T12:34:56.789Z","level":"success","message":"Frame created successfully!","data":{...}}
+```
+
+**Key Features:**
+- **Dual sinks**: Output goes to both console (for users) and optional diagnostic logger (pino)
+- **Stream routing**: Errors/warnings to stderr, info/success/debug to stdout
+- **Parseable events**: JSONL mode outputs [CliEvent v1](./schemas/cli-output.v1.schema.json) structures
+- **Type-safe**: Full TypeScript types available via `lex/cli-output` subpath export
+
+See [docs/CLI_OUTPUT.md](./docs/CLI_OUTPUT.md) for complete documentation, examples, and consumer integration guide.
+
 ### CLI Usage
 
 ```bash
