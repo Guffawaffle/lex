@@ -175,6 +175,15 @@ jobs:
           fi
           echo "✅ No tests in dist: dist/ is clean"
 
+      - name: No @app/ specifiers in dist
+        if: matrix.node-version == '22'
+        run: |
+          if grep -r "@app/" dist/; then
+            echo "❌ Found @app/ specifiers in dist/ - aliases should be resolved at build time"
+            exit 1
+          fi
+          echo "✅ No @app/ specifiers in dist: all aliases resolved"
+
       - name: Enforce TS-only rule (no .js in src/)
         run: npm run guard:no-js-src
 
