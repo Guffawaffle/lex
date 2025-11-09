@@ -1,18 +1,23 @@
-# Frame MCP Server
+# Frame MCP Server & HTTP API
 
-**Model Context Protocol server for Frame storage and recall**
+**Model Context Protocol server and HTTP API for Frame storage and recall**
 
-Exposes Frame episodic memory to AI assistants (Copilot, Claude, etc.) via stdio.
+Provides two interfaces:
+1. **MCP Server** - Exposes Frame memory to AI assistants via stdio
+2. **HTTP API** - RESTful endpoint for programmatic Frame ingestion from external tools
 
 ## Features
 
 - ✅ MCP protocol over stdio (line-delimited JSON)
+- ✅ HTTP POST /api/frames endpoint for Frame ingestion
+- ✅ Content-hash based deduplication (5-minute timestamp buckets)
+- ✅ API key authentication for HTTP endpoint
 - ✅ SQLite + FTS5 for fuzzy Frame recall
 - ✅ Atlas Frame generation (spatial neighborhood context)
 - ✅ Module ID validation with fuzzy suggestions (THE CRITICAL RULE)
-- ✅ Three tools: `lex.remember`, `lex.recall`, `lex.list_frames`
+- ✅ Three MCP tools: `lex.remember`, `lex.recall`, `lex.list_frames`
 - ✅ Local-first (no cloud sync, no telemetry)
-- ✅ Comprehensive test suite (integration + alias resolution)
+- ✅ Comprehensive test suite (integration + alias resolution + performance)
 
 ## Tools
 
@@ -105,7 +110,7 @@ List recent Frames with optional filtering.
 }
 ```
 
-## Running the Server
+## Running the MCP Server
 
 ### Via npm script (from root):
 ```bash
@@ -125,6 +130,96 @@ node dist/memory/mcp_server/frame-mcp.js
 ```bash
 echo '{"method":"tools/list"}' | LEX_DEBUG=1 node dist/memory/mcp_server/frame-mcp.js
 ```
+
+## Running the HTTP API Server
+
+### Basic Setup:
+
+```typescript
+import { createDatabase } from "lex/memory/store";
+import { startHttpServer } from "lex/memory/mcp_server/http-server";
+
+const db = createDatabase("/path/to/frames.db");
+
+await startHttpServer(db, {
+  port: 3000,
+  apiKey: process.env.LEX_API_KEY,
+});
+```
+
+### HTTP Endpoints:
+
+#### POST /api/frames
+Create a new Frame. Returns `201 Created` with Frame ID on success.
+
+**Authentication:** Requires `Authorization: Bearer <api-key>` header
+
+**Request Body:**
+```json
+{
+  "reference_point": "auth handshake timeout",
+  "summary_caption": "Fixed timeout in auth service",
+  "module_scope": ["services/auth", "lib/networking"],
+  "status_snapshot": {
+    "next_action": "Deploy to staging",
+    "blockers": ["Waiting for QA approval"]
+  },
+  "branch": "feature/auth-fix",
+  "jira": "TICKET-123"
+}
+```
+
+**Response (201):**
+```json
+{
+  "id": "frame-1699564800-abc123",
+  "status": "created"
+}
+```
+
+**Error Responses:**
+- `400 Bad Request` - Validation failed (missing required fields, invalid types)
+- `401 Unauthorized` - Missing or invalid API key
+- `409 Conflict` - Duplicate frame (same content hash)
+- `500 Internal Server Error` - Database or server error
+
+See [API_ERRORS.md](../../../docs/API_ERRORS.md) for complete error documentation.
+
+#### GET /health
+Health check endpoint. Returns `200 OK` with `{"status":"ok"}`.
+
+### Environment Variables:
+- `LEX_API_KEY` - API key for authentication (required for security)
+- `LEX_DB_PATH` - Path to SQLite database (default: `.smartergpt.local/lex/memory.db`)
+- `LEX_API_PORT` - Server port (default: `3000`)
+
+### Example: Starting the Server
+
+```bash
+export LEX_API_KEY="your-secure-api-key"
+export LEX_API_PORT=3000
+node -e "
+  import('./dist/memory/store/index.js').then(store => {
+    import('./dist/memory/mcp_server/http-server.js').then(server => {
+      const db = store.createDatabase();
+      server.startHttpServer(db, { 
+        port: process.env.LEX_API_PORT, 
+        apiKey: process.env.LEX_API_KEY 
+      });
+    });
+  });
+"
+```
+
+### Usage Examples:
+
+See [API_USAGE.md](../../../docs/API_USAGE.md) for comprehensive examples including:
+- curl commands
+- JavaScript/TypeScript examples
+- Python examples
+- Batch ingestion
+- Error handling
+- LexRunner integration
 
 ## Integration with AI Assistants
 
@@ -182,7 +277,10 @@ npm test
 src/memory/mcp_server/
 ├── frame-mcp.mjs          Entry point (stdio protocol handler)
 ├── server.ts              MCPServer class (request routing)
-├── tools.ts               Tool definitions
+├── http-server.ts         HTTP API server setup
+├── routes/
+│   └── frames.ts          POST /api/frames endpoint implementation
+├── tools.ts               MCP tool definitions
 ├── ../store/              FrameStore (SQLite + FTS5)
 └── ../../shared/atlas/    Atlas Frame generation
 ```
