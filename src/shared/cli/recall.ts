@@ -14,7 +14,7 @@ import {
   estimateTokens,
   getCacheStats,
 } from "../atlas/index.js";
-import { output } from "./output.js";
+import { output, json } from "./output.js";
 
 export interface RecallOptions {
   json?: boolean;
@@ -75,10 +75,7 @@ export async function recall(query: string, options: RecallOptions = {}): Promis
           tokens: atlasResult.tokens,
         });
       }
-      // For --json flag, output structured data (bypassing wrapper for raw JSON)
-      // This is an exception: raw JSON output for machine consumption
-      // eslint-disable-next-line no-console
-      console.log(JSON.stringify(results, null, 2));
+      json(results);
     } else {
       // Pretty print results
       for (let i = 0; i < frames.length; i++) {

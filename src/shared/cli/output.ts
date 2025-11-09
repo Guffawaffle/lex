@@ -18,16 +18,12 @@
 import type { CliEvent, CliLevel, OutputOptions, CliOutput } from "./output.types.js";
 import { getLogger } from "../logger/index.js";
 
-const isTTY = !!process.stdout.isTTY;
-const envMode = (process.env.LEX_CLI_OUTPUT_MODE ?? "").toLowerCase();
-const envPretty = process.env.LEX_CLI_PRETTY === "1" || isTTY;
-
 // Tiny color helpers (no external deps)
 const c = {
-  dim: (s: string) => (envPretty ? `\x1b[2m${s}\x1b[0m` : s),
-  green: (s: string) => (envPretty ? `\x1b[32m${s}\x1b[0m` : s),
-  yellow: (s: string) => (envPretty ? `\x1b[33m${s}\x1b[0m` : s),
-  red: (s: string) => (envPretty ? `\x1b[31m${s}\x1b[0m` : s),
+  dim: (s: string) => (process.env.LEX_CLI_PRETTY === "1" || process.stdout.isTTY ? `\x1b[2m${s}\x1b[0m` : s),
+  green: (s: string) => (process.env.LEX_CLI_PRETTY === "1" || process.stdout.isTTY ? `\x1b[32m${s}\x1b[0m` : s),
+  yellow: (s: string) => (process.env.LEX_CLI_PRETTY === "1" || process.stdout.isTTY ? `\x1b[33m${s}\x1b[0m` : s),
+  red: (s: string) => (process.env.LEX_CLI_PRETTY === "1" || process.stdout.isTTY ? `\x1b[31m${s}\x1b[0m` : s),
 };
 
 /**
@@ -37,6 +33,7 @@ const c = {
  * @returns CLI output writer with info/success/warn/error/debug/json methods
  */
 export function createOutput(opts: OutputOptions = {}): CliOutput {
+  const envMode = (process.env.LEX_CLI_OUTPUT_MODE ?? "").toLowerCase();
   const mode = opts.mode ?? (envMode === "jsonl" ? "jsonl" : "plain");
   const scope = opts.scope;
   const diag = opts.logger ?? getLogger("cli:output");
@@ -65,15 +62,15 @@ export function createOutput(opts: OutputOptions = {}): CliOutput {
 
     // Diagnostic sink: always gets structured object (non-blocking)
     try {
-      const diagMsg = message ?? code ?? `cli ${level}`;
+      const diagMsg = `CLI Output: ${message ?? code ?? level}`;
       if (level === "error") {
-        diag.error({ evt }, diagMsg);
+        diag.error(diagMsg);
       } else if (level === "warn") {
-        diag.warn({ evt }, diagMsg);
+        diag.warn(diagMsg);
       } else if (level === "debug") {
-        diag.debug({ evt }, diagMsg);
+        diag.debug(diagMsg);
       } else {
-        diag.info({ evt }, diagMsg);
+        diag.info(diagMsg);
       }
     } catch {
       // Avoid breaking CLI on logger errors
@@ -82,7 +79,7 @@ export function createOutput(opts: OutputOptions = {}): CliOutput {
     // User-facing sink: stdout/stderr
     if (mode === "jsonl") {
       const line = JSON.stringify(evt);
-      if (level === "error") {
+      if (level === "error" || level === "warn") {
         console.error(line);
       } else {
         console.log(line);
@@ -106,7 +103,7 @@ export function createOutput(opts: OutputOptions = {}): CliOutput {
     const msg = message ?? code ?? "";
     const line = `${tag} ${sc}${msg}`;
 
-    if (level === "error") {
+    if (level === "error" || level === "warn") {
       console.error(line);
     } else {
       console.log(line);
@@ -160,4 +157,9 @@ export const success = output.success.bind(output);
 export const warn = output.warn.bind(output);
 export const error = output.error.bind(output);
 export const debug = output.debug.bind(output);
-export const json = output.json.bind(output);
+
+// Backward-compatible json export: outputs raw JSON (bypasses wrapper)
+// Used for --json flags in CLI commands to output arbitrary data
+export function json(data: unknown): void {
+  console.log(JSON.stringify(data, null, 2));
+}
