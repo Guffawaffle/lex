@@ -43,4 +43,3 @@ export declare function deleteFrame(db: Database.Database, id: string): boolean;
  * Get count of all Frames
  */
 export declare function getFrameCount(db: Database.Database): number;
-//# sourceMappingURL=queries.d.ts.map

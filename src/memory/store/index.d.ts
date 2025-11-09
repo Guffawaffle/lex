@@ -35,4 +35,3 @@ export declare function getDb(customPath?: string): Database.Database;
  */
 export declare function closeDb(): void;
 export { createDatabase, getDefaultDbPath } from "./db.js";
-//# sourceMappingURL=index.d.ts.map

@@ -21,6 +21,7 @@ export interface FrameRow {
 }
 /**
  * Get default database path: ~/.lex/frames.db
+ * Can be overridden with LEX_DB_PATH environment variable
  */
 export declare function getDefaultDbPath(): string;
 /**
@@ -31,4 +32,3 @@ export declare function initializeDatabase(db: Database.Database): void;
  * Create and initialize a database connection
  */
 export declare function createDatabase(dbPath?: string): Database.Database;
-//# sourceMappingURL=db.d.ts.map
