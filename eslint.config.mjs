@@ -50,9 +50,6 @@ export default [
     },
     plugins: { "@typescript-eslint": tseslint },
     rules: {
-      // Allow console for CLI/reporting code paths (intentionally used).
-      "no-console": "off",
-
       // A small, useful subset of type-aware rules (warn/error as appropriate).
       "@typescript-eslint/no-floating-promises": "error",
       // Disabled: too pedantic about nullable checks (would need 194 explicit null/undefined checks)
@@ -68,6 +65,23 @@ export default [
   // Allow console ONLY in the CLI output wrapper (single chokepoint)
   {
     files: ["src/shared/cli/output.ts"],
+    rules: {
+      "no-console": "off",
+    },
+  },
+
+  // Allow console in development/demo scripts and policy checker CLI tools
+  {
+    files: [
+      "src/shared/atlas/demo.ts",
+      "src/shared/atlas/perf-test.ts",
+      "src/shared/atlas/verify-format.ts",
+      "src/policy/check/lexmap-check.ts",
+      "src/policy/check/reporter.ts",
+      "src/policy/scanners/ts_scanner.ts",
+      "src/policy/merge/lexmap-merge.ts",
+      "src/shared/aliases/resolver.ts", // Debug logging gated by LEX_DEBUG
+    ],
     rules: {
       "no-console": "off",
     },
