@@ -131,6 +131,36 @@ npm run format:check
 npm run format
 ```
 
+### Lint Budget
+
+We maintain a **lint warning baseline** to prevent quality erosion. CI will fail if your changes introduce new warnings or errors.
+
+```bash
+# Check against baseline (same as CI)
+npm run lint:baseline:check
+
+# Update baseline (after fixing warnings or when intentional)
+npm run lint:baseline:update
+```
+
+**How it works:**
+- `lint-baseline.json` tracks the current count of warnings/errors
+- CI compares your changes against this baseline
+- New warnings/errors = CI failure
+- Reducing warnings = ✅ encouraged!
+
+**When to update baseline:**
+- After fixing lint warnings (to lock in improvements)
+- When adding intentional warnings during refactoring (with team approval)
+- After updating ESLint rules that generate new warnings
+
+**Current baseline:** 769 warnings, 1 error (as of v0.3.0)
+
+**Top offenders:**
+- `@typescript-eslint/no-unsafe-*` rules (unsafe any usage)
+- `@typescript-eslint/strict-boolean-expressions` (nullable checks)
+- Files: `policy/scanners/test_scanners.ts`, `shared/cli/*.ts`, `memory/mcp_server/*.ts`
+
 ### Local CI
 
 Run the full CI pipeline locally before pushing:
@@ -360,6 +390,7 @@ import Database from "better-sqlite3";
 - [ ] All tests pass (`npm test`)
 - [ ] Types check (`npm run type-check`)
 - [ ] Linting passes (`npm run lint`)
+- [ ] Lint budget check passes (`npm run lint:baseline:check`)
 - [ ] Local CI passes (`npm run local-ci`)
 - [ ] Code is formatted (`npm run format`)
 - [ ] Documentation updated (if needed)
@@ -452,11 +483,12 @@ Our CI pipeline runs on every PR:
 ### Checks
 1. **Type Check** - `npm run type-check`
 2. **Lint** - `npm run lint`
-3. **Format Check** - `npm run format:check`
-4. **Test** - `npm test`
-5. **Coverage** - `npm run check:coverage`
-6. **Build** - `npm run build`
-7. **No .js in src/** - `npm run guard:no-js-src`
+3. **Lint Budget** - `npm run lint:baseline:check` (fails on warning increase)
+4. **Format Check** - `npm run format:check`
+5. **Test** - `npm test`
+6. **Coverage** - `npm run check:coverage`
+7. **Build** - `npm run build`
+8. **No .js in src/** - `npm run guard:no-js-src`
 
 ### Local Reproduction
 
@@ -467,6 +499,7 @@ npm run local-ci
 # Or step-by-step
 npm run type-check
 npm run lint
+npm run lint:baseline:check
 npm run format:check
 npm test
 npm run check:coverage
