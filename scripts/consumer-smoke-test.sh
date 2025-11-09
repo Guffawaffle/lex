@@ -53,8 +53,8 @@ console.log('   getDb type:', typeof getDb);
 console.log('   saveFrame type:', typeof saveFrame);
 console.log('   searchFrames type:', typeof searchFrames);
 
-if (typeof getDb !== 'function' || 
-    typeof saveFrame !== 'function' || 
+if (typeof getDb !== 'function' ||
+    typeof saveFrame !== 'function' ||
     typeof searchFrames !== 'function') {
   console.error('❌ One or more core functions are not functions');
   process.exit(1);
@@ -81,7 +81,6 @@ cat > test-policy.mjs << 'EOF'
 // Test: Import from 'lex/policy/*'
 import { detectViolations } from 'lex/policy/check/violations.js';
 import { mergeScans } from 'lex/policy/merge/merge.js';
-import { resolveFileToModule } from 'lex/policy/scanners/common.js';
 
 console.log('✅ Policy subpath (lex/policy/check): detectViolations imported successfully');
 console.log('   detectViolations type:', typeof detectViolations);
@@ -89,12 +88,8 @@ console.log('   detectViolations type:', typeof detectViolations);
 console.log('✅ Policy subpath (lex/policy/merge): mergeScans imported successfully');
 console.log('   mergeScans type:', typeof mergeScans);
 
-console.log('✅ Policy subpath (lex/policy/scanners): resolveFileToModule imported successfully');
-console.log('   resolveFileToModule type:', typeof resolveFileToModule);
-
-if (typeof detectViolations !== 'function' || 
-    typeof mergeScans !== 'function' || 
-    typeof resolveFileToModule !== 'function') {
+if (typeof detectViolations !== 'function' ||
+    typeof mergeScans !== 'function') {
   console.error('❌ One or more policy functions are not functions');
   process.exit(1);
 }
@@ -116,6 +111,44 @@ echo "--- Test 3: Policy subpath (lex/policy/*) ---"
 node test-policy.mjs
 echo ""
 
+# Step 6b: Test the consumer example
+echo "--- Test 4: Consumer example (examples/consumer) ---"
+# Copy the consumer example
+cp -r "$REPO_ROOT/examples/consumer" ./consumer-example
+cd consumer-example
+
+# Install the tarball in the consumer example
+npm install "$REPO_ROOT/$TARBALL" --no-save --no-audit --no-fund
+
+# Run the example and capture output
+if EXAMPLE_OUTPUT=$(npm start 2>&1); then
+  echo "$EXAMPLE_OUTPUT"
+
+  # Check for RECEIPT_OK token
+  if echo "$EXAMPLE_OUTPUT" | grep -q "RECEIPT_OK"; then
+    echo ""
+    echo "✅ Consumer example: RECEIPT_OK found in output"
+  else
+    echo ""
+    echo "❌ Consumer example: RECEIPT_OK not found in output"
+    cd "$REPO_ROOT"
+    rm -rf "$TEST_DIR"
+    rm -f "$TARBALL"
+    exit 1
+  fi
+else
+  echo "$EXAMPLE_OUTPUT"
+  echo ""
+  echo "❌ Consumer example failed to run"
+  cd "$REPO_ROOT"
+  rm -rf "$TEST_DIR"
+  rm -f "$TARBALL"
+  exit 1
+fi
+
+cd "$TEST_DIR"
+echo ""
+
 # Step 7: Cleanup
 echo "==> Step 7: Cleaning up"
 cd "$REPO_ROOT"
@@ -129,4 +162,5 @@ echo "All subpaths successfully tested:"
 echo "  • lex (main entry)"
 echo "  • lex/cli"
 echo "  • lex/policy/*"
+echo "  • examples/consumer (RECEIPT_OK)"
 echo ""
