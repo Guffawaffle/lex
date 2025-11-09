@@ -4,5 +4,5 @@
     "composite": true
   },
   "include": ["./*.ts"],
-  "exclude": ["node_modules", "dist", "integration-demo.ts"]
+  "exclude": ["node_modules", "dist", "integration-demo.ts", "*.test.ts"]
 }
