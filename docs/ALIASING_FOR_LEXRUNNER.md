@@ -642,10 +642,12 @@ Alias table is either:
 
 - **Epic**: [Guffawaffle/lex#41 - Implement module ID aliasing system](https://github.com/Guffawaffle/lex/issues/41)
 - **Phase 1 PRs** (Explicit Alias Table):
-  - [Guffawaffle/lex#47 - Add alias table schema and types](https://github.com/Guffawaffle/lex/pull/47)
-  - [Guffawaffle/lex#48 - Implement alias resolver with confidence scoring](https://github.com/Guffawaffle/lex/pull/48)
-  - [Guffawaffle/lex#49 - Integrate alias resolution with module ID validation](https://github.com/Guffawaffle/lex/pull/49)
-  - [Guffawaffle/lex#50 - Add MCP server support for aliased module IDs](https://github.com/Guffawaffle/lex/pull/50)
+  - Guffawaffle/lex#47 - Add alias table schema and types
+  - Guffawaffle/lex#48 - Implement alias resolver with confidence scoring
+  - Guffawaffle/lex#49 - Integrate alias resolution with module ID validation
+  - Guffawaffle/lex#50 - Add MCP server support for aliased module IDs
+
+_Note: The aliasing feature is currently implemented in the main codebase. The above PRs represent the planned implementation phases as described in Epic #41._
 
 ### Canonical Documentation
 
@@ -655,8 +657,8 @@ Alias table is either:
 
 ### Related Documentation
 
-- [LexMap Policy Overview](https://github.com/Guffawaffle/lex/blob/main/docs/OVERVIEW.md#lexmap) - Module vocabulary and policy enforcement
-- [Frame Storage Spec](https://github.com/Guffawaffle/lex/blob/main/src/memory/frames/README.md) - How module_scope is stored and queried
+- [LexMap Policy Overview](https://github.com/Guffawaffle/lex/blob/main/docs/OVERVIEW.md) - Module vocabulary and policy enforcement
+- [Frame Types](https://github.com/Guffawaffle/lex/blob/main/src/memory/frames/types.ts) - How module_scope is stored and queried
 
 ## Testing Documentation
 
