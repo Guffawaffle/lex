@@ -115,9 +115,9 @@ export function loadPolicy(path?: string): Policy {
         } else {
           throw new Error(
             `Policy file not found. Tried:\n` +
-            `  1. ${workingPath}\n` +
-            `  2. ${examplePath}\n\n` +
-            `Run 'npm run setup-local' to initialize working files.`
+              `  1. ${workingPath}\n` +
+              `  2. ${examplePath}\n\n` +
+              `Run 'npm run setup-local' to initialize working files.`
           );
         }
       }
@@ -145,7 +145,7 @@ export function loadPolicy(path?: string): Policy {
     if (error.code === "ENOENT") {
       throw new Error(
         `Policy file not found: ${envPath || path || DEFAULT_POLICY_PATH}\n` +
-        `Run 'npm run setup-local' to initialize working files.`
+          `Run 'npm run setup-local' to initialize working files.`
       );
     }
     throw new Error(
