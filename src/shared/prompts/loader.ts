@@ -9,6 +9,7 @@
 
 import { readFileSync, existsSync, readdirSync } from "fs";
 import { resolve, dirname, join } from "path";
+import { z } from "zod";
 
 /**
  * Canon prompt directory (tracked)
@@ -28,22 +29,51 @@ const PROMPTS_DIR_ENV = "LEX_PROMPTS_DIR";
 /**
  * Find repository root by looking for package.json
  */
-function findRepoRoot(startPath: string): string {
-  let currentPath = startPath;
+export function findRepoRoot(startPath: string): string {
+  let currentPath = resolve(startPath);
 
-  while (currentPath !== dirname(currentPath)) {
-    const packageJsonPath = join(currentPath, "package.json");
-    if (existsSync(packageJsonPath)) {
-      const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf-8"));
-      // Check if this is the lex root package
-      if (packageJson.name === "lex") {
-        return currentPath;
-      }
+  // 0) Optional explicit override (useful in tests/WSL/CI)
+  const explicit = process.env.REPO_ROOT ?? process.env.SMARTERGPT_REPO_ROOT;
+  if (explicit) {
+    const abs = resolve(explicit);
+    if (existsSync(join(abs, "package.json")) || existsSync(join(abs, ".smartergpt", "prompts"))) {
+      return abs;
     }
-    currentPath = dirname(currentPath);
   }
 
-  throw new Error('Could not find repository root (looking for package.json with name "lex")');
+  // Minimal, safe package.json validator
+  const PackageJson = z.object({ name: z.string().min(1).optional() }).passthrough();
+
+  // Walk upward to filesystem root
+  while (true) {
+    const pkgPath = join(currentPath, "package.json");
+    if (existsSync(pkgPath)) {
+      try {
+        const parsed = PackageJson.parse(JSON.parse(readFileSync(pkgPath, "utf8")));
+        const name = parsed.name;
+        // Accept both repos (scoped or unscoped), plus monorepo roots via canon presence
+        if (
+          name === "lex" ||
+          name === "lex-pr-runner" ||
+          name === "@guffawaffle/lex" ||
+          name === "@guffawaffle/lex-pr-runner"
+        ) {
+          return currentPath;
+        }
+      } catch {
+        // ignore and continue walking up
+      }
+    }
+
+    // Accept “presence of canon” as an alternative root signal
+    if (existsSync(join(currentPath, ".smartergpt", "prompts"))) return currentPath;
+
+    const parent = dirname(currentPath);
+    if (parent === currentPath) break; // reached FS root
+    currentPath = parent;
+  }
+
+  throw new Error("Could not find repository root (package.json or .smartergpt/prompts).");
 }
 
 /**
@@ -112,7 +142,8 @@ export function loadPrompt(promptName: string): string {
 
     // No prompt found in any location
     throw new Error(
-      `Prompt file '${promptName}' not found. Tried:\n` + attemptedPaths.map((p, i) => `  ${i + 1}. ${p}`).join("\n")
+      `Prompt file '${promptName}' not found. Tried:\n` +
+        attemptedPaths.map((p, i) => `  ${i + 1}. ${p}`).join("\n")
     );
   } catch (error: any) {
     if (error.message.includes("not found")) {

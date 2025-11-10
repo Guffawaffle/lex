@@ -6,19 +6,17 @@ import { describe, it, before, after } from "node:test";
 import assert from "node:assert";
 import { mkdirSync, writeFileSync, rmSync, existsSync } from "fs";
 import { join } from "path";
-import { loadPrompt, getPromptPath, listPrompts } from "../../../src/shared/prompts/loader.js";
-
-// Test fixture paths
-const TEST_ROOT = join(process.cwd(), ".test-prompts");
-const TEST_LOCAL_DIR = join(TEST_ROOT, ".smartergpt.local", "prompts");
-const TEST_ENV_DIR = join(TEST_ROOT, "custom-prompts");
+import { loadPrompt, getPromptPath, listPrompts } from "@app/shared/prompts/loader.js";
 
 describe("Prompt Loader", () => {
   describe("loadPrompt", () => {
     it("loads prompt from canon directory", () => {
       const prompt = loadPrompt("idea.md");
       assert.ok(prompt.length > 0, "Prompt should have content");
-      assert.ok(prompt.includes("idea") || prompt.includes("feature"), "Prompt should be about ideas/features");
+      assert.ok(
+        prompt.includes("idea") || prompt.includes("feature"),
+        "Prompt should be about ideas/features"
+      );
     });
 
     it("loads prompt from canon directory (create-project)", () => {
@@ -66,71 +64,227 @@ describe("Prompt Loader", () => {
 });
 
 describe("Prompt Loader Precedence Chain", () => {
-  before(() => {
-    // Create test directories
-    if (!existsSync(TEST_LOCAL_DIR)) {
-      mkdirSync(TEST_LOCAL_DIR, { recursive: true });
-    }
-    if (!existsSync(TEST_ENV_DIR)) {
-      mkdirSync(TEST_ENV_DIR, { recursive: true });
-    }
+  let tempRoot: string;
+  let canonDir: string;
+  let localDir: string;
+  let envDir: string;
+  let originalRepoRoot: string | undefined;
+  let originalEnvDir: string | undefined;
+  let originalCwd: string;
 
-    // Create test prompts
-    writeFileSync(join(TEST_LOCAL_DIR, "test-local.md"), "LOCAL OVERLAY PROMPT");
-    writeFileSync(join(TEST_ENV_DIR, "test-env.md"), "ENV OVERRIDE PROMPT");
+  before(() => {
+    // Save original environment
+    originalRepoRoot = process.env.REPO_ROOT;
+    originalEnvDir = process.env.LEX_PROMPTS_DIR;
+    originalCwd = process.cwd();
+
+    // Create isolated temp directory structure
+    tempRoot = join(process.cwd(), ".test-prompts-precedence");
+    canonDir = join(tempRoot, ".smartergpt", "prompts");
+    localDir = join(tempRoot, ".smartergpt.local", "prompts");
+    envDir = join(tempRoot, "custom-env-prompts");
+
+    // Create directory structure
+    mkdirSync(canonDir, { recursive: true });
+    mkdirSync(localDir, { recursive: true });
+    mkdirSync(envDir, { recursive: true });
+
+    // Create package.json to mark repo root
+    writeFileSync(
+      join(tempRoot, "package.json"),
+      JSON.stringify({ name: "lex", version: "1.0.0" }, null, 2)
+    );
   });
 
   after(() => {
-    // Clean up test directories
-    if (existsSync(TEST_ROOT)) {
-      rmSync(TEST_ROOT, { recursive: true, force: true });
+    // Restore original environment
+    if (originalRepoRoot !== undefined) {
+      process.env.REPO_ROOT = originalRepoRoot;
+    } else {
+      delete process.env.REPO_ROOT;
     }
+
+    if (originalEnvDir !== undefined) {
+      process.env.LEX_PROMPTS_DIR = originalEnvDir;
+    } else {
+      delete process.env.LEX_PROMPTS_DIR;
+    }
+
+    // Restore working directory
+    try {
+      process.chdir(originalCwd);
+    } catch {
+      // Ignore errors on restore
+    }
+
+    // Clean up temp directory
+    if (existsSync(tempRoot)) {
+      rmSync(tempRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("prefers local overlay over canon (full precedence test)", () => {
+    // Setup: Create same-named prompt in both canon and local
+    const canonContent = "CANON VERSION OF PROMPT";
+    const localContent = "LOCAL OVERRIDE VERSION";
+
+    writeFileSync(join(canonDir, "idea.md"), canonContent);
+    writeFileSync(join(localDir, "idea.md"), localContent);
+
+    // Set repo root to our temp directory
+    process.env.REPO_ROOT = tempRoot;
+
+    // Change to a nested directory to test resolution
+    const nestedDir = join(tempRoot, "src", "nested");
+    mkdirSync(nestedDir, { recursive: true });
+    process.chdir(nestedDir);
+
+    try {
+      const loaded = loadPrompt("idea.md");
+      assert.strictEqual(
+        loaded,
+        localContent,
+        "Should load from local overlay (.smartergpt.local) over canon (.smartergpt)"
+      );
+
+      const path = getPromptPath("idea.md");
+      assert.ok(path !== null, "Should return a path");
+      assert.ok(
+        path!.includes(".smartergpt.local/prompts/idea.md"),
+        "Path should point to local overlay"
+      );
+    } finally {
+      process.chdir(originalCwd);
+    }
+  });
+
+  it("loads from canon when no local override exists", () => {
+    const canonContent = "CANON ONLY PROMPT";
+    writeFileSync(join(canonDir, "canon-only.md"), canonContent);
+
+    process.env.REPO_ROOT = tempRoot;
+    process.chdir(tempRoot);
+
+    try {
+      const loaded = loadPrompt("canon-only.md");
+      assert.strictEqual(loaded, canonContent, "Should load from canon when no local override");
+
+      const path = getPromptPath("canon-only.md");
+      assert.ok(path !== null, "Should return a path");
+      assert.ok(path!.includes(".smartergpt/prompts/canon-only.md"), "Path should point to canon");
+    } finally {
+      process.chdir(originalCwd);
+    }
+  });
+
+  it("respects LEX_PROMPTS_DIR environment variable (highest priority)", () => {
+    const canonContent = "CANON VERSION";
+    const localContent = "LOCAL VERSION";
+    const envContent = "ENV OVERRIDE VERSION";
+
+    // Create same prompt in all three locations
+    writeFileSync(join(canonDir, "env-test.md"), canonContent);
+    writeFileSync(join(localDir, "env-test.md"), localContent);
+    writeFileSync(join(envDir, "env-test.md"), envContent);
+
+    // Set both REPO_ROOT and LEX_PROMPTS_DIR
+    process.env.REPO_ROOT = tempRoot;
+    process.env.LEX_PROMPTS_DIR = envDir;
+    process.chdir(tempRoot);
+
+    try {
+      const loaded = loadPrompt("env-test.md");
+      assert.strictEqual(loaded, envContent, "Should load from LEX_PROMPTS_DIR (highest priority)");
+
+      const path = getPromptPath("env-test.md");
+      assert.ok(path !== null, "Should return a path");
+      assert.strictEqual(path, join(envDir, "env-test.md"), "Path should point to env dir");
+    } finally {
+      delete process.env.LEX_PROMPTS_DIR;
+      process.chdir(originalCwd);
+    }
+  });
+
+  it("loads from LEX_PROMPTS_DIR without repo root (env-only scenario)", () => {
+    const envContent = "ENV ONLY PROMPT CONTENT";
+    writeFileSync(join(envDir, "env-only.md"), envContent);
+
+    // Clear REPO_ROOT and only set LEX_PROMPTS_DIR
+    delete process.env.REPO_ROOT;
+    process.env.LEX_PROMPTS_DIR = envDir;
+
+    // Change to a directory outside any repo
+    const isolatedDir = join(process.cwd(), ".test-isolated");
+    mkdirSync(isolatedDir, { recursive: true });
+    process.chdir(isolatedDir);
+
+    try {
+      const loaded = loadPrompt("env-only.md");
+      assert.strictEqual(
+        loaded,
+        envContent,
+        "Should load from LEX_PROMPTS_DIR even without repo root"
+      );
+
+      const path = getPromptPath("env-only.md");
+      assert.ok(path !== null, "Should return a path");
+      assert.strictEqual(path, join(envDir, "env-only.md"), "Path should point to env dir");
+    } finally {
+      process.chdir(originalCwd);
+      delete process.env.LEX_PROMPTS_DIR;
+      if (existsSync(isolatedDir)) {
+        rmSync(isolatedDir, { recursive: true, force: true });
+      }
+    }
+  });
+
+  it("throws helpful error when prompt not found in any location", () => {
+    process.env.REPO_ROOT = tempRoot;
     delete process.env.LEX_PROMPTS_DIR;
-  });
-
-  it("prefers local overlay over canon", () => {
-    // Create a local overlay that shadows a canon prompt
-    const localOverride = join(TEST_LOCAL_DIR, "override-test.md");
-    writeFileSync(localOverride, "LOCAL OVERRIDE");
-
-    const repoRoot = process.cwd();
-    const canonPath = join(repoRoot, ".smartergpt", "prompts", "override-test.md");
-    const hadCanon = existsSync(canonPath);
-    
-    if (!hadCanon) {
-      // Create canon version for test
-      writeFileSync(canonPath, "CANON VERSION");
-    }
+    process.chdir(tempRoot);
 
     try {
-      // This test validates the precedence but won't actually work
-      // since we're not in a proper test environment with controlled repo root
-      // The real precedence is tested in integration
-      assert.ok(true, "Precedence logic exists in loader");
+      assert.throws(
+        () => loadPrompt("does-not-exist.md"),
+        /Prompt file 'does-not-exist.md' not found/,
+        "Should throw error with attempted paths"
+      );
     } finally {
-      // Clean up
-      rmSync(localOverride, { force: true });
-      if (!hadCanon && existsSync(canonPath)) {
-        rmSync(canonPath, { force: true });
-      }
+      process.chdir(originalCwd);
     }
   });
 
-  it("respects LEX_PROMPTS_DIR environment variable", () => {
-    const oldEnv = process.env.LEX_PROMPTS_DIR;
-    
+  it("lists prompts from all locations (deduplicated)", () => {
+    // Create prompts across all locations
+    writeFileSync(join(canonDir, "shared.md"), "canon");
+    writeFileSync(join(canonDir, "canon-unique.md"), "canon");
+    writeFileSync(join(localDir, "shared.md"), "local override");
+    writeFileSync(join(localDir, "local-unique.md"), "local");
+    writeFileSync(join(envDir, "env-unique.md"), "env");
+
+    process.env.REPO_ROOT = tempRoot;
+    process.env.LEX_PROMPTS_DIR = envDir;
+    process.chdir(tempRoot);
+
     try {
-      process.env.LEX_PROMPTS_DIR = TEST_ENV_DIR;
-      
-      // This validates that env var logic exists
-      // Actual loading is tested when env var points to valid location
-      assert.ok(process.env.LEX_PROMPTS_DIR === TEST_ENV_DIR, "Env var should be set");
+      const prompts = listPrompts();
+
+      assert.ok(Array.isArray(prompts), "Should return an array");
+      assert.ok(prompts.includes("shared.md"), "Should include shared prompt");
+      assert.ok(prompts.includes("canon-unique.md"), "Should include canon-unique");
+      assert.ok(prompts.includes("local-unique.md"), "Should include local-unique");
+      assert.ok(prompts.includes("env-unique.md"), "Should include env-unique");
+
+      // Verify deduplication (shared.md appears in multiple locations)
+      const sharedCount = prompts.filter((p) => p === "shared.md").length;
+      assert.strictEqual(sharedCount, 1, "Should deduplicate shared prompts");
+
+      // Verify sorting
+      const sorted = [...prompts].sort();
+      assert.deepStrictEqual(prompts, sorted, "Should return sorted list");
     } finally {
-      if (oldEnv !== undefined) {
-        process.env.LEX_PROMPTS_DIR = oldEnv;
-      } else {
-        delete process.env.LEX_PROMPTS_DIR;
-      }
+      delete process.env.LEX_PROMPTS_DIR;
+      process.chdir(originalCwd);
     }
   });
 });

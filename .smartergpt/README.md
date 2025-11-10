@@ -4,7 +4,7 @@ This directory contains Zod schemas and prompt templates for the LexRunner integ
 
 ## Schemas
 
-### Configuration Schemas (JSON Schema draft/2020-12)
+### Configuration Schemas (JSON Schema draft/draft-07)
 
 The following JSON Schema files provide validation for configuration files:
 
