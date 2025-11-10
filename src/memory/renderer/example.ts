@@ -5,7 +5,6 @@ import type { Frame } from "./types.js";
 import { writeFileSync, mkdirSync } from "fs";
 import { join } from "path";
 
-
 const logger = getLogger("memory:renderer:example");
 
 // Create example Frame

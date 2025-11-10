@@ -4,7 +4,6 @@ import { renderAtlasFrameGraph, exportGraphAsPNG, type AtlasFrame } from "./grap
 import { writeFileSync, mkdirSync } from "fs";
 import { join } from "path";
 
-
 const logger = getLogger("memory:renderer:graph-example");
 
 // Create example Atlas Frame based on the test policy

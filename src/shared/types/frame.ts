@@ -88,7 +88,8 @@ export function validateFrameMetadata(frame: unknown): frame is Frame {
     if (typeof f.spend !== "object" || f.spend === null) return false;
     const spend = f.spend as Record<string, unknown>;
     if (spend.prompts !== undefined && typeof spend.prompts !== "number") return false;
-    if (spend.tokens_estimated !== undefined && typeof spend.tokens_estimated !== "number") return false;
+    if (spend.tokens_estimated !== undefined && typeof spend.tokens_estimated !== "number")
+      return false;
   }
   return true;
 }

@@ -55,9 +55,7 @@ async function strictValidateModuleIds(
     if (resolution.confidence === 1.0) {
       canonical.push(resolution.canonical);
     } else {
-      errors.push(
-        `Module '${moduleId}' not found in policy (strict mode: no fuzzy matching)`
-      );
+      errors.push(`Module '${moduleId}' not found in policy (strict mode: no fuzzy matching)`);
     }
   }
 
@@ -109,11 +107,7 @@ async function main() {
   // Test 4: Typo - FAIL in strict mode
   console.log("\n\nTest 4: Typo");
   console.log("-------------");
-  const test4 = await strictValidateModuleIds(
-    ["services/auth-cor"],
-    examplePolicy,
-    aliasTable
-  );
+  const test4 = await strictValidateModuleIds(["services/auth-cor"], examplePolicy, aliasTable);
   console.log("Input: ['services/auth-cor']");
   console.log(`Result: ${test4.valid ? "✅ PASS" : "❌ FAIL"}`);
   if (!test4.valid) {
@@ -133,7 +127,9 @@ async function main() {
   // Non-strict (allows substring matching)
   const nonStrict = await resolveModuleId(testInput[0], examplePolicy, aliasTable);
   console.log("\nNon-strict mode:");
-  console.log(`  → '${nonStrict.canonical}' (${nonStrict.source}, confidence ${nonStrict.confidence})`);
+  console.log(
+    `  → '${nonStrict.canonical}' (${nonStrict.source}, confidence ${nonStrict.confidence})`
+  );
 
   // Strict (rejects substring)
   const strict = await resolveModuleId(testInput[0], examplePolicy, aliasTable, {

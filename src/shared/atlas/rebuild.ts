@@ -158,7 +158,7 @@ function calculateTemporalProximity(frameA: Frame, frameB: Frame): number {
   // - Beyond 1 week: weight = 0
 
   if (timeDiff === 0) return 0; // Same timestamp = no temporal connection
-  
+
   const oneHour = 60 * 60 * 1000;
   const oneDay = 24 * oneHour;
   const oneWeek = 7 * oneDay;

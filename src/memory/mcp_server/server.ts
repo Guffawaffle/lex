@@ -1,6 +1,13 @@
 import { getLogger } from "lex/logger";
 import { createDatabase } from "../store/db.js";
-import { saveFrame, deleteFrame, searchFrames, getFramesByBranch, getFramesByJira, getAllFrames } from "../store/queries.js";
+import {
+  saveFrame,
+  deleteFrame,
+  searchFrames,
+  getFramesByBranch,
+  getFramesByJira,
+  getAllFrames,
+} from "../store/queries.js";
 import type Database from "better-sqlite3";
 // @ts-ignore - importing from compiled dist directories
 import { ImageManager } from "../store/images.js";
@@ -19,7 +26,6 @@ import { loadPolicy } from "../../shared/policy/loader.js";
 import { getCurrentBranch } from "../../shared/git/branch.js";
 import { randomUUID } from "crypto";
 import { join } from "path";
-
 
 const logger = getLogger("memory:mcp_server:server");
 

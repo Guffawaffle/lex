@@ -176,7 +176,7 @@ async function main() {
   // Demonstrate querying frames across the rename boundary
   console.log("\n" + "=".repeat(60));
   console.log("\n📊 Frame Summary Across Merge Sequence:");
-  console.log("=" .repeat(60));
+  console.log("=".repeat(60));
 
   frames.forEach((frame) => {
     console.log(`\n${frame.id} (PR-${frame.prNumber}):`);
@@ -186,7 +186,7 @@ async function main() {
   // Show how to query for all frames related to user-access
   console.log("\n" + "=".repeat(60));
   console.log("\n🔍 Query: Find all frames touching user-access functionality");
-  console.log("=" .repeat(60));
+  console.log("=".repeat(60));
 
   // With aliases, we can search for either old or new name
   const searchTerms = ["services/user-access-api", "api/user-access"];
@@ -202,7 +202,7 @@ async function main() {
   // Demonstrate resolution of old module ID still works after rename
   console.log("\n" + "=".repeat(60));
   console.log("\n✅ Continuity Verification:");
-  console.log("=" .repeat(60));
+  console.log("=".repeat(60));
 
   const oldModuleResolution = await resolveModuleId(
     "services/user-access-api",

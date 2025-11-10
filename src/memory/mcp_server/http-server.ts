@@ -19,10 +19,7 @@ export interface HttpServerOptions {
 /**
  * Create and configure the HTTP server
  */
-export function createHttpServer(
-  db: Database.Database,
-  options: HttpServerOptions = {}
-): Express {
+export function createHttpServer(db: Database.Database, options: HttpServerOptions = {}): Express {
   const app = express();
 
   // Parse JSON request bodies

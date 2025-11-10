@@ -2,7 +2,6 @@ import { getLogger } from "lex/logger";
 import { codeToHtml, createHighlighter } from "shiki";
 import type { BundledLanguage } from "shiki";
 
-
 const logger = getLogger("memory:renderer:syntax");
 
 // Common languages supported
