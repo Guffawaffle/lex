@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://guffawaffle.dev/schemas/lex/gates.schema.json",
+  "$id": "https://smartergpt.dev/schemas/lex/gates.schema.json",
   "title": "Safety Gates Configuration",
   "description": "Configuration for safety gates and validation rules",
   "type": "object",

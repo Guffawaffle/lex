@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://guffawaffle.dev/schemas/lex/profile.schema.json",
+  "$id": "https://smartergpt.dev/schemas/lex/profile.schema.json",
   "title": "Profile Configuration",
   "description": "Configuration for runtime profiles (development, local, CI, etc.)",
   "type": "object",

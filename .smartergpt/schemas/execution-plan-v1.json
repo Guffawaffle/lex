@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://guffawaffle.dev/schemas/lex/execution-plan-v1.json",
+  "$id": "https://smartergpt.dev/schemas/lex/execution-plan-v1.json",
   "type": "object",
   "title": "Execution Plan v1",
   "description": "Project execution plan with Epic and Sub-Issues",

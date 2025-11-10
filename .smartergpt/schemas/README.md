@@ -102,7 +102,7 @@ Project execution plan with Epic and Sub-Issues
 ## Schema Validation
 
 All schemas enforce:
-- `$id`: Unique schema identifier (`https://guffawaffle.dev/schemas/lex/*`)
+- `$id`: Unique schema identifier (`https://smartergpt.dev/schemas/lex/*`)
 - `$schema`: Draft-07 JSON Schema
 - `additionalProperties: false`: Strict validation (except for config objects marked as intentionally loose)
 - `format: "date-time"`: ISO 8601 timestamps

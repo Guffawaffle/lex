@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://guffawaffle.dev/schemas/lex/runner.scope.schema.json",
+  "$id": "https://smartergpt.dev/schemas/lex/runner.scope.schema.json",
   "title": "Runner Scope Configuration",
   "description": "Configuration for runner execution scope and boundaries",
   "type": "object",
