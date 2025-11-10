@@ -37,7 +37,7 @@ describe("Prompt Loader", () => {
     it("returns path for existing canon prompt", () => {
       const path = getPromptPath("idea.md");
       assert.ok(path !== null, "Should return a path");
-      assert.ok(path!.includes(".smartergpt/prompts/idea.md"), "Should point to canon directory");
+      assert.ok(path!.includes("canon/prompts/idea.md"), "Should point to canon directory");
     });
 
     it("returns null for non-existent prompt", () => {
@@ -80,7 +80,7 @@ describe("Prompt Loader Precedence Chain", () => {
 
     // Create isolated temp directory structure
     tempRoot = join(process.cwd(), ".test-prompts-precedence");
-    canonDir = join(tempRoot, ".smartergpt", "prompts");
+    canonDir = join(tempRoot, "canon", "prompts");
     localDir = join(tempRoot, ".smartergpt.local", "prompts");
     envDir = join(tempRoot, "custom-env-prompts");
 
@@ -144,7 +144,7 @@ describe("Prompt Loader Precedence Chain", () => {
       assert.strictEqual(
         loaded,
         localContent,
-        "Should load from local overlay (.smartergpt.local) over canon (.smartergpt)"
+        "Should load from local overlay (.smartergpt.local) over canon (canon)"
       );
 
       const path = getPromptPath("idea.md");
@@ -171,7 +171,7 @@ describe("Prompt Loader Precedence Chain", () => {
 
       const path = getPromptPath("canon-only.md");
       assert.ok(path !== null, "Should return a path");
-      assert.ok(path!.includes(".smartergpt/prompts/canon-only.md"), "Path should point to canon");
+      assert.ok(path!.includes("canon/prompts/canon-only.md"), "Path should point to canon");
     } finally {
       process.chdir(originalCwd);
     }

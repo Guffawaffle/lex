@@ -6,7 +6,7 @@
 
 import { test, describe } from "node:test";
 import assert from "node:assert";
-import { FeatureSpecV0Schema } from "../../.smartergpt/schemas/feature-spec-v0.js";
+import { FeatureSpecV0Schema } from "../../schemas/feature-spec-v0.js";
 
 describe("FeatureSpecV0Schema", () => {
   test("validates valid spec", () => {

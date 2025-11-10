@@ -11,6 +11,10 @@ build/
 tsconfig.tsbuildinfo
 *.tgz
 
+# Ignore build artifacts (copied from canon/)
+/prompts/
+/schemas/
+
 # Generated TypeScript compilation outputs (source is .ts)
 # Keep only source .ts files, not compiled .js/.d.ts
 shared/**/*.js

@@ -4,7 +4,7 @@
  * Loads prompt templates with precedence chain support:
  * 1. LEX_PROMPTS_DIR (explicit environment override)
  * 2. .smartergpt.local/prompts/ (local overlay)
- * 3. .smartergpt/prompts/ (tracked canon)
+ * 3. canon/prompts/ (tracked canon)
  */
 
 import { readFileSync, existsSync, readdirSync } from "fs";
@@ -14,7 +14,7 @@ import { z } from "zod";
 /**
  * Canon prompt directory (tracked)
  */
-const CANON_PROMPTS_DIR = ".smartergpt/prompts";
+const CANON_PROMPTS_DIR = "canon/prompts";
 
 /**
  * Local overlay directory (untracked)
@@ -36,7 +36,7 @@ export function findRepoRoot(startPath: string): string {
   const explicit = process.env.REPO_ROOT ?? process.env.SMARTERGPT_REPO_ROOT;
   if (explicit) {
     const abs = resolve(explicit);
-    if (existsSync(join(abs, "package.json")) || existsSync(join(abs, ".smartergpt", "prompts"))) {
+    if (existsSync(join(abs, "package.json")) || existsSync(join(abs, "canon", "prompts"))) {
       return abs;
     }
   }
@@ -73,7 +73,7 @@ export function findRepoRoot(startPath: string): string {
     currentPath = parent;
   }
 
-  throw new Error("Could not find repository root (package.json or .smartergpt/prompts).");
+  throw new Error("Could not find repository root (package.json or canon/prompts).");
 }
 
 /**
@@ -86,7 +86,7 @@ export function findRepoRoot(startPath: string): string {
  * Precedence chain:
  * 1. LEX_PROMPTS_DIR environment variable (explicit override)
  * 2. .smartergpt.local/prompts/ (local overlay - untracked)
- * 3. .smartergpt/prompts/ (tracked canon)
+ * 3. canon/prompts/ (tracked canon)
  *
  * @example
  * ```typescript
@@ -132,7 +132,7 @@ export function loadPrompt(promptName: string): string {
       return readFileSync(localPath, "utf-8");
     }
 
-    // Priority 3: Tracked canon (.smartergpt/prompts/)
+    // Priority 3: Tracked canon (canon/prompts/)
     const canonPath = join(repoRoot, CANON_PROMPTS_DIR, promptName);
     attemptedPaths.push(canonPath);
 
@@ -162,7 +162,7 @@ export function loadPrompt(promptName: string): string {
  * @example
  * ```typescript
  * const path = getPromptPath('idea.md');
- * console.log(path); // '/repo/.smartergpt/prompts/idea.md'
+ * console.log(path); // '/repo/canon/prompts/idea.md'
  * ```
  */
 export function getPromptPath(promptName: string): string | null {

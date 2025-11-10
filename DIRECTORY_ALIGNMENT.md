@@ -4,13 +4,12 @@ This document describes the directory structure and file organization for the Le
 
 ## Configuration Directories
 
-### `.smartergpt/` (Tracked Canon)
+### `canon/` (Tracked Canon)
 
-Tracked directory containing canonical schemas and prompt templates. These files are version controlled and provide the default behavior.
+Tracked directory containing canonical schemas and prompt templates. These files are version controlled and provide the default behavior. During the build process, canon assets are copied to `prompts/` and `schemas/` directories for npm publishing.
 
 ```
-.smartergpt/
-├── README.md                           # Overview of L-SCHEMAS implementation
+canon/
 ├── prompts/                            # Canonical prompt templates (tracked)
 │   ├── idea.md                         # Template for `lex-pr idea` command
 │   └── create-project.md               # Template for `lex-pr create-project` command
@@ -23,11 +22,46 @@ Tracked directory containing canonical schemas and prompt templates. These files
     ├── feature-spec-v0.ts              # Zod schema (TypeScript)
     ├── feature-spec-v0.js              # Compiled JavaScript
     ├── feature-spec-v0.d.ts            # TypeScript declarations
+    ├── cli-output.v1.schema.json       # CLI output event schema (v1)
     ├── profile.schema.json             # Profile configuration schema (v1)
     ├── gates.schema.json               # Safety gates schema (v1)
     ├── runner.stack.schema.json        # Runner stack schema (v1)
     └── runner.scope.schema.json        # Runner scope schema (v1)
 ```
+
+### Build Process: Canon → Package
+
+The build process copies canon assets to package directories for npm publishing:
+
+1. **`npm run prebuild`** (runs automatically before build)
+   - Executes `npm run copy-canon`
+   - Copies `canon/prompts/` → `prompts/`
+   - Copies `canon/schemas/` → `schemas/`
+
+2. **`npm run build`**
+   - Compiles TypeScript to `dist/`
+   - Published package includes `prompts/` and `schemas/` directories
+
+3. **Published Package Structure**
+   ```
+   lex/
+   ├── dist/                   # Compiled code
+   ├── prompts/                # Published prompt templates
+   │   ├── idea.md
+   │   └── create-project.md
+   └── schemas/                # Published schemas
+       ├── *.json              # JSON schemas
+       ├── *.ts                # Zod TypeScript schemas
+       ├── *.js                # Compiled Zod schemas
+       └── *.d.ts              # Type declarations
+   ```
+
+4. **Package Exports**
+   - `lex/prompts/*` → `./prompts/*`
+   - `lex/schemas/*` → `./schemas/*`
+   - `lex/schemas/*.json` → `./schemas/*.json`
+   - `lex/schemas/feature-spec-v0` → Zod schema with types
+   - `lex/schemas/execution-plan-v1` → Zod schema with types
 
 ### `.smartergpt.local/` (Local Overlay - Untracked)
 
@@ -100,7 +134,7 @@ Prompt templates are loaded using a precedence chain, allowing for local customi
    - Untracked directory for local customizations
    - Overrides canon without modifying tracked files
 
-3. **`.smartergpt/prompts/`** (lowest priority) - Tracked canon
+3. **`canon/prompts/`** (lowest priority) - Tracked canon
    - Version-controlled default templates
    - Always available as fallback
 
@@ -111,14 +145,14 @@ Prompt templates are loaded using a precedence chain, allowing for local customi
 import { loadPrompt } from 'lex/shared/prompts/loader';
 
 const prompt = loadPrompt('idea.md');
-// Loads from .smartergpt/prompts/idea.md
+// Loads from canon/prompts/idea.md (or published prompts/ in installed package)
 ```
 
 **Override with local version:**
 ```bash
 # Create local override
 mkdir -p .smartergpt.local/prompts
-cp .smartergpt/prompts/idea.md .smartergpt.local/prompts/idea.md
+cp canon/prompts/idea.md .smartergpt.local/prompts/idea.md
 # Edit .smartergpt.local/prompts/idea.md as needed
 ```
 
@@ -165,44 +199,55 @@ The repository `.gitignore` includes:
 # Local working files (untracked)
 .smartergpt.local/**
 
-# Canon files are force-added and tracked
-# despite the pattern below
-.smartergpt/**
+# Build artifacts (copied from canon/)
+/prompts/
+/schemas/
 ```
 
-Canon files in `.smartergpt/` are explicitly tracked using `git add -f` to override the ignore pattern.
+Canon files in `canon/` are tracked in git. The `prompts/` and `schemas/` directories are build artifacts generated from canon during the build process and are not tracked.
 
 ## Adding New Schemas
 
 To add a new schema:
 
-1. Create the schema file in `.smartergpt/schemas/`
+1. Create the schema file in `canon/schemas/`
 2. Follow JSON Schema draft-07 or draft/2020-12 format
 3. Include `$schema` and `$id` properties
-4. Force-add to git: `git add -f .smartergpt/schemas/your-schema.json`
+4. Stage and commit: `git add canon/schemas/your-schema.json`
 5. Update this document with schema details
 6. Add validation tests in `test/schemas/`
+7. Run build to copy to package directory: `npm run build`
 
 ## Cross-Repository Usage
 
 From LexRunner or other repositories:
 
 ```typescript
-// Import schemas
+// Import schemas (Zod)
 import { FeatureSpecV0Schema } from 'lex/schemas/feature-spec-v0';
 import { ExecutionPlanV1Schema } from 'lex/schemas/execution-plan-v1';
 
-// Import prompt loader
-import { loadPrompt } from 'lex/shared/prompts/loader';
+// Import JSON schemas
+import profileSchema from 'lex/schemas/profile.schema.json';
+import gatesSchema from 'lex/schemas/gates.schema.json';
 
-// Load prompts
-const ideaPrompt = loadPrompt('idea.md');
+// Access prompts
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const ideaPrompt = fs.readFileSync(
+  path.join(__dirname, 'node_modules/lex/prompts/idea.md'),
+  'utf-8'
+);
 ```
 
 ## References
 
-- `.smartergpt/README.md` - L-SCHEMAS implementation overview
+- Canon source files: `canon/prompts/`, `canon/schemas/`
+- Published package directories: `prompts/`, `schemas/` (build artifacts)
 - `src/shared/prompts/loader.ts` - Prompt loader implementation
 - `src/shared/policy/loader.ts` - Policy loader implementation
 - `src/memory/store/db.ts` - Database initialization
-- `test/shared/prompts/loader.test.ts` - Prompt loader tests
+- `scripts/copy-canon.sh` - Build script to copy canon → package directories

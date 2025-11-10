@@ -9,8 +9,8 @@ import assert from "node:assert";
 import {
   ExecutionPlanV1Schema,
   SubIssueSchema,
-} from "../../.smartergpt/schemas/execution-plan-v1.js";
-import type { FeatureSpecV0 } from "../../.smartergpt/schemas/feature-spec-v0.js";
+} from "../../schemas/execution-plan-v1.js";
+import type { FeatureSpecV0 } from "../../schemas/feature-spec-v0.js";
 
 describe("SubIssueSchema", () => {
   test("validates valid sub-issue", () => {
