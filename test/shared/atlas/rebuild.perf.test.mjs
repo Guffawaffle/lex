@@ -12,12 +12,7 @@ import { strict as assert } from "assert";
 import { rebuildAtlas } from "../../../dist/shared/atlas/rebuild.js";
 
 // Helper to create test frame
-function createTestFrame(
-  id,
-  moduleScope,
-  timestampOffset = 0,
-  branch = "main"
-) {
+function createTestFrame(id, moduleScope, timestampOffset = 0, branch = "main") {
   const baseTime = new Date("2024-01-01T00:00:00Z").getTime();
   return {
     id,
@@ -68,7 +63,14 @@ function generateFrames(count) {
     const branches = ["main", "feature/a", "feature/b", "develop"];
     const branch = branches[Math.floor(Math.random() * branches.length)];
 
-    frames.push(createTestFrame(`frame-${i.toString().padStart(6, "0")}`, frameModules, timestampOffset, branch));
+    frames.push(
+      createTestFrame(
+        `frame-${i.toString().padStart(6, "0")}`,
+        frameModules,
+        timestampOffset,
+        branch
+      )
+    );
   }
 
   return frames;
@@ -101,9 +103,10 @@ describe("Atlas Rebuild Performance", () => {
     assert.ok(duration < 5000, `Rebuild took ${duration}ms, expected < 5000ms`);
   });
 
-  test("10,000 frames rebuilds in < 60s", function () {
+  test("10,000 frames rebuilds in < 60s", { skip: process.env.CI === "true" }, function () {
     // Increase timeout for this test
     this.timeout = 120000; // 2 minutes max
+    // Skip in CI to reduce overall test duration; run locally during development
 
     const frames = generateFrames(10000);
 
@@ -141,7 +144,8 @@ describe("Atlas Rebuild Performance", () => {
     // Edge count should not grow quadratically (O(n²) would be problematic)
     // With threshold-based edge creation, expect sub-quadratic growth
     const edgeDensity100 = atlas100.edges.length / (atlas100.nodes.length * atlas100.nodes.length);
-    const edgeDensity1000 = atlas1000.edges.length / (atlas1000.nodes.length * atlas1000.nodes.length);
+    const edgeDensity1000 =
+      atlas1000.edges.length / (atlas1000.nodes.length * atlas1000.nodes.length);
 
     console.log(`  📊 Edge density (100): ${(edgeDensity100 * 100).toFixed(2)}%`);
     console.log(`  📊 Edge density (1000): ${(edgeDensity1000 * 100).toFixed(2)}%`);
