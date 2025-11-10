@@ -1,9 +1,11 @@
 {
+  "$id": "https://guffawaffle.dev/schemas/feature-spec-v0.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
   "title": "Feature Spec v0",
   "description": "Feature specification for idea capture",
   "required": ["schemaVersion", "title", "description", "acceptanceCriteria", "repo", "createdAt"],
+  "additionalProperties": false,
   "properties": {
     "schemaVersion": {
       "type": "string",
