@@ -1,9 +1,11 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://guffawaffle.dev/schemas/lex/execution-plan-v1.json",
   "type": "object",
   "title": "Execution Plan v1",
   "description": "Project execution plan with Epic and Sub-Issues",
   "required": ["schemaVersion", "sourceSpec", "epic", "subIssues", "createdAt"],
+  "additionalProperties": false,
   "properties": {
     "schemaVersion": {
       "type": "string",
@@ -17,6 +19,7 @@
     "epic": {
       "type": "object",
       "required": ["title", "description", "acceptanceCriteria"],
+      "additionalProperties": false,
       "properties": {
         "title": {
           "type": "string",
@@ -41,6 +44,7 @@
       "items": {
         "type": "object",
         "required": ["id", "title", "description", "type", "acceptanceCriteria", "dependsOn"],
+        "additionalProperties": false,
         "properties": {
           "id": {
             "type": "string",
@@ -86,6 +90,7 @@
     "FeatureSpecV0": {
       "type": "object",
       "required": ["schemaVersion", "title", "description", "acceptanceCriteria", "repo", "createdAt"],
+      "additionalProperties": false,
       "properties": {
         "schemaVersion": { "type": "string", "const": "0.1.0" },
         "title": { "type": "string" },
