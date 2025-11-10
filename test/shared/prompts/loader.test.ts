@@ -11,7 +11,6 @@ import { loadPrompt, getPromptPath, listPrompts } from "../../../src/shared/prom
 // Test fixture paths
 const TEST_ROOT = join(process.cwd(), ".test-prompts");
 const TEST_LOCAL_DIR = join(TEST_ROOT, ".smartergpt.local", "prompts");
-const TEST_CANON_DIR = join(TEST_ROOT, ".smartergpt", "prompts");
 const TEST_ENV_DIR = join(TEST_ROOT, "custom-prompts");
 
 describe("Prompt Loader", () => {
@@ -118,7 +117,6 @@ describe("Prompt Loader Precedence Chain", () => {
   });
 
   it("respects LEX_PROMPTS_DIR environment variable", () => {
-    const envPromptPath = join(TEST_ENV_DIR, "test-env.md");
     const oldEnv = process.env.LEX_PROMPTS_DIR;
     
     try {
