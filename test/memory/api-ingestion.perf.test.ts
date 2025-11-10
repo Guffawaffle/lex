@@ -106,7 +106,9 @@ describe("Frame Ingestion Performance Benchmarks", () => {
 
     console.log(`  Single frame p95 latency: ${p95Latency}ms`);
     console.log(`  Min: ${durations[0]}ms, Max: ${durations[durations.length - 1]}ms`);
-    console.log(`  Mean: ${(durations.reduce((a, b) => a + b, 0) / durations.length).toFixed(2)}ms`);
+    console.log(
+      `  Mean: ${(durations.reduce((a, b) => a + b, 0) / durations.length).toFixed(2)}ms`
+    );
 
     // Relaxed requirement for testing environment
     assert.ok(p95Latency < 100, `p95 latency ${p95Latency}ms should be < 100ms`);

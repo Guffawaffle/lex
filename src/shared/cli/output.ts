@@ -20,10 +20,14 @@ import { getLogger } from "../logger/index.js";
 
 // Tiny color helpers (no external deps)
 const c = {
-  dim: (s: string) => (process.env.LEX_CLI_PRETTY === "1" || process.stdout.isTTY ? `\x1b[2m${s}\x1b[0m` : s),
-  green: (s: string) => (process.env.LEX_CLI_PRETTY === "1" || process.stdout.isTTY ? `\x1b[32m${s}\x1b[0m` : s),
-  yellow: (s: string) => (process.env.LEX_CLI_PRETTY === "1" || process.stdout.isTTY ? `\x1b[33m${s}\x1b[0m` : s),
-  red: (s: string) => (process.env.LEX_CLI_PRETTY === "1" || process.stdout.isTTY ? `\x1b[31m${s}\x1b[0m` : s),
+  dim: (s: string) =>
+    process.env.LEX_CLI_PRETTY === "1" || process.stdout.isTTY ? `\x1b[2m${s}\x1b[0m` : s,
+  green: (s: string) =>
+    process.env.LEX_CLI_PRETTY === "1" || process.stdout.isTTY ? `\x1b[32m${s}\x1b[0m` : s,
+  yellow: (s: string) =>
+    process.env.LEX_CLI_PRETTY === "1" || process.stdout.isTTY ? `\x1b[33m${s}\x1b[0m` : s,
+  red: (s: string) =>
+    process.env.LEX_CLI_PRETTY === "1" || process.stdout.isTTY ? `\x1b[31m${s}\x1b[0m` : s,
 };
 
 /**
@@ -133,13 +137,7 @@ export function createOutput(opts: OutputOptions = {}): CliOutput {
     },
     json<T = unknown>(event: Omit<CliEvent<T>, "v" | "ts">): void {
       const { level, ...rest } = event as CliEvent<T>;
-      emit(
-        level ?? "info",
-        rest.message,
-        rest.data,
-        rest.code,
-        rest.hint
-      );
+      emit(level ?? "info", rest.message, rest.data, rest.code, rest.hint);
     },
   };
 }

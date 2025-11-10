@@ -9,7 +9,6 @@ import {
 import type { Frame } from "./types.js";
 import { writeFileSync } from "fs";
 
-
 const logger = getLogger("memory:renderer:timeline.example");
 
 // Example frames for TICKET-123: Add user authentication

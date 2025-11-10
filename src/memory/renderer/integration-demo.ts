@@ -7,7 +7,6 @@ import { join } from "path";
 import { highlightDiff } from "./syntax.js";
 import { renderDiff, getDiffStats } from "./diff.js";
 
-
 const logger = getLogger("memory:renderer:integration-demo");
 
 // Example diff showing code changes (TypeScript)

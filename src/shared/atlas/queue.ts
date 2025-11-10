@@ -130,9 +130,7 @@ export class AtlasRebuildQueue {
         const validation = validateAtlas(atlas);
 
         if (!validation.valid) {
-          throw new Error(
-            `Atlas validation failed: ${validation.errors.join(", ")}`
-          );
+          throw new Error(`Atlas validation failed: ${validation.errors.join(", ")}`);
         }
       }
 
