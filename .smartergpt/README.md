@@ -4,7 +4,82 @@ This directory contains Zod schemas and prompt templates for the LexRunner integ
 
 ## Schemas
 
-### Feature Spec v0 (`feature-spec-v0`)
+### Configuration Schemas (JSON Schema draft/draft-07)
+
+The following JSON Schema files provide validation for configuration files:
+
+#### Profile Schema v1 (`profile.schema.json`)
+
+Defines runtime profile configuration for different environments.
+
+**Required Fields:**
+- `role` - Runtime environment: "development", "local", "example", "ci", "custom"
+
+**Optional Fields:**
+- `name` - Human-readable profile name
+- `version` - Profile version string
+- `projectType` - Project type: "nodejs", "python", "generic"
+- `created` - ISO 8601 timestamp
+- `owner` - Profile owner/creator
+
+**Example Usage:**
+```yaml
+$schema: "../.smartergpt/schemas/profile.schema.json"
+role: development
+name: "Local Development"
+version: "1.0.0"
+projectType: nodejs
+created: "2025-11-09T12:00:00Z"
+owner: "username"
+```
+
+#### Gates Schema v1 (`gates.schema.json`)
+
+Defines safety gates and validation rules.
+
+**Properties:**
+- `version` - Schema version
+- `gates` - Array of gate definitions
+  - `id` - Unique gate identifier
+  - `type` - Gate type: "validation", "approval", "check"
+  - `enabled` - Boolean flag
+  - `description` - Gate description
+  - `config` - Gate-specific configuration
+
+#### Runner Stack Schema v1 (`runner.stack.schema.json`)
+
+Defines runner execution stack configuration.
+
+**Properties:**
+- `version` - Schema version
+- `stack` - Array of stack components
+  - `name` - Component name
+  - `type` - Component type
+  - `enabled` - Boolean flag (default: true)
+  - `config` - Component-specific configuration
+- `timeout` - Default timeout in seconds
+- `retries` - Number of retry attempts
+
+#### Runner Scope Schema v1 (`runner.scope.schema.json`)
+
+Defines runner execution scope and boundaries.
+
+**Properties:**
+- `version` - Schema version
+- `scope` - Scope boundaries
+  - `modules` - Array of module names
+  - `directories` - Array of directory paths
+  - `files` - Array of file paths
+  - `exclude` - Array of exclusion patterns
+- `permissions` - Required permissions array
+- `limits` - Resource limits
+  - `maxFiles` - Maximum files to modify
+  - `maxLines` - Maximum lines to change
+  - `maxDuration` - Maximum execution time in seconds
+
+### Zod Schemas (TypeScript)
+
+#### Feature Spec v0 (`feature-spec-v0`)
 
 Captures feature ideas with title, description, acceptance criteria, and technical context.
 
@@ -101,14 +176,18 @@ Template for the `lex-pr create-project` command. Guides the AI to:
 ```
 .smartergpt/
 ├── schemas/
-│   ├── feature-spec-v0.json        # JSON Schema (draft-07)
+│   ├── feature-spec-v0.json        # JSON Schema (draft-07) - Zod-based
 │   ├── feature-spec-v0.ts          # Zod schema (TypeScript)
 │   ├── feature-spec-v0.js          # Compiled JavaScript
 │   ├── feature-spec-v0.d.ts        # TypeScript declarations
-│   ├── execution-plan-v1.json      # JSON Schema (draft-07)
+│   ├── execution-plan-v1.json      # JSON Schema (draft-07) - Zod-based
 │   ├── execution-plan-v1.ts        # Zod schema (TypeScript)
 │   ├── execution-plan-v1.js        # Compiled JavaScript
-│   └── execution-plan-v1.d.ts      # TypeScript declarations
+│   ├── execution-plan-v1.d.ts      # TypeScript declarations
+│   ├── profile.schema.json         # JSON Schema (draft/2020-12) - Configuration
+│   ├── gates.schema.json           # JSON Schema (draft/2020-12) - Safety gates
+│   ├── runner.stack.schema.json    # JSON Schema (draft/2020-12) - Stack config
+│   └── runner.scope.schema.json    # JSON Schema (draft/2020-12) - Scope config
 └── prompts/
     ├── idea.md                     # Prompt for idea command
     └── create-project.md           # Prompt for create-project command

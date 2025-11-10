@@ -70,6 +70,15 @@ Policy is machine-readable architecture boundaries. The policy file defines whic
 - Example template: `src/policy/policy_spec/lexmap.policy.json.example`
 - Override via environment: `LEX_POLICY_PATH=/custom/path/policy.json`
 
+**Prompt Templates & Schemas:**
+Lex uses a precedence chain for loading prompt templates and includes JSON schemas for configuration validation:
+- Canon prompts: `.smartergpt/prompts/` (tracked, version-controlled defaults)
+- Local overlay: `.smartergpt.local/prompts/` (untracked, for local customization)
+- Environment override: `LEX_PROMPTS_DIR=/custom/prompts` (highest precedence)
+- Schemas: `.smartergpt/schemas/` (tracked, includes profile.schema.json, gates.schema.json, runner.stack.schema.json, runner.scope.schema.json)
+
+See `DIRECTORY_ALIGNMENT.md` for complete details on directory structure, schema locations, and precedence rules.
+
 ### Fold radius & Atlas Frame (lex/shared/atlas)
 When you recall a Frame, Lex does **not** dump the whole monolith into context. Instead, it exports an Atlas Frame: the touched modules (`module_scope`) plus their 1-hop neighborhood in the policy graph (allowed callers, forbidden callers, required flags/permissions). That's fold radius = 1.
 
