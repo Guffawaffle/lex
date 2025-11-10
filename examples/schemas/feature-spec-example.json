@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "0.1.0",
+  "title": "Add dark mode support",
+  "description": "Implement theme switcher with light/dark modes",
+  "acceptanceCriteria": [
+    "User can toggle between light and dark themes via UI control",
+    "Theme preference persists across browser sessions",
+    "All UI components render correctly in both themes",
+    "Theme respects system preference on first visit",
+    "Theme transition is smooth without flashing"
+  ],
+  "technicalContext": "Use CSS variables for theming. Store preference in localStorage. Detect system preference via prefers-color-scheme media query. Existing components: Button, Card, Nav, Footer.",
+  "constraints": "Must support IE11+ (no CSS Grid). Theme switcher must be accessible (ARIA labels, keyboard navigation).",
+  "repo": "owner/repo",
+  "createdAt": "2025-11-09T14:30:00.000Z"
+}

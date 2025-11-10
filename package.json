@@ -19,6 +19,14 @@
       "import": "./dist/shared/cli/output.js"
     },
     "./schemas/cli-output.v1.schema.json": "./schemas/cli-output.v1.schema.json",
+    "./schemas/feature-spec-v0": {
+      "import": "./.smartergpt/schemas/feature-spec-v0.js",
+      "types": "./.smartergpt/schemas/feature-spec-v0.d.ts"
+    },
+    "./schemas/execution-plan-v1": {
+      "import": "./.smartergpt/schemas/execution-plan-v1.js",
+      "types": "./.smartergpt/schemas/execution-plan-v1.d.ts"
+    },
     "./logger": {
       "types": "./dist/shared/logger/index.d.ts",
       "import": "./dist/shared/logger/index.js"
@@ -36,6 +44,10 @@
     "dist/**/*.js.map",
     "!dist/**/*.tsbuildinfo",
     "schemas/**/*.json",
+    ".smartergpt/schemas/**/*.js",
+    ".smartergpt/schemas/**/*.d.ts",
+    ".smartergpt/schemas/**/*.json",
+    ".smartergpt/prompts/**/*.md",
     "README.md",
     "LICENSE"
   ],
