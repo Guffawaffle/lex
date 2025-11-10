@@ -9,6 +9,7 @@ build/
 *.js.map
 *.d.ts.map
 tsconfig.tsbuildinfo
+*.tgz
 
 # Generated TypeScript compilation outputs (source is .ts)
 # Keep only source .ts files, not compiled .js/.d.ts
@@ -31,6 +32,9 @@ __pycache__/
 # Environment
 .env
 .env.local
+
+# Configuration (working config, not the example)
+.lex.config.json
 
 # Databases
 *.sqlite
@@ -73,3 +77,5 @@ docker-compose.override.yml
 
 # TypeScript build info files
 *.tsbuildinfo
+*.tgz
+current-lint.json

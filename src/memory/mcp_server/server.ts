@@ -1,12 +1,14 @@
-/**
- * Lex Memory MCP Server
- *
- * Handles MCP protocol requests for Frame storage and recall.
- * Integrates with FrameStore (SQLite + FTS5) and Atlas Frame generation.
- */
-
-// @ts-ignore - importing from compiled dist directories
-import { FrameStore } from "../store/framestore.js";
+import { getLogger } from "lex/logger";
+import { createDatabase } from "../store/db.js";
+import {
+  saveFrame,
+  deleteFrame,
+  searchFrames,
+  getFramesByBranch,
+  getFramesByJira,
+  getAllFrames,
+} from "../store/queries.js";
+import type Database from "better-sqlite3";
 // @ts-ignore - importing from compiled dist directories
 import { ImageManager } from "../store/images.js";
 // @ts-ignore - importing from compiled dist directories
@@ -24,6 +26,8 @@ import { loadPolicy } from "../../shared/policy/loader.js";
 import { getCurrentBranch } from "../../shared/git/branch.js";
 import { randomUUID } from "crypto";
 import { join } from "path";
+
+const logger = getLogger("memory:mcp_server:server");
 
 export interface MCPRequest {
   method: string;
@@ -48,14 +52,14 @@ export interface ToolCallParams {
  * MCP Server - handles protocol requests
  */
 export class MCPServer {
-  private frameStore: FrameStore;
+  private db: Database.Database;
   private imageManager: ImageManager;
   private policy: any | null; // Cached policy for validation (null if not available)
   private repoRoot: string | null; // Repository root path
 
   constructor(dbPath: string, repoRoot?: string) {
-    this.frameStore = new FrameStore(dbPath);
-    this.imageManager = new ImageManager(this.frameStore.getDatabase());
+    this.db = createDatabase(dbPath);
+    this.imageManager = new ImageManager(this.db);
     this.repoRoot = repoRoot || null;
 
     // Load policy once at initialization for better performance
@@ -63,13 +67,13 @@ export class MCPServer {
     try {
       // If repoRoot is provided, construct the policy path directly
       const policyPath = this.repoRoot
-        ? join(this.repoRoot, 'policy/policy_spec/lexmap.policy.json')
+        ? join(this.repoRoot, "policy/policy_spec/lexmap.policy.json")
         : undefined;
       this.policy = loadPolicy(policyPath);
     } catch (error: any) {
       if (process.env.LEX_DEBUG) {
-        console.error(`[LEX] Policy not available: ${error.message}`);
-        console.error(`[LEX] Operating without policy enforcement`);
+        logger.error(`[LEX] Policy not available: ${error.message}`);
+        logger.error(`[LEX] Operating without policy enforcement`);
       }
       this.policy = null;
     }
@@ -112,12 +116,12 @@ export class MCPServer {
     return {
       protocolVersion: "2024-11-05",
       capabilities: {
-        tools: {}
+        tools: {},
       },
       serverInfo: {
         name: "lex-memory-mcp-server",
-        version: "0.1.0"
-      }
+        version: "0.1.0",
+      },
     } as any;
   }
 
@@ -193,16 +197,17 @@ export class MCPServer {
       if (!validationResult.valid && validationResult.errors) {
         // Format error message with suggestions
         const errorMessages = validationResult.errors.map((error: ModuleIdError) => {
-          const suggestions = error.suggestions.length > 0
-            ? `\n  Did you mean: ${error.suggestions.join(', ')}?`
-            : '';
+          const suggestions =
+            error.suggestions.length > 0
+              ? `\n  Did you mean: ${error.suggestions.join(", ")}?`
+              : "";
           return `  • ${error.message}${suggestions}`;
         });
 
         throw new Error(
-          `Invalid module IDs in module_scope:\n${errorMessages.join('\n')}\n\n` +
-          `Module IDs must match those defined in lexmap.policy.json.\n` +
-          `Available modules: ${Object.keys(this.policy.modules).join(', ')}`
+          `Invalid module IDs in module_scope:\n${errorMessages.join("\n")}\n\n` +
+            `Module IDs must match those defined in lexmap.policy.json.\n` +
+            `Available modules: ${Object.keys(this.policy.modules).join(", ")}`
         );
       }
 
@@ -211,7 +216,7 @@ export class MCPServer {
         canonicalModuleScope = validationResult.canonical;
       }
     } else if (process.env.LEX_DEBUG) {
-      console.error(`[LEX] Skipping module validation (no policy loaded)`);
+      logger.error(`[LEX] Skipping module validation (no policy loaded)`);
     }
 
     // Generate Frame ID and timestamp
@@ -227,11 +232,11 @@ export class MCPServer {
     } else if (this.repoRoot || process.env.LEX_DEFAULT_BRANCH) {
       frameBranch = getCurrentBranch();
       // Log branch detection for debugging
-      console.log(`[lex.remember] Auto-detected branch: ${frameBranch}`);
+      logger.info(`[lex.remember] Auto-detected branch: ${frameBranch}`);
     } else {
       // When no repoRoot is provided and no env override, avoid auto-detecting
       // from the runner's repository; use 'unknown' to indicate no branch context.
-      frameBranch = 'unknown';
+      frameBranch = "unknown";
     }
 
     const frame = {
@@ -239,7 +244,7 @@ export class MCPServer {
       timestamp,
       branch: frameBranch,
       jira: jira || null,
-      module_scope: canonicalModuleScope,  // Store canonical IDs only
+      module_scope: canonicalModuleScope, // Store canonical IDs only
       summary_caption,
       reference_point,
       status_snapshot,
@@ -248,7 +253,7 @@ export class MCPServer {
       image_ids: [] as string[],
     };
 
-    this.frameStore.insertFrame(frame);
+    saveFrame(this.db, frame);
 
     // Process image attachments if provided
     const imageIds: string[] = [];
@@ -257,31 +262,25 @@ export class MCPServer {
         try {
           // Decode base64 image data
           const imageBuffer = Buffer.from(img.data, "base64");
-          const imageId = this.imageManager.storeImage(
-            frameId,
-            imageBuffer,
-            img.mime_type
-          );
+          const imageId = this.imageManager.storeImage(frameId, imageBuffer, img.mime_type);
           imageIds.push(imageId);
         } catch (error: any) {
           // If image storage fails, clean up the Frame and rethrow
-          this.frameStore.deleteFrame(frameId);
+          deleteFrame(this.db, frameId);
           throw new Error(`Failed to store image: ${error.message}`);
         }
       }
 
       // Update frame with image IDs
       frame.image_ids = imageIds;
-      this.frameStore.insertFrame(frame);
+      saveFrame(this.db, frame);
     }
 
     // Generate Atlas Frame for the module scope
     const atlasFrame = generateAtlasFrame(canonicalModuleScope);
     const atlasOutput = formatAtlasFrame(atlasFrame);
 
-    const imageInfo = imageIds.length > 0
-      ? `🖼️  Images: ${imageIds.length} attached\n`
-      : "";
+    const imageInfo = imageIds.length > 0 ? `🖼️  Images: ${imageIds.length} attached\n` : "";
 
     return {
       content: [
@@ -309,23 +308,26 @@ export class MCPServer {
     const { reference_point, jira, branch, limit = 10 } = args;
 
     if (!reference_point && !jira && !branch) {
-      throw new Error(
-        "At least one search parameter required: reference_point, jira, or branch"
-      );
+      throw new Error("At least one search parameter required: reference_point, jira, or branch");
     }
 
     let frames: Frame[];
     try {
-      frames = this.frameStore.searchFrames({
-        reference_point,
-        jira,
-        branch,
-        limit,
-      });
+      if (reference_point) {
+        // Use FTS5 full-text search for reference_point
+        const result = searchFrames(this.db, reference_point);
+        frames = result.frames.slice(0, limit);
+      } else if (jira) {
+        frames = getFramesByJira(this.db, jira).slice(0, limit);
+      } else if (branch) {
+        frames = getFramesByBranch(this.db, branch).slice(0, limit);
+      } else {
+        frames = [];
+      }
     } catch (error: any) {
       // FTS5 search can fail with special characters (e.g., "zzz-nonexistent-query-zzz")
       // Treat search errors as empty results rather than propagating the error
-      if (error.code === 'SQLITE_ERROR' || error.message?.includes('no such column')) {
+      if (error.code === "SQLITE_ERROR" || error.message?.includes("no such column")) {
         frames = [];
       } else {
         throw error;
@@ -394,15 +396,13 @@ export class MCPServer {
   private handleListFrames(args: any): MCPResponse {
     const { branch, module, limit = 10, since } = args;
 
-    // Build search query
-    const query: any = { limit };
-
+    // Get frames based on filters
+    let frames: Frame[];
     if (branch) {
-      query.branch = branch;
+      frames = getFramesByBranch(this.db, branch);
+    } else {
+      frames = getAllFrames(this.db);
     }
-
-    // Search frames (if no filters, searchFrames returns recent frames)
-    let frames = this.frameStore.searchFrames(query);
 
     // Filter by module if specified
     if (module) {
@@ -414,6 +414,9 @@ export class MCPServer {
       const sinceDate = new Date(since);
       frames = frames.filter((f: Frame) => new Date(f.timestamp) >= sinceDate);
     }
+
+    // Apply limit
+    frames = frames.slice(0, limit);
 
     if (frames.length === 0) {
       return {
@@ -457,6 +460,6 @@ export class MCPServer {
    * Close database connection
    */
   close() {
-    this.frameStore.close();
+    this.db.close();
   }
 }

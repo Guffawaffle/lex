@@ -7,8 +7,8 @@
 
 import Database from "better-sqlite3";
 import { homedir } from "os";
-import { join } from "path";
-import { mkdirSync, existsSync } from "fs";
+import { join, dirname } from "path";
+import { mkdirSync, existsSync, readFileSync } from "fs";
 
 export interface FrameRow {
   id: string;
@@ -23,10 +23,15 @@ export interface FrameRow {
   atlas_frame_id: string | null;
   feature_flags: string | null; // JSON stringified array
   permissions: string | null; // JSON stringified array
+  // Merge-weave metadata (v2)
+  run_id: string | null;
+  plan_hash: string | null;
+  spend: string | null; // JSON stringified object
 }
 
 /**
- * Get default database path: ~/.lex/frames.db
+ * Get default database path: .smartergpt.local/lex/memory.db (relative to repo root)
+ * Falls back to ~/.lex/frames.db if not in a lex repository
  * Can be overridden with LEX_DB_PATH environment variable
  */
 export function getDefaultDbPath(): string {
@@ -35,11 +40,50 @@ export function getDefaultDbPath(): string {
     return process.env.LEX_DB_PATH;
   }
 
-  const lexDir = join(homedir(), ".lex");
-  if (!existsSync(lexDir)) {
-    mkdirSync(lexDir, { recursive: true });
+  // Try to find repo root
+  try {
+    const repoRoot = findRepoRoot(process.cwd());
+    const localPath = join(repoRoot, ".smartergpt.local", "lex", "memory.db");
+
+    // Ensure directory exists
+    const localDir = join(repoRoot, ".smartergpt.local", "lex");
+    if (!existsSync(localDir)) {
+      mkdirSync(localDir, { recursive: true });
+    }
+
+    return localPath;
+  } catch {
+    // Fallback to home directory if not in repo
+    const lexDir = join(homedir(), ".lex");
+    if (!existsSync(lexDir)) {
+      mkdirSync(lexDir, { recursive: true });
+    }
+    return join(lexDir, "frames.db");
   }
-  return join(lexDir, "frames.db");
+}
+
+/**
+ * Find repository root by looking for package.json with name "lex"
+ */
+function findRepoRoot(startPath: string): string {
+  let currentPath = startPath;
+
+  while (currentPath !== dirname(currentPath)) {
+    const packageJsonPath = join(currentPath, "package.json");
+    if (existsSync(packageJsonPath)) {
+      try {
+        const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf-8"));
+        if (packageJson.name === "lex") {
+          return currentPath;
+        }
+      } catch {
+        // Invalid package.json, continue searching
+      }
+    }
+    currentPath = dirname(currentPath);
+  }
+
+  throw new Error("Repository root not found");
 }
 
 /**
@@ -62,7 +106,9 @@ export function initializeDatabase(db: Database.Database): void {
   `);
 
   // Check current schema version
-  const versionRow = db.prepare("SELECT MAX(version) as version FROM schema_version").get() as { version: number | null };
+  const versionRow = db.prepare("SELECT MAX(version) as version FROM schema_version").get() as {
+    version: number | null;
+  };
   const currentVersion = versionRow?.version || 0;
 
   // Apply migrations
@@ -73,6 +119,10 @@ export function initializeDatabase(db: Database.Database): void {
   if (currentVersion < 2) {
     applyMigrationV2(db);
     db.prepare("INSERT INTO schema_version (version) VALUES (?)").run(2);
+  }
+  if (currentVersion < 3) {
+    applyMigrationV3(db);
+    db.prepare("INSERT INTO schema_version (version) VALUES (?)").run(3);
   }
 }
 
@@ -170,6 +220,25 @@ function applyMigrationV2(db: Database.Database): void {
   // Create index for frame_id lookups
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_images_frame_id ON images(frame_id);
+  `);
+}
+
+/**
+ * Migration V3: Add merge-weave metadata fields (Frame schema v2)
+ */
+function applyMigrationV3(db: Database.Database): void {
+  // Add new optional columns for merge-weave provenance
+  // Safe to add with NULL default, backward compatible
+  db.exec(`
+    ALTER TABLE frames ADD COLUMN run_id TEXT;
+  `);
+
+  db.exec(`
+    ALTER TABLE frames ADD COLUMN plan_hash TEXT;
+  `);
+
+  db.exec(`
+    ALTER TABLE frames ADD COLUMN spend TEXT;
   `);
 }
 

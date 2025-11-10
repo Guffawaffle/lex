@@ -1,6 +1,6 @@
 /**
  * Type definitions for Atlas Frame and Policy Graph
- * 
+ *
  * These types represent the spatial neighborhood extraction from policy graphs.
  */
 

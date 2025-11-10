@@ -1,6 +1,6 @@
 {
   "name": "lex",
-  "version": "0.2.0",
+  "version": "0.4.0",
   "description": "Policy-aware work continuity with receipts. Unified LexBrain + LexMap.",
   "type": "module",
   "main": "dist/index.js",
@@ -10,7 +10,27 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
-    "./cli": "./dist/cli/index.js",
+    "./cli": {
+      "types": "./dist/shared/cli/index.d.ts",
+      "import": "./dist/shared/cli/index.js"
+    },
+    "./cli-output": {
+      "types": "./dist/shared/cli/output.d.ts",
+      "import": "./dist/shared/cli/output.js"
+    },
+    "./schemas/cli-output.v1.schema.json": "./schemas/cli-output.v1.schema.json",
+    "./schemas/feature-spec-v0": {
+      "import": "./.smartergpt/schemas/feature-spec-v0.js",
+      "types": "./.smartergpt/schemas/feature-spec-v0.d.ts"
+    },
+    "./schemas/execution-plan-v1": {
+      "import": "./.smartergpt/schemas/execution-plan-v1.js",
+      "types": "./.smartergpt/schemas/execution-plan-v1.d.ts"
+    },
+    "./logger": {
+      "types": "./dist/shared/logger/index.d.ts",
+      "import": "./dist/shared/logger/index.js"
+    },
     "./policy/*": "./dist/policy/*",
     "./memory/*": "./dist/memory/*",
     "./shared/*": "./dist/shared/*"
@@ -19,28 +39,48 @@
     "lex": "./dist/shared/cli/lex.js"
   },
   "files": [
-    "dist",
+    "dist/**/*.js",
+    "dist/**/*.d.ts",
+    "dist/**/*.js.map",
+    "!dist/**/*.tsbuildinfo",
+    "schemas/**/*.json",
+    ".smartergpt/schemas/**/*.js",
+    ".smartergpt/schemas/**/*.d.ts",
+    ".smartergpt/schemas/**/*.json",
+    ".smartergpt/prompts/**/*.md",
     "README.md",
     "LICENSE"
   ],
   "scripts": {
-    "build": "tsc -b",
-    "clean": "rimraf dist",
-    "type-check": "tsc --noEmit",
+    "setup-local": "./scripts/setup-local.sh",
+    "build": "tsc -b tsconfig.build.json",
+    "clean": "tsc -b tsconfig.build.json --clean && rimraf dist",
+    "type-check": "tsc -p tsconfig.build.json --noEmit",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "test": "npx tsx --test 'src/**/*.test.{ts,mts}' && node --test 'src/**/*.test.mjs'",
-    "test:integration": "npx tsx --test src/memory/integration.test.ts && node src/policy/integration.test.mjs",
-    "test:benchmarks": "npx tsx --test src/memory/benchmarks.test.ts",
+    "lint:baseline:check": "npx eslint . --format=json 2>&1 | grep -v '^>' > current-lint.json && node scripts/lint-budget.mjs current-lint.json lint-baseline.json && rm current-lint.json",
+    "lint:baseline:update": "npx eslint . --format=json 2>&1 | grep -v '^>' > lint-baseline.json && echo 'Baseline updated. Please commit lint-baseline.json.'",
+    "test": "NODE_ENV=test LEX_LOG_LEVEL=silent npx tsx --test 'test/**/*.test.{ts,mts}' && NODE_ENV=test LEX_LOG_LEVEL=silent node --test 'test/**/*.test.mjs'",
+    "test:aliases": "NODE_ENV=test LEX_LOG_LEVEL=silent node --test test/shared/aliases/substring.spec.mjs test/shared/aliases/collision.spec.mjs test/shared/aliases/case-sensitivity.spec.mjs test/shared/aliases/resolution.spec.mjs",
+    "test:integration": "NODE_ENV=test LEX_LOG_LEVEL=silent npx tsx --test test/memory/integration.test.ts && NODE_ENV=test LEX_LOG_LEVEL=silent node test/policy/integration.test.mjs",
+    "test:benchmarks": "NODE_ENV=test LEX_LOG_LEVEL=silent npx tsx --test test/memory/benchmarks.test.ts",
     "test:all": "npm test && npm run test:integration",
     "test:coverage": "npm run test",
+    "test:smoke": "./scripts/consumer-smoke-test.sh",
+    "guard:no-js-src": "node ./scripts/check-no-js-in-src.mjs",
+    "coverage": "c8 -r text -r lcov npm test",
+    "check:coverage": "c8 --check-coverage --branches 60 --functions 60 --lines 60 --statements 60 npm test",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "local-ci": "./scripts/local-ci-run.sh",
     "local-ci:nonet": "./scripts/ci-nonet.sh",
+    "generate:test-frames": "node scripts/generate-test-frames.mjs",
     "changeset": "changeset",
     "version-packages": "changeset version",
-    "release": "npm run build && changeset publish"
+    "release": "npm run build && changeset publish",
+    "prepack": "npm run build",
+    "prepare": "npm run build",
+    "postbuild": "chmod +x dist/shared/cli/lex.js"
   },
   "keywords": [
     "memory",
@@ -51,19 +91,33 @@
   "author": "Guffawaffle",
   "license": "MIT",
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=20 <23"
+  },
+  "peerDependencies": {
+    "pino-pretty": "*"
+  },
+  "peerDependenciesMeta": {
+    "pino-pretty": {
+      "optional": true
+    }
   },
   "dependencies": {
+    "@types/express": "^5.0.5",
     "better-sqlite3": "^12.4.1",
     "commander": "^12.0.0",
+    "express": "^5.1.0",
     "glob": "^11.0.3",
     "inquirer": "^12.10.0",
     "minimatch": "^10.1.1",
+    "pino": "^10.1.0",
     "sharp": "^0.34.5",
     "shiki": "^3.15.0",
     "typescript": "^5.9.3",
     "uuid": "^13.0.0",
     "zod": "^4.1.12"
+  },
+  "optionalDependencies": {
+    "pino-pretty": "^13.1.2"
   },
   "devDependencies": {
     "@changesets/cli": "^2.29.7",
@@ -75,10 +129,12 @@
     "@types/uuid": "^9.0.8",
     "@typescript-eslint/eslint-plugin": "^8.46.3",
     "@typescript-eslint/parser": "^8.46.3",
+    "c8": "^10.1.3",
     "eslint": "^9.39.1",
     "eslint-config-prettier": "^10.1.8",
     "prettier": "^3.6.2",
     "rimraf": "^6.0.0",
+    "ts-morph": "^27.0.2",
     "tsx": "^4.20.6"
   }
 }

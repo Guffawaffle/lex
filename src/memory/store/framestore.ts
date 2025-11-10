@@ -2,6 +2,7 @@
 // Wraps the new modular implementation (db.ts, queries.ts, index.ts)
 // This provides backward compatibility while using the new modular code internally
 
+import { getLogger } from "lex/logger";
 import Database from "better-sqlite3";
 import { createDatabase } from "./db.js";
 import {
@@ -14,6 +15,8 @@ import {
   getAllFrames,
 } from "./queries.js";
 import type { Frame } from "../frames/types.js";
+
+const logger = getLogger("memory:store:framestore");
 
 export interface FrameRow {
   id: string;
@@ -63,7 +66,7 @@ export class FrameStore {
       save(this.db, frame as Frame);
       return true;
     } catch (error) {
-      console.error("Failed to insert frame:", error);
+      logger.error({ err: error }, "Failed to insert frame");
       return false;
     }
   }
@@ -87,7 +90,8 @@ export class FrameStore {
     limit?: number;
   }): any[] {
     if (query.reference_point) {
-      return search(this.db, query.reference_point);
+      // Return just the frames array from SearchResult for backward compatibility
+      return search(this.db, query.reference_point).frames;
     }
 
     if (query.jira) {
@@ -124,4 +128,3 @@ export class FrameStore {
     return this.db;
   }
 }
-

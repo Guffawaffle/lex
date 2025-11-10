@@ -34,13 +34,16 @@ jobs:
         echo "✅ Single package.json confirmed"
 
     - name: Setup Node.js
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v6
       with:
         node-version: ${{ matrix.node }}
         cache: 'npm'
 
     - name: Install dependencies (hermetic)
       run: npm ci --ignore-scripts
+
+    - name: Initialize working files
+      run: npm run setup-local
 
     - name: Type check
       run: npm run type-check
@@ -61,13 +64,16 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Setup Node.js
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v6
       with:
         node-version: '20'
         cache: 'npm'
 
     - name: Install dependencies (hermetic)
       run: npm ci --ignore-scripts
+
+    - name: Initialize working files
+      run: npm run setup-local
 
     - name: Build
       run: npm run build
@@ -87,13 +93,16 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Setup Node.js
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v6
       with:
         node-version: '20'
         cache: 'npm'
 
     - name: Install dependencies (hermetic)
       run: npm ci --ignore-scripts
+
+    - name: Initialize working files
+      run: npm run setup-local
 
     - name: Build
       run: npm run build

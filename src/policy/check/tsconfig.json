@@ -1,28 +1,15 @@
 {
+  "extends": "../../../tsconfig.base.json",
   "compilerOptions": {
-    "target": "ES2022",
-    "module": "ES2022",
-    "lib": ["ES2022"],
-    "moduleResolution": "bundler",
-    "outDir": "./dist",
-    "rootDir": ".",
-    "strict": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
-    "declaration": true,
-    "declarationMap": true,
-    "sourceMap": true,
-    "resolveJsonModule": true,
-    "types": ["node"]
+    "composite": true
   },
-  "include": [
-    "*.ts"
-  ],
-  "exclude": [
-    "node_modules",
-    "dist",
-    "*.test.ts",
-    "*.test.mjs"
+  "include": ["./*.ts"],
+  "exclude": ["node_modules", "dist", "*.test.ts"],
+  "references": [
+    { "path": "../../shared/types" },
+    { "path": "../merge" },
+    { "path": "../../shared/policy" },
+    { "path": "../../shared/atlas" },
+    { "path": "../../shared/module_ids" }
   ]
 }

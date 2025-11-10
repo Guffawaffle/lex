@@ -13,11 +13,16 @@ export declare function saveFrame(db: Database.Database, frame: Frame): void;
  * Get a Frame by ID
  */
 export declare function getFrameById(db: Database.Database, id: string): Frame | null;
+export interface SearchResult {
+  frames: Frame[];
+  hint?: string;
+}
 /**
  * Search Frames using FTS5 full-text search
  * @param query Natural language query string (searches reference_point, summary_caption, keywords)
+ * @returns SearchResult with frames array and optional hint for FTS5 syntax errors
  */
-export declare function searchFrames(db: Database.Database, query: string): Frame[];
+export declare function searchFrames(db: Database.Database, query: string): SearchResult;
 /**
  * Get all Frames for a specific branch
  */
@@ -43,4 +48,3 @@ export declare function deleteFrame(db: Database.Database, id: string): boolean;
  * Get count of all Frames
  */
 export declare function getFrameCount(db: Database.Database): number;
-//# sourceMappingURL=queries.d.ts.map

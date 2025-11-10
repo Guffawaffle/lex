@@ -1,0 +1,20 @@
+{
+  "name": "lex-consumer-example",
+  "version": "1.0.0",
+  "description": "Example consumer application for Lex package",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "node index.mjs",
+    "start:ts": "tsx index.ts"
+  },
+  "keywords": ["lex", "example"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "lex": "file:../../"
+  },
+  "devDependencies": {
+    "tsx": "^4.20.6"
+  }
+}

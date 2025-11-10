@@ -1,11 +1,11 @@
 /**
  * Atlas Frame Caching
- * 
+ *
  * Caches computed Atlas Frames by (module_scope, radius) key to avoid
  * redundant graph traversals. Tracks cache hits/misses for performance monitoring.
  */
 
-import type { AtlasFrame } from './types.js';
+import type { AtlasFrame } from "./types.js";
 
 /**
  * Cache key for an Atlas Frame computation
@@ -27,7 +27,7 @@ export interface CacheStats {
 
 /**
  * In-memory cache for Atlas Frames
- * 
+ *
  * Uses LRU eviction when cache size exceeds maxSize.
  * Cache keys are based on sorted module_scope + radius for consistency.
  */
@@ -44,7 +44,7 @@ export class AtlasFrameCache {
 
   /**
    * Create a new Atlas Frame cache
-   * 
+   *
    * @param maxSize - Maximum number of entries to cache (default: 100)
    */
   constructor(maxSize: number = 100) {
@@ -53,18 +53,18 @@ export class AtlasFrameCache {
 
   /**
    * Generate cache key from module scope and radius
-   * 
+   *
    * Normalizes module_scope by sorting to ensure consistent keys
    * regardless of input order.
    */
   private getCacheKey(moduleScope: string[], radius: number): string {
     const sortedModules = Array.from(moduleScope).sort();
-    return `${sortedModules.join(',')}:${radius}`;
+    return `${sortedModules.join(",")}:${radius}`;
   }
 
   /**
    * Get cached Atlas Frame if available
-   * 
+   *
    * @param moduleScope - Module IDs to look up
    * @param radius - Fold radius
    * @returns Cached AtlasFrame or undefined if not found
@@ -87,7 +87,7 @@ export class AtlasFrameCache {
 
   /**
    * Store Atlas Frame in cache
-   * 
+   *
    * @param moduleScope - Module IDs
    * @param radius - Fold radius
    * @param frame - Computed Atlas Frame
@@ -178,7 +178,7 @@ export class AtlasFrameCache {
 
 /**
  * Global cache instance
- * 
+ *
  * Shared across all Atlas Frame generation calls.
  * Can be disabled by setting enableCache = false.
  */
@@ -216,10 +216,12 @@ export function resetCache(): void {
  * Get global cache statistics
  */
 export function getCacheStats(): CacheStats {
-  return globalCache ? globalCache.getStats() : {
-    hits: 0,
-    misses: 0,
-    evictions: 0,
-    size: 0,
-  };
+  return globalCache
+    ? globalCache.getStats()
+    : {
+        hits: 0,
+        misses: 0,
+        evictions: 0,
+        size: 0,
+      };
 }

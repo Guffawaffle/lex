@@ -1,19 +1,16 @@
 {
+  "extends": "../../../tsconfig.base.json",
   "compilerOptions": {
-    "target": "ES2022",
-    "module": "ES2022",
-    "moduleResolution": "node",
-    "outDir": "./dist",
-    "rootDir": ".",
-    "strict": true,
-    "esModuleInterop": true,
-    "allowSyntheticDefaultImports": true,
-    "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
-    "declaration": true,
-    "declarationMap": true,
-    "sourceMap": true
+    "composite": true,
+    "baseUrl": ".",
+    "paths": {
+      "lex/logger": ["../../shared/logger"],
+      "lex/logger/*": ["../../shared/logger/*"]
+    }
   },
-  "include": ["*.ts"],
-  "exclude": ["node_modules", "dist", "integration-demo.ts"]
+  "include": ["./*.ts"],
+  "exclude": ["node_modules", "dist", "integration-demo.ts", "*.test.ts"],
+  "references": [
+    { "path": "../../shared/logger" }
+  ]
 }

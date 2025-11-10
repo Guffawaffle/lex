@@ -1,0 +1,93 @@
+name: Lint Budget Guard
+
+on:
+  pull_request:
+    branches: [ staging, main ]
+  push:
+    branches: [ staging ]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  lint-budget:
+    name: Check Lint Budget
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@v2
+        with:
+          egress-policy: audit
+          disable-sudo: true
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies (hermetic)
+        run: npm ci --ignore-scripts
+
+      - name: Generate current lint results
+        run: npx eslint . --format=json > current-lint.json 2>&1 || true
+
+      - name: Check lint budget
+        run: node scripts/lint-budget.mjs current-lint.json lint-baseline.json
+
+      - name: Upload lint results (on failure)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lint-results
+          path: current-lint.json
+          retention-days: 7
+
+      - name: Comment PR (on regression)
+        if: failure() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const currentResults = JSON.parse(fs.readFileSync('current-lint.json', 'utf8'));
+            const baselineResults = JSON.parse(fs.readFileSync('lint-baseline.json', 'utf8'));
+            
+            const currentWarnings = currentResults.reduce((sum, f) => sum + f.warningCount, 0);
+            const baselineWarnings = baselineResults.reduce((sum, f) => sum + f.warningCount, 0);
+            const currentErrors = currentResults.reduce((sum, f) => sum + f.errorCount, 0);
+            const baselineErrors = baselineResults.reduce((sum, f) => sum + f.errorCount, 0);
+            
+            const warningDiff = currentWarnings - baselineWarnings;
+            const errorDiff = currentErrors - baselineErrors;
+            
+            const comment = `## ❌ Lint Budget Exceeded
+            
+            This PR introduces new lint warnings/errors:
+            
+            | Metric | Baseline | Current | Diff |
+            |--------|----------|---------|------|
+            | Warnings | ${baselineWarnings} | ${currentWarnings} | ${warningDiff > 0 ? '+' : ''}${warningDiff} |
+            | Errors | ${baselineErrors} | ${currentErrors} | ${errorDiff > 0 ? '+' : ''}${errorDiff} |
+            
+            **Action Required:**
+            1. Fix the new lint issues, or
+            2. If the warnings are intentional, update the baseline with \`npm run lint:baseline:update\`
+            
+            See the [CI logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details.`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });

@@ -14,7 +14,18 @@
 import Database from "better-sqlite3";
 export type { FrameRow } from "./db.js";
 export type { Frame, FrameStatusSnapshot } from "../frames/types.js";
-export { saveFrame, getFrameById, searchFrames, getFramesByBranch, getFramesByJira, getFramesByModuleScope, getAllFrames, deleteFrame, getFrameCount, } from "./queries.js";
+export type { SearchResult } from "./queries.js";
+export {
+  saveFrame,
+  getFrameById,
+  searchFrames,
+  getFramesByBranch,
+  getFramesByJira,
+  getFramesByModuleScope,
+  getAllFrames,
+  deleteFrame,
+  getFrameCount,
+} from "./queries.js";
 /**
  * Get or create the database instance
  * @param customPath Optional custom database path (defaults to ~/.lex/frames.db)
@@ -25,4 +36,3 @@ export declare function getDb(customPath?: string): Database.Database;
  */
 export declare function closeDb(): void;
 export { createDatabase, getDefaultDbPath } from "./db.js";
-//# sourceMappingURL=index.d.ts.map

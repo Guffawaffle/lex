@@ -19,28 +19,24 @@ export type ReportFormat = "text" | "json" | "markdown";
  * Report result with exit code
  */
 export interface ReportResult {
-  /** Exit code: 0=clean, 1=violations, 2=error */
-  exitCode: 0 | 1 | 2;
-
+  /** Exit code: 0=clean, 1=violations */
+  exitCode: 0 | 1;
   /** Formatted report content */
   content: string;
 }
 
 /**
- * Generate a violation report
+ * Generate a policy violation report
  *
- * @param violations - List of violations to report
- * @param policy - Policy for Atlas Frame context
- * @param format - Output format (text, json, or markdown)
- * @param strict - Whether to treat warnings as errors
- * @returns Report result with exit code and formatted content
+ * @param violations - Array of detected violations
+ * @param options - Report options (policy, format, strict)
+ * @returns Report result with formatted content and exit code
  */
 export function generateReport(
   violations: Violation[],
-  policy: Policy,
-  format: ReportFormat = "text",
-  strict: boolean = false
+  options: { policy?: Policy; format?: ReportFormat; strict?: boolean } = {}
 ): ReportResult {
+  const { policy, format = "text" } = options;
   const exitCode = violations.length > 0 ? 1 : 0;
 
   let content: string;
@@ -57,21 +53,53 @@ export function generateReport(
       break;
   }
 
-  return {
-    exitCode,
-    content,
-  };
+  return { exitCode, content };
+}
+
+/**
+ * Format policy header for text output
+ */
+function formatPolicyHeaderText(policy: Policy, count: number): string {
+  // Attempt to derive an identifier (fallback to 'policy')
+  const id = derivePolicyId(policy);
+  return `Policy: ${id} (violations: ${count})`;
+}
+
+/**
+ * Format policy header for markdown output
+ */
+function formatPolicyHeaderMarkdown(policy: Policy, count: number): string {
+  const id = derivePolicyId(policy);
+  return `**Policy:** ${id} • **Violations:** ${count}`;
+}
+
+/**
+ * Derive a human-friendly policy identifier.
+ * Currently uses number of modules; can evolve to use explicit metadata.
+ */
+function derivePolicyId(policy: Policy): string {
+  try {
+    const moduleCount = Object.keys(policy.modules || {}).length;
+    return moduleCount > 0 ? `${moduleCount} modules` : "policy";
+  } catch {
+    return "policy";
+  }
 }
 
 /**
  * Format violations as human-readable text
  */
-function formatAsText(violations: Violation[], policy: Policy): string {
+function formatAsText(violations: Violation[], policy?: Policy): string {
   if (violations.length === 0) {
-    return "✅ No violations found\n";
+    const header = policy != null ? formatPolicyHeaderText(policy, 0) + "\n" : "";
+    return header + "✅ No violations found\n";
   }
 
-  let output = `❌ Found ${violations.length} violation(s):\n\n`;
+  let output = "";
+  if (policy != null) {
+    output += formatPolicyHeaderText(policy, violations.length) + "\n";
+  }
+  output += `❌ Found ${violations.length} violation(s):\n\n`;
 
   // Group violations by module for better context
   const byModule = groupViolationsByModule(violations);
@@ -84,7 +112,7 @@ function formatAsText(violations: Violation[], policy: Policy): string {
       const atlasFrame = generateAtlasFrame([moduleId], 1);
       const atlasContext = formatAtlasFrame(atlasFrame);
       output += atlasContext;
-    } catch (error) {
+    } catch {
       // If Atlas Frame generation fails, continue without it
       output += `\n⚠️  Atlas Frame context unavailable\n`;
     }
@@ -93,13 +121,13 @@ function formatAsText(violations: Violation[], policy: Policy): string {
       output += `\n  ❌ ${formatViolationType(violation.type)}\n`;
       output += `     File: ${violation.file}\n`;
       output += `     ${violation.message}\n`;
-      if (violation.details) {
+      if (typeof violation.details === "string" && violation.details.length > 0) {
         output += `     Details: ${violation.details}\n`;
       }
-      if (violation.target_module) {
+      if (typeof violation.target_module === "string" && violation.target_module.length > 0) {
         output += `     Target: ${violation.target_module}\n`;
       }
-      if (violation.import_from) {
+      if (typeof violation.import_from === "string" && violation.import_from.length > 0) {
         output += `     Import: ${violation.import_from}\n`;
       }
     }
@@ -128,12 +156,17 @@ function formatAsJson(violations: Violation[]): string {
 /**
  * Format violations as Markdown
  */
-function formatAsMarkdown(violations: Violation[], policy: Policy): string {
+function formatAsMarkdown(violations: Violation[], policy?: Policy): string {
   if (violations.length === 0) {
-    return "# Policy Check Report\n\n✅ **No violations found**\n";
+    let clean = "# Policy Check Report\n\n";
+    if (policy != null) clean += formatPolicyHeaderMarkdown(policy, 0) + "\n\n";
+    return clean + "✅ **No violations found**\n";
   }
 
   let output = "# Policy Check Report\n\n";
+  if (policy != null) {
+    output += formatPolicyHeaderMarkdown(policy, violations.length) + "\n\n";
+  }
   output += `**Status:** ❌ ${violations.length} violation(s) found\n\n`;
 
   // Group violations by type
@@ -161,7 +194,7 @@ function formatAsMarkdown(violations: Violation[], policy: Policy): string {
       output += "```\n";
       output += formatAtlasFrame(atlasFrame);
       output += "```\n\n";
-    } catch (error) {
+    } catch {
       output += "**Atlas Frame Context:** ⚠️ Unavailable\n\n";
     }
 
@@ -251,7 +284,7 @@ export function printReport(
   policy: Policy,
   format: ReportFormat = "text"
 ): void {
-  const report = generateReport(violations, policy, format);
+  const report = generateReport(violations, { policy, format });
   console.log(report.content);
 }
 

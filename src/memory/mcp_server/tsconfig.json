@@ -1,29 +1,27 @@
 {
+  "extends": "../../../tsconfig.base.json",
   "compilerOptions": {
-    "target": "ES2022",
-    "module": "ES2022",
-    "moduleResolution": "node",
-    "lib": ["ES2022"],
-    "outDir": "./dist",
-    "rootDir": "./",
-    "strict": false,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
-    "resolveJsonModule": true,
-    "declaration": true,
-    "declarationMap": true,
-    "sourceMap": true,
-    "noImplicitAny": false
-    ,
+    "composite": true,
     "baseUrl": ".",
     "paths": {
+      "lex/logger": ["../../shared/logger"],
+      "lex/logger/*": ["../../shared/logger/*"],
       "lex/policy": ["../../shared/policy"],
       "lex/policy/*": ["../../shared/policy/*"],
       "lex/types": ["../../shared/types"],
       "lex/types/*": ["../../shared/types/*"]
     }
   },
-  "include": ["*.ts"],
-  "exclude": ["node_modules", "dist"]
+  "include": ["*.ts", "routes/*.ts"],
+  "exclude": ["node_modules", "dist", "*.test.ts"]
+  ,
+  "references": [
+    { "path": "../../shared/types" },
+    { "path": "../../shared/policy" },
+    { "path": "../../shared/logger" },
+    { "path": "../../shared/atlas" },
+    { "path": "../store" },
+    { "path": "../../shared/module_ids" },
+    { "path": "../../shared/aliases" }
+  ]
 }

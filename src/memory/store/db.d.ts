@@ -6,21 +6,22 @@
  */
 import Database from "better-sqlite3";
 export interface FrameRow {
-    id: string;
-    timestamp: string;
-    branch: string;
-    jira: string | null;
-    module_scope: string;
-    summary_caption: string;
-    reference_point: string;
-    status_snapshot: string;
-    keywords: string | null;
-    atlas_frame_id: string | null;
-    feature_flags: string | null;
-    permissions: string | null;
+  id: string;
+  timestamp: string;
+  branch: string;
+  jira: string | null;
+  module_scope: string;
+  summary_caption: string;
+  reference_point: string;
+  status_snapshot: string;
+  keywords: string | null;
+  atlas_frame_id: string | null;
+  feature_flags: string | null;
+  permissions: string | null;
 }
 /**
  * Get default database path: ~/.lex/frames.db
+ * Can be overridden with LEX_DB_PATH environment variable
  */
 export declare function getDefaultDbPath(): string;
 /**
@@ -31,4 +32,3 @@ export declare function initializeDatabase(db: Database.Database): void;
  * Create and initialize a database connection
  */
 export declare function createDatabase(dbPath?: string): Database.Database;
-//# sourceMappingURL=db.d.ts.map

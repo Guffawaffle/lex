@@ -1,11 +1,12 @@
 /**
  * CLI Command: lex check
- * 
+ *
  * Wrapper around policy/check for user-friendly policy violation reporting.
  */
 
-import { readFileSync, existsSync } from 'fs';
-import { resolve } from 'path';
+import { readFileSync, existsSync } from "fs";
+import { resolve } from "path";
+import * as output from "./output.js";
 
 export interface CheckOptions {
   json?: boolean;
@@ -77,20 +78,20 @@ export async function check(
     const resolvedPolicyPath = resolve(policyJsonPath);
 
     if (!existsSync(resolvedMergedPath)) {
-      console.error(`\n❌ Scanner output not found: ${mergedJsonPath}\n`);
+      output.error(`\n❌ Scanner output not found: ${mergedJsonPath}\n`);
       process.exit(2);
     }
 
     if (!existsSync(resolvedPolicyPath)) {
-      console.error(`\n❌ Policy file not found: ${policyJsonPath}\n`);
+      output.error(`\n❌ Policy file not found: ${policyJsonPath}\n`);
       process.exit(2);
     }
 
     // Load files
-    const scannerContent = readFileSync(resolvedMergedPath, 'utf-8');
+    const scannerContent = readFileSync(resolvedMergedPath, "utf-8");
     const scannerOutput: MergedScannerOutput = JSON.parse(scannerContent);
 
-    const policyContent = readFileSync(resolvedPolicyPath, 'utf-8');
+    const policyContent = readFileSync(resolvedPolicyPath, "utf-8");
     const policy: Policy = JSON.parse(policyContent);
 
     // Run policy check
@@ -98,11 +99,11 @@ export async function check(
 
     // Output results
     if (options.json) {
-      console.log(JSON.stringify({
+      output.json({
         violations,
         count: violations.length,
         ticket: options.ticket,
-      }, null, 2));
+      });
     } else {
       displayViolations(violations, options.ticket);
     }
@@ -114,7 +115,7 @@ export async function check(
       process.exit(0);
     }
   } catch (error: any) {
-    console.error(`\n❌ Error: ${error.message}\n`);
+    output.error(`\n❌ Error: ${error.message}\n`);
     process.exit(2);
   }
 }
@@ -174,7 +175,7 @@ function checkPolicy(scannerOutput: MergedScannerOutput, policy: Policy): Violat
   if (scannerOutput.module_edges) {
     for (const edge of scannerOutput.module_edges) {
       const toModule = policy.modules[edge.to_module];
-      
+
       if (toModule && toModule.forbidden_callers) {
         for (const forbidden of toModule.forbidden_callers) {
           if (matchPattern(edge.from_module, forbidden)) {
@@ -218,7 +219,7 @@ function resolveImportToModule(importPath: string, policy: Policy): string | nul
   if (policy.modules[importPath]) {
     return importPath;
   }
-  
+
   // Try to match by namespace first (PHP style)
   for (const [moduleId, module] of Object.entries(policy.modules)) {
     if (module.owns_namespaces) {
@@ -248,10 +249,7 @@ function resolveImportToModule(importPath: string, policy: Policy): string | nul
  * Match file path against pattern with glob support
  */
 function matchPath(filePath: string, pattern: string): boolean {
-  const regexPattern = pattern
-    .replace(/\*\*/g, ".*")
-    .replace(/\*/g, "[^/]*")
-    .replace(/\//g, "\\/");
+  const regexPattern = pattern.replace(/\*\*/g, ".*").replace(/\*/g, "[^/]*").replace(/\//g, "\\/");
   const regex = new RegExp(`^${regexPattern}$`);
   return regex.test(filePath);
 }
@@ -270,23 +268,25 @@ function matchPattern(value: string, pattern: string): boolean {
  */
 function displayViolations(violations: Violation[], ticket?: string): void {
   if (violations.length === 0) {
-    console.log('\n✅ No policy violations found\n');
+    output.success("\n✅ No policy violations found\n");
     return;
   }
 
-  console.log(`\n❌ Found ${violations.length} policy violation(s)${ticket ? ` (ticket: ${ticket})` : ''}:\n`);
+  output.error(
+    `\n❌ Found ${violations.length} policy violation(s)${ticket ? ` (ticket: ${ticket})` : ""}:\n`
+  );
 
   for (let i = 0; i < violations.length; i++) {
     const v = violations[i];
-    console.log(`${i + 1}. ${v.file}`);
-    console.log(`   Module: ${v.module}`);
-    console.log(`   Type: ${v.type}`);
-    console.log(`   ${v.message}`);
+    output.info(`${i + 1}. ${v.file}`);
+    output.info(`   Module: ${v.module}`);
+    output.info(`   Type: ${v.type}`);
+    output.info(`   ${v.message}`);
     if (v.details) {
-      console.log(`   ${v.details}`);
+      output.info(`   ${v.details}`);
     }
-    console.log('');
+    output.info("");
   }
 
-  console.log(`Exit code: 1 (violations found)\n`);
+  output.info(`Exit code: 1 (violations found)\n`);
 }

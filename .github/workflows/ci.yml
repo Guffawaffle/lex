@@ -29,7 +29,7 @@ jobs:
 
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: '20'
           cache: 'npm'
@@ -62,7 +62,7 @@ jobs:
 
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: '20'
           cache: 'npm'
@@ -88,7 +88,7 @@ jobs:
 
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: '20'
 
@@ -115,7 +115,7 @@ jobs:
 
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: ${{ matrix.node-version }}
           cache: 'npm'
@@ -126,11 +126,69 @@ jobs:
       - name: Build native dependencies
         run: npm rebuild better-sqlite3
 
+      - name: Initialize working files
+        run: npm run setup-local
+
       - name: Build all packages
         run: npm run build
 
+      - name: Pack (dry run)
+        if: matrix.node-version == '22'
+        run: npm pack --json > pack.json
+
+      - name: Pack guard
+        if: matrix.node-version == '22'
+        run: |
+          node -e "
+            const fs = require('fs');
+            const packData = JSON.parse(fs.readFileSync('pack.json', 'utf8'));
+            const files = packData[0].files.map(x => x.path);
+            const allowed = ['README.md', 'LICENSE', 'package.json'];
+            const bad = files.filter(p => !/^dist\//.test(p) && !allowed.includes(p));
+            if (bad.length) {
+              console.error('❌ Unexpected files in tarball:', bad);
+              process.exit(1);
+            }
+            console.log('✅ Pack guard passed: only dist/, README.md, LICENSE, package.json');
+          "
+
+      - name: Bin guard (shebang + exec)
+        if: matrix.node-version == '22'
+        run: |
+          if ! head -1 dist/shared/cli/lex.js | grep -q '^#!/usr/bin/env node'; then
+            echo "❌ Missing shebang in dist/shared/cli/lex.js"
+            exit 1
+          fi
+          if ! test -x dist/shared/cli/lex.js; then
+            echo "❌ dist/shared/cli/lex.js is not executable"
+            exit 1
+          fi
+          echo "✅ Bin guard passed: shebang and executable bit present"
+
+      - name: No tests in dist
+        if: matrix.node-version == '22'
+        run: |
+          if find dist -type f -name '*test*' -print | grep -q .; then
+            echo "❌ Found test files in dist/"
+            find dist -type f -name '*test*' -print
+            exit 1
+          fi
+          echo "✅ No tests in dist: dist/ is clean"
+
+      - name: No @app/ specifiers in dist
+        if: matrix.node-version == '22'
+        run: |
+          if grep -r "@app/" dist/; then
+            echo "❌ Found @app/ specifiers in dist/ - aliases should be resolved at build time"
+            exit 1
+          fi
+          echo "✅ No @app/ specifiers in dist: all aliases resolved"
+
+      - name: Enforce TS-only rule (no .js in src/)
+        run: npm run guard:no-js-src
+
       - name: Run unit tests with coverage
-        run: npm run test:coverage
+        run: npm run coverage
 
       - name: Upload coverage to Codecov
         if: matrix.node-version == '20'
@@ -142,6 +200,15 @@ jobs:
           functionalities: gcov
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Upload coverage artifacts
+        if: matrix.node-version == '20'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-node-${{ matrix.node-version }}
+          path: |
+            coverage/
+            coverage/lcov.info
 
   # Stage 3: Integration Tests
   integration-tests:
@@ -158,13 +225,16 @@ jobs:
 
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: '20'
           cache: 'npm'
 
       - name: Install dependencies (hermetic)
         run: npm ci --ignore-scripts
+
+      - name: Initialize working files
+        run: npm run setup-local
 
       - name: Build packages
         run: npm run build
@@ -187,13 +257,16 @@ jobs:
 
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: '20'
           cache: 'npm'
 
       - name: Install dependencies (hermetic)
         run: npm ci --ignore-scripts
+
+      - name: Initialize working files
+        run: npm run setup-local
 
       - name: Build packages
         run: npm run build

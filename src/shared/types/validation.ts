@@ -1,6 +1,6 @@
 /**
  * TypeScript types for validation results and errors
- * 
+ *
  * Used by module ID validation to report errors and suggestions
  */
 
@@ -15,11 +15,9 @@ export class ModuleNotFoundError extends Error {
   public readonly suggestions: string[];
 
   constructor(module: string, suggestions: string[] = []) {
-    const suggestionText = suggestions.length > 0 
-      ? ` Did you mean '${suggestions[0]}'?`
-      : '';
+    const suggestionText = suggestions.length > 0 ? ` Did you mean '${suggestions[0]}'?` : "";
     super(`Module '${module}' not found in policy.${suggestionText}`);
-    this.name = 'ModuleNotFoundError';
+    this.name = "ModuleNotFoundError";
     this.module = module;
     this.suggestions = suggestions;
   }
@@ -47,5 +45,5 @@ export interface ResolutionResult {
   /** Edit distance from original to resolved (0 for exact match) */
   editDistance: number;
   /** Source of the resolution */
-  source?: 'exact' | 'alias' | 'fuzzy' | 'substring';
+  source?: "exact" | "alias" | "fuzzy" | "substring";
 }

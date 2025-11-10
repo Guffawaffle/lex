@@ -37,7 +37,7 @@
  */
 
 import * as fs from "fs";
-import * as path from "path";
+// path import not used
 
 interface PolicyModule {
   owns_namespaces?: string[];
@@ -95,31 +95,31 @@ class LexMapChecker {
 
   constructor(policyPath: string) {
     const content = fs.readFileSync(policyPath, "utf-8");
-    this.policy = JSON.parse(content);
+    const parsedPolicy: unknown = JSON.parse(content);
+    this.policy = parsedPolicy as Policy;
   }
 
   check(scannerOutput: MergedScannerOutput): void {
     for (const file of scannerOutput.files) {
       // Use module_scope from scanner if available, otherwise resolve
-      const moduleId = file.module_scope || this.resolveFileToModule(file.path);
+      const moduleId = file.module_scope ?? this.resolveFileToModule(file.path);
 
-      if (!moduleId) {
+      if (moduleId == null) {
         // File doesn't belong to any known module - skip
         continue;
       }
-
-      const module = this.policy.modules[moduleId];
 
       // Check imports against forbidden_callers
       for (const imp of file.imports) {
         const importedModuleId = this.resolveImportToModule(imp.from);
 
-        if (importedModuleId) {
+        if (importedModuleId != null) {
           const importedModule = this.policy.modules[importedModuleId];
+          const forbiddenList = importedModule?.forbidden_callers;
 
-          if (importedModule && importedModule.forbidden_callers) {
+          if (Array.isArray(forbiddenList) && forbiddenList.length > 0) {
             // Check if current module matches any forbidden_caller pattern
-            for (const forbidden of importedModule.forbidden_callers) {
+            for (const forbidden of forbiddenList) {
               if (this.matchPattern(moduleId, forbidden)) {
                 this.violations.push({
                   file: file.path,
@@ -150,9 +150,10 @@ class LexMapChecker {
     if (scannerOutput.module_edges) {
       for (const edge of scannerOutput.module_edges) {
         const toModule = this.policy.modules[edge.to_module];
-        
-        if (toModule && toModule.forbidden_callers) {
-          for (const forbidden of toModule.forbidden_callers) {
+        const forbiddenList = toModule?.forbidden_callers;
+
+        if (Array.isArray(forbiddenList) && forbiddenList.length > 0) {
+          for (const forbidden of forbiddenList) {
             if (this.matchPattern(edge.from_module, forbidden)) {
               this.violations.push({
                 file: edge.from_file,
@@ -171,7 +172,7 @@ class LexMapChecker {
   private resolveFileToModule(filePath: string): string | null {
     // Find which module owns this file path
     for (const [moduleId, module] of Object.entries(this.policy.modules)) {
-      if (module.owns_paths) {
+      if (Array.isArray(module.owns_paths) && module.owns_paths.length > 0) {
         for (const pathPattern of module.owns_paths) {
           if (this.matchPath(filePath, pathPattern)) {
             return moduleId;
@@ -185,7 +186,7 @@ class LexMapChecker {
   private resolveImportToModule(importPath: string): string | null {
     // Try to match by namespace first (PHP style)
     for (const [moduleId, module] of Object.entries(this.policy.modules)) {
-      if (module.owns_namespaces) {
+      if (Array.isArray(module.owns_namespaces) && module.owns_namespaces.length > 0) {
         for (const namespace of module.owns_namespaces) {
           if (importPath.startsWith(namespace)) {
             return moduleId;
@@ -196,7 +197,7 @@ class LexMapChecker {
 
     // Try to match by file path pattern (TypeScript/JS style)
     for (const [moduleId, module] of Object.entries(this.policy.modules)) {
-      if (module.owns_paths) {
+      if (Array.isArray(module.owns_paths) && module.owns_paths.length > 0) {
         for (const pathPattern of module.owns_paths) {
           if (this.matchPath(importPath, pathPattern)) {
             return moduleId;
@@ -254,9 +255,7 @@ function main() {
   const args = process.argv.slice(2);
 
   if (args.length < 2) {
-    console.error(
-      "Usage: lexmap check <merged.json> <policy.json> [--ticket WEB-23621]"
-    );
+    console.error("Usage: lexmap check <merged.json> <policy.json> [--ticket WEB-23621]");
     console.error("");
     console.error("Checks scanner output against architectural policy.");
     console.error("");
@@ -281,7 +280,8 @@ function main() {
 
   // Load scanner output
   const scannerContent = fs.readFileSync(scannerFile, "utf-8");
-  const scannerOutput: MergedScannerOutput = JSON.parse(scannerContent);
+  const parsedScanner: unknown = JSON.parse(scannerContent);
+  const scannerOutput = parsedScanner as MergedScannerOutput;
 
   // Create checker and run
   const checker = new LexMapChecker(policyFile);

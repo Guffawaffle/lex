@@ -1,20 +1,7 @@
 {
+  "extends": "../../../tsconfig.base.json",
   "compilerOptions": {
-    "target": "ES2022",
-    "module": "ES2022",
-    "moduleResolution": "node",
-    "lib": ["ES2022"],
-    "outDir": "./dist",
-    "declaration": true,
-    "declarationMap": true,
-    "sourceMap": true,
-    "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true,
-    "strict": true,
-    "skipLibCheck": true,
-    "noEmit": false,
-    "allowSyntheticDefaultImports": true
-    ,
+    "composite": true,
     "baseUrl": ".",
     "paths": {
       "lex/policy": ["../policy"],
@@ -23,8 +10,16 @@
       "lex/types/*": ["../types/*"]
     }
   },
-  "include": [
-    "*.ts"
-  ],
-  "exclude": ["node_modules", "dist"]
+  "include": ["./*.ts"],
+  "exclude": ["node_modules", "dist", "*.test.ts"]
+  ,
+  "references": [
+    { "path": "../types" },
+    { "path": "../policy" },
+    { "path": "../module_ids" },
+    { "path": "../git" },
+    { "path": "../atlas" },
+    { "path": "../../memory/store" },
+    { "path": "../../memory/renderer" }
+  ]
 }

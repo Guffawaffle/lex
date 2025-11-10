@@ -63,7 +63,7 @@ jobs:
 
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org'
@@ -72,27 +72,23 @@ jobs:
       - name: Install dependencies (hermetic)
         run: npm ci --ignore-scripts
 
-      - name: Build all packages
+      - name: Build native dependencies
+        run: npm rebuild better-sqlite3
+
+      - name: Build package
         run: npm run build
 
       - name: Run all tests
-        run: npm test
+        run: npm run test:all
 
-      - name: Create tarballs
-        run: |
-          mkdir -p dist-packages
-          for dir in shared/* memory/* policy/*; do
-            if [ -f "$dir/package.json" ]; then
-              echo "Packing $dir"
-              (cd "$dir" && npm pack --pack-destination ../../dist-packages)
-            fi
-          done
+      - name: Create tarball
+        run: npm pack
 
-      - name: Upload artifacts
+      - name: Upload artifact
         uses: actions/upload-artifact@v5
         with:
-          name: npm-packages
-          path: dist-packages/*.tgz
+          name: npm-package
+          path: lex-*.tgz
           retention-days: 7
           if-no-files-found: error
 
@@ -110,54 +106,40 @@ jobs:
 
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org'
 
       - name: Download artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
-          name: npm-packages
-          path: dist-packages
+          name: npm-package
+          path: .
 
-      - name: Publish packages with provenance
+      - name: Verify npm authentication
+        run: |
+          echo "Verifying npm authentication..."
+          npm whoami
+          echo "✅ Successfully authenticated as $(npm whoami)"
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Dry-run publish check
+        run: |
+          echo "Running dry-run publish check..."
+          npm publish lex-*.tgz --dry-run --provenance --access public
+          echo "✅ Dry-run successful"
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish package with provenance
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
         run: |
           set -e
-          # Publish in dependency order (from RELEASE.md)
-          echo "Publishing packages with npm provenance..."
-
-          # 1. Core types (no dependencies)
-          npm publish dist-packages/lex-types-*.tgz --provenance --access public
-
-          # 2. Git utilities (depends on types)
-          npm publish dist-packages/lex-git-*.tgz --provenance --access public
-
-          # 3. Module resolution
-          npm publish dist-packages/lex-module-ids-*.tgz --provenance --access public
-          npm publish dist-packages/lex-aliases-*.tgz --provenance --access public
-
-          # 4. Policy and Atlas
-          npm publish dist-packages/lex-policy-*.tgz --provenance --access public
-          npm publish dist-packages/lex-atlas-*.tgz --provenance --access public
-
-          # 5. Policy tools
-          npm publish dist-packages/lex-merge-*.tgz --provenance --access public
-          npm publish dist-packages/lex-policy-check-*.tgz --provenance --access public
-
-          # 6. Storage
-          npm publish dist-packages/lex-store-*.tgz --provenance --access public
-
-          # 7. Rendering
-          npm publish dist-packages/lex-renderer-*.tgz --provenance --access public
-
-          # 8. CLI (depends on most packages)
-          npm publish dist-packages/lex-cli-*.tgz --provenance --access public
-
-          # 9. MCP Server (depends on CLI)
-          npm publish dist-packages/lex-mcp-server-*.tgz --provenance --access public
-
-          echo "✅ All packages published successfully"
+          echo "Publishing package with npm provenance..."
+          npm publish lex-*.tgz --provenance --access public
+          echo "✅ Package published successfully"
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
