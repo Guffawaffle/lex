@@ -1,0 +1,12 @@
+# Example Profile Configuration
+#
+# This file demonstrates how to use the profile schema with $schema reference
+# for validation in compatible editors.
+
+$schema: "../../.smartergpt/schemas/profile.schema.json"
+role: development
+name: "Local Development"
+version: "1.0.0"
+projectType: nodejs
+created: "2025-11-09T12:00:00Z"
+owner: "username"
