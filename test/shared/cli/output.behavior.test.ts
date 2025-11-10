@@ -11,7 +11,16 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { createOutput, output, info, success, warn, error, debug, json } from "../../../src/shared/cli/output.js";
+import {
+  createOutput,
+  output,
+  info,
+  success,
+  warn,
+  error,
+  debug,
+  json,
+} from "../../../src/shared/cli/output.js";
 import type { CliEvent } from "../../../src/shared/cli/output.types.js";
 
 test("createOutput returns CliOutput interface", () => {

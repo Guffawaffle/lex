@@ -16,7 +16,6 @@ import {
 } from "./queries.js";
 import type { Frame } from "../frames/types.js";
 
-
 const logger = getLogger("memory:store:framestore");
 
 export interface FrameRow {

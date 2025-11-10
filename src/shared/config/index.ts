@@ -111,10 +111,7 @@ function loadEnvConfig(): Partial<LexConfig> {
 /**
  * Deep merge configuration objects.
  */
-function mergeConfig(
-  base: LexConfig,
-  ...overrides: Array<Partial<LexConfig> | null>
-): LexConfig {
+function mergeConfig(base: LexConfig, ...overrides: Array<Partial<LexConfig> | null>): LexConfig {
   const result = { ...base };
 
   for (const override of overrides) {
