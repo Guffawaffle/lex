@@ -99,7 +99,7 @@ const MODULE_TYPE_COLORS: Record<string, string> = {
 // Constants for rendering
 const MAX_LABEL_LENGTH = 20;
 const LABEL_TRUNCATE_AT = 17;
-const MIN_DISTANCE_THRESHOLD = 0.1;
+const _MIN_DISTANCE_THRESHOLD = 0.1;
 const WARNING_ICON = "\u26A0\uFE0F"; // ⚠️ as Unicode
 
 /**

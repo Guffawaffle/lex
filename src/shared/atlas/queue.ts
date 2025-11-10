@@ -99,7 +99,7 @@ export class AtlasRebuildQueue {
 
     // Schedule rebuild after debounce period
     this.debounceTimer = setTimeout(() => {
-      this.triggerRebuild();
+      void this.triggerRebuild();
     }, this.config.debounceMs);
   }
 
@@ -144,7 +144,7 @@ export class AtlasRebuildQueue {
       if (this.pendingRebuild) {
         this.pendingRebuild = false;
         // Use setTimeout to avoid deep recursion
-        setTimeout(() => this.triggerRebuild(), 0);
+        setTimeout(() => void this.triggerRebuild(), 0);
       }
     }
   }

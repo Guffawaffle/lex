@@ -28,7 +28,6 @@
  */
 
 import * as fs from "fs";
-import * as path from "path";
 
 interface Declaration {
   type: string;
