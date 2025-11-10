@@ -1,0 +1,68 @@
+{
+  "schemaVersion": "1.0.0",
+  "sourceSpec": {
+    "schemaVersion": "0.1.0",
+    "title": "Add dark mode support",
+    "description": "Implement theme switcher with light/dark modes",
+    "acceptanceCriteria": [
+      "User can toggle between light and dark themes",
+      "Theme preference persists across sessions",
+      "All UI components support both themes"
+    ],
+    "technicalContext": "Use CSS variables for theming. Store preference in localStorage.",
+    "repo": "owner/repo",
+    "createdAt": "2025-11-09T14:30:00.000Z"
+  },
+  "epic": {
+    "title": "Add dark mode support",
+    "description": "Implement theme switcher with light/dark modes",
+    "acceptanceCriteria": [
+      "User can toggle between light and dark themes",
+      "Theme preference persists across sessions",
+      "All UI components support both themes"
+    ]
+  },
+  "subIssues": [
+    {
+      "id": "feature-impl",
+      "title": "Implement dark mode theme switcher",
+      "description": "Core implementation: CSS variables, localStorage persistence, system preference detection",
+      "type": "feature",
+      "acceptanceCriteria": [
+        "CSS variables defined for light/dark themes",
+        "Theme switcher UI component renders",
+        "localStorage saves/loads theme preference",
+        "System preference detected via media query",
+        "Theme applies globally on page load"
+      ],
+      "dependsOn": []
+    },
+    {
+      "id": "tests",
+      "title": "Add tests for dark mode",
+      "description": "Unit tests for theme logic, integration tests for UI components",
+      "type": "testing",
+      "acceptanceCriteria": [
+        "Unit tests: localStorage, preference detection",
+        "Integration tests: theme switcher interaction",
+        "E2E tests: theme persistence across sessions",
+        "Coverage > 80%"
+      ],
+      "dependsOn": ["feature-impl"]
+    },
+    {
+      "id": "docs",
+      "title": "Document dark mode feature",
+      "description": "Update README, add examples, document theme customization API",
+      "type": "docs",
+      "acceptanceCriteria": [
+        "README updated with dark mode section",
+        "Example code snippet added",
+        "CSS variable API documented",
+        "Migration guide for existing themes"
+      ],
+      "dependsOn": ["feature-impl"]
+    }
+  ],
+  "createdAt": "2025-11-09T14:35:00.000Z"
+}
