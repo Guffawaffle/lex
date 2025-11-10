@@ -1,9 +1,10 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "gates.schema.json",
+  "$id": "https://github.com/Guffawaffle/lex/schemas/gates.schema.json",
   "title": "Safety Gates Configuration",
   "description": "Configuration for safety gates and validation rules",
   "type": "object",
+  "additionalProperties": false,
   "properties": {
     "version": {
       "type": "string",
@@ -15,6 +16,7 @@
       "items": {
         "type": "object",
         "required": ["id", "type", "enabled"],
+        "additionalProperties": false,
         "properties": {
           "id": {
             "type": "string",
@@ -35,7 +37,7 @@
           },
           "config": {
             "type": "object",
-            "description": "Gate-specific configuration",
+            "description": "Gate-specific configuration (intentionally loose)",
             "additionalProperties": true
           }
         }
