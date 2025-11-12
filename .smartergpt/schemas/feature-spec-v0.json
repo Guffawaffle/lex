@@ -1,0 +1,48 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/Guffawaffle/lex/schemas/feature-spec-v0.json",
+  "title": "Feature Specification v0",
+  "description": "Schema for feature specification documents",
+  "type": "object",
+  "required": ["schemaVersion", "title", "description", "repo"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "description": "Version of the feature spec schema",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "title": {
+      "type": "string",
+      "description": "Title of the feature"
+    },
+    "description": {
+      "type": "string",
+      "description": "Detailed description of the feature"
+    },
+    "acceptanceCriteria": {
+      "type": "array",
+      "description": "List of acceptance criteria for the feature",
+      "items": {
+        "type": "string"
+      }
+    },
+    "technicalContext": {
+      "type": "string",
+      "description": "Technical context and implementation notes"
+    },
+    "constraints": {
+      "type": "string",
+      "description": "Technical constraints and requirements"
+    },
+    "repo": {
+      "type": "string",
+      "description": "Repository identifier (e.g., 'owner/repo')"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp when the spec was created"
+    }
+  }
+}

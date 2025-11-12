@@ -1,6 +1,7 @@
 {
   "files": [],
   "references": [
+    { "path": ".smartergpt/schemas" },
     { "path": "src" },
     { "path": "src/shared/types" },
     { "path": "src/shared/aliases" },
