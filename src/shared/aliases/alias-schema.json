@@ -1,10 +1,11 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://lex.dev/schemas/alias-table.json",
+  "$id": "https://guffawaffle.dev/schemas/lex/alias-table.json",
   "title": "Lex Alias Table Schema",
   "description": "Schema for module ID alias tables, supporting shorthand notation, historical renames, and typo correction",
   "type": "object",
   "required": ["version", "aliases"],
+  "additionalProperties": false,
   "properties": {
     "version": {
       "type": "string",
@@ -22,6 +23,7 @@
         "^[a-zA-Z0-9_/-]+$": {
           "type": "object",
           "required": ["canonical", "confidence", "reason"],
+          "additionalProperties": false,
           "properties": {
             "canonical": {
               "type": "string",
@@ -61,6 +63,7 @@
     "recommendations": {
       "type": "object",
       "description": "Recommendations for how to use this alias table",
+      "additionalProperties": false,
       "properties": {
         "use_with_warnings": {
           "type": "boolean",
