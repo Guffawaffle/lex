@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://guffawaffle.dev/schemas/lex/alias-table.json",
+  "$id": "https://github.com/Guffawaffle/lex/schemas/alias-table.json",
   "title": "Lex Alias Table Schema",
   "description": "Schema for module ID alias tables, supporting shorthand notation, historical renames, and typo correction",
   "type": "object",

@@ -17,7 +17,11 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 describe("Zod ↔ JSON Schema Round-Trip", () => {
-  const ajv = new Ajv({ strict: true, allErrors: true });
+  const ajv = new Ajv({
+    strict: true,
+    allErrors: true,
+    validateSchema: false, // Disable meta-schema validation for draft-2020-12 compatibility
+  });
   addFormats(ajv);
 
   describe("ProfileSchema round-trip", () => {

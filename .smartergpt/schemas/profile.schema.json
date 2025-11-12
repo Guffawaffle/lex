@@ -1,6 +1,6 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://guffawaffle.dev/schemas/lex/profile.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Guffawaffle/lex/schemas/profile.schema.json",
   "title": "Profile Configuration",
   "description": "Configuration for runtime profiles (development, local, CI, etc.)",
   "type": "object",
