@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://guffawaffle.dev/schemas/lex/feature-spec-v0.json",
+  "$id": "https://github.com/Guffawaffle/lex/schemas/feature-spec-v0.json",
   "title": "Feature Specification v0",
   "description": "Schema for feature specification documents",
   "type": "object",
