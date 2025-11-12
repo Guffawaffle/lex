@@ -76,7 +76,7 @@ git config tag.gpgsign true
 
 #### Repository Configuration
 
-**Branch Protection:** Enable "Require signed commits" in GitHub settings for both `staging` and `main`.
+**Branch Protection:** Enable "Require signed commits" in GitHub settings for `main`.
 
 **Tag Signing:** Verify signed tags in release workflow only (see release.yml).
 
@@ -88,38 +88,32 @@ git config tag.gpgsign true
 
 ### Recommended Branch Model
 
-Aligned to **Wednesday weekly release cadence**:
+Aligned to **direct commits to main** with feature branch workflow:
 
 ```
-staging (default, protected)
-  ↓
-feature/* → staging (PR, short-lived)
-  ↓
-Version Release PR (Wednesday) → main
-  ↓
-main (protected, version tags only)
+main (default, protected)
+  ↑
+feature/* → main (PR, short-lived)
+  ↑
+Releases tagged on main
 ```
 
 ### Branch Descriptions
 
 | Branch | Purpose | Lifetime | Auto-deploy |
 |--------|---------|----------|-------------|
-| `staging` | **Default branch**, integration | Permanent | Dev preview |
-| `main` | **Released versions only** (tagged) | Permanent | Production (npm) |
-| `rc/v*` | Optional formal pre-releases | Until promoted | Staging (optional) |
-| `feature/*` | New features | Until merged to staging | - |
-| `hotfix/*` | Critical production fixes | Until merged | - |
+| `main` | **Default branch**, all development | Permanent | Production (npm) |
+| `feature/*` | New features | Until merged to main | - |
+| `hotfix/*` | Critical production fixes | Until merged to main | - |
 
 **Key Philosophy:**
-- All development merges to `staging`
-- Weekly (Wednesday): Create **Release PR** from `staging` → `main`
-- Release PR bumps versions, updates changelog (via Changesets)
-- Merge to `main` only for version updates
+- All development merges to `main` via PRs
+- Releases tagged directly on `main` after version bumps
 - Tag releases with signed tags on `main`
 
 ### Branch Protection Rules
 
-#### For `staging` (default branch):
+#### For `main` (default branch):
 ```yaml
 Protection Rules:
   ✅ Require pull request reviews (1 approval)
@@ -809,7 +803,6 @@ npm publish --tag rc --access public
 
 #### 2. Testing Period
 
-- Deploy to staging environment
 - Run extended test suite
 - Invite beta testers
 - Monitor for issues

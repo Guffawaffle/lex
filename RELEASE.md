@@ -61,22 +61,11 @@ git add .
 git commit -m "chore: version bump for release"
 ```
 
-### 3. Create Release PR
+### 3. Tag and Publish
 
 ```bash
-git push origin staging
+git push origin main
 
-# Create PR from staging to main
-gh pr create --base main --head staging \
-  --title "Release v0.X.Y" \
-  --body "Weekly release - see CHANGELOG.md for details"
-```
-
-### 4. Tag and Publish
-
-After the PR is merged to main:
-
-```bash
 git checkout main
 git pull origin main
 

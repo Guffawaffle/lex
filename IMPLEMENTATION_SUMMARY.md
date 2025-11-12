@@ -9,11 +9,11 @@
 - ✅ `.github/workflows/security.yml` - CodeQL, Snyk, and OpenSSF Scorecard scanning
 - ✅ `.github/workflows/release.yml` - Automated releases with npm provenance and signed tag verification
 - ✅ `.github/workflows/dependency-updates.yml` - Weekly dependency update reports
-- ✅ `.github/dependabot.yml` - Daily security updates targeting `staging` branch
+- ✅ `.github/dependabot.yml` - Daily security updates targeting `main` branch
 - ✅ `.github/codeql/codeql-config.yml` - CodeQL security scanning configuration
 - ✅ `.github/CODEOWNERS` - Code ownership for maintainer approval
 - ✅ `SECURITY.md` - Comprehensive security policy
-- ✅ `.changeset/config.json` - Changesets configuration for `staging` → `main` workflow
+- ✅ `.changeset/config.json` - Changesets configuration for `main` branch workflow
 - ✅ `.changeset/README.md` - Changeset usage documentation
 - ✅ `.eslintrc.json` - ESLint with TypeScript support
 - ✅ `.prettierrc.json` - Code formatting configuration
@@ -24,15 +24,15 @@
 - ✅ Installed dev dependencies: changesets, commitlint, eslint, prettier
 
 ### Documentation
-- ✅ Updated `REPO_HARDENING_PLAN.md` to reflect `staging` → `main` workflow
+- ✅ Updated `REPO_HARDENING_PLAN.md` to reflect direct `main` branch workflow
 - ✅ Created `scripts/setup-hardening.sh` - Bootstrap script for Phase 1
 
 ## 🎯 Key Changes from Original Plan
 
 ### 1. **Branch Strategy**
 - **Before**: `main` (default) → `next` → `rc/*` → `nightly`
-- **After**: `staging` (default) → weekly release PR → `main` (releases only)
-- **Why**: Aligns with Wednesday release cadence, minimizes branch complexity
+- **After**: `main` (default branch) for all development and releases
+- **Why**: Simplified workflow, no staging branch complexity
 
 ### 2. **CI Matrix**
 - **Before**: Linux/macOS/Windows × Node 18/20/22
@@ -88,12 +88,6 @@ Settings → Branches → Add rule for "main":
   ✅ Lock branch (no force push/delete)
 
   Note: Increase to 2 approvals when additional maintainers join
-
-Settings → Branches → Add rule for "staging":
-  ✅ Require pull request reviews (1 approval)
-  ✅ Require status checks: all-checks-pass
-  ✅ Require signed commits
-  ✅ Require linear history
 ```
 
 #### Security Features
@@ -114,19 +108,7 @@ CODECOV_TOKEN - codecov.io token for coverage reporting
 SNYK_TOKEN - (optional) snyk.io token for enhanced scanning
 ```
 
-### 3. Create `staging` Branch
-
-If it doesn't exist:
-
-```bash
-git checkout -b staging
-git push origin staging
-
-# Set as default branch
-gh repo edit --default-branch staging
-```
-
-### 4. GPG Commit Signing Setup
+### 3. GPG Commit Signing Setup
 
 For each maintainer:
 
@@ -175,25 +157,14 @@ npx changeset version
 # 3. Commit version changes
 git add .
 git commit -m "chore(release): version packages"
-git push origin staging
+git push origin main
 
-# 4. Create release PR
-gh pr create \
-  --base main \
-  --head staging \
-  --title "Release $(date +%Y-%m-%d)" \
-  --body "Weekly release - see CHANGELOG.md files"
-
-# 5. After PR approved and merged to main:
-git checkout main
-git pull
-
-# 6. Create signed tag
+# 4. Create signed tag
 VERSION=$(node -p "require('./package.json').version")
 git tag -s "v${VERSION}" -m "Release v${VERSION}"
 git push origin "v${VERSION}"
 
-# 7. GitHub Actions will automatically:
+# 5. GitHub Actions will automatically:
 #    - Validate signed tag
 #    - Build and test
 #    - Publish to npm with provenance
@@ -246,4 +217,4 @@ Track these metrics:
 ---
 
 **Status**: Ready for implementation
-**Next Action**: Review files, commit to `staging`, enable GitHub settings
+**Next Action**: Review files, commit to `main`, enable GitHub settings

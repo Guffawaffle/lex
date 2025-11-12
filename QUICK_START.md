@@ -79,13 +79,6 @@ Go to https://github.com/Guffawaffle/lex/settings:
   - ✅ Lock branch
   - **Note**: Increase to 2 approvals when more maintainers join
 
-- Add rule for `staging`:
-  - Branch name pattern: `staging`
-  - ✅ Require pull request reviews (1)
-  - ✅ Require status checks: `all-checks-pass`
-  - ✅ Require signed commits
-  - ✅ Require linear history
-
 ### 4. Add GitHub Secrets
 
 Settings → Secrets and variables → Actions → New repository secret:
@@ -98,19 +91,6 @@ CODECOV_TOKEN - Get from https://codecov.io/gh/Guffawaffle/lex/settings
                 (After signing up/in)
 
 SNYK_TOKEN - (Optional) Get from https://app.snyk.io/account
-```
-
-### 5. Create `staging` Branch (if not exists)
-
-```bash
-# Create staging from current branch
-git checkout -b staging
-git push origin staging
-
-# Set as default branch
-gh repo edit --default-branch staging
-
-# Or via web: Settings → Branches → Default branch → Switch to staging
 ```
 
 ## 📝 Using Changesets (Version Management)
@@ -148,8 +128,8 @@ git add .
 git commit -m "feat(cli): add format flag"
 git push origin my-feature-branch
 
-# 4. Create PR to staging
-gh pr create --base staging --title "feat(cli): add format flag"
+# 4. Create PR to main
+gh pr create --base main --title "feat(cli): add format flag"
 ```
 
 ## 🗓️ Wednesday Release Workflow
@@ -171,20 +151,12 @@ git diff
 # 3. Commit version bumps
 git add .
 git commit -m "chore(release): version packages"
-git push origin staging
+git push origin main
 
-# 4. Create Release PR
-gh pr create \
-  --base main \
-  --head staging \
-  --title "Release $(date +%Y-%m-%d)" \
-  --body "Weekly release. See CHANGELOG.md files for details."
+# 4. Create Release PR (if using feature branches)
+# Or commit directly to main for releases
 
-# 5. After PR is merged to main:
-git checkout main
-git pull origin main
-
-# 6. Tag the release (with GPG signature)
+# 5. Tag the release (with GPG signature)
 VERSION=$(cat package.json | grep '"version"' | head -1 | sed 's/.*: "\(.*\)".*/\1/')
 git tag -s "v${VERSION}" -m "Release v${VERSION}"
 git push origin "v${VERSION}"
@@ -258,12 +230,11 @@ ESLint is currently optional (continue-on-error). You can skip it for now.
 
 ## 🎉 Next Steps
 
-1. ✅ Complete steps 1-5 above
+1. ✅ Complete steps 1-4 above
 2. Make your first signed commit
 3. Create a test changeset
-4. Merge this hardening PR to staging
-5. Test the Wednesday release workflow
-6. Monitor CI/security dashboards
+4. Test the release workflow
+5. Monitor CI/security dashboards
 
 ---
 
