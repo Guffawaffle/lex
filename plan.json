@@ -1,389 +1,90 @@
 {
-  "items": [
-    {
-      "deps": [],
-      "gates": [
-        {
-          "artifacts": [
-            "lint-results.txt"
-          ],
-          "env": {
-            "PR_BRANCH": "copilot/implement-unique-substring-matching",
-            "PR_NUMBER": "72",
-            "PR_SHA": "b4c4ab68711ba9b3edbdaed936b9b7c61ad6a6cb"
-          },
-          "name": "lint",
-          "run": "npm run lint",
-          "runtime": "local"
-        },
-        {
-          "artifacts": [
-            "test-results.xml",
-            "coverage/"
-          ],
-          "env": {
-            "PR_BRANCH": "copilot/implement-unique-substring-matching",
-            "PR_NUMBER": "72",
-            "PR_SHA": "b4c4ab68711ba9b3edbdaed936b9b7c61ad6a6cb"
-          },
-          "name": "test",
-          "run": "npm test",
-          "runtime": "local"
-        },
-        {
-          "artifacts": [
-            "typecheck-results.txt"
-          ],
-          "env": {
-            "PR_BRANCH": "copilot/implement-unique-substring-matching",
-            "PR_NUMBER": "72",
-            "PR_SHA": "b4c4ab68711ba9b3edbdaed936b9b7c61ad6a6cb"
-          },
-          "name": "typecheck",
-          "run": "npm run typecheck",
-          "runtime": "local"
-        }
-      ],
-      "name": "PR-72"
-    },
-    {
-      "deps": [],
-      "gates": [
-        {
-          "artifacts": [
-            "lint-results.txt"
-          ],
-          "env": {
-            "PR_BRANCH": "copilot/fix-typescript-build-path",
-            "PR_NUMBER": "73",
-            "PR_SHA": "ea9731a16ae7ffe9dcc715ef22d654c8c29f08d3"
-          },
-          "name": "lint",
-          "run": "npm run lint",
-          "runtime": "local"
-        },
-        {
-          "artifacts": [
-            "test-results.xml",
-            "coverage/"
-          ],
-          "env": {
-            "PR_BRANCH": "copilot/fix-typescript-build-path",
-            "PR_NUMBER": "73",
-            "PR_SHA": "ea9731a16ae7ffe9dcc715ef22d654c8c29f08d3"
-          },
-          "name": "test",
-          "run": "npm test",
-          "runtime": "local"
-        },
-        {
-          "artifacts": [
-            "typecheck-results.txt"
-          ],
-          "env": {
-            "PR_BRANCH": "copilot/fix-typescript-build-path",
-            "PR_NUMBER": "73",
-            "PR_SHA": "ea9731a16ae7ffe9dcc715ef22d654c8c29f08d3"
-          },
-          "name": "typecheck",
-          "run": "npm run typecheck",
-          "runtime": "local"
-        }
-      ],
-      "name": "PR-73"
-    },
-    {
-      "deps": [],
-      "gates": [
-        {
-          "artifacts": [
-            "lint-results.txt"
-          ],
-          "env": {
-            "PR_BRANCH": "copilot/render-atlas-frame-graph",
-            "PR_NUMBER": "74",
-            "PR_SHA": "4f53a4edcdf3249456350dd2880679a1164fd636"
-          },
-          "name": "lint",
-          "run": "npm run lint",
-          "runtime": "local"
-        },
-        {
-          "artifacts": [
-            "test-results.xml",
-            "coverage/"
-          ],
-          "env": {
-            "PR_BRANCH": "copilot/render-atlas-frame-graph",
-            "PR_NUMBER": "74",
-            "PR_SHA": "4f53a4edcdf3249456350dd2880679a1164fd636"
-          },
-          "name": "test",
-          "run": "npm test",
-          "runtime": "local"
-        },
-        {
-          "artifacts": [
-            "typecheck-results.txt"
-          ],
-          "env": {
-            "PR_BRANCH": "copilot/render-atlas-frame-graph",
-            "PR_NUMBER": "74",
-            "PR_SHA": "4f53a4edcdf3249456350dd2880679a1164fd636"
-          },
-          "name": "typecheck",
-          "run": "npm run typecheck",
-          "runtime": "local"
-        }
-      ],
-      "name": "PR-74"
-    },
-    {
-      "deps": [],
-      "gates": [
-        {
-          "artifacts": [
-            "lint-results.txt"
-          ],
-          "env": {
-            "PR_BRANCH": "copilot/add-syntax-highlighting-to-diffs",
-            "PR_NUMBER": "75",
-            "PR_SHA": "5cd003a325512d729ba3ef0b39b622b6403684ba"
-          },
-          "name": "lint",
-          "run": "npm run lint",
-          "runtime": "local"
-        },
-        {
-          "artifacts": [
-            "test-results.xml",
-            "coverage/"
-          ],
-          "env": {
-            "PR_BRANCH": "copilot/add-syntax-highlighting-to-diffs",
-            "PR_NUMBER": "75",
-            "PR_SHA": "5cd003a325512d729ba3ef0b39b622b6403684ba"
-          },
-          "name": "test",
-          "run": "npm test",
-          "runtime": "local"
-        },
-        {
-          "artifacts": [
-            "typecheck-results.txt"
-          ],
-          "env": {
-            "PR_BRANCH": "copilot/add-syntax-highlighting-to-diffs",
-            "PR_NUMBER": "75",
-            "PR_SHA": "5cd003a325512d729ba3ef0b39b622b6403684ba"
-          },
-          "name": "typecheck",
-          "run": "npm run typecheck",
-          "runtime": "local"
-        }
-      ],
-      "name": "PR-75"
-    },
-    {
-      "deps": [],
-      "gates": [
-        {
-          "artifacts": [
-            "lint-results.txt"
-          ],
-          "env": {
-            "PR_BRANCH": "copilot/configurable-fold-radius-auto-tuning",
-            "PR_NUMBER": "76",
-            "PR_SHA": "da9a4805d8befb43e04cf8270761806eba7c981c"
-          },
-          "name": "lint",
-          "run": "npm run lint",
-          "runtime": "local"
-        },
-        {
-          "artifacts": [
-            "test-results.xml",
-            "coverage/"
-          ],
-          "env": {
-            "PR_BRANCH": "copilot/configurable-fold-radius-auto-tuning",
-            "PR_NUMBER": "76",
-            "PR_SHA": "da9a4805d8befb43e04cf8270761806eba7c981c"
-          },
-          "name": "test",
-          "run": "npm test",
-          "runtime": "local"
-        },
-        {
-          "artifacts": [
-            "typecheck-results.txt"
-          ],
-          "env": {
-            "PR_BRANCH": "copilot/configurable-fold-radius-auto-tuning",
-            "PR_NUMBER": "76",
-            "PR_SHA": "da9a4805d8befb43e04cf8270761806eba7c981c"
-          },
-          "name": "typecheck",
-          "run": "npm run typecheck",
-          "runtime": "local"
-        }
-      ],
-      "name": "PR-76"
-    },
-    {
-      "deps": [],
-      "gates": [
-        {
-          "artifacts": [
-            "lint-results.txt"
-          ],
-          "env": {
-            "PR_BRANCH": "copilot/create-visual-timeline-feature",
-            "PR_NUMBER": "77",
-            "PR_SHA": "85ba3df110127c5a820c64bc48f42afe3d7a82fa"
-          },
-          "name": "lint",
-          "run": "npm run lint",
-          "runtime": "local"
-        },
-        {
-          "artifacts": [
-            "test-results.xml",
-            "coverage/"
-          ],
-          "env": {
-            "PR_BRANCH": "copilot/create-visual-timeline-feature",
-            "PR_NUMBER": "77",
-            "PR_SHA": "85ba3df110127c5a820c64bc48f42afe3d7a82fa"
-          },
-          "name": "test",
-          "run": "npm test",
-          "runtime": "local"
-        },
-        {
-          "artifacts": [
-            "typecheck-results.txt"
-          ],
-          "env": {
-            "PR_BRANCH": "copilot/create-visual-timeline-feature",
-            "PR_NUMBER": "77",
-            "PR_SHA": "85ba3df110127c5a820c64bc48f42afe3d7a82fa"
-          },
-          "name": "typecheck",
-          "run": "npm run typecheck",
-          "runtime": "local"
-        }
-      ],
-      "name": "PR-77"
-    },
-    {
-      "deps": [],
-      "gates": [
-        {
-          "artifacts": [
-            "lint-results.txt"
-          ],
-          "env": {
-            "PR_BRANCH": "templates/project-issue-templates",
-            "PR_NUMBER": "86",
-            "PR_SHA": "6557ce41aecc9456249b509bd5e478414e571ab4"
-          },
-          "name": "lint",
-          "run": "npm run lint",
-          "runtime": "local"
-        },
-        {
-          "artifacts": [
-            "test-results.xml",
-            "coverage/"
-          ],
-          "env": {
-            "PR_BRANCH": "templates/project-issue-templates",
-            "PR_NUMBER": "86",
-            "PR_SHA": "6557ce41aecc9456249b509bd5e478414e571ab4"
-          },
-          "name": "test",
-          "run": "npm test",
-          "runtime": "local"
-        },
-        {
-          "artifacts": [
-            "typecheck-results.txt"
-          ],
-          "env": {
-            "PR_BRANCH": "templates/project-issue-templates",
-            "PR_NUMBER": "86",
-            "PR_SHA": "6557ce41aecc9456249b509bd5e478414e571ab4"
-          },
-          "name": "typecheck",
-          "run": "npm run typecheck",
-          "runtime": "local"
-        }
-      ],
-      "name": "PR-86"
-    },
-    {
-      "deps": [],
-      "gates": [
-        {
-          "artifacts": [
-            "lint-results.txt"
-          ],
-          "env": {
-            "PR_BRANCH": "docs/lex-oss-readme-badge",
-            "PR_NUMBER": "87",
-            "PR_SHA": "94e14268af045eadf30b6c5a9f276766f956290a"
-          },
-          "name": "lint",
-          "run": "npm run lint",
-          "runtime": "local"
-        },
-        {
-          "artifacts": [
-            "test-results.xml",
-            "coverage/"
-          ],
-          "env": {
-            "PR_BRANCH": "docs/lex-oss-readme-badge",
-            "PR_NUMBER": "87",
-            "PR_SHA": "94e14268af045eadf30b6c5a9f276766f956290a"
-          },
-          "name": "test",
-          "run": "npm test",
-          "runtime": "local"
-        },
-        {
-          "artifacts": [
-            "typecheck-results.txt"
-          ],
-          "env": {
-            "PR_BRANCH": "docs/lex-oss-readme-badge",
-            "PR_NUMBER": "87",
-            "PR_SHA": "94e14268af045eadf30b6c5a9f276766f956290a"
-          },
-          "name": "typecheck",
-          "run": "npm run typecheck",
-          "runtime": "local"
-        }
-      ],
-      "name": "PR-87"
-    }
-  ],
-  "policy": {
-    "blockOn": [],
-    "maxWorkers": 2,
-    "mergeRule": {
-      "type": "strict-required"
-    },
-    "optionalGates": [],
-    "overrides": {},
-    "requiredGates": [
-      "lint",
-      "typecheck",
-      "test"
-    ],
-    "retries": {}
-  },
   "schemaVersion": "1.0.0",
-  "target": "main"
+  "umbrella": {
+    "name": "umbrella-20251112-0421",
+    "baseRef": "main",
+    "title": "[DRAFT][DO-NOT-MERGE] Merge-Weave: umbrella-20251112-0421"
+  },
+  "policy": {
+    "requiredGates": ["lint", "typecheck", "test"],
+    "maxWorkers": 2,
+    "retries": {
+      "test": {
+        "maxAttempts": 3,
+        "backoffSeconds": 10
+      }
+    }
+  },
+  "nodes": [
+    {
+      "id": "PR-212",
+      "number": 212,
+      "title": "chore(ci): bump ossf/scorecard-action from 2.3.3 to 2.4.3",
+      "source": "dependabot/github_actions/staging/ossf/scorecard-action-2.4.3",
+      "dependsOn": [],
+      "riskScore": 1,
+      "type": "ci-dependency",
+      "gates": ["lint", "typecheck"]
+    },
+    {
+      "id": "PR-210",
+      "number": 210,
+      "title": "chore(ci): bump actions/checkout from 4 to 5",
+      "source": "dependabot/github_actions/staging/actions/checkout-5",
+      "dependsOn": [],
+      "riskScore": 1,
+      "type": "ci-dependency",
+      "gates": ["lint", "typecheck"]
+    },
+    {
+      "id": "PR-214",
+      "number": 214,
+      "title": "fix(deps)(deps-dev): bump @typescript-eslint/eslint-plugin from 8.46.3 to 8.46.4",
+      "source": "dependabot/npm_and_yarn/staging/typescript-eslint/eslint-plugin-8.46.4",
+      "dependsOn": [],
+      "riskScore": 1,
+      "type": "dependency",
+      "gates": ["lint", "typecheck", "test"]
+    },
+    {
+      "id": "PR-213",
+      "number": 213,
+      "title": "fix(deps)(deps-dev): bump @typescript-eslint/parser from 8.46.3 to 8.46.4",
+      "source": "dependabot/npm_and_yarn/staging/typescript-eslint/parser-8.46.4",
+      "dependsOn": [],
+      "riskScore": 1,
+      "type": "dependency",
+      "gates": ["lint", "typecheck", "test"]
+    },
+    {
+      "id": "PR-209",
+      "number": 209,
+      "title": "fix(deps)(deps): bump inquirer from 9.3.8 to 12.11.0",
+      "source": "dependabot/npm_and_yarn/staging/inquirer-12.11.0",
+      "dependsOn": [],
+      "riskScore": 2,
+      "type": "dependency",
+      "gates": ["lint", "typecheck", "test"]
+    },
+    {
+      "id": "PR-207",
+      "number": 207,
+      "title": "Harden infrastructure JSON schemas with strict validation",
+      "source": "copilot/harden-json-schemas-validation",
+      "dependsOn": [],
+      "riskScore": 3,
+      "type": "feature",
+      "gates": ["lint", "typecheck", "test"]
+    },
+    {
+      "id": "PR-208",
+      "number": 208,
+      "title": "Add merge-weave state machine types, documentation, and tests",
+      "source": "copilot/define-merge-weave-state-machine",
+      "dependsOn": [],
+      "riskScore": 3,
+      "type": "feature",
+      "gates": ["lint", "typecheck", "test"]
+    }
+  ]
 }
