@@ -148,7 +148,7 @@ export function createOutput(opts: OutputOptions = {}): CliOutput {
  */
 export const output = createOutput({ scope: "cli" });
 
-// Backward-compatible exports for existing CLI commands
+// Convenience exports for existing CLI commands
 // These delegate to the default output instance
 export const info = output.info.bind(output);
 export const success = output.success.bind(output);
@@ -156,13 +156,13 @@ export const warn = output.warn.bind(output);
 export const error = output.error.bind(output);
 export const debug = output.debug.bind(output);
 
-// Backward-compatible json export: outputs raw JSON (bypasses wrapper)
+// JSON export: outputs raw JSON (bypasses wrapper)
 // Used for --json flags in CLI commands to output arbitrary data
 export function json(data: unknown): void {
   console.log(JSON.stringify(data, null, 2));
 }
 
-// Backward-compatible raw export: outputs unformatted text (bypasses wrapper)
+// Raw export: outputs unformatted text (bypasses wrapper)
 // Used for timeline and other formatted output that shouldn't have symbols
 export function raw(message: string): void {
   console.log(message);
