@@ -7,6 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### ⚠️ Breaking Changes
+
+- **REMOVED:** `LEX_PROMPTS_DIR`, `LEX_SCHEMAS_DIR`, `LEX_CONFIG_DIR` environment variables
+  - **Use:** `LEX_CANON_DIR=/path/to/canon` (points to directory containing `prompts/` and `schemas/`)
+  - **Example:** `export LEX_CANON_DIR=/custom/canon` loads prompts from `/custom/canon/prompts/`
+  
+- **REMOVED:** Runtime reads of `.smartergpt/` directory for prompts
+  - **Use:** `.smartergpt.local/prompts/` for local overlay prompts
+  - **Note:** `.smartergpt/` schemas remain for build-time compilation only
+  
+- **CHANGED:** Prompt loading precedence (3-level instead of 5-level)
+  - **Old:** `LEX_PROMPTS_DIR` → `.smartergpt.local/prompts` → `.smartergpt/prompts`
+  - **New:** `LEX_CANON_DIR/prompts` → `.smartergpt.local/prompts` → `prompts/` (package location)
+  
+- **CHANGED:** Zod schemas now use `.loose()` instead of `.passthrough()`
+  - Affects: `GateConfigSchema`, `StackComponentConfigSchema` in infrastructure schemas
+  - Behavior unchanged, but aligns with Zod 4.x best practices
+
+### Migration Guide
+
+1. **Replace environment variables:**
+   ```bash
+   # OLD
+   export LEX_PROMPTS_DIR=/custom/prompts
+   export LEX_SCHEMAS_DIR=/custom/schemas
+   
+   # NEW
+   export LEX_CANON_DIR=/custom/canon  # containing prompts/ and schemas/
+   ```
+
+2. **Move local overrides (if using deprecated .smartergpt/prompts):**
+   ```bash
+   # Only needed if you were reading from .smartergpt/prompts at runtime
+   # (typically you weren't - this was mostly for internal development)
+   mkdir -p .smartergpt.local/prompts
+   # Add your custom prompt files to .smartergpt.local/prompts/
+   ```
+
+3. **Update scripts/configs referencing old environment variables**
+
+4. **Re-test precedence:** `LEX_CANON_DIR` → `.smartergpt.local/` → package
+
 ## [0.4.0] - 2025-11-09
 
 ### ⚠️ Breaking Changes (Internal APIs)
