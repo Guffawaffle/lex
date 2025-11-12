@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://guffawaffle.dev/schemas/lex/execution-plan-v1.json",
+  "$id": "https://github.com/Guffawaffle/lex/schemas/execution-plan-v1.json",
   "title": "Execution Plan v1",
   "description": "Schema for execution plan documents derived from feature specifications",
   "type": "object",
