@@ -1,10 +1,11 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "profile.schema.json",
+  "$id": "https://github.com/Guffawaffle/lex/schemas/profile.schema.json",
   "title": "Profile Configuration",
   "description": "Configuration for runtime profiles (development, local, CI, etc.)",
   "type": "object",
   "required": ["role"],
+  "additionalProperties": false,
   "properties": {
     "role": {
       "type": "string",
