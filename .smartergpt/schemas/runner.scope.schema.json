@@ -1,9 +1,10 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "runner.scope.schema.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://guffawaffle.dev/schemas/lex/runner.scope.schema.json",
   "title": "Runner Scope Configuration",
   "description": "Configuration for runner execution scope and boundaries",
   "type": "object",
+  "additionalProperties": false,
   "properties": {
     "version": {
       "type": "string",
@@ -12,6 +13,7 @@
     "scope": {
       "type": "object",
       "description": "Scope boundaries and constraints",
+      "additionalProperties": false,
       "properties": {
         "modules": {
           "type": "array",
@@ -53,6 +55,7 @@
     "limits": {
       "type": "object",
       "description": "Resource limits for this scope",
+      "additionalProperties": false,
       "properties": {
         "maxFiles": {
           "type": "number",

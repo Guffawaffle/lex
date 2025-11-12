@@ -1,9 +1,10 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "runner.stack.schema.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://guffawaffle.dev/schemas/lex/runner.stack.schema.json",
   "title": "Runner Stack Configuration",
   "description": "Configuration for the runner execution stack",
   "type": "object",
+  "additionalProperties": false,
   "properties": {
     "version": {
       "type": "string",
@@ -15,6 +16,7 @@
       "items": {
         "type": "object",
         "required": ["name", "type"],
+        "additionalProperties": false,
         "properties": {
           "name": {
             "type": "string",
@@ -31,8 +33,7 @@
           },
           "config": {
             "type": "object",
-            "description": "Component-specific configuration",
-            "additionalProperties": true
+            "description": "Component-specific configuration"
           }
         }
       }
