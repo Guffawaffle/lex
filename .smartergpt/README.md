@@ -1,16 +1,18 @@
 # L-SCHEMAS Implementation
 
-This directory contains Zod schemas and prompt templates for the LexRunner integration.
+This directory contains hardened JSON Schemas and TypeScript Zod schemas for the LexRunner integration.
 
 ## Schemas
 
-### Configuration Schemas (JSON Schema draft/draft-07)
+### Configuration Schemas (JSON Schema draft-07)
 
-The following JSON Schema files provide validation for configuration files:
+All JSON Schema files use **draft-07** with strict validation (`additionalProperties: false`) and proper `$id` URLs.
 
 #### Profile Schema v1 (`profile.schema.json`)
 
 Defines runtime profile configuration for different environments.
+
+**Schema ID:** `https://guffawaffle.dev/schemas/lex/profile.schema.json`
 
 **Required Fields:**
 - `role` - Runtime environment: "development", "local", "example", "ci", "custom"
@@ -19,7 +21,7 @@ Defines runtime profile configuration for different environments.
 - `name` - Human-readable profile name
 - `version` - Profile version string
 - `projectType` - Project type: "nodejs", "python", "generic"
-- `created` - ISO 8601 timestamp
+- `created` - ISO 8601 timestamp (format: date-time)
 - `owner` - Profile owner/creator
 
 **Example Usage:**
@@ -33,36 +35,66 @@ created: "2025-11-09T12:00:00Z"
 owner: "username"
 ```
 
+**TypeScript Usage:**
+```typescript
+import { ProfileSchema, type Profile } from 'lex/.smartergpt/schemas/profile.schema.js';
+
+const profile: Profile = {
+  role: 'development',
+  name: 'Test Profile',
+  projectType: 'nodejs'
+};
+
+// Validate
+ProfileSchema.parse(profile);
+```
+
 #### Gates Schema v1 (`gates.schema.json`)
 
 Defines safety gates and validation rules.
 
+**Schema ID:** `https://guffawaffle.dev/schemas/lex/gates.schema.json`
+
 **Properties:**
 - `version` - Schema version
 - `gates` - Array of gate definitions
-  - `id` - Unique gate identifier
-  - `type` - Gate type: "validation", "approval", "check"
-  - `enabled` - Boolean flag
-  - `description` - Gate description
-  - `config` - Gate-specific configuration
+  - `id` - Unique gate identifier (required)
+  - `type` - Gate type: "validation", "approval", "check" (required)
+  - `enabled` - Boolean flag (required)
+  - `description` - Gate description (optional)
+  - `config` - Gate-specific configuration (optional, intentionally loose)
+
+**TypeScript Usage:**
+```typescript
+import { GatesSchema, type Gates } from 'lex/.smartergpt/schemas/gates.schema.js';
+```
 
 #### Runner Stack Schema v1 (`runner.stack.schema.json`)
 
 Defines runner execution stack configuration.
 
+**Schema ID:** `https://guffawaffle.dev/schemas/lex/runner.stack.schema.json`
+
 **Properties:**
 - `version` - Schema version
 - `stack` - Array of stack components
-  - `name` - Component name
-  - `type` - Component type
-  - `enabled` - Boolean flag (default: true)
-  - `config` - Component-specific configuration
+  - `name` - Component name (required)
+  - `type` - Component type (required)
+  - `enabled` - Boolean flag (optional, default: true)
+  - `config` - Component-specific configuration (optional, intentionally loose)
 - `timeout` - Default timeout in seconds
 - `retries` - Number of retry attempts
+
+**TypeScript Usage:**
+```typescript
+import { RunnerStackSchema, type RunnerStack } from 'lex/.smartergpt/schemas/runner.stack.schema.js';
+```
 
 #### Runner Scope Schema v1 (`runner.scope.schema.json`)
 
 Defines runner execution scope and boundaries.
+
+**Schema ID:** `https://guffawaffle.dev/schemas/lex/runner.scope.schema.json`
 
 **Properties:**
 - `version` - Schema version
@@ -77,11 +109,18 @@ Defines runner execution scope and boundaries.
   - `maxLines` - Maximum lines to change
   - `maxDuration` - Maximum execution time in seconds
 
-### Zod Schemas (TypeScript)
+**TypeScript Usage:**
+```typescript
+import { RunnerScopeSchema, type RunnerScope } from 'lex/.smartergpt/schemas/runner.scope.schema.js';
+```
+
+### Feature & Execution Schemas
 
 #### Feature Spec v0 (`feature-spec-v0`)
 
 Captures feature ideas with title, description, acceptance criteria, and technical context.
+
+**Schema ID:** `https://guffawaffle.dev/schemas/lex/feature-spec-v0.json`
 
 **Usage:**
 ```typescript
@@ -92,6 +131,8 @@ const spec: FeatureSpecV0 = {
   title: 'My Feature',
   description: 'Feature description',
   acceptanceCriteria: ['Criterion 1', 'Criterion 2'],
+  technicalContext: 'Technical details',
+  constraints: 'Limitations',
   repo: 'owner/repo',
   createdAt: new Date().toISOString()
 };
@@ -103,20 +144,22 @@ FeatureSpecV0Schema.parse(spec);
 **Schema Version:** `0.1.0`
 
 **Required Fields:**
-- `schemaVersion` - Must be "0.1.0"
-- `title` - Feature title (1-200 chars)
-- `description` - Brief description (1-2000 chars)
-- `acceptanceCriteria` - Array of testable criteria (1-20 items)
+- `schemaVersion` - Must match pattern `^\d+\.\d+\.\d+$`
+- `title` - Feature title
+- `description` - Brief description
 - `repo` - Target repository in format "owner/repo"
-- `createdAt` - ISO 8601 timestamp
 
 **Optional Fields:**
-- `technicalContext` - Technical context (max 2000 chars)
-- `constraints` - Constraints or limitations (max 1000 chars)
+- `acceptanceCriteria` - Array of testable criteria
+- `technicalContext` - Technical context
+- `constraints` - Constraints or limitations
+- `createdAt` - ISO 8601 timestamp (format: date-time)
 
-### Execution Plan v1 (`execution-plan-v1`)
+#### Execution Plan v1 (`execution-plan-v1`)
 
 Defines Epic + Sub-Issues with dependency graph for project creation.
+
+**Schema ID:** `https://guffawaffle.dev/schemas/lex/execution-plan-v1.json`
 
 **Usage:**
 ```typescript
@@ -153,57 +196,76 @@ ExecutionPlanV1Schema.parse(plan);
 - `feature` - Core implementation work
 - `testing` - Unit, integration, E2E tests
 - `docs` - User-facing documentation
-
-## Prompts
-
-### Idea Prompt (`prompts/idea.md`)
-
-Template for the `lex-pr idea` command. Guides the AI to:
-1. Clarify acceptance criteria
-2. Identify technical context
-3. Flag risks & blockers
-4. Suggest implementation approach
-
-### Create Project Prompt (`prompts/create-project.md`)
-
-Template for the `lex-pr create-project` command. Guides the AI to:
-1. Break down feature into Epic + Sub-Issues
-2. Define dependency graph
-3. Apply dependency rules (testing depends on feature, docs depends on feature)
+- `refactor` - Code refactoring
+- `bug` - Bug fixes
 
 ## Files
 
 ```
 .smartergpt/
 ├── schemas/
-│   ├── feature-spec-v0.json        # JSON Schema (draft-07) - Zod-based
+│   ├── feature-spec-v0.json        # JSON Schema (draft-07)
 │   ├── feature-spec-v0.ts          # Zod schema (TypeScript)
 │   ├── feature-spec-v0.js          # Compiled JavaScript
 │   ├── feature-spec-v0.d.ts        # TypeScript declarations
-│   ├── execution-plan-v1.json      # JSON Schema (draft-07) - Zod-based
+│   ├── execution-plan-v1.json      # JSON Schema (draft-07)
 │   ├── execution-plan-v1.ts        # Zod schema (TypeScript)
 │   ├── execution-plan-v1.js        # Compiled JavaScript
 │   ├── execution-plan-v1.d.ts      # TypeScript declarations
-│   ├── profile.schema.json         # JSON Schema (draft/2020-12) - Configuration
-│   ├── gates.schema.json           # JSON Schema (draft/2020-12) - Safety gates
-│   ├── runner.stack.schema.json    # JSON Schema (draft/2020-12) - Stack config
-│   └── runner.scope.schema.json    # JSON Schema (draft/2020-12) - Scope config
+│   ├── profile.schema.json         # JSON Schema (draft-07)
+│   ├── profile.schema.ts           # Zod schema (TypeScript)
+│   ├── profile.schema.js           # Compiled JavaScript
+│   ├── profile.schema.d.ts         # TypeScript declarations
+│   ├── gates.schema.json           # JSON Schema (draft-07)
+│   ├── gates.schema.ts             # Zod schema (TypeScript)
+│   ├── gates.schema.js             # Compiled JavaScript
+│   ├── gates.schema.d.ts           # TypeScript declarations
+│   ├── runner.stack.schema.json    # JSON Schema (draft-07)
+│   ├── runner.stack.schema.ts      # Zod schema (TypeScript)
+│   ├── runner.stack.schema.js      # Compiled JavaScript
+│   ├── runner.stack.schema.d.ts    # TypeScript declarations
+│   ├── runner.scope.schema.json    # JSON Schema (draft-07)
+│   ├── runner.scope.schema.ts      # Zod schema (TypeScript)
+│   ├── runner.scope.schema.js      # Compiled JavaScript
+│   ├── runner.scope.schema.d.ts    # TypeScript declarations
+│   └── tsconfig.json               # TypeScript build configuration
 └── prompts/
     ├── idea.md                     # Prompt for idea command
     └── create-project.md           # Prompt for create-project command
 ```
 
+## Schema Validation
+
+All schemas are hardened with:
+- ✅ JSON Schema draft-07
+- ✅ Strict `additionalProperties: false` (except intentionally loose config objects)
+- ✅ Proper `$id` URLs using https://guffawaffle.dev/schemas/lex/
+- ✅ All timestamp fields use `"format": "date-time"`
+- ✅ Zod schemas align with JSON schemas for round-trip compatibility
+- ✅ Comprehensive validation tests with AJV
+- ✅ Round-trip tests demonstrating Zod ↔ JSON equivalence
+
 ## Testing
 
-Run schema tests:
+Run all schema tests:
 ```bash
-npx tsx --test test/schemas/*.test.ts
+npm test test/schemas
 ```
 
-Validate examples:
+Run validation tests only:
 ```bash
-node examples/schemas/validate-examples.mjs
+npx tsx --test test/schemas/validation.test.ts
 ```
+
+Run round-trip tests only:
+```bash
+npx tsx --test test/schemas/round-trip.test.ts
+```
+
+**Test Results:**
+- 36 validation tests (AJV)
+- 13 round-trip tests (Zod ↔ JSON)
+- All tests passing ✅
 
 ## Cross-Repo Usage
 
@@ -213,10 +275,12 @@ From LexRunner repository:
 // Import schemas
 import { FeatureSpecV0Schema } from 'lex/schemas/feature-spec-v0';
 import { ExecutionPlanV1Schema } from 'lex/schemas/execution-plan-v1';
+import { ProfileSchema } from 'lex/.smartergpt/schemas/profile.schema.js';
 
 // Import types
 import type { FeatureSpecV0 } from 'lex/schemas/feature-spec-v0';
 import type { ExecutionPlanV1, SubIssue } from 'lex/schemas/execution-plan-v1';
+import type { Profile } from 'lex/.smartergpt/schemas/profile.schema.js';
 ```
 
 ## Dependencies
