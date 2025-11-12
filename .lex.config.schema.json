@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://guffawaffle.dev/schemas/lex/config.schema.json",
+  "$id": "https://github.com/Guffawaffle/lex/schemas/config.schema.json",
   "title": "Lex Configuration",
   "description": "Configuration schema for the Lex memory system",
   "type": "object",
