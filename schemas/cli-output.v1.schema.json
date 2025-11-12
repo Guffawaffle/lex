@@ -1,6 +1,6 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://guffawaffle.github.io/lex/schemas/cli-output.v1.schema.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://guffawaffle.dev/schemas/lex/cli-output.v1.schema.json",
   "title": "Lex CLI Output Event v1",
   "description": "Canonical schema for CLI output events emitted by Lex commands. All JSONL lines conform to this schema.",
   "type": "object",
