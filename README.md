@@ -248,12 +248,19 @@ lex check merged-facts.json
 
 # Or specify custom policy path
 lex check merged-facts.json --policy /path/to/custom-policy.json
+
+# Database maintenance
+lex db vacuum                    # Optimize database and reclaim space
+lex db backup                    # Create timestamped backup with default retention (7)
+lex db backup --rotate 14        # Create backup and keep last 14 backups
 ```
 
 **CLI outputs:**
 - `lex remember` → Confirmation with Frame ID and summary
 - `lex recall` → Matching frames with context (branch, blockers, next action, module neighborhood)
 - `lex check` → Policy violations report with forbidden edges, missing permissions, kill pattern matches
+- `lex db vacuum` → Database optimization confirmation
+- `lex db backup` → Backup creation confirmation with file path and retention count
 
 See the [RECEIPTS.md](./RECEIPTS.md) for a complete end-to-end walkthrough.
 
@@ -263,7 +270,10 @@ Lex respects the following environment variables for configuration:
 
 - **`LEX_LOG_LEVEL`** - Set log verbosity (`silent`, `trace`, `debug`, `info`, `warn`, `error`, `fatal`). Defaults to `silent` in tests, `info` otherwise.
 - **`LEX_LOG_PRETTY`** - Enable pretty-printed logs (`1` for enabled). Auto-enabled when output is a TTY.
+- **`LEX_LOG_FILE`** - Override log file path. Defaults to `.smartergpt.local/lex/logs/lex.log.ndjson` (disabled in test environment).
 - **`LEX_POLICY_PATH`** - Override default policy file location (defaults to `.smartergpt.local/lex/lexmap.policy.json`).
+- **`LEX_DB_PATH`** - Override database file location (defaults to `.smartergpt.local/lex/memory.db`).
+- **`LEX_BACKUP_RETENTION`** - Number of backup files to keep (defaults to `7`). Used by `lex db backup`.
 - **`LEX_DEFAULT_BRANCH`** - Override auto-detected default branch for frame operations.
 
 Example:
@@ -276,7 +286,24 @@ LEX_LOG_PRETTY=1 npm test
 
 # Use custom policy file
 LEX_POLICY_PATH=/custom/policy.json lex check facts.json
+
+# Keep 30 backups instead of default 7
+LEX_BACKUP_RETENTION=30 lex db backup
 ```
+
+**NDJSON Structured Logging:**
+
+When file logging is enabled, Lex writes structured NDJSON logs to `.smartergpt.local/lex/logs/lex.log.ndjson` with the following fields:
+- `timestamp` - ISO 8601 timestamp
+- `level` - String level name (`trace`, `debug`, `info`, `warn`, `error`, `fatal`)
+- `message` - Log message
+- `module` - Module/scope name (e.g., `memory:store:backup`)
+- `operation` - Operation name (e.g., `saveFrame`, `backupDatabase`)
+- `duration_ms` - Operation duration in milliseconds (when applicable)
+- `metadata` - Operation-specific data
+- `error` - Error details (when logging errors)
+
+Log files are automatically rotated when they exceed 100MB, keeping the last 5 rotated files.
 
 ### Subpath Exports
 
