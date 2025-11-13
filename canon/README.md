@@ -40,13 +40,40 @@ All schemas must:
 - Be valid according to the JSON Schema meta-schema
 - Not include build artifacts (`.js`, `.d.ts`, `.tsbuildinfo`)
 
+## Code Reference Rules
+
+**CRITICAL: All loader code must follow this precedence:**
+
+```typescript
+// ✅ CORRECT: Read from packaged location first, fallback to source
+import { join } from 'path';
+import { existsSync } from 'fs';
+
+const packagedPath = join(__dirname, '../../prompts/example.md');
+const sourcePath = join(__dirname, '../../canon/prompts/example.md');
+const promptPath = existsSync(packagedPath) ? packagedPath : sourcePath;
+
+// ❌ WRONG: Reading from canon/ first
+const wrongPath = join(__dirname, '../../canon/prompts/example.md');
+
+// ❌ WRONG: Only reading from canon/ (breaks in production)
+const alsoWrong = join(__dirname, '../../canon/prompts/example.md');
+```
+
+**Why this matters:**
+- Installed packages only have `prompts/` and `schemas/` (canon/ is excluded via .npmignore)
+- Development environments have both canon/ (source) and prompts/schemas/ (built)
+- Code reading from canon/ first will break in production
+- Code reading ONLY from canon/ will break in production
+
 ## Precedence Chain
 
 When the package is installed, prompts and schemas are loaded with this precedence:
 
-1. **Environment override:** `LEX_CANON_DIR=/path/to/custom-canon` (loads from `/path/to/custom-canon/prompts/` and `/path/to/custom-canon/schemas/`)
+1. **Environment override:** `LEX_PROMPTS_DIR=/path/to/custom` (explicit user override)
 2. **Local overlay:** `.smartergpt.local/prompts/` and `.smartergpt.local/schemas/` (user customizations, not tracked)
-3. **Package defaults:** `prompts/` and `schemas/` (from this canon/ directory)
+3. **Package defaults:** `prompts/` and `schemas/` (packaged locations, copied from canon/ during build)
+4. **Development fallback:** `canon/prompts/` and `canon/schemas/` (source, only available in dev)
 
 ## Adding New Prompts
 
