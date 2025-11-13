@@ -2,75 +2,42 @@
  * Prompt Loading Utility
  *
  * Loads prompt templates with precedence chain support:
- * 1. LEX_CANON_DIR/prompts (explicit environment override)
+ * 1. LEX_PROMPTS_DIR (explicit environment override)
  * 2. .smartergpt.local/prompts/ (local overlay)
- * 3. prompts/ (published package location)
+ * 3. Package canon (resolved from package installation)
  */
 
 import { readFileSync, existsSync, readdirSync } from "fs";
 import { resolve, dirname, join } from "path";
-import { z } from "zod";
+import { fileURLToPath } from "url";
 
 /**
- * Package prompts directory (published location)
+ * Resolve package asset path for both dev and installed contexts
+ *
+ * @param type - Asset type ('prompts' or 'schemas')
+ * @param name - Asset name/filename
+ * @returns Resolved absolute path to the asset
  */
-const PACKAGE_PROMPTS_DIR = "prompts";
-
-/**
- * Local overlay directory (untracked)
- */
-const LOCAL_PROMPTS_DIR = ".smartergpt.local/prompts";
-
-/**
- * Environment variable for canon directory (contains prompts/ and schemas/)
- */
-const CANON_DIR_ENV = "LEX_CANON_DIR";
-
-/**
- * Find repository root by looking for package.json
- */
-export function findRepoRoot(startPath: string): string {
-  let currentPath = resolve(startPath);
-
-  // 0) Optional explicit override (useful in tests/WSL/CI)
-  const explicit = process.env.REPO_ROOT ?? process.env.SMARTERGPT_REPO_ROOT;
-  if (explicit) {
-    const abs = resolve(explicit);
-    if (existsSync(join(abs, "package.json"))) {
-      return abs;
+function resolvePackageAsset(type: "prompts" | "schemas", name: string): string {
+  // When installed: node_modules/lex/prompts/ or node_modules/lex/schemas/
+  // When local dev: <repo>/prompts/ or <repo>/schemas/
+  const currentFile = fileURLToPath(import.meta.url);
+  let pkgRoot = dirname(currentFile);
+  
+  // Walk up until we find package.json or reach a dist/ or src/ boundary
+  // In dist: /home/runner/work/lex/lex/dist/shared/prompts/loader.js -> /home/runner/work/lex/lex
+  // In src:  /home/runner/work/lex/lex/src/shared/prompts/loader.ts -> /home/runner/work/lex/lex
+  while (pkgRoot !== dirname(pkgRoot)) {
+    const pkgJsonPath = join(pkgRoot, "package.json");
+    if (existsSync(pkgJsonPath)) {
+      // Found package.json - this is the package root
+      return join(pkgRoot, type, name);
     }
+    pkgRoot = dirname(pkgRoot);
   }
-
-  // Minimal, safe package.json validator
-  const PackageJson = z.object({ name: z.string().min(1).optional() }).loose();
-
-  // Walk upward to filesystem root
-  while (true) {
-    const pkgPath = join(currentPath, "package.json");
-    if (existsSync(pkgPath)) {
-      try {
-        const parsed = PackageJson.parse(JSON.parse(readFileSync(pkgPath, "utf8")));
-        const name = parsed.name;
-        // Accept both repos (scoped or unscoped)
-        if (
-          name === "lex" ||
-          name === "lex-pr-runner" ||
-          name === "@guffawaffle/lex" ||
-          name === "@guffawaffle/lex-pr-runner"
-        ) {
-          return currentPath;
-        }
-      } catch {
-        // ignore and continue walking up
-      }
-    }
-
-    const parent = dirname(currentPath);
-    if (parent === currentPath) break; // reached FS root
-    currentPath = parent;
-  }
-
-  throw new Error("Could not find repository root (package.json with recognized name).");
+  
+  // Fallback: shouldn't reach here in normal use
+  throw new Error(`Could not resolve package root from ${currentFile}`);
 }
 
 /**
@@ -81,9 +48,9 @@ export function findRepoRoot(startPath: string): string {
  * @throws Error if prompt file cannot be found in any location
  *
  * Precedence chain:
- * 1. LEX_CANON_DIR/prompts (explicit environment override)
+ * 1. LEX_PROMPTS_DIR (explicit environment override)
  * 2. .smartergpt.local/prompts/ (local overlay - untracked)
- * 3. prompts/ (published package location)
+ * 3. Package canon (resolve from package installation)
  *
  * @example
  * ```typescript
@@ -93,8 +60,8 @@ export function findRepoRoot(startPath: string): string {
  *
  * @example With environment variable override
  * ```typescript
- * process.env.LEX_CANON_DIR = '/custom/canon';
- * const prompt = loadPrompt('idea.md'); // Loads from /custom/canon/prompts/idea.md
+ * process.env.LEX_PROMPTS_DIR = '/custom/prompts';
+ * const prompt = loadPrompt('idea.md'); // Loads from /custom/prompts/idea.md
  * ```
  *
  * @example Local overlay (create .smartergpt.local/prompts/idea.md to override)
@@ -104,51 +71,36 @@ export function findRepoRoot(startPath: string): string {
  * ```
  */
 export function loadPrompt(promptName: string): string {
-  const canonDir = process.env[CANON_DIR_ENV];
   const attemptedPaths: string[] = [];
 
-  try {
-    // Priority 1: LEX_CANON_DIR/prompts (explicit override)
-    if (canonDir) {
-      const canonPath = join(canonDir, "prompts", promptName);
-      attemptedPaths.push(canonPath);
-
-      if (existsSync(canonPath)) {
-        return readFileSync(canonPath, "utf-8");
-      }
+  // Priority 1: LEX_PROMPTS_DIR (explicit env override)
+  const envDir = process.env.LEX_PROMPTS_DIR;
+  if (envDir) {
+    const envPath = resolve(envDir, promptName);
+    attemptedPaths.push(envPath);
+    if (existsSync(envPath)) {
+      return readFileSync(envPath, "utf-8");
     }
-
-    // Get repo root for local and package paths
-    const repoRoot = findRepoRoot(process.cwd());
-
-    // Priority 2: Local overlay (.smartergpt.local/prompts/)
-    const localPath = join(repoRoot, LOCAL_PROMPTS_DIR, promptName);
-    attemptedPaths.push(localPath);
-
-    if (existsSync(localPath)) {
-      return readFileSync(localPath, "utf-8");
-    }
-
-    // Priority 3: Package prompts directory
-    const packagePath = join(repoRoot, PACKAGE_PROMPTS_DIR, promptName);
-    attemptedPaths.push(packagePath);
-
-    if (existsSync(packagePath)) {
-      return readFileSync(packagePath, "utf-8");
-    }
-
-    // No prompt found in any location
-    throw new Error(
-      `Prompt file '${promptName}' not found. Tried:\n` +
-        attemptedPaths.map((p, i) => `  ${i + 1}. ${p}`).join("\n")
-    );
-  } catch (error: unknown) {
-    if (error instanceof Error && error.message.includes("not found")) {
-      throw error; // Re-throw our custom error message
-    }
-    const message = error instanceof Error ? error.message : String(error);
-    throw new Error(`Failed to load prompt '${promptName}': ${message}`);
   }
+
+  // Priority 2: .smartergpt.local/prompts/ (local overlay)
+  const localPath = join(process.cwd(), ".smartergpt.local", "prompts", promptName);
+  attemptedPaths.push(localPath);
+  if (existsSync(localPath)) {
+    return readFileSync(localPath, "utf-8");
+  }
+
+  // Priority 3: Package canon (resolve from package installation)
+  const canonPath = resolvePackageAsset("prompts", promptName);
+  attemptedPaths.push(canonPath);
+  if (existsSync(canonPath)) {
+    return readFileSync(canonPath, "utf-8");
+  }
+
+  throw new Error(
+    `Prompt file '${promptName}' not found. Tried:\n` +
+      attemptedPaths.map((p, i) => `  ${i + 1}. ${p}`).join("\n")
+  );
 }
 
 /**
@@ -164,35 +116,28 @@ export function loadPrompt(promptName: string): string {
  * ```
  */
 export function getPromptPath(promptName: string): string | null {
-  const canonDir = process.env[CANON_DIR_ENV];
-
-  try {
-    // Priority 1: LEX_CANON_DIR/prompts
-    if (canonDir) {
-      const canonPath = join(canonDir, "prompts", promptName);
-      if (existsSync(canonPath)) {
-        return canonPath;
-      }
+  // Priority 1: LEX_PROMPTS_DIR
+  const envDir = process.env.LEX_PROMPTS_DIR;
+  if (envDir) {
+    const envPath = resolve(envDir, promptName);
+    if (existsSync(envPath)) {
+      return envPath;
     }
-
-    const repoRoot = findRepoRoot(process.cwd());
-
-    // Priority 2: Local overlay
-    const localPath = join(repoRoot, LOCAL_PROMPTS_DIR, promptName);
-    if (existsSync(localPath)) {
-      return localPath;
-    }
-
-    // Priority 3: Package prompts
-    const packagePath = join(repoRoot, PACKAGE_PROMPTS_DIR, promptName);
-    if (existsSync(packagePath)) {
-      return packagePath;
-    }
-
-    return null;
-  } catch {
-    return null;
   }
+
+  // Priority 2: Local overlay
+  const localPath = join(process.cwd(), ".smartergpt.local", "prompts", promptName);
+  if (existsSync(localPath)) {
+    return localPath;
+  }
+
+  // Priority 3: Package canon
+  const canonPath = resolvePackageAsset("prompts", promptName);
+  if (existsSync(canonPath)) {
+    return canonPath;
+  }
+
+  return null;
 }
 
 /**
@@ -208,48 +153,51 @@ export function getPromptPath(promptName: string): string | null {
  */
 export function listPrompts(): string[] {
   const prompts = new Set<string>();
-  const canonDir = process.env[CANON_DIR_ENV];
 
+  // Collect from package canon
   try {
-    const repoRoot = findRepoRoot(process.cwd());
-
-    // Collect from package prompts
-    const packagePath = join(repoRoot, PACKAGE_PROMPTS_DIR);
-    if (existsSync(packagePath)) {
-      const files = readdirSync(packagePath);
+    const canonPath = resolvePackageAsset("prompts", "");
+    if (existsSync(canonPath)) {
+      const files = readdirSync(canonPath);
       files.forEach((file: string) => {
         if (file.endsWith(".md")) {
           prompts.add(file);
         }
       });
     }
+  } catch {
+    // Ignore errors when reading package canon
+  }
 
-    // Collect from local (overlay)
-    const localPath = join(repoRoot, LOCAL_PROMPTS_DIR);
-    if (existsSync(localPath)) {
+  // Collect from local (overlay)
+  const localPath = join(process.cwd(), ".smartergpt.local", "prompts");
+  if (existsSync(localPath)) {
+    try {
       const files = readdirSync(localPath);
       files.forEach((file: string) => {
         if (file.endsWith(".md")) {
           prompts.add(file);
         }
       });
+    } catch {
+      // Ignore errors when reading local overlay
     }
-
-    // Collect from LEX_CANON_DIR/prompts (if specified)
-    if (canonDir) {
-      const canonPath = join(canonDir, "prompts");
-      if (existsSync(canonPath)) {
-        const files = readdirSync(canonPath);
-        files.forEach((file: string) => {
-          if (file.endsWith(".md")) {
-            prompts.add(file);
-          }
-        });
-      }
-    }
-
-    return Array.from(prompts).sort();
-  } catch {
-    return [];
   }
+
+  // Collect from LEX_PROMPTS_DIR (if specified)
+  const envDir = process.env.LEX_PROMPTS_DIR;
+  if (envDir && existsSync(envDir)) {
+    try {
+      const files = readdirSync(envDir);
+      files.forEach((file: string) => {
+        if (file.endsWith(".md")) {
+          prompts.add(file);
+        }
+      });
+    } catch {
+      // Ignore errors when reading env dir
+    }
+  }
+
+  return Array.from(prompts).sort();
 }
