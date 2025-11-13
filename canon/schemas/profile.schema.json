@@ -1,0 +1,38 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/Guffawaffle/lex/schemas/profile.schema.json",
+  "title": "Profile Configuration",
+  "description": "Configuration for runtime profiles (development, local, CI, etc.)",
+  "type": "object",
+  "required": ["role"],
+  "additionalProperties": false,
+  "properties": {
+    "role": {
+      "type": "string",
+      "enum": ["development", "local", "example", "ci", "custom"],
+      "description": "The runtime role/environment for this profile"
+    },
+    "name": {
+      "type": "string",
+      "description": "Human-readable name for this profile"
+    },
+    "version": {
+      "type": "string",
+      "description": "Version of the profile configuration"
+    },
+    "projectType": {
+      "type": "string",
+      "enum": ["nodejs", "python", "generic"],
+      "description": "Type of project this profile is for"
+    },
+    "created": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp when profile was created"
+    },
+    "owner": {
+      "type": "string",
+      "description": "Owner or creator of this profile"
+    }
+  }
+}
