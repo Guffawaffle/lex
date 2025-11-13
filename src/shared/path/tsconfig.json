@@ -3,7 +3,7 @@
   "compilerOptions": {
     "composite": true
   },
-  "references": [{ "path": "../tokens" }],
+  "references": [{ "path": "../git" }],
   "include": ["*.ts"],
   "exclude": ["node_modules", "dist", "*.test.ts"]
 }

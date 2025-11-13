@@ -10,6 +10,8 @@
 import { readFileSync, existsSync, readdirSync } from "fs";
 import { resolve, dirname, join } from "path";
 import { fileURLToPath } from "url";
+import { expandTokens } from "../tokens/expand.js";
+import type { TokenContext } from "../tokens/expand.js";
 
 /**
  * Resolve package asset path for both dev and installed contexts
@@ -44,7 +46,8 @@ function resolvePackageAsset(type: "prompts" | "schemas", name: string): string 
  * Load prompt template with precedence chain
  *
  * @param promptName - Name of the prompt file (e.g., "idea.md", "create-project.md")
- * @returns Prompt content as string
+ * @param context - Optional token context for expansion (defaults to current environment)
+ * @returns Prompt content as string with tokens expanded
  * @throws Error if prompt file cannot be found in any location
  *
  * Precedence chain:
@@ -52,10 +55,19 @@ function resolvePackageAsset(type: "prompts" | "schemas", name: string): string 
  * 2. .smartergpt.local/prompts/ (local overlay - untracked)
  * 3. Package canon (resolve from package installation)
  *
+ * Token expansion:
+ * All loaded prompts have tokens expanded automatically:
+ * - `{{today}}` → YYYY-MM-DD (e.g., `2025-11-09`)
+ * - `{{now}}` → ISO local time without colons (e.g., `20251109T123456`)
+ * - `{{repo_root}}` → Detected repository root
+ * - `{{workspace_root}}` → Workspace root (defaults to repo root)
+ * - `{{branch}}` → Current git branch
+ * - `{{commit}}` → Current git commit SHA (short form)
+ *
  * @example
  * ```typescript
  * const ideaPrompt = loadPrompt('idea.md');
- * console.log(ideaPrompt); // Prompt template content
+ * console.log(ideaPrompt); // Prompt template with tokens expanded
  * ```
  *
  * @example With environment variable override
@@ -69,8 +81,16 @@ function resolvePackageAsset(type: "prompts" | "schemas", name: string): string 
  * // If .smartergpt.local/prompts/idea.md exists, it takes precedence
  * const prompt = loadPrompt('idea.md');
  * ```
+ *
+ * @example With custom token context
+ * ```typescript
+ * const prompt = loadPrompt('template.md', {
+ *   today: '2025-01-01',
+ *   branch: 'feature-branch'
+ * });
+ * ```
  */
-export function loadPrompt(promptName: string): string {
+export function loadPrompt(promptName: string, context?: TokenContext): string {
   const attemptedPaths: string[] = [];
 
   // Priority 1: LEX_PROMPTS_DIR (explicit env override)
@@ -79,7 +99,8 @@ export function loadPrompt(promptName: string): string {
     const envPath = resolve(envDir, promptName);
     attemptedPaths.push(envPath);
     if (existsSync(envPath)) {
-      return readFileSync(envPath, "utf-8");
+      const content = readFileSync(envPath, "utf-8");
+      return expandTokens(content, context);
     }
   }
 
@@ -87,14 +108,16 @@ export function loadPrompt(promptName: string): string {
   const localPath = join(process.cwd(), ".smartergpt.local", "prompts", promptName);
   attemptedPaths.push(localPath);
   if (existsSync(localPath)) {
-    return readFileSync(localPath, "utf-8");
+    const content = readFileSync(localPath, "utf-8");
+    return expandTokens(content, context);
   }
 
   // Priority 3: Package canon (resolve from package installation)
   const canonPath = resolvePackageAsset("prompts", promptName);
   attemptedPaths.push(canonPath);
   if (existsSync(canonPath)) {
-    return readFileSync(canonPath, "utf-8");
+    const content = readFileSync(canonPath, "utf-8");
+    return expandTokens(content, context);
   }
 
   throw new Error(

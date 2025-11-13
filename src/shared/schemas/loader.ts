@@ -10,6 +10,8 @@
 import { readFileSync, existsSync, readdirSync } from "fs";
 import { resolve, dirname, join } from "path";
 import { fileURLToPath } from "url";
+import { expandTokensInObject } from "../tokens/expand.js";
+import type { TokenContext } from "../tokens/expand.js";
 
 /**
  * Resolve package asset path for both dev and installed contexts
@@ -44,7 +46,8 @@ function resolvePackageAsset(type: "prompts" | "schemas", name: string): string 
  * Load schema file with precedence chain
  *
  * @param schemaName - Name of the schema file (e.g., "cli-output.v1.schema.json")
- * @returns Parsed schema object
+ * @param context - Optional token context for expansion (defaults to current environment)
+ * @returns Parsed schema object with tokens expanded
  * @throws Error if schema file cannot be found in any location
  *
  * Precedence chain:
@@ -52,10 +55,19 @@ function resolvePackageAsset(type: "prompts" | "schemas", name: string): string 
  * 2. .smartergpt.local/schemas/ (local overlay - untracked)
  * 3. Package canon (resolve from package installation)
  *
+ * Token expansion:
+ * All loaded schemas have tokens expanded automatically in string values:
+ * - `{{today}}` → YYYY-MM-DD (e.g., `2025-11-09`)
+ * - `{{now}}` → ISO local time without colons (e.g., `20251109T123456`)
+ * - `{{repo_root}}` → Detected repository root
+ * - `{{workspace_root}}` → Workspace root (defaults to repo root)
+ * - `{{branch}}` → Current git branch
+ * - `{{commit}}` → Current git commit SHA (short form)
+ *
  * @example
  * ```typescript
  * const schema = loadSchema('cli-output.v1.schema.json');
- * console.log(schema); // Parsed JSON schema object
+ * console.log(schema); // Parsed JSON schema object with tokens expanded
  * ```
  *
  * @example With environment variable override
@@ -69,8 +81,16 @@ function resolvePackageAsset(type: "prompts" | "schemas", name: string): string 
  * // If .smartergpt.local/schemas/my-schema.json exists, it takes precedence
  * const schema = loadSchema('my-schema.json');
  * ```
+ *
+ * @example With custom token context
+ * ```typescript
+ * const schema = loadSchema('config.schema.json', {
+ *   today: '2025-01-01',
+ *   branch: 'feature-branch'
+ * });
+ * ```
  */
-export function loadSchema(schemaName: string): object {
+export function loadSchema(schemaName: string, context?: TokenContext): object {
   const attemptedPaths: string[] = [];
 
   // Priority 1: LEX_SCHEMAS_DIR (explicit env override)
@@ -79,7 +99,8 @@ export function loadSchema(schemaName: string): object {
     const envPath = resolve(envDir, schemaName);
     attemptedPaths.push(envPath);
     if (existsSync(envPath)) {
-      return JSON.parse(readFileSync(envPath, "utf-8"));
+      const schema = JSON.parse(readFileSync(envPath, "utf-8"));
+      return expandTokensInObject(schema, context);
     }
   }
 
@@ -87,14 +108,16 @@ export function loadSchema(schemaName: string): object {
   const localPath = join(process.cwd(), ".smartergpt.local", "schemas", schemaName);
   attemptedPaths.push(localPath);
   if (existsSync(localPath)) {
-    return JSON.parse(readFileSync(localPath, "utf-8"));
+    const schema = JSON.parse(readFileSync(localPath, "utf-8"));
+    return expandTokensInObject(schema, context);
   }
 
   // Priority 3: Package canon (resolve from package installation)
   const canonPath = resolvePackageAsset("schemas", schemaName);
   attemptedPaths.push(canonPath);
   if (existsSync(canonPath)) {
-    return JSON.parse(readFileSync(canonPath, "utf-8"));
+    const schema = JSON.parse(readFileSync(canonPath, "utf-8"));
+    return expandTokensInObject(schema, context);
   }
 
   throw new Error(
