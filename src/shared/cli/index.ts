@@ -9,6 +9,7 @@ import { remember, type RememberOptions } from "./remember.js";
 import { recall, type RecallOptions } from "./recall.js";
 import { check, type CheckOptions } from "./check.js";
 import { timeline, type TimelineCommandOptions } from "./timeline.js";
+import { dbVacuum, dbBackup, type DbVacuumOptions, type DbBackupOptions } from "./db.js";
 import * as output from "./output.js";
 import { readFileSync } from "fs";
 import { join, dirname } from "path";
@@ -144,6 +145,35 @@ export function createProgram(): Command {
         json: globalOptions.json || false,
       };
       await timeline(ticketOrBranch, options);
+    });
+
+  // lex db command group
+  const dbCommand = program.command("db").description("Database maintenance commands");
+
+  // lex db vacuum
+  dbCommand
+    .command("vacuum")
+    .description("Optimize database and reclaim space")
+    .action(async () => {
+      const globalOptions = program.opts();
+      const options: DbVacuumOptions = {
+        json: globalOptions.json || false,
+      };
+      await dbVacuum(options);
+    });
+
+  // lex db backup
+  dbCommand
+    .command("backup")
+    .description("Create timestamped backup with optional rotation")
+    .option("--rotate <number>", "Number of backups to keep (default: LEX_BACKUP_RETENTION or 7)", parseInt)
+    .action(async (cmdOptions) => {
+      const globalOptions = program.opts();
+      const options: DbBackupOptions = {
+        rotate: cmdOptions.rotate,
+        json: globalOptions.json || false,
+      };
+      await dbBackup(options);
     });
 
   return program;
