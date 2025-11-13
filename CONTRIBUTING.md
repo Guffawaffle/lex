@@ -66,6 +66,11 @@ lex/
 │       ├── aliases/          # Module ID alias resolution
 │       ├── module_ids/       # Module ID validation
 │       └── cli/              # CLI entry point
+├── canon/                    # Canonical source (tracked in git)
+│   ├── prompts/              # Prompt templates (source)
+│   └── schemas/              # JSON schemas (source)
+├── prompts/                  # Build artifact (gitignored, published)
+├── schemas/                  # Build artifact (gitignored, published)
 ├── dist/                     # Build output (generated, not committed)
 ├── docs/                     # Documentation
 ├── examples/                 # Usage examples
@@ -73,7 +78,11 @@ lex/
 └── testing/                  # Test utilities and fixtures
 ```
 
-**Key principle:** `src/` contains **only TypeScript**. All `.js` files are build artifacts in `dist/`.
+**Key principles:**
+- `src/` contains **only TypeScript**. All `.js` files are build artifacts in `dist/`.
+- `canon/` is the **source of truth** for prompts and schemas (tracked in git).
+- `prompts/` and `schemas/` are **build artifacts** (gitignored, packaged for distribution).
+- **Code must read from `prompts/` and `schemas/`** (packaged locations), with fallback to `canon/` for development.
 
 ---
 

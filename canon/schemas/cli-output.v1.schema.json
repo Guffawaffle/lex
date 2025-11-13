@@ -1,0 +1,55 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/Guffawaffle/lex/schemas/cli-output.v1.schema.json",
+  "title": "Lex CLI Output Event v1",
+  "description": "Canonical schema for CLI output events emitted by Lex commands. All JSONL lines conform to this schema.",
+  "type": "object",
+  "required": [
+    "v",
+    "ts",
+    "level"
+  ],
+  "properties": {
+    "v": {
+      "const": 1,
+      "description": "Schema version (always 1 for v1)"
+    },
+    "ts": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp"
+    },
+    "level": {
+      "type": "string",
+      "enum": [
+        "info",
+        "warn",
+        "error",
+        "success",
+        "debug"
+      ],
+      "description": "Severity level"
+    },
+    "scope": {
+      "type": "string",
+      "description": "Optional source scope (e.g., 'cli:remember')"
+    },
+    "code": {
+      "type": "string",
+      "description": "Optional machine-readable code (e.g., 'MEM_WRITE_OK')"
+    },
+    "message": {
+      "type": "string",
+      "maxLength": 100,
+      "description": "Optional short human-readable text"
+    },
+    "data": {
+      "description": "Optional arbitrary payload (object or primitive)"
+    },
+    "hint": {
+      "type": "string",
+      "description": "Optional human-readable hint (printed to stderr)"
+    }
+  },
+  "additionalProperties": false
+}
