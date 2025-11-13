@@ -6,8 +6,18 @@ import tsparser from "@typescript-eslint/parser";
 // TypeScript files and add a narrow override that forbids committing any
 // .js/.jsx files under `src/` (project is TS-first).
 export default [
-  // Ignore build/artifacts, scripts, and examples
-  { ignores: ["dist/", "node_modules/", "coverage/", "**/*.d.ts", "scripts/", "examples/"] },
+  // Ignore build/artifacts, scripts, examples, and generated schemas
+  {
+    ignores: [
+      "dist/",
+      "node_modules/",
+      "coverage/",
+      "**/*.d.ts",
+      "scripts/",
+      "examples/",
+      "schemas/",
+    ],
+  },
 
   // Base config for all source files. Keep a small set of ergonomic rules.
   {
@@ -134,10 +144,15 @@ export default [
   // Allow console in tests for debugging (but prefer test assertions).
   {
     files: [
-      "**/*.test.ts", "**/*.test.mts", "**/*.test.mjs",
-      "**/*.spec.ts", "**/*.spec.mjs",
-      "test/**/*.ts", "test/**/*.mts",
-      "**/test_*.ts", "**/*_test.ts", // Test utility files
+      "**/*.test.ts",
+      "**/*.test.mts",
+      "**/*.test.mjs",
+      "**/*.spec.ts",
+      "**/*.spec.mjs",
+      "test/**/*.ts",
+      "test/**/*.mts",
+      "**/test_*.ts",
+      "**/*_test.ts", // Test utility files
     ],
     rules: {
       "no-console": "off",
