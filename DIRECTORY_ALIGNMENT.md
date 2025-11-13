@@ -15,18 +15,16 @@ Tracked directory containing canonical schemas and prompt templates. These files
 │   ├── idea.md                         # Template for `lex-pr idea` command
 │   └── create-project.md               # Template for `lex-pr create-project` command
 └── schemas/                            # JSON Schema definitions (tracked)
-    ├── execution-plan-v1.json          # Execution plan schema (v1)
-    ├── execution-plan-v1.ts            # Zod schema (TypeScript)
-    ├── execution-plan-v1.js            # Compiled JavaScript
-    ├── execution-plan-v1.d.ts          # TypeScript declarations
     ├── feature-spec-v0.json            # Feature spec schema (v0)
     ├── feature-spec-v0.ts              # Zod schema (TypeScript)
     ├── feature-spec-v0.js              # Compiled JavaScript
     ├── feature-spec-v0.d.ts            # TypeScript declarations
     ├── profile.schema.json             # Profile configuration schema (v1)
-    ├── gates.schema.json               # Safety gates schema (v1)
-    ├── runner.stack.schema.json        # Runner stack schema (v1)
-    └── runner.scope.schema.json        # Runner scope schema (v1)
+    └── infrastructure.ts               # Infrastructure schema (gates, stacks, profiles)
+
+Note: Execution plan (execution-plan-v1.*) and gates (gates.schema.*) schemas are sourced from
+the `lex-pr-runner` package. Runner schemas (runner.stack.schema.*, runner.scope.schema.*)
+are also sourced from `lex-pr-runner`. See "Schema Locations" section below.
 ```
 
 ### `.smartergpt.local/` (Local Overlay - Untracked)
@@ -57,11 +55,25 @@ All schema files are stored in `.smartergpt/schemas/` and are tracked in version
    - Gate types: validation, approval, check
    - Configurable per-gate settings
 
-3. **runner.stack.schema.json** - Runner execution stack configuration
+### Runner Schemas (v1)
+
+2. **gates.schema.json** - Safety gates and validation rules (from lex-pr-runner)
+   - Gate types: validation, approval, check
+   - Configurable per-gate settings
+
+3. **execution-plan-v1.json** - Execution plan schema (from lex-pr-runner)
+   - Feature specification and decomposition
+   - Sub-issue definitions and dependencies
+
+### Runner Schemas (v1)
+
+Runner schemas are owned and maintained by the `lex-pr-runner` package and imported as a devDependency:
+
+4. **runner.stack.schema.json** - Runner execution stack configuration (from lex-pr-runner)
    - Stack component definitions
    - Timeout and retry settings
 
-4. **runner.scope.schema.json** - Runner execution scope and boundaries
+5. **runner.scope.schema.json** - Runner execution scope and boundaries (from lex-pr-runner)
    - Module/directory/file scoping
    - Permission requirements
    - Resource limits (maxFiles, maxLines, maxDuration)
