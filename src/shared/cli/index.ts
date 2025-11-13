@@ -9,6 +9,7 @@ import { remember, type RememberOptions } from "./remember.js";
 import { recall, type RecallOptions } from "./recall.js";
 import { check, type CheckOptions } from "./check.js";
 import { timeline, type TimelineCommandOptions } from "./timeline.js";
+import { init, type InitOptions } from "./init.js";
 import * as output from "./output.js";
 import { readFileSync } from "fs";
 import { join, dirname } from "path";
@@ -40,6 +41,20 @@ export function createProgram(): Command {
     .description("Policy-aware work continuity with receipts")
     .version(getVersion())
     .option("--json", "Output results in JSON format");
+
+  // lex init command
+  program
+    .command("init")
+    .description("Initialize .smartergpt.local/ workspace")
+    .option("--force", "Overwrite existing configuration")
+    .action(async (cmdOptions) => {
+      const globalOptions = program.opts();
+      const options: InitOptions = {
+        force: cmdOptions.force || false,
+        json: globalOptions.json || false,
+      };
+      await init(options);
+    });
 
   // lex remember command
   program
@@ -145,6 +160,65 @@ export function createProgram(): Command {
       };
       await timeline(ticketOrBranch, options);
     });
+
+  // lex db command group - TODO: Restore when db.ts is available
+  // const dbCommand = program.command("db").description("Database maintenance commands");
+
+  // lex db vacuum - TODO: Restore when db.ts is available
+  // dbCommand
+  //   .command("vacuum")
+  //   .description("Optimize database and reclaim space")
+  //   .action(async () => {
+  //     const globalOptions = program.opts();
+  //     const options: DbVacuumOptions = {
+  //       json: globalOptions.json || false,
+  //     };
+  //     await dbVacuum(options);
+  //   });
+
+  // lex db backup - TODO: Restore when db.ts is available
+  // dbCommand
+  //   .command("backup")
+  //   .description("Create timestamped backup with optional rotation")
+  //   .option(
+  //     "--rotate <number>",
+  //     "Number of backups to keep (default: LEX_BACKUP_RETENTION or 7)",
+  //     parseInt
+  //   )
+  //   .action(async (cmdOptions) => {
+  //     const globalOptions = program.opts();
+  //     const options: DbBackupOptions = {
+  //       rotate: cmdOptions.rotate,
+  //       json: globalOptions.json || false,
+  //     };
+  //     await dbBackup(options);
+  //   });
+
+  // lex frames export command - TODO: Restore when frames-export.ts is available
+  // program
+  //   .command("frames")
+  //   .description("Manage frames")
+  //   .addCommand(
+  //     new Command("export")
+  //       .description("Export frames from database to JSON files")
+  //       .option("--out <dir>", "Output directory (default: .smartergpt.local/lex/frames.export)")
+  //       .option("--since <date>", "Export frames since date or duration (e.g., 7d, 2025-01-01)")
+  //       .option("--jira <ticket>", "Export frames for specific Jira ticket")
+  //       .option("--branch <name>", "Export frames for specific branch")
+  //       .option("--format <type>", "Output format: json or ndjson", /^(json|ndjson)$/, "json")
+  //       .action(async (cmdOptions) => {
+  //         const globalOptions = program.opts();
+  //         const options: ExportOptions = {
+  //           out: cmdOptions.out,
+  //           since: cmdOptions.since,
+  //           jira: cmdOptions.jira,
+  //           branch: cmdOptions.branch,
+  //           format: cmdOptions.format,
+  //           json: globalOptions.json || false,
+  //         };
+  //         await framesExport(options);
+  //       })
+  //   );
 
   return program;
 }
