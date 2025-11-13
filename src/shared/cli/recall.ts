@@ -8,7 +8,6 @@ import type { Frame } from "../types/frame.js";
 import { getDb, searchFrames, getFramesByJira, getFrameById } from "../../memory/store/index.js";
 import { loadPolicy } from "../policy/loader.js";
 import {
-  generateAtlasFrame,
   computeFoldRadius,
   autoTuneRadius,
   estimateTokens,
