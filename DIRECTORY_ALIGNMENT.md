@@ -92,33 +92,34 @@ Prompt templates are loaded using a precedence chain, allowing for local customi
 
 ### Precedence Order
 
-1. **`LEX_PROMPTS_DIR`** (highest priority) - Environment variable override
-   - Explicit path to custom prompts directory
-   - Use: `export LEX_PROMPTS_DIR=/custom/prompts`
+1. **`LEX_CANON_DIR/prompts`** (highest priority) - Environment variable override
+   - Points to a directory containing `prompts/` subdirectory
+   - Use: `export LEX_CANON_DIR=/custom/canon`
+   - Prompts loaded from: `/custom/canon/prompts/`
 
 2. **`.smartergpt.local/prompts/`** - Local overlay
    - Untracked directory for local customizations
-   - Overrides canon without modifying tracked files
+   - Overrides published prompts without modifying tracked files
 
-3. **`.smartergpt/prompts/`** (lowest priority) - Tracked canon
-   - Version-controlled default templates
+3. **`prompts/`** (lowest priority) - Published package location
+   - Default templates published with the package
    - Always available as fallback
 
 ### Examples
 
-**Use canon prompt:**
+**Use published prompt:**
 ```typescript
 import { loadPrompt } from 'lex/shared/prompts/loader';
 
 const prompt = loadPrompt('idea.md');
-// Loads from .smartergpt/prompts/idea.md
+// Loads from prompts/idea.md
 ```
 
 **Override with local version:**
 ```bash
 # Create local override
 mkdir -p .smartergpt.local/prompts
-cp .smartergpt/prompts/idea.md .smartergpt.local/prompts/idea.md
+cp prompts/idea.md .smartergpt.local/prompts/idea.md
 # Edit .smartergpt.local/prompts/idea.md as needed
 ```
 
@@ -129,12 +130,12 @@ const prompt = loadPrompt('idea.md');
 
 **Override with environment variable:**
 ```bash
-export LEX_PROMPTS_DIR=/path/to/custom/prompts
+export LEX_CANON_DIR=/path/to/custom/canon
 ```
 
 ```typescript
 const prompt = loadPrompt('idea.md');
-// Loads from /path/to/custom/prompts/idea.md
+// Loads from /path/to/custom/canon/prompts/idea.md
 ```
 
 ## Policy Files
