@@ -1,0 +1,41 @@
+name: Validate Canon
+
+on:
+  push:
+    branches: [main, develop, 'copilot/**']
+  pull_request:
+
+jobs:
+  validate-schemas:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Validate JSON Schemas with AJV
+        run: npm run validate-schemas
+      
+      - name: Build and verify canon copy
+        run: |
+          npm run build
+          test -d prompts || exit 1
+          test -d schemas || exit 1
+          diff -r canon/prompts prompts
+          diff -r canon/schemas schemas
+      
+      - name: Run precedence tests (if they exist)
+        run: |
+          if [ -f test/shared/prompts/loader.test.ts ]; then
+            npm test -- test/shared/prompts/loader.test.ts
+          else
+            echo "Precedence tests not yet implemented, skipping..."
+          fi

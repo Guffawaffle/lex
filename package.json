@@ -43,7 +43,8 @@
     "dist/**/*.d.ts",
     "dist/**/*.js.map",
     "!dist/**/*.tsbuildinfo",
-    "schemas/**/*.json",
+    "prompts/",
+    "schemas/",
     ".smartergpt/schemas/**/*.js",
     ".smartergpt/schemas/**/*.d.ts",
     ".smartergpt/schemas/**/*.json",
@@ -54,7 +55,10 @@
   "scripts": {
     "setup-local": "./scripts/setup-local.sh",
     "build": "tsc -b tsconfig.build.json",
-    "clean": "tsc -b tsconfig.build.json --clean && rimraf dist",
+    "postbuild": "chmod +x dist/shared/cli/lex.js && npm run copy-canon",
+    "copy-canon": "node scripts/copy-canon.js",
+    "clean": "tsc -b tsconfig.build.json --clean && rimraf dist prompts schemas",
+    "validate-schemas": "node scripts/validate-schemas.js",
     "type-check": "tsc -p tsconfig.build.json --noEmit",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
@@ -79,8 +83,7 @@
     "version-packages": "changeset version",
     "release": "npm run build && changeset publish",
     "prepack": "npm run build",
-    "prepare": "npm run build",
-    "postbuild": "chmod +x dist/shared/cli/lex.js"
+    "prepare": "npm run build"
   },
   "keywords": [
     "memory",
