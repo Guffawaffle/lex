@@ -99,6 +99,8 @@ describe("JSON Schema Validation", () => {
     });
   });
 
+  // NOTE: gates.schema.json migrated to lex-pr-runner in PR #219
+  /*
   describe("gates.schema.json", () => {
     const schemaPath = join(
       dirname(require.resolve("lex-pr-runner/package.json")),
@@ -195,7 +197,10 @@ describe("JSON Schema Validation", () => {
       assert.ok(valid, `Validation failed: ${JSON.stringify(validate.errors)}`);
     });
   });
+  */
 
+  // NOTE: runner.stack.schema.json migrated to lex-pr-runner in PR #219
+  /*
   describe("runner.stack.schema.json", () => {
     const schemaPath = join(
       dirname(require.resolve("lex-pr-runner/package.json")),
@@ -279,7 +284,10 @@ describe("JSON Schema Validation", () => {
       assert.ok(valid, `Validation failed: ${JSON.stringify(validate.errors)}`);
     });
   });
+  */
 
+  // NOTE: runner.scope.schema.json migrated to lex-pr-runner in PR #219
+  /*
   describe("runner.scope.schema.json", () => {
     const schemaPath = join(
       dirname(require.resolve("lex-pr-runner/package.json")),
@@ -357,6 +365,7 @@ describe("JSON Schema Validation", () => {
       );
     });
   });
+  */
 
   describe("feature-spec-v0.json", () => {
     const schemaPath = join(__dirname, "../../.smartergpt/schemas/feature-spec-v0.json");
@@ -451,6 +460,8 @@ describe("JSON Schema Validation", () => {
     });
   });
 
+  // NOTE: execution-plan-v1.json migrated to lex-pr-runner in PR #219
+  /*
   describe("execution-plan-v1.json", () => {
     const schemaPath = join(
       dirname(require.resolve("lex-pr-runner/package.json")),
@@ -576,4 +587,5 @@ describe("JSON Schema Validation", () => {
       );
     });
   });
+  */
 });
