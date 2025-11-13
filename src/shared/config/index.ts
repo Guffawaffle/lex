@@ -12,6 +12,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { getLogger } from "../logger/index.js";
+import { normalizePath } from "../path/normalize.js";
 
 const logger = getLogger("config");
 
@@ -129,20 +130,28 @@ function mergeConfig(base: LexConfig, ...overrides: Array<Partial<LexConfig> | n
 }
 
 /**
- * Resolve relative paths against the app root.
+ * Resolve relative paths against the app root and normalize them.
  */
 function resolveConfigPaths(config: LexConfig): LexConfig {
   const appRoot = config.paths.appRoot;
 
+  // Normalize all paths with traversal validation disabled for config
+  // (config paths may legitimately reference parent directories)
   return {
     paths: {
-      appRoot,
-      database: path.isAbsolute(config.paths.database)
-        ? config.paths.database
-        : path.join(appRoot, config.paths.database),
-      policy: path.isAbsolute(config.paths.policy)
-        ? config.paths.policy
-        : path.join(appRoot, config.paths.policy),
+      appRoot: normalizePath(appRoot, { validateTraversal: false }),
+      database: normalizePath(
+        path.isAbsolute(config.paths.database)
+          ? config.paths.database
+          : path.join(appRoot, config.paths.database),
+        { validateTraversal: false },
+      ),
+      policy: normalizePath(
+        path.isAbsolute(config.paths.policy)
+          ? config.paths.policy
+          : path.join(appRoot, config.paths.policy),
+        { validateTraversal: false },
+      ),
     },
   };
 }
