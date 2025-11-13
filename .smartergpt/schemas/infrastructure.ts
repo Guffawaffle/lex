@@ -26,7 +26,7 @@ export type Profile = z.infer<typeof ProfileSchema>;
 /**
  * Safety Gates Configuration Schema
  */
-export const GateConfigSchema = z.object({}).passthrough();
+export const GateConfigSchema = z.object({}).loose();
 
 export const GateSchema = z
   .object({
@@ -51,7 +51,7 @@ export type Gates = z.infer<typeof GatesSchema>;
 /**
  * Runner Stack Configuration Schema
  */
-export const StackComponentConfigSchema = z.object({}).passthrough();
+export const StackComponentConfigSchema = z.object({}).loose();
 
 export const StackComponentSchema = z
   .object({
