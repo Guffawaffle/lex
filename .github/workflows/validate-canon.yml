@@ -35,7 +35,7 @@ jobs:
       - name: Run precedence tests (if they exist)
         run: |
           if [ -f test/shared/prompts/loader.test.ts ]; then
-            npm test -- test/shared/prompts/loader.test.ts
+            NODE_ENV=test LEX_LOG_LEVEL=silent npx tsx --test test/shared/prompts/loader.test.ts
           else
             echo "Precedence tests not yet implemented, skipping..."
           fi
