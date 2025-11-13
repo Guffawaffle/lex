@@ -8,7 +8,6 @@ import inquirer from "inquirer";
 import { v4 as uuidv4 } from "uuid";
 import type { Frame } from "../types/frame.js";
 import { validateModuleIds } from "../module_ids/index.js";
-import type { ResolutionResult } from "../types/validation.js";
 import { loadPolicy } from "../policy/loader.js";
 import { getDb, saveFrame } from "../../memory/store/index.js";
 import { getCurrentBranch } from "../git/branch.js";
@@ -111,7 +110,7 @@ export async function remember(options: RememberOptions = {}): Promise<void> {
  */
 async function promptForFrameData(
   options: RememberOptions,
-  currentBranch: string
+  _currentBranch: string
 ): Promise<RememberOptions> {
   const questions: any[] = [];
 
