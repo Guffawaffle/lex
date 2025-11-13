@@ -72,11 +72,11 @@ Policy is machine-readable architecture boundaries. The policy file defines whic
 
 **Prompt Templates & Schemas:**
 Lex uses a precedence chain for loading prompt templates and includes JSON schemas for configuration validation:
-- Canon prompts: `.smartergpt/prompts/` (tracked, version-controlled defaults)
+- Package prompts: `prompts/` (published with package, default location)
 - Local overlay: `.smartergpt.local/prompts/` (untracked, for local customization)
-- Environment override: `LEX_PROMPTS_DIR=/custom/prompts` (highest precedence)
+- Environment override: `LEX_CANON_DIR=/custom/canon` (highest precedence, loads from `/custom/canon/prompts/`)
 - Schemas: `.smartergpt/schemas/` (tracked, includes profile.schema.json, gates.schema.json)
-  - Runner schemas (runner.stack.schema, runner.scope.schema) are sourced from `lex-pr-runner` package
+  - Runner schemas (runner.stack.schema, runner.scope.schema, execution-plan-v1, gates.schema) are sourced from `lex-pr-runner` package
 
 See `DIRECTORY_ALIGNMENT.md` for complete details on directory structure, schema locations, and precedence rules.
 
