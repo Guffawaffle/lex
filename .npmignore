@@ -1,0 +1,58 @@
+# Source directories (tracked, but not published)
+canon/
+
+# Test files
+test/
+*.test.ts
+*.test.mjs
+*.test.js
+
+# Build artifacts that shouldn't be published
+*.tsbuildinfo
+
+# Development files
+.github/
+.git/
+.gitignore
+.prettierrc.json
+.prettierignore
+.commitlintrc.json
+eslint.config.mjs
+tsconfig.*.json
+*.Dockerfile
+
+# Documentation that shouldn't be in package
+CONTRIBUTING.md
+TROUBLESHOOTING.md
+SECURITY_INCIDENT_*.md
+EPIC_*.md
+IMPLEMENTATION_SUMMARY.md
+DIRECTORY_ALIGNMENT.md
+LINT_BUDGET.md
+RECEIPTS.md
+REPO_HARDENING_PLAN.md
+ISSUE_*.md
+QUICK_START.md
+RELEASE.md
+merge-weave-plan-*.json
+plan.json
+
+# Examples
+examples/
+
+# Scripts (except those needed for package)
+scripts/
+
+# Project management
+project/
+
+# Misc
+blank.file
+lex-launcher.sh
+servers.json
+lint-baseline.json
+.changeset/
+
+# Generated directories ARE published (explicitly included in package.json "files")
+# prompts/
+# schemas/
