@@ -9,6 +9,7 @@ import { remember, type RememberOptions } from "./remember.js";
 import { recall, type RecallOptions } from "./recall.js";
 import { check, type CheckOptions } from "./check.js";
 import { timeline, type TimelineCommandOptions } from "./timeline.js";
+import { framesExport, type ExportOptions } from "./frames-export.js";
 import * as output from "./output.js";
 import { readFileSync } from "fs";
 import { join, dirname } from "path";
@@ -145,6 +146,35 @@ export function createProgram(): Command {
       };
       await timeline(ticketOrBranch, options);
     });
+
+  // lex frames export command
+  program
+    .command("frames")
+    .description("Manage frames")
+    .addCommand(
+      new Command("export")
+        .description("Export frames from database to JSON files")
+        .option("--out <dir>", "Output directory (default: .smartergpt.local/lex/frames.export)")
+        .option(
+          "--since <date>",
+          "Export frames since date or duration (e.g., 7d, 2025-01-01)"
+        )
+        .option("--jira <ticket>", "Export frames for specific Jira ticket")
+        .option("--branch <name>", "Export frames for specific branch")
+        .option("--format <type>", "Output format: json or ndjson", /^(json|ndjson)$/, "json")
+        .action(async (cmdOptions) => {
+          const globalOptions = program.opts();
+          const options: ExportOptions = {
+            out: cmdOptions.out,
+            since: cmdOptions.since,
+            jira: cmdOptions.jira,
+            branch: cmdOptions.branch,
+            format: cmdOptions.format,
+            json: globalOptions.json || false,
+          };
+          await framesExport(options);
+        })
+    );
 
   return program;
 }
