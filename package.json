@@ -43,11 +43,11 @@
     "dist/**/*.d.ts",
     "dist/**/*.js.map",
     "!dist/**/*.tsbuildinfo",
+    "prompts/**/*.md",
     "schemas/**/*.json",
     ".smartergpt/schemas/**/*.js",
     ".smartergpt/schemas/**/*.d.ts",
     ".smartergpt/schemas/**/*.json",
-    ".smartergpt/prompts/**/*.md",
     "README.md",
     "LICENSE"
   ],
