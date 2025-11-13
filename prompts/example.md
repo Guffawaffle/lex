@@ -4,7 +4,7 @@ This is an example prompt template for testing the canon/ build system.
 
 You can customize prompts by:
 1. Creating a local override in `.smartergpt.local/prompts/`
-2. Setting `LEX_CANON_DIR` environment variable
+2. Setting `LEX_PROMPTS_DIR` environment variable
 
 ## Usage
 

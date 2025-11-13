@@ -20,7 +20,7 @@ test/fixtures/
 
 These fixtures are copied into temporary test directories during test execution to simulate the 3-level precedence chain:
 
-1. **LEX_CANON_DIR/prompts** (explicit environment override)
+1. **LEX_PROMPTS_DIR** (explicit environment override)
 2. **.smartergpt.local/prompts/** (local overlay)
 3. **prompts/** (published package location)
 

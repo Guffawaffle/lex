@@ -12,18 +12,18 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-      
+
       - name: Install dependencies
         run: npm ci
-      
+
       - name: Validate JSON Schemas with AJV
         run: npm run validate-schemas
-      
+
       - name: Build and verify canon copy
         run: |
           npm run build
@@ -31,7 +31,7 @@ jobs:
           test -d schemas || exit 1
           diff -r canon/prompts prompts
           diff -r canon/schemas schemas
-      
+
       - name: Run precedence tests (if they exist)
         run: |
           if [ -f test/shared/prompts/loader.test.ts ]; then

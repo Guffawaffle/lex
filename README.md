@@ -116,9 +116,9 @@ The package includes:
 #### Customizing Prompts/Schemas
 
 1. **Local overlay:** Create `.smartergpt.local/prompts/` or `.smartergpt.local/schemas/` to override defaults
-2. **Environment override:** Set `LEX_CANON_DIR=/path/to/custom-canon` (highest precedence)
+2. **Environment override:** Set `LEX_PROMPTS_DIR=/custom/prompts` and/or `LEX_SCHEMAS_DIR=/custom/schemas` (highest precedence)
 
-**Precedence chain:** `LEX_CANON_DIR` → `.smartergpt.local/` → package defaults
+**Precedence chain:** `LEX_PROMPTS_DIR`/`LEX_SCHEMAS_DIR` → `.smartergpt.local/` → package defaults
 
 ### Quick Start
 

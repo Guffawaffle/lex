@@ -1,4 +1,4 @@
-# Canon Architecture
+f# Canon Architecture
 
 ## Overview
 
@@ -76,12 +76,21 @@ const path = existsSync(sourcePath) ? sourcePath : packagedPath;
 
 ### 3. Environment Variables
 
-Current precedence for prompt/schema loading:
+Current precedence for prompt and schema loading:
 
-1. **`LEX_PROMPTS_DIR`** - Explicit user override (points to custom directory)
+**Prompts:**
+1. **`LEX_PROMPTS_DIR`** - Explicit user override (points to custom prompts directory)
 2. **`.smartergpt.local/prompts/`** - Local overlay (untracked)
 3. **`prompts/`** - Package default (packaged from canon/)
 4. **`canon/prompts/`** - Development fallback (source)
+
+**Schemas:**
+1. **`LEX_SCHEMAS_DIR`** - Explicit user override (points to custom schemas directory)
+2. **`.smartergpt.local/schemas/`** - Local overlay (untracked)
+3. **`schemas/`** - Package default (packaged from canon/)
+4. **`canon/schemas/`** - Development fallback (source)
+
+> **Note:** Prompts and schemas each use their own environment variable for explicit override: `LEX_PROMPTS_DIR` for prompts, and `LEX_SCHEMAS_DIR` for schemas.
 
 ### 4. Git Tracking
 
