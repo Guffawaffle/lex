@@ -142,11 +142,12 @@ export function loadPrompt(promptName: string): string {
       `Prompt file '${promptName}' not found. Tried:\n` +
         attemptedPaths.map((p, i) => `  ${i + 1}. ${p}`).join("\n")
     );
-  } catch (error: any) {
-    if (error.message.includes("not found")) {
+  } catch (error: unknown) {
+    if (error instanceof Error && error.message.includes("not found")) {
       throw error; // Re-throw our custom error message
     }
-    throw new Error(`Failed to load prompt '${promptName}': ${error.message}`);
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`Failed to load prompt '${promptName}': ${message}`);
   }
 }
 
