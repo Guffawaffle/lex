@@ -4,7 +4,7 @@
 
 import * as fs from "fs";
 import * as path from "path";
-import * as readline from "readline";
+import * as output from "./output.js";
 
 export interface InitOptions {
   force?: boolean;
@@ -35,9 +35,9 @@ export async function init(options: InitOptions = {}): Promise<InitResult> {
     };
 
     if (options.json) {
-      console.log(JSON.stringify(result, null, 2));
+      output.json(result);
     } else {
-      console.log(`\n⚠️  ${result.message}\n`);
+      output.warn(`Workspace already initialized at ${profileDir}. Use --force to reinitialize.`);
     }
 
     return result;
@@ -129,23 +129,24 @@ Your local version will now take precedence.
     };
 
     if (options.json) {
-      console.log(JSON.stringify(result, null, 2));
+      output.json(result);
     } else {
-      console.log(`\n✅ Workspace initialized successfully!\n`);
-      console.log(`📂 Profile directory: ${profileDir}\n`);
-      console.log(`📝 Created structure:`);
-      console.log(`   - profile.yml (workspace metadata)`);
-      console.log(`   - lex/ (working files: policy, database)`);
-      console.log(`   - runner/ (lex-pr-runner artifacts)`);
-      console.log(`   - prompts/ (local prompt overlays)\n`);
-      console.log(`📚 Files created:`);
-      filesCreated.forEach((file) => console.log(`   - ${file}`));
-      console.log(`\n💡 Next steps:`);
-      console.log(`   1. Customize .smartergpt.local/lex/lexmap.policy.json`);
-      console.log(`   2. Run 'npx lex remember' to create your first frame`);
-      console.log(
-        `   3. Database will be created automatically at .smartergpt.local/lex/memory.db\n`
-      );
+      output.success("Workspace initialized successfully");
+      output.info(`Profile directory: ${profileDir}`);
+      output.info("");
+      output.info("Created structure:");
+      output.info("  - profile.yml (workspace metadata)");
+      output.info("  - lex/ (working files: policy, database)");
+      output.info("  - runner/ (lex-pr-runner artifacts)");
+      output.info("  - prompts/ (local prompt overlays)");
+      output.info("");
+      output.info("Files created:");
+      filesCreated.forEach((file) => output.info(`  - ${file}`));
+      output.info("");
+      output.info("Next steps:");
+      output.info("  1. Customize .smartergpt.local/lex/lexmap.policy.json");
+      output.info("  2. Run 'npx lex remember' to create your first frame");
+      output.info("  3. Database will be created automatically at .smartergpt.local/lex/memory.db");
     }
 
     return result;
@@ -158,18 +159,13 @@ Your local version will now take precedence.
     };
 
     if (options.json) {
-      console.log(JSON.stringify(result, null, 2));
+      output.json(result);
     } else {
-      console.error(`\n❌ ${result.message}\n`);
+      output.error(
+        `Failed to initialize workspace: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
 
     return result;
   }
-}
-
-/**
- * Helper to parse comma-separated lists
- */
-function parseList(value: string): string[] {
-  return value.split(",").map((v) => v.trim());
 }

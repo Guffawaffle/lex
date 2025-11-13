@@ -8,14 +8,9 @@
  */
 
 import type { Policy } from "../types/policy.js";
-import type { ValidationResult, ModuleIdError, ResolutionResult } from "../types/validation.js";
-import type { AliasTable, ResolverOptions } from "../aliases/types.js";
-import {
-  resolveModuleId,
-  loadAliasTable,
-  findSubstringMatches,
-  AmbiguousSubstringError,
-} from "../aliases/resolver.js";
+import type { ValidationResult, ModuleIdError } from "../types/validation.js";
+import type { AliasTable } from "../aliases/types.js";
+import { resolveModuleId } from "../aliases/resolver.js";
 
 // Re-export for use by other packages
 export { resolveModuleId };
