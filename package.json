@@ -54,6 +54,7 @@
     "LICENSE"
   ],
   "scripts": {
+    "postinstall": "node -e \"console.log('\\n📦 Lex installed! Run \\\"npx lex init\\\" to set up your workspace.\\n')\"",
     "setup-local": "./scripts/setup-local.sh",
     "build": "tsc -b tsconfig.build.json",
     "postbuild": "chmod +x dist/shared/cli/lex.js && npm run copy-canon",
