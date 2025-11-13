@@ -8,11 +8,11 @@ import { fileURLToPath } from "url";
 import { createRequire } from "module";
 
 import { ProfileSchema } from "../../.smartergpt/schemas/profile.schema.js";
-import { GatesSchema } from "../../.smartergpt/schemas/gates.schema.js";
+import { GatesSchema } from "lex-pr-runner/schemas/gates";
 import { RunnerStackSchema } from "lex-pr-runner/schemas/runner-stack";
 import { RunnerScopeSchema } from "lex-pr-runner/schemas/runner-scope";
 import { FeatureSpecV0Schema } from "../../.smartergpt/schemas/feature-spec-v0.js";
-import { ExecutionPlanV1Schema } from "../../.smartergpt/schemas/execution-plan-v1.js";
+import { ExecutionPlanV1Schema } from "lex-pr-runner/schemas/execution-plan-v1";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -97,7 +97,10 @@ describe("Zod ↔ JSON Schema Round-Trip", () => {
   });
 
   describe("GatesSchema round-trip", () => {
-    const jsonSchemaPath = join(__dirname, "../../.smartergpt/schemas/gates.schema.json");
+    const jsonSchemaPath = join(
+      dirname(require.resolve("lex-pr-runner/package.json")),
+      ".smartergpt/schemas/gates.schema.json"
+    );
     const jsonSchema = JSON.parse(readFileSync(jsonSchemaPath, "utf-8"));
     const validateJson = ajv.compile(jsonSchema);
 
@@ -287,7 +290,10 @@ describe("Zod ↔ JSON Schema Round-Trip", () => {
   });
 
   describe("ExecutionPlanV1Schema round-trip", () => {
-    const jsonSchemaPath = join(__dirname, "../../.smartergpt/schemas/execution-plan-v1.json");
+    const jsonSchemaPath = join(
+      dirname(require.resolve("lex-pr-runner/package.json")),
+      ".smartergpt/schemas/execution-plan-v1.json"
+    );
     const jsonSchema = JSON.parse(readFileSync(jsonSchemaPath, "utf-8"));
     const validateJson = ajv.compile(jsonSchema);
 
