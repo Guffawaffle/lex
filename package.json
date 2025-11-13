@@ -43,6 +43,7 @@
     "dist/**/*.d.ts",
     "dist/**/*.js.map",
     "!dist/**/*.tsbuildinfo",
+    "src/policy/policy_spec/lexmap.policy.json.example",
     "prompts/",
     "prompts/**/*.md",
     "schemas/",
@@ -54,7 +55,7 @@
     "LICENSE"
   ],
   "scripts": {
-    "postinstall": "node -e \"console.log('\\n📦 Lex installed! Run \\\"npx lex init\\\" to set up your workspace.\\n')\"",
+    "postinstall": "node -e \"if (process.env.npm_config_global === 'true' || !process.cwd().includes('node_modules')) { console.log('\\n📦 Lex installed! Run \\\"npx lex init\\\" to set up your workspace.\\n'); }\"",
     "setup-local": "./scripts/setup-local.sh",
     "build": "tsc -b tsconfig.build.json",
     "postbuild": "chmod +x dist/shared/cli/lex.js && npm run copy-canon",

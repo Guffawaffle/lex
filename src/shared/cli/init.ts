@@ -72,8 +72,13 @@ description: Auto-generated workspace for local Lex development
     // Copy lexmap.policy.json template
     const policyPath = path.join(lexDir, "lexmap.policy.json");
     if (!fs.existsSync(policyPath) || options.force) {
-      const examplePath = path.join(baseDir, "src/policy/policy_spec/lexmap.policy.json.example");
-      const fallbackPath = path.join(baseDir, "src/policy/policy_spec/lexmap.policy.json");
+      // Use __dirname to find template relative to dist/ (works in published package)
+      const packageRoot = path.join(__dirname, "../../..");
+      const examplePath = path.join(
+        packageRoot,
+        "src/policy/policy_spec/lexmap.policy.json.example"
+      );
+      const fallbackPath = path.join(packageRoot, "src/policy/policy_spec/lexmap.policy.json");
 
       if (fs.existsSync(examplePath)) {
         fs.copyFileSync(examplePath, policyPath);
@@ -82,10 +87,10 @@ description: Auto-generated workspace for local Lex development
         fs.copyFileSync(fallbackPath, policyPath);
         filesCreated.push("lex/lexmap.policy.json");
       } else {
-        // Create minimal policy if no template found
+        // Create minimal policy if no template found (modules is an object, not array)
         const minimalPolicy = {
           version: "1.0.0",
-          modules: [],
+          modules: {},
         };
         fs.writeFileSync(policyPath, JSON.stringify(minimalPolicy, null, 2));
         filesCreated.push("lex/lexmap.policy.json (minimal)");
@@ -102,7 +107,7 @@ This directory contains local prompt customizations that override canonical prom
 ## Precedence
 
 Prompts are resolved in this order:
-1. \`LEX_CANON_DIR/prompts/\` (if set)
+1. \`LEX_CANON_DIR/prompts/\` (if set) — Environment variable pointing to a custom canonical prompt directory
 2. \`.smartergpt.local/prompts/\` (this directory)
 3. \`prompts/\` (canonical, from npm package or build)
 
