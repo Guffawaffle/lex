@@ -21,8 +21,23 @@ import { fileURLToPath } from "url";
 function resolvePackageAsset(type: "prompts" | "schemas", name: string): string {
   // When installed: node_modules/lex/prompts/ or node_modules/lex/schemas/
   // When local dev: <repo>/prompts/ or <repo>/schemas/
-  const pkgRoot = dirname(fileURLToPath(import.meta.url)).replace(/\/dist\/.*/, "");
-  return join(pkgRoot, type, name);
+  const currentFile = fileURLToPath(import.meta.url);
+  let pkgRoot = dirname(currentFile);
+  
+  // Walk up until we find package.json or reach a dist/ or src/ boundary
+  // In dist: /home/runner/work/lex/lex/dist/shared/schemas/loader.js -> /home/runner/work/lex/lex
+  // In src:  /home/runner/work/lex/lex/src/shared/schemas/loader.ts -> /home/runner/work/lex/lex
+  while (pkgRoot !== dirname(pkgRoot)) {
+    const pkgJsonPath = join(pkgRoot, "package.json");
+    if (existsSync(pkgJsonPath)) {
+      // Found package.json - this is the package root
+      return join(pkgRoot, type, name);
+    }
+    pkgRoot = dirname(pkgRoot);
+  }
+  
+  // Fallback: shouldn't reach here in normal use
+  throw new Error(`Could not resolve package root from ${currentFile}`);
 }
 
 /**
