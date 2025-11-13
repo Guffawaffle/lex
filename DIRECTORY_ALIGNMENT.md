@@ -24,9 +24,10 @@ Tracked directory containing canonical schemas and prompt templates. These files
     ├── feature-spec-v0.js              # Compiled JavaScript
     ├── feature-spec-v0.d.ts            # TypeScript declarations
     ├── profile.schema.json             # Profile configuration schema (v1)
-    ├── gates.schema.json               # Safety gates schema (v1)
-    ├── runner.stack.schema.json        # Runner stack schema (v1)
-    └── runner.scope.schema.json        # Runner scope schema (v1)
+    └── gates.schema.json               # Safety gates schema (v1)
+
+Note: Runner schemas (runner.stack.schema.*, runner.scope.schema.*) are sourced from
+the `lex-pr-runner` package. See "Schema Locations" section below.
 ```
 
 ### `.smartergpt.local/` (Local Overlay - Untracked)
@@ -57,11 +58,15 @@ All schema files are stored in `.smartergpt/schemas/` and are tracked in version
    - Gate types: validation, approval, check
    - Configurable per-gate settings
 
-3. **runner.stack.schema.json** - Runner execution stack configuration
+### Runner Schemas (v1)
+
+Runner schemas are owned and maintained by the `lex-pr-runner` package and imported as a devDependency:
+
+3. **runner.stack.schema.json** - Runner execution stack configuration (from lex-pr-runner)
    - Stack component definitions
    - Timeout and retry settings
 
-4. **runner.scope.schema.json** - Runner execution scope and boundaries
+4. **runner.scope.schema.json** - Runner execution scope and boundaries (from lex-pr-runner)
    - Module/directory/file scoping
    - Permission requirements
    - Resource limits (maxFiles, maxLines, maxDuration)

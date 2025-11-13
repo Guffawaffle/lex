@@ -5,9 +5,11 @@ import addFormats from "ajv-formats";
 import { readFileSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
+import { createRequire } from "module";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+const require = createRequire(import.meta.url);
 
 describe("JSON Schema Validation", () => {
   const ajv = new Ajv({
@@ -192,7 +194,10 @@ describe("JSON Schema Validation", () => {
   });
 
   describe("runner.stack.schema.json", () => {
-    const schemaPath = join(__dirname, "../../.smartergpt/schemas/runner.stack.schema.json");
+    const schemaPath = join(
+      dirname(require.resolve("lex-pr-runner/package.json")),
+      ".smartergpt/schemas/runner.stack.schema.json"
+    );
     const schema = JSON.parse(readFileSync(schemaPath, "utf-8"));
     const validate = ajv.compile(schema);
 
@@ -273,7 +278,10 @@ describe("JSON Schema Validation", () => {
   });
 
   describe("runner.scope.schema.json", () => {
-    const schemaPath = join(__dirname, "../../.smartergpt/schemas/runner.scope.schema.json");
+    const schemaPath = join(
+      dirname(require.resolve("lex-pr-runner/package.json")),
+      ".smartergpt/schemas/runner.scope.schema.json"
+    );
     const schema = JSON.parse(readFileSync(schemaPath, "utf-8"));
     const validate = ajv.compile(schema);
 

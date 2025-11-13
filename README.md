@@ -75,7 +75,8 @@ Lex uses a precedence chain for loading prompt templates and includes JSON schem
 - Canon prompts: `.smartergpt/prompts/` (tracked, version-controlled defaults)
 - Local overlay: `.smartergpt.local/prompts/` (untracked, for local customization)
 - Environment override: `LEX_PROMPTS_DIR=/custom/prompts` (highest precedence)
-- Schemas: `.smartergpt/schemas/` (tracked, includes profile.schema.json, gates.schema.json, runner.stack.schema.json, runner.scope.schema.json)
+- Schemas: `.smartergpt/schemas/` (tracked, includes profile.schema.json, gates.schema.json)
+  - Runner schemas (runner.stack.schema, runner.scope.schema) are sourced from `lex-pr-runner` package
 
 See `DIRECTORY_ALIGNMENT.md` for complete details on directory structure, schema locations, and precedence rules.
 
