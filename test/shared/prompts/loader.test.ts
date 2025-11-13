@@ -17,7 +17,7 @@
 import { test, describe, beforeEach, afterEach } from "node:test";
 import assert from "node:assert";
 import { loadPrompt, listPrompts, getPromptPath } from "@app/shared/prompts/loader.js";
-import { mkdtempSync, rmSync, mkdirSync, writeFileSync, symlinkSync, existsSync } from "fs";
+import { mkdtempSync, rmSync, mkdirSync, writeFileSync, symlinkSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
 
@@ -53,7 +53,7 @@ describe("Prompt Loader Precedence", () => {
     if (testRepoDir) {
       try {
         rmSync(testRepoDir, { recursive: true, force: true });
-      } catch (e) {
+      } catch {
         // Ignore cleanup errors
       }
       testRepoDir = undefined;
@@ -284,7 +284,7 @@ describe("Prompt Loader Edge Cases", () => {
     if (testRepoDir) {
       try {
         rmSync(testRepoDir, { recursive: true, force: true });
-      } catch (e) {
+      } catch {
         // Ignore cleanup errors
       }
       testRepoDir = undefined;
