@@ -104,21 +104,46 @@ This shared vocabulary is what lets Lex answer:
 ```bash
 npm install @guffawaffle/lex
 
-# Initialize working files (creates .smartergpt.local/lex/ with policy and DB)
-npm run setup-local
+# Initialize workspace structure
+npx lex init
 ```
+
+This creates the `.smartergpt.local/` workspace:
+```
+.smartergpt.local/
+├── profile.yml              # Workspace metadata
+├── lex/
+│   ├── lexmap.policy.json   # Module dependency policy
+│   └── memory.db            # Frame database (created on first use)
+├── runner/                  # lex-pr-runner artifacts
+└── prompts/                 # Local prompt overlays
+```
+
+**See:** [`docs/specs/smartergpt-structure-v1.md`](./docs/specs/smartergpt-structure-v1.md) for complete specification.
+
+#### Environment Variables
+
+| Variable | Purpose | Default |
+|----------|---------|---------|
+| `LEX_CANON_DIR` | Override canonical resources root | (package defaults) |
+| `LEX_DB_PATH` | Database location | `.smartergpt.local/lex/memory.db` |
+| `SMARTERGPT_PROFILE` | Profile configuration path | `.smartergpt.local/profile.yml` |
 
 The package includes:
 - **`prompts/`**: Default prompt templates (customizable via `.smartergpt.local/prompts/`)
-- **`schemas/`**: JSON Schemas for validation (customizable via `.smartergpt.local/schemas/`)
+- **`schemas/`**: JSON Schemas for validation (tracked in `.smartergpt/schemas/`)
 - **`dist/`**: Compiled TypeScript modules
 
-#### Customizing Prompts/Schemas
+#### Customizing Prompts
 
-1. **Local overlay:** Create `.smartergpt.local/prompts/` or `.smartergpt.local/schemas/` to override defaults
-2. **Environment override:** Set `LEX_PROMPTS_DIR=/custom/prompts` and/or `LEX_SCHEMAS_DIR=/custom/schemas` (highest precedence)
+1. **Local overlay:** Copy prompts to `.smartergpt.local/prompts/` and customize
+   ```bash
+   cp prompts/remember.md .smartergpt.local/prompts/
+   vim .smartergpt.local/prompts/remember.md
+   ```
+2. **Environment override:** Set `LEX_CANON_DIR=/custom/canon` for highest precedence
 
-**Precedence chain:** `LEX_PROMPTS_DIR`/`LEX_SCHEMAS_DIR` → `.smartergpt.local/` → package defaults
+**Precedence chain:** `LEX_CANON_DIR/prompts/` → `.smartergpt.local/prompts/` → package `prompts/`
 
 ### Quick Start
 

@@ -7,9 +7,11 @@
  * 3. Package canon (resolved from package installation)
  */
 
-import { readFileSync, existsSync, readdirSync } from "fs";
-import { resolve, dirname, join } from "path";
+import { readFileSync, existsSync, readdirSync, statSync } from "fs";
+import { resolve, dirname, join, normalize, relative } from "path";
 import { fileURLToPath } from "url";
+import { PromptTemplate, PromptMetadata, RenderError } from "./types.js";
+import { computeContentHash } from "./renderer.js";
 
 /**
  * Resolve package asset path for both dev and installed contexts
@@ -200,4 +202,319 @@ export function listPrompts(): string[] {
   }
 
   return Array.from(prompts).sort();
+}
+
+/**
+ * Maximum allowed prompt file size (100KB)
+ */
+const MAX_PROMPT_SIZE = 100 * 1024;
+
+/**
+ * Validate prompt file path to prevent directory traversal attacks
+ */
+function validatePromptPath(promptName: string, resolvedPath: string): void {
+  // Reject absolute paths
+  if (promptName.startsWith("/") || /^[a-zA-Z]:[/\\]/.test(promptName)) {
+    throw new RenderError(
+      `Absolute paths not allowed: ${promptName}`,
+      "INVALID_PATH",
+      { path: promptName }
+    );
+  }
+
+  // Reject parent directory references
+  if (promptName.includes("..")) {
+    throw new RenderError(
+      `Path traversal not allowed: ${promptName}`,
+      "INVALID_PATH",
+      { path: promptName }
+    );
+  }
+
+  // Validate that resolved path is within allowed directories
+  const normalizedPath = normalize(resolvedPath);
+  const allowedDirs = [
+    normalize(resolvePackageAsset("prompts", "")),
+    normalize(join(process.cwd(), ".smartergpt.local", "prompts")),
+  ];
+
+  const envDir = process.env.LEX_PROMPTS_DIR;
+  if (envDir) {
+    allowedDirs.push(normalize(resolve(envDir)));
+  }
+
+  const isAllowed = allowedDirs.some((allowedDir) => {
+    const rel = relative(allowedDir, normalizedPath);
+    return !rel.startsWith("..") && !join(allowedDir, rel).includes("..");
+  });
+
+  if (!isAllowed) {
+    throw new RenderError(
+      `Path outside allowed directories: ${promptName}`,
+      "INVALID_PATH",
+      { path: promptName, resolved: normalizedPath }
+    );
+  }
+}
+
+/**
+ * Validate prompt file size
+ */
+function validatePromptSize(filePath: string): void {
+  const stats = statSync(filePath);
+  if (stats.size > MAX_PROMPT_SIZE) {
+    throw new RenderError(
+      `Prompt file too large: ${stats.size} bytes (max: ${MAX_PROMPT_SIZE})`,
+      "FILE_TOO_LARGE",
+      { path: filePath, size: stats.size, maxSize: MAX_PROMPT_SIZE }
+    );
+  }
+}
+
+/**
+ * Check if file is binary (heuristic: contains null bytes in first 8KB)
+ */
+function isBinaryFile(filePath: string): boolean {
+  const buffer = readFileSync(filePath);
+  const checkLength = Math.min(8192, buffer.length);
+  
+  for (let i = 0; i < checkLength; i++) {
+    if (buffer[i] === 0) {
+      return true;
+    }
+  }
+  
+  return false;
+}
+
+/**
+ * Parse YAML frontmatter from prompt content
+ * 
+ * @param content - Full prompt content with optional frontmatter
+ * @returns Tuple of [metadata, contentWithoutFrontmatter]
+ */
+function parseFrontmatter(content: string): [PromptMetadata | null, string] {
+  // Check for frontmatter delimiters
+  if (!content.startsWith("---\n") && !content.startsWith("---\r\n")) {
+    return [null, content];
+  }
+
+  // Find closing delimiter
+  const lines = content.split("\n");
+  let endIndex = -1;
+  
+  for (let i = 1; i < lines.length; i++) {
+    if (lines[i].trim() === "---") {
+      endIndex = i;
+      break;
+    }
+  }
+
+  if (endIndex === -1) {
+    return [null, content];
+  }
+
+  // Extract frontmatter
+  const frontmatterLines = lines.slice(1, endIndex);
+  const contentLines = lines.slice(endIndex + 1);
+  
+  // Parse YAML (simple key-value parser)
+  const metadata: Partial<PromptMetadata> = {};
+  
+  for (const line of frontmatterLines) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    
+    const colonIndex = trimmed.indexOf(":");
+    if (colonIndex === -1) continue;
+    
+    const key = trimmed.substring(0, colonIndex).trim();
+    let value = trimmed.substring(colonIndex + 1).trim();
+    
+    // Remove quotes
+    if ((value.startsWith('"') && value.endsWith('"')) || 
+        (value.startsWith("'") && value.endsWith("'"))) {
+      value = value.substring(1, value.length - 1);
+    }
+    
+    // Parse arrays [item1, item2]
+    if (value.startsWith("[") && value.endsWith("]")) {
+      const arrayContent = value.substring(1, value.length - 1);
+      const items = arrayContent.split(",").map(item => item.trim().replace(/^["']|["']$/g, ""));
+      (metadata as Record<string, unknown>)[key] = items.filter(item => item.length > 0);
+    } else if (key === "schemaVersion") {
+      (metadata as Record<string, unknown>)[key] = parseInt(value, 10);
+    } else {
+      (metadata as Record<string, unknown>)[key] = value;
+    }
+  }
+  
+  // Validate required fields
+  if (!metadata.id || !metadata.title) {
+    throw new RenderError(
+      "Frontmatter must include 'id' and 'title' fields",
+      "INVALID_FRONTMATTER",
+      { metadata }
+    );
+  }
+
+  return [metadata as PromptMetadata, contentLines.join("\n")];
+}
+
+/**
+ * Load a prompt template with metadata
+ * 
+ * @param promptName - Name of the prompt file (e.g., "conflict-resolution.md")
+ * @returns PromptTemplate with content, metadata, and content hash
+ * @throws RenderError if prompt file is invalid or not found
+ * 
+ * @example
+ * ```typescript
+ * const template = await loadPromptTemplate('conflict-resolution.md');
+ * console.log(template.id, template.metadata.title);
+ * ```
+ */
+export function loadPromptTemplate(promptName: string): PromptTemplate {
+  const attemptedPaths: string[] = [];
+
+  // Priority 1: LEX_PROMPTS_DIR (explicit env override)
+  const envDir = process.env.LEX_PROMPTS_DIR;
+  if (envDir) {
+    const envPath = resolve(envDir, promptName);
+    attemptedPaths.push(envPath);
+    if (existsSync(envPath)) {
+      validatePromptPath(promptName, envPath);
+      validatePromptSize(envPath);
+      
+      if (isBinaryFile(envPath)) {
+        throw new RenderError(
+          `Binary files not allowed: ${promptName}`,
+          "BINARY_FILE",
+          { path: envPath }
+        );
+      }
+      
+      const content = readFileSync(envPath, "utf-8");
+      const [metadata, templateContent] = parseFrontmatter(content);
+      
+      if (!metadata) {
+        throw new RenderError(
+          `Prompt template must include frontmatter with id and title: ${promptName}`,
+          "MISSING_FRONTMATTER",
+          { path: envPath }
+        );
+      }
+      
+      return {
+        id: metadata.id,
+        content: templateContent,
+        metadata,
+        contentHash: computeContentHash(templateContent),
+      };
+    }
+  }
+
+  // Priority 2: .smartergpt.local/prompts/ (local overlay)
+  const localPath = join(process.cwd(), ".smartergpt.local", "prompts", promptName);
+  attemptedPaths.push(localPath);
+  if (existsSync(localPath)) {
+    validatePromptPath(promptName, localPath);
+    validatePromptSize(localPath);
+    
+    if (isBinaryFile(localPath)) {
+      throw new RenderError(
+        `Binary files not allowed: ${promptName}`,
+        "BINARY_FILE",
+        { path: localPath }
+      );
+    }
+    
+    const content = readFileSync(localPath, "utf-8");
+    const [metadata, templateContent] = parseFrontmatter(content);
+    
+    if (!metadata) {
+      throw new RenderError(
+        `Prompt template must include frontmatter with id and title: ${promptName}`,
+        "MISSING_FRONTMATTER",
+        { path: localPath }
+      );
+    }
+    
+    return {
+      id: metadata.id,
+      content: templateContent,
+      metadata,
+      contentHash: computeContentHash(templateContent),
+    };
+  }
+
+  // Priority 3: Package canon (resolve from package installation)
+  const canonPath = resolvePackageAsset("prompts", promptName);
+  attemptedPaths.push(canonPath);
+  if (existsSync(canonPath)) {
+    validatePromptPath(promptName, canonPath);
+    validatePromptSize(canonPath);
+    
+    if (isBinaryFile(canonPath)) {
+      throw new RenderError(
+        `Binary files not allowed: ${promptName}`,
+        "BINARY_FILE",
+        { path: canonPath }
+      );
+    }
+    
+    const content = readFileSync(canonPath, "utf-8");
+    const [metadata, templateContent] = parseFrontmatter(content);
+    
+    if (!metadata) {
+      throw new RenderError(
+        `Prompt template must include frontmatter with id and title: ${promptName}`,
+        "MISSING_FRONTMATTER",
+        { path: canonPath }
+      );
+    }
+    
+    return {
+      id: metadata.id,
+      content: templateContent,
+      metadata,
+      contentHash: computeContentHash(templateContent),
+    };
+  }
+
+  throw new Error(
+    `Prompt file '${promptName}' not found. Tried:\n` +
+      attemptedPaths.map((p, i) => `  ${i + 1}. ${p}`).join("\n")
+  );
+}
+
+/**
+ * List all available prompt templates with metadata
+ * 
+ * @returns Array of prompt metadata (deduplicated by id)
+ * 
+ * @example
+ * ```typescript
+ * const templates = listPromptTemplates();
+ * templates.forEach(meta => console.log(meta.id, meta.title));
+ * ```
+ */
+export function listPromptTemplates(): PromptMetadata[] {
+  const prompts = listPrompts();
+  const metadataMap = new Map<string, PromptMetadata>();
+
+  for (const promptName of prompts) {
+    try {
+      const template = loadPromptTemplate(promptName);
+      // Deduplicate by id (first one wins in precedence order)
+      if (!metadataMap.has(template.id)) {
+        metadataMap.set(template.id, template.metadata);
+      }
+    } catch {
+      // Skip prompts that fail to load (e.g., no frontmatter)
+      // This allows backward compatibility with simple prompts
+    }
+  }
+
+  return Array.from(metadataMap.values());
 }

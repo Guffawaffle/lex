@@ -24,6 +24,9 @@ jobs:
       - name: Validate JSON Schemas with AJV
         run: npm run validate-schemas
 
+      - name: Lint prompt templates
+        run: npm run prompts:lint
+
       - name: Build and verify canon copy
         run: |
           npm run build
@@ -38,4 +41,12 @@ jobs:
             NODE_ENV=test LEX_LOG_LEVEL=silent npx tsx --test test/shared/prompts/loader.test.ts
           else
             echo "Precedence tests not yet implemented, skipping..."
+          fi
+
+      - name: Run prompt renderer tests
+        run: |
+          if [ -f test/shared/prompts/renderer.test.ts ]; then
+            NODE_ENV=test LEX_LOG_LEVEL=silent npx tsx --test test/shared/prompts/renderer.test.ts
+          else
+            echo "Renderer tests not yet implemented, skipping..."
           fi
