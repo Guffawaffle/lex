@@ -31,6 +31,10 @@
       "types": "./dist/shared/logger/index.d.ts",
       "import": "./dist/shared/logger/index.js"
     },
+    "./prompts": {
+      "types": "./dist/shared/prompts/index.d.ts",
+      "import": "./dist/shared/prompts/index.js"
+    },
     "./policy/*": "./dist/policy/*",
     "./memory/*": "./dist/memory/*",
     "./shared/*": "./dist/shared/*"
@@ -62,6 +66,7 @@
     "copy-canon": "node scripts/copy-canon.js",
     "clean": "tsc -b tsconfig.build.json --clean && rimraf dist prompts schemas",
     "validate-schemas": "node scripts/validate-schemas.js",
+    "prompts:lint": "node scripts/lint-prompts.js",
     "type-check": "tsc -p tsconfig.build.json --noEmit",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
