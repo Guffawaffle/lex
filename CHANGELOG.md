@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security Posture & Documentation
+
+- **SECURITY.md enhanced:** Added comprehensive security guidance for dev-time vs production use
+  - Clear scope: "Local dev / small teams" (acceptable) vs "Public multi-tenant" (not recommended for 0.4.0-alpha)
+  - Known limitations documented: No auth, no encryption, no audit logging
+  - Production roadmap: P0/P1/P2 features planned for 0.5.0-0.7.0
+  - Vulnerability disclosure process established
+
+- **Package messaging clarified:** Removed LexRunner commercial positioning
+  - package.json description now emphasizes MIT licensing and dev-time use
+  - README no longer positions Lex as "powers paid LexRunner"
+  - Clear separation: Lex is standalone MIT library, not a marketing funnel
+
+- **Scanner security warnings:** Added comprehensive disclaimers to `examples/scanners/README.md`
+  - "Examples only, not production-hardened" warnings
+  - Safe usage guidelines (review code, sandbox execution, validate output)
+  - Production scanning pipeline recommendations
+
+- **ARCHITECTURE.md created:** New documentation for design decisions
+  - Dependency rationale (why Express, Sharp, Shiki despite size)
+  - Future modularization plan (peer deps in 0.5.0, package split in 0.6.0)
+  - Design philosophy ("dumb by design" scanners, local-first, explicit over implicit)
+  - Database design decisions and performance considerations
+
+- **Lint cleanup roadmap:** Created 4 GitHub issues for post-alpha warning reduction
+  - Issue #1: Remove 48 unused variables/imports (P1)
+  - Issue #2: Type MCP server arguments (25 explicit any → proper types) (P1)
+  - Issue #3: Fix 30 unsafe any operations (P2, depends on #2)
+  - Issue #4: Address 4 misc warnings (P2)
+  - New policy: No new warnings in PRs after 0.4.0-alpha
+
 ### Repository Cleanup
 
 - **Tracked MCP symlink:** `memory/mcp_server/frame-mcp.mjs` now tracked (required by `lex-launcher.sh`)

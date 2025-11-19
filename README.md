@@ -5,19 +5,7 @@
 
 **Policy-aware work continuity with receipts.**
 
-Lex powers the paid **LexRunner** CLI; development stays OSS-first. See the [LexRunner repo](https://github.com/Guffawaffle/lex-pr-runner) for the orchestration layer.
-
-### Lex (MIT OSS) vs LexRunner (Proprietary)
-
-| Aspect | **Lex** (MIT) | **LexRunner** (Paid) |
-|--------|---------------|--------------------|
-| **Purpose** | Atlas/Memory/Policy core frameworks | Enterprise merge-weave orchestration CLI |
-| **License** | MIT (open source) | Proprietary |
-| **Repo** | `Guffawaffle/lex` (this repo) | `Guffawaffle/lex-pr-runner` |
-| **What you get** | Frames, policy scanners, atlas fold-radius | Full CLI for fanout/merge workflows |
-
-👉 **This repo** (Lex) = OSS primitives for frames, memory, and policy.
-👉 **LexRunner** = Orchestration layer built on Lex (paid product).
+Lex is an MIT-licensed memory, policy, and atlas framework for TypeScript. It can be used standalone or as the foundation for workflow orchestration tools.
 
 ---
 
