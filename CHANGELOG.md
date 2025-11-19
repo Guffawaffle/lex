@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- **Dependency vulnerabilities fixed:** Updated glob and js-yaml to patch security issues
+  - `glob@11.0.3 → 11.1.0` - Fixes command injection vulnerability (GHSA-5j98-mcp5-4vw2, HIGH)
+  - `js-yaml@4.1.0 → 4.1.1` - Fixes prototype pollution (GHSA-mh29-5h37-fv8m, MODERATE)
+  - All tests pass (123/123), no breaking changes
+  - See `.smartergpt.local/VULNERABILITY_FIXES_20251119.md` for detailed analysis
+
 ### Security Posture & Documentation
 
 - **SECURITY.md enhanced:** Added comprehensive security guidance for dev-time vs production use
