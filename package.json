@@ -146,7 +146,7 @@
     "@types/better-sqlite3": "^7.6.11",
     "@types/inquirer": "^9.0.9",
     "@types/node": "^24.9.2",
-    "@types/uuid": "^9.0.8",
+    "@types/uuid": "^10.0.0",
     "@typescript-eslint/eslint-plugin": "^8.46.3",
     "@typescript-eslint/parser": "^8.46.3",
     "ajv": "^8.17.1",
