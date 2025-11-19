@@ -1,7 +1,7 @@
 {
   "name": "lex",
   "version": "0.4.0-alpha",
-  "description": "Memory frames, policy scanners, and atlas fold-radius for work continuity. TypeScript library with MCP server.",
+  "description": "MIT-licensed memory, policy, and atlas framework with MCP server. For local dev and private automation.",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
