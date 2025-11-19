@@ -1,0 +1,1 @@
+../../src/memory/mcp_server/frame-mcp.mjs

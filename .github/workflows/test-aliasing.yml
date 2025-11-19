@@ -2,9 +2,9 @@ name: Alias Resolution Tests
 
 on:
   pull_request:
-    branches: [ main, staging ]
+    branches: [ main ]
   push:
-    branches: [ main, staging ]
+    branches: [ main ]
   workflow_dispatch:
 
 # Limit permissions to read-only by default

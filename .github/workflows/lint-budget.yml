@@ -2,9 +2,9 @@ name: Lint Budget Guard
 
 on:
   pull_request:
-    branches: [ staging, main ]
+    branches: [ main ]
   push:
-    branches: [ staging ]
+    branches: [ main ]
   workflow_dispatch:
 
 concurrency:
@@ -19,7 +19,7 @@ jobs:
   lint-budget:
     name: Check Lint Budget
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@v2
@@ -61,30 +61,30 @@ jobs:
             const fs = require('fs');
             const currentResults = JSON.parse(fs.readFileSync('current-lint.json', 'utf8'));
             const baselineResults = JSON.parse(fs.readFileSync('lint-baseline.json', 'utf8'));
-            
+
             const currentWarnings = currentResults.reduce((sum, f) => sum + f.warningCount, 0);
             const baselineWarnings = baselineResults.reduce((sum, f) => sum + f.warningCount, 0);
             const currentErrors = currentResults.reduce((sum, f) => sum + f.errorCount, 0);
             const baselineErrors = baselineResults.reduce((sum, f) => sum + f.errorCount, 0);
-            
+
             const warningDiff = currentWarnings - baselineWarnings;
             const errorDiff = currentErrors - baselineErrors;
-            
+
             const comment = `## ❌ Lint Budget Exceeded
-            
+
             This PR introduces new lint warnings/errors:
-            
+
             | Metric | Baseline | Current | Diff |
             |--------|----------|---------|------|
             | Warnings | ${baselineWarnings} | ${currentWarnings} | ${warningDiff > 0 ? '+' : ''}${warningDiff} |
             | Errors | ${baselineErrors} | ${currentErrors} | ${errorDiff > 0 ? '+' : ''}${errorDiff} |
-            
+
             **Action Required:**
             1. Fix the new lint issues, or
             2. If the warnings are intentional, update the baseline with \`npm run lint:baseline:update\`
-            
+
             See the [CI logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details.`;
-            
+
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,

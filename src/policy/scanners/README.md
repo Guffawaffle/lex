@@ -1,20 +1,18 @@
-# LexMap Scanners
+# LexMap TypeScript Scanner
 
-Language-specific code scanners that extract architectural facts for policy enforcement.
+The official, first-party scanner for TypeScript and JavaScript codebases. This scanner extracts architectural facts for policy enforcement.
 
 ## Overview
 
-The scanners are **"dumb by design"** - they observe code and report facts, but do NOT make architectural decisions. Policy enforcement happens later in the `policy/check/` step.
+The TypeScript scanner is **"dumb by design"** - it observes code and reports facts, but does NOT make architectural decisions. Policy enforcement happens later in the `policy/check/` step.
 
-## Scanners
+**This is the primary, officially supported scanner for Lex.** It requires only Node.js (no external language runtimes).
 
-- **`ts_scanner.ts`** - TypeScript/JavaScript scanner
-- **`python_scanner.py`** - Python scanner  
-- **`php_scanner.py`** - PHP scanner
+For **optional** Python and PHP scanner examples, see `examples/scanners/README.md`.
 
 ## Features
 
-All scanners support:
+The TypeScript scanner supports:
 
 1. **Module Resolution** - Maps files to modules via `owns_paths` patterns
 2. **Cross-Module Detection** - Identifies imports/calls that cross module boundaries
@@ -22,8 +20,6 @@ All scanners support:
 4. **Permission Detection** - Finds permission/authorization checks
 
 ## Usage
-
-### TypeScript Scanner
 
 ```bash
 # Without policy (basic scanning)
@@ -33,25 +29,7 @@ npx tsx ts_scanner.ts <directory> > output.json
 npx tsx ts_scanner.ts <directory> policy.json > output.json
 ```
 
-### Python Scanner
-
-```bash
-# Without policy
-python3 python_scanner.py <directory> > output.json
-
-# With policy
-python3 python_scanner.py <directory> policy.json > output.json
-```
-
-### PHP Scanner
-
-```bash
-# Without policy
-python3 php_scanner.py <directory> > output.json
-
-# With policy
-python3 php_scanner.py <directory> policy.json > output.json
-```
+**Note:** The `lex check` command consumes scanner JSON output directly. You typically generate scanner output as part of a build/CI pipeline, then pass the JSON to `lex check`.
 
 ## Output Format
 
@@ -158,24 +136,34 @@ Example policy:
 
 ## Integration with Pipeline
 
-The scanners are the first step in the LexMap pipeline:
+The TypeScript scanner is the first step in the LexMap pipeline:
 
-1. **Scan** - Run language scanners on codebase
-2. **Merge** - Combine outputs with `policy/merge/lexmap-merge.ts`
-3. **Check** - Enforce policy with `policy/check/lexmap-check.ts`
+1. **Scan** - Run TypeScript scanner on codebase
+2. **Merge** - (Optional) Combine with other scanner outputs using `policy/merge/lexmap-merge.ts`
+3. **Check** - Enforce policy with the `lex check` CLI command
 
-Example:
+Example (TypeScript-only project):
 
 ```bash
-# Scan
+# Scan your TypeScript/JavaScript codebase
+npx tsx ts_scanner.ts src/ policy.json > scanner-output.json
+
+# Check against policy
+lex check scanner-output.json policy.json
+```
+
+Example (multi-language project with external scanners):
+
+```bash
+# Scan each language
 npx tsx ts_scanner.ts src/ policy.json > ts.json
-python3 python_scanner.py backend/ policy.json > py.json
+python3 ../../examples/scanners/python_scanner.py backend/ policy.json > py.json
 
-# Merge
-npx tsx ../merge/lexmap-merge.ts ts.json py.json > merged.json
+# Merge scanner outputs
+node ../merge/lexmap-merge.ts ts.json py.json > merged.json
 
-# Check
-npx tsx ../check/lexmap-check.ts merged.json policy.json
+# Check against policy
+lex check merged.json policy.json
 ```
 
 ## Testing
@@ -186,21 +174,25 @@ Run the test suite:
 npx tsx test_scanners.ts
 ```
 
+The TypeScript scanner tests are always executed. Optional external scanner tests (Python/PHP) require:
+
+```bash
+LEX_ENABLE_EXTERNAL_SCANNER_TESTS=1 npx tsx test_scanners.ts
+```
+
 Tests verify:
-- File-to-module mapping (3 tests)
-- Cross-module call detection (2 tests)
-- Feature flag detection (3 tests)
-- Permission check detection (3 tests)
+- File-to-module mapping
+- Cross-module call detection
+- Feature flag detection
+- Permission check detection
 
 ## Dependencies
 
-### TypeScript Scanner
 - `typescript` - AST parsing
 - `glob` - File discovery
-- `minimatch` - Glob pattern matching
+- `minimatch` - Glob pattern matching (via common utilities)
 
-### Python Scanners
-- Python 3.7+ standard library (no external deps)
+All dependencies are Node.js packages included with Lex.
 
 ## Common Utilities
 
@@ -216,13 +208,15 @@ These utilities ensure consistent behavior across all scanners.
 
 ## Development
 
-When adding support for a new language:
+When adding support for scanner features:
 
-1. Create a new scanner file (e.g., `rust_scanner.py`)
-2. Use `common.ts` utilities for module resolution (if TypeScript/Node) or reimplement the logic
-3. Follow the output schema (see existing scanners)
+1. Update the TypeScript scanner (`ts_scanner.ts`)
+2. Use `common.ts` utilities for module resolution and pattern detection
+3. Follow the output schema (see existing implementation)
 4. Add tests to `test_scanners.ts`
 5. Update this README
+
+For implementing scanners in other languages, see `examples/scanners/README.md`.
 
 ## Philosophy
 
@@ -239,6 +233,16 @@ They do NOT decide:
 - Whether a boundary is violated
 - Whether a pattern should be killed
 
-That's the job of `policy/check/` which compares scanner facts against `lexmap.policy.json`.
+That's the job of `policy/check/` (via the `lex check` CLI command) which compares scanner facts against `lexmap.policy.json`.
 
 This separation keeps scanners simple, focused, and language-specific, while policy logic remains centralized and language-agnostic.
+
+## External Language Scanners
+
+For Python and PHP scanner examples (optional, require external runtimes), see:
+- `examples/scanners/README.md`
+- `examples/scanners/python_scanner.py`
+- `examples/scanners/php_scanner.py`
+
+These are community-maintained examples of the scanner plugin architecture, not part of the core Lex library.
+

@@ -102,20 +102,6 @@ if [ -z "${SKIP_BRANCH_PROTECTION:-}" ]; then
         else
             echo "   ⚠️  main branch does not exist yet"
         fi
-
-        if git rev-parse --verify staging &> /dev/null; then
-            echo "   Protecting staging branch..."
-            gh api "repos/$REPO/branches/staging/protection" \
-                --method PUT \
-                --field required_pull_request_reviews='{"required_approving_review_count":1}' \
-                --field required_status_checks='{"strict":true,"contexts":["all-checks-pass"]}' \
-                --field enforce_admins=true \
-                --field required_linear_history=true \
-                --field required_signatures=true \
-                2>/dev/null && echo "   ✅ staging branch protected" || echo "   ⚠️  Could not protect staging (may need admin access)"
-        else
-            echo "   ⚠️  staging branch does not exist yet"
-        fi
     fi
 else
     echo "⚠️  Skipping branch protection setup (gh not installed)"
@@ -133,9 +119,6 @@ echo "  □ Settings → Branches → Add rule for 'main'"
 echo "     - Require signed commits"
 echo "     - Require status checks (all-checks-pass)"
 echo "     - Require linear history"
-echo "  □ Settings → Branches → Add rule for 'staging'"
-echo "     - Require signed commits"
-echo "     - Require status checks (all-checks-pass)"
 echo ""
 echo "Secrets to add:"
 echo "  □ Settings → Secrets → Actions → New repository secret"
