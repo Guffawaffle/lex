@@ -7,20 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Repository Cleanup
+
+- **Tracked MCP symlink:** `memory/mcp_server/frame-mcp.mjs` now tracked (required by `lex-launcher.sh`)
+- **Removed lint baseline:** Deleted empty `lint-baseline.json` from tracking (optional dev tool)
+- **CLI cleanup:** Removed commented-out commands for unimplemented features (`db vacuum`, `db backup`, `frames export`)
+- **Architecture notes:** Clarified Zod/TypeScript type separation in `src/memory/frames/types.ts`
+- **Scanner examples:** Relocated Python/PHP scanners to `examples/scanners/` (not part of TS runtime)
+
 ### ⚠️ Breaking Changes
 
 - **REMOVED:** `LEX_PROMPTS_DIR`, `LEX_SCHEMAS_DIR`, `LEX_CONFIG_DIR` environment variables
   - **Use:** `LEX_CANON_DIR=/path/to/canon` (points to directory containing `prompts/` and `schemas/`)
   - **Example:** `export LEX_CANON_DIR=/custom/canon` loads prompts from `/custom/canon/prompts/`
-  
+
 - **REMOVED:** Runtime reads of `.smartergpt/` directory for prompts
   - **Use:** `.smartergpt.local/prompts/` for local overlay prompts
   - **Note:** `.smartergpt/` schemas remain for build-time compilation only
-  
+
 - **CHANGED:** Prompt loading precedence (3-level instead of 5-level)
   - **Old:** `LEX_PROMPTS_DIR` → `.smartergpt.local/prompts` → `.smartergpt/prompts`
   - **New:** `LEX_CANON_DIR/prompts` → `.smartergpt.local/prompts` → `prompts/` (package location)
-  
+
 - **CHANGED:** Zod schemas now use `.loose()` instead of `.passthrough()`
   - Affects: `GateConfigSchema`, `StackComponentConfigSchema` in infrastructure schemas
   - Behavior unchanged, but aligns with Zod 4.x best practices
@@ -32,7 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    # OLD
    export LEX_PROMPTS_DIR=/custom/prompts
    export LEX_SCHEMAS_DIR=/custom/schemas
-   
+
    # NEW
    export LEX_CANON_DIR=/custom/canon  # containing prompts/ and schemas/
    ```
