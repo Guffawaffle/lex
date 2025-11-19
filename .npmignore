@@ -1,5 +1,6 @@
 # Source directories (tracked, but not published)
 canon/
+.smartergpt/
 
 # Test files
 test/
@@ -38,7 +39,7 @@ merge-weave-plan-*.json
 plan.json
 
 # Examples
-examples/
+# Note: examples/ IS published (contains optional external scanners)
 
 # Scripts (except those needed for package)
 scripts/

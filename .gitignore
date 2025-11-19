@@ -82,4 +82,7 @@ docker-compose.override.yml
 # TypeScript build info files
 *.tsbuildinfo
 *.tgz
+
+# Lint artifacts (optional dev tools)
 current-lint.json
+lint-baseline.json

@@ -1,8 +1,0 @@
-✓ Auto-discovered 3 PRs from GitHub
-  Using query: is:open is:pr
-✓ Dependency validation passed (no cycles detected)
-✓ Generated plan artifacts:
-  📁 /srv/lex-mcp/lex/.smartergpt.local/runner/plan.json
-  📁 /srv/lex-mcp/lex/.smartergpt.local/runner/snapshot.md
-
-Plan: 3 items targeting main, Schema: 1.0.0, Gates: 3/3 items have gates

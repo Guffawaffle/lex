@@ -7,22 +7,37 @@
  * 2. Cross-module calls are detected
  * 3. Feature flag checks are detected
  * 4. Permission checks are detected
+ *
+ * External Scanner Tests:
+ * - TypeScript scanner tests always run (core functionality)
+ * - Python/PHP scanner tests require LEX_ENABLE_EXTERNAL_SCANNER_TESTS=1
+ *   and Python 3.7+ on PATH
  */
 
 import * as fs from "fs";
 import * as path from "path";
+import { fileURLToPath } from "url";
 import { exec } from "child_process";
 import { promisify } from "util";
 
 const execAsync = promisify(exec);
 
+// ESM equivalent of __dirname
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 const TEST_DIR = "/tmp/scanner_tests";
 const POLICY_FILE = path.join(TEST_DIR, "test.policy.json");
-const SCANNERS_DIR = "/home/runner/work/lex/lex/policy/scanners";
+const SCANNERS_DIR = path.join(__dirname); // Scanners are in same directory as this test file
+const EXAMPLES_SCANNERS_DIR = path.join(__dirname, "../../../examples/scanners");
+
+// Check if external scanner tests are enabled
+const ENABLE_EXTERNAL_SCANNERS = process.env.LEX_ENABLE_EXTERNAL_SCANNER_TESTS === "1";
 
 // Test counter
 let totalTests = 0;
 let passedTests = 0;
+let skippedTests = 0;
 
 function test(name: string, fn: () => void | Promise<void>) {
   totalTests++;
@@ -46,6 +61,12 @@ function test(name: string, fn: () => void | Promise<void>) {
     console.error(`✗ ${name}`);
     console.error(`  Error: ${error.message}`);
   }
+}
+
+function skipTest(name: string, reason: string) {
+  totalTests++;
+  skippedTests++;
+  console.log(`⊘ ${name} (SKIPPED: ${reason})`);
 }
 
 async function setup() {
@@ -208,6 +229,11 @@ export function checkAccess(user: User) {
 }
 
 async function testPythonScanner() {
+  if (!ENABLE_EXTERNAL_SCANNERS) {
+    skipTest("Python Scanner Tests", "LEX_ENABLE_EXTERNAL_SCANNER_TESTS not set");
+    return;
+  }
+
   console.log("\n--- Python Scanner Tests ---\n");
 
   // Test 1: File path maps to module
@@ -221,7 +247,7 @@ class AuthService:
 
   await test("Python: File path maps to module via owns_paths", async () => {
     const { stdout } = await execAsync(
-      `python3 ${path.join(SCANNERS_DIR, "python_scanner.py")} ${TEST_DIR} ${POLICY_FILE}`
+      `python3 ${path.join(EXAMPLES_SCANNERS_DIR, "python_scanner.py")} ${TEST_DIR} ${POLICY_FILE}`
     );
     const result = JSON.parse(stdout);
     const file = result.files.find((f: any) => f.path.includes("services/auth"));
@@ -243,7 +269,7 @@ class AdminPanel:
 
   await test("Python: Cross-module imports are detected", async () => {
     const { stdout } = await execAsync(
-      `python3 ${path.join(SCANNERS_DIR, "python_scanner.py")} ${TEST_DIR} ${POLICY_FILE}`
+      `python3 ${path.join(EXAMPLES_SCANNERS_DIR, "python_scanner.py")} ${TEST_DIR} ${POLICY_FILE}`
     );
     const result = JSON.parse(stdout);
     const edge = result.module_edges?.find(
@@ -266,7 +292,7 @@ def view(request):
 
   await test("Python: Feature flag detection - feature_flags.is_enabled()", async () => {
     const { stdout } = await execAsync(
-      `python3 ${path.join(SCANNERS_DIR, "python_scanner.py")} ${TEST_DIR} ${POLICY_FILE}`
+      `python3 ${path.join(EXAMPLES_SCANNERS_DIR, "python_scanner.py")} ${TEST_DIR} ${POLICY_FILE}`
     );
     const result = JSON.parse(stdout);
     const file = result.files.find((f: any) => f.path.includes("controller.py"));
@@ -286,7 +312,7 @@ def check(user):
 
   await test("Python: Permission checks are detected", async () => {
     const { stdout } = await execAsync(
-      `python3 ${path.join(SCANNERS_DIR, "python_scanner.py")} ${TEST_DIR} ${POLICY_FILE}`
+      `python3 ${path.join(EXAMPLES_SCANNERS_DIR, "python_scanner.py")} ${TEST_DIR} ${POLICY_FILE}`
     );
     const result = JSON.parse(stdout);
     const file = result.files.find((f: any) => f.path.includes("perms.py"));
@@ -297,6 +323,11 @@ def check(user):
 }
 
 async function testPHPScanner() {
+  if (!ENABLE_EXTERNAL_SCANNERS) {
+    skipTest("PHP Scanner Tests", "LEX_ENABLE_EXTERNAL_SCANNER_TESTS not set");
+    return;
+  }
+
   console.log("\n--- PHP Scanner Tests ---\n");
 
   // Test 1: File path maps to module
@@ -311,7 +342,7 @@ class AuthService {}
 
   await test("PHP: File path maps to module via owns_paths", async () => {
     const { stdout } = await execAsync(
-      `python3 ${path.join(SCANNERS_DIR, "php_scanner.py")} ${TEST_DIR} ${POLICY_FILE}`
+      `python3 ${path.join(EXAMPLES_SCANNERS_DIR, "php_scanner.py")} ${TEST_DIR} ${POLICY_FILE}`
     );
     const result = JSON.parse(stdout);
     const file = result.files.find((f: any) => f.path.includes("services/auth"));
@@ -337,7 +368,7 @@ class Controller {
 
   await test("PHP: Feature flag detection - FeatureFlags::enabled()", async () => {
     const { stdout } = await execAsync(
-      `python3 ${path.join(SCANNERS_DIR, "php_scanner.py")} ${TEST_DIR} ${POLICY_FILE}`
+      `python3 ${path.join(EXAMPLES_SCANNERS_DIR, "php_scanner.py")} ${TEST_DIR} ${POLICY_FILE}`
     );
     const result = JSON.parse(stdout);
     const file = result.files.find((f: any) => f.path.includes("Controller.php"));
@@ -361,7 +392,7 @@ class Access {
 
   await test("PHP: Permission checks are detected", async () => {
     const { stdout } = await execAsync(
-      `python3 ${path.join(SCANNERS_DIR, "php_scanner.py")} ${TEST_DIR} ${POLICY_FILE}`
+      `python3 ${path.join(EXAMPLES_SCANNERS_DIR, "php_scanner.py")} ${TEST_DIR} ${POLICY_FILE}`
     );
     const result = JSON.parse(stdout);
     const file = result.files.find((f: any) => f.path.includes("Access.php"));
@@ -379,9 +410,18 @@ async function main() {
   await testPythonScanner();
   await testPHPScanner();
 
-  console.log(`\n=== Results: ${passedTests}/${totalTests} tests passed ===`);
+  console.log(
+    `\n=== Results: ${passedTests}/${totalTests} tests passed${skippedTests > 0 ? `, ${skippedTests} skipped` : ""} ===`
+  );
 
-  if (passedTests !== totalTests) {
+  if (skippedTests > 0) {
+    console.log(
+      `\nℹ️  To run external scanner tests (Python/PHP), set LEX_ENABLE_EXTERNAL_SCANNER_TESTS=1`
+    );
+    console.log(`   Example: LEX_ENABLE_EXTERNAL_SCANNER_TESTS=1 npm test\n`);
+  }
+
+  if (passedTests !== totalTests - skippedTests) {
     process.exit(1);
   }
 }
