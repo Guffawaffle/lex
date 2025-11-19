@@ -26,10 +26,10 @@ node lexmap-merge.ts scan1.json scan2.json > merged.json
 # Merge to file
 node lexmap-merge.ts scan1.json scan2.json -o merged.json
 
-# Full workflow example
-python3 php_scanner.py app/ > php.json
-node ts_scanner.ts ui/ > ts.json
-node lexmap-merge.ts php.json ts.json -o merged.json
+# Full workflow example (TypeScript + external Python scanner)
+python3 ../../examples/scanners/python_scanner.py backend/ > py.json
+npx tsx ../scanners/ts_scanner.ts ui/ > ts.json
+node lexmap-merge.ts py.json ts.json -o merged.json
 ```
 
 ### Options
@@ -151,13 +151,13 @@ The test suite includes 19 test cases covering:
 ## Philosophy
 
 > **The merge tool is DUMB BY DESIGN.**
-> 
+>
 > It combines scanner outputs mechanically, without making architectural decisions.
 > It does NOT:
 > - Resolve module boundaries (that's the policy file's job)
 > - Enforce allowed/forbidden relationships (that's the checker's job)
 > - Interpret the code (that's the scanner's job)
-> 
+>
 > It ONLY:
 > - Deduplicates files and edges
 > - Detects conflicts

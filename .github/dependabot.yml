@@ -14,7 +14,7 @@ updates:
       include: "scope"
     labels:
       - "dependencies"
-    target-branch: "staging"
+    target-branch: "main"
 
   # GitHub Actions updates - weekly
   - package-ecosystem: "github-actions"
@@ -29,4 +29,4 @@ updates:
     labels:
       - "ci"
       - "dependencies"
-    target-branch: "staging"
+    target-branch: "main"

@@ -34,13 +34,10 @@ npx changeset version
 git add .
 git commit -m "chore: version packages for release"
 
-# 4. Push to staging
-git push origin staging
+# 4. Push to main
+git push origin main
 
-# 5. Create release PR to main
-gh pr create --base main --head staging --title "Release v0.X.Y" --body "Weekly release - see CHANGELOG.md for details"
-
-# 6. After PR is merged to main, tag the release
+# 5. Tag the release
 git checkout main
 git pull
 git tag -s v0.X.Y -m "Release v0.X.Y"
