@@ -2,6 +2,33 @@
 
 These are **optional example implementations** of language-specific scanners that demonstrate the LexMap scanner plugin architecture. They are provided as reference implementations for users who need multi-language code scanning.
 
+## ⚠️ Security Notice
+
+**THESE ARE EXAMPLES, NOT PRODUCTION-HARDENED TOOLS**
+
+- **Not audited for security vulnerabilities** - Use at your own risk
+- **Execute code analysis on your filesystem** - Ensure you trust the scanned directories
+- **No sandboxing** - Scanners run with your full user permissions
+- **No input validation** - Do not run on untrusted codebases without thorough review
+- **Not part of core Lex security audits** - External scanner security is user's responsibility
+
+### Safe Usage Guidelines
+
+1. **Only scan code you control or explicitly trust**
+2. **Review scanner source before running** (both scanners are < 400 lines - readable in 15 minutes)
+3. **Run in isolated environments for untrusted code** (Docker containers, VMs, or sandboxed CI/CD)
+4. **Validate scanner output** before feeding to `lex check` or policy enforcement
+5. **Keep Python runtime updated** to avoid vulnerabilities in the interpreter itself
+
+### For Production Scanning Pipelines
+
+If you plan to use these scanners in production:
+- **Audit the scanner code thoroughly** for your security requirements
+- **Run in sandboxed CI/CD environments** with minimal permissions
+- **Implement output validation and sanitization** before policy checks
+- **Consider commercial AST analysis tools** with security SLAs and vendor support
+- **Monitor scanner execution** for unexpected behavior or resource usage
+
 ## ⚠️ Important Notice
 
 - **These scanners are NOT part of the core Lex library**
