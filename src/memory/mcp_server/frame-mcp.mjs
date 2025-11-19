@@ -2,18 +2,24 @@
 // Frame MCP Server Entry Point
 // Refactored to use TypeScript implementation from server.ts
 
-import { MCPServer } from "./dist/server.js";
+import { MCPServer } from "../../../dist/memory/mcp_server/server.js";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-// Repository root is two directories up from this script
-const repoRoot = join(__dirname, "../..");
+// Workspace root is three directories up from this script (src/memory/mcp_server -> src/memory -> src -> root)
+// Can be overridden with LEX_WORKSPACE_ROOT environment variable
+const repoRoot = process.env.LEX_WORKSPACE_ROOT || join(__dirname, "../../..");
+
+// Set LEX_WORKSPACE_ROOT for child processes/modules if not already set
+if (!process.env.LEX_WORKSPACE_ROOT) {
+  process.env.LEX_WORKSPACE_ROOT = repoRoot;
+}
 
 // Configuration
 const config = {
-  dbPath: process.env.LEX_MEMORY_DB || join(__dirname, "../../lex-memory.db"),
+  dbPath: process.env.LEX_MEMORY_DB || join(repoRoot, "lex-memory.db"),
   repoRoot: repoRoot,
 };
 
@@ -50,18 +56,22 @@ process.stdin.on("data", async (chunk) => {
       // MCP protocol response format
       if (response.error) {
         // Error response
-        console.log(JSON.stringify({
-          jsonrpc: "2.0",
-          id: request.id,
-          error: response.error
-        }));
+        console.log(
+          JSON.stringify({
+            jsonrpc: "2.0",
+            id: request.id,
+            error: response.error,
+          })
+        );
       } else {
         // Success response - wrap in result
-        console.log(JSON.stringify({
-          jsonrpc: "2.0",
-          id: request.id,
-          result: response
-        }));
+        console.log(
+          JSON.stringify({
+            jsonrpc: "2.0",
+            id: request.id,
+            result: response,
+          })
+        );
       }
     } catch (error) {
       console.log(
@@ -76,7 +86,7 @@ process.stdin.on("data", async (chunk) => {
       );
     }
   }
-});// Graceful shutdown
+}); // Graceful shutdown
 process.on("SIGINT", () => {
   if (mcpServer) {
     mcpServer.close();

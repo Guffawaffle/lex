@@ -1,7 +1,7 @@
 {
   "name": "lex",
-  "version": "0.4.0",
-  "description": "Policy-aware work continuity with receipts. Unified LexBrain + LexMap.",
+  "version": "0.4.0-alpha",
+  "description": "Memory frames, policy scanners, and atlas fold-radius for work continuity. TypeScript library with MCP server.",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -19,14 +19,8 @@
       "import": "./dist/shared/cli/output.js"
     },
     "./schemas/cli-output.v1.schema.json": "./schemas/cli-output.v1.schema.json",
-    "./schemas/feature-spec-v0": {
-      "import": "./.smartergpt/schemas/feature-spec-v0.js",
-      "types": "./.smartergpt/schemas/feature-spec-v0.d.ts"
-    },
-    "./schemas/execution-plan-v1": {
-      "import": "./.smartergpt/schemas/execution-plan-v1.js",
-      "types": "./.smartergpt/schemas/execution-plan-v1.d.ts"
-    },
+    "./schemas/feature-spec-v0.json": "./schemas/feature-spec-v0.json",
+    "./schemas/profile.schema.json": "./schemas/profile.schema.json",
     "./logger": {
       "types": "./dist/shared/logger/index.d.ts",
       "import": "./dist/shared/logger/index.js"
@@ -48,14 +42,15 @@
     "dist/**/*.js.map",
     "!dist/**/*.tsbuildinfo",
     "src/policy/policy_spec/lexmap.policy.json.example",
+    "src/policy/README.md",
+    "examples/",
     "prompts/",
     "prompts/**/*.md",
     "schemas/",
     "schemas/**/*.json",
-    ".smartergpt/schemas/**/*.js",
-    ".smartergpt/schemas/**/*.d.ts",
-    ".smartergpt/schemas/**/*.json",
+    "schemas/**/*.ts",
     "README.md",
+    "CHANGELOG.md",
     "LICENSE"
   ],
   "scripts": {
@@ -72,10 +67,10 @@
     "lint:fix": "eslint . --fix",
     "lint:baseline:check": "npx eslint . --format=json 2>&1 | grep -v '^>' > current-lint.json && node scripts/lint-budget.mjs current-lint.json lint-baseline.json && rm current-lint.json",
     "lint:baseline:update": "npx eslint . --format=json 2>&1 | grep -v '^>' > lint-baseline.json && echo 'Baseline updated. Please commit lint-baseline.json.'",
-    "test": "NODE_ENV=test LEX_LOG_LEVEL=silent npx tsx --test 'test/**/*.test.{ts,mts}' && NODE_ENV=test LEX_LOG_LEVEL=silent node --test 'test/**/*.test.mjs'",
-    "test:aliases": "NODE_ENV=test LEX_LOG_LEVEL=silent node --test test/shared/aliases/substring.spec.mjs test/shared/aliases/collision.spec.mjs test/shared/aliases/case-sensitivity.spec.mjs test/shared/aliases/resolution.spec.mjs",
-    "test:integration": "NODE_ENV=test LEX_LOG_LEVEL=silent npx tsx --test test/memory/integration.test.ts && NODE_ENV=test LEX_LOG_LEVEL=silent node test/policy/integration.test.mjs",
-    "test:benchmarks": "NODE_ENV=test LEX_LOG_LEVEL=silent npx tsx --test test/memory/benchmarks.test.ts",
+    "test": "NODE_ENV=test LEX_LOG_LEVEL=silent LEX_WORKSPACE_ROOT=$(pwd) npx tsx --test 'test/**/*.test.{ts,mts}' && NODE_ENV=test LEX_LOG_LEVEL=silent LEX_WORKSPACE_ROOT=$(pwd) node --test 'test/**/*.test.mjs'",
+    "test:aliases": "NODE_ENV=test LEX_LOG_LEVEL=silent LEX_WORKSPACE_ROOT=$(pwd) node --test test/shared/aliases/substring.spec.mjs test/shared/aliases/collision.spec.mjs test/shared/aliases/case-sensitivity.spec.mjs test/shared/aliases/resolution.spec.mjs",
+    "test:integration": "NODE_ENV=test LEX_LOG_LEVEL=silent LEX_WORKSPACE_ROOT=$(pwd) npx tsx --test test/memory/integration.test.ts && NODE_ENV=test LEX_LOG_LEVEL=silent LEX_WORKSPACE_ROOT=$(pwd) node test/policy/integration.test.mjs",
+    "test:benchmarks": "NODE_ENV=test LEX_LOG_LEVEL=silent LEX_WORKSPACE_ROOT=$(pwd) npx tsx --test test/memory/benchmarks.test.ts",
     "test:all": "npm test && npm run test:integration",
     "test:coverage": "npm run test",
     "test:smoke": "./scripts/consumer-smoke-test.sh",
@@ -97,10 +92,24 @@
     "memory",
     "policy",
     "continuity",
-    "mcp"
+    "mcp",
+    "frames",
+    "atlas",
+    "fold-radius",
+    "policy-scanner",
+    "work-continuity",
+    "typescript"
   ],
   "author": "Guffawaffle",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Guffawaffle/lex.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Guffawaffle/lex/issues"
+  },
+  "homepage": "https://github.com/Guffawaffle/lex#readme",
   "engines": {
     "node": ">=20 <23"
   },

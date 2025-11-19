@@ -75,7 +75,6 @@ Lex uses a precedence chain for loading prompt templates and includes JSON schem
 - **Package defaults:** `prompts/` and `schemas/` (published with package, copied from `canon/` during build)
 - **Local overlay:** `.smartergpt.local/prompts/` and `.smartergpt.local/schemas/` (untracked, for local customization)
 - **Environment override:** `LEX_CANON_DIR=/custom/canon` (highest precedence, loads from `/custom/canon/prompts/` and `/custom/canon/schemas/`)
-- **Legacy location:** `.smartergpt/schemas/` (still supported for backward compatibility)
 
 See `DIRECTORY_ALIGNMENT.md` for complete details on directory structure, schema locations, and precedence rules.
 
@@ -131,8 +130,9 @@ This creates the `.smartergpt.local/` workspace:
 
 The package includes:
 - **`prompts/`**: Default prompt templates (customizable via `.smartergpt.local/prompts/`)
-- **`schemas/`**: JSON Schemas for validation (tracked in `.smartergpt/schemas/`)
+- **`schemas/`**: JSON Schemas for validation and TypeScript types
 - **`dist/`**: Compiled TypeScript modules
+- **`examples/`**: Optional external scanner examples (Python/PHP)
 
 #### Customizing Prompts
 

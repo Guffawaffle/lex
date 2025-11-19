@@ -1,5 +1,7 @@
 # Repository Hardening & Workflow Improvement Plan
 
+> **⚠️ DEPRECATED:** The staging branch workflow described in this document was a failed experiment and has been removed. The repository now uses `main` as the default and only protected branch. This document is preserved for historical reference only.
+
 **Version:** 1.0
 **Date:** November 6, 2025
 **Status:** Planning Phase
