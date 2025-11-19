@@ -26,6 +26,12 @@ const EXAMPLE_POLICY_PATH = "src/policy/policy_spec/lexmap.policy.json.example";
 const POLICY_PATH_ENV = "LEX_POLICY_PATH";
 
 /**
+ * Environment variable for workspace root override
+ * Points to the root directory of the user's project/workspace
+ */
+const WORKSPACE_ROOT_ENV = "LEX_WORKSPACE_ROOT";
+
+/**
  * Cached policy to avoid re-reading from disk
  */
 let cachedPolicy: Policy | null = null;
@@ -101,7 +107,10 @@ export function loadPolicy(path?: string): Policy {
       resolvedPath = resolve(path);
     } else {
       // Priority 3-4: Try working file, then example
-      const repoRoot = findRepoRoot(process.cwd());
+      // Check for workspace root override from environment
+      const repoRoot = process.env[WORKSPACE_ROOT_ENV]
+        ? process.env[WORKSPACE_ROOT_ENV]
+        : findRepoRoot(process.cwd());
 
       // Try working file first
       const workingPath = join(repoRoot, DEFAULT_POLICY_PATH);
