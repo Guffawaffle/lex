@@ -1,20 +1,50 @@
 # Security Policy
 
+**Target Use Case:** Single-developer / small-team dev-time library
+**NOT Recommended For:** Public multi-tenant production services without additional hardening
+
 ## Supported Versions
 
 We provide security updates for the following versions:
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 0.2.x   | :white_check_mark: |
-| 0.1.x   | :white_check_mark: |
-| < 0.1   | :x:                |
+| Version | Supported          | Security Posture |
+| ------- | ------------------ | ---------------- |
+| 0.4.x   | :white_check_mark: | Dev/alpha - Local use only |
+| 0.3.x   | :white_check_mark: | Dev - Local use only |
+| 0.2.x   | :x:                | End of support |
+| < 0.2   | :x:                | End of support |
 
 **Version Support Policy:**
-- We support the current minor version (0.2.x) and one previous minor version (0.1.x)
-- Patch releases (e.g., 0.2.1 → 0.2.2) receive security fixes for 90 days after the next patch
-- Major security issues will be backported to supported versions
+- **0.4.0-alpha:** Suitable for local dev, private automation, small trusted teams
+- **0.5.0 (planned Q1 2026):** Will add auth, encryption, audit logging for internal production use
+- Security fixes backported to current minor version only
 - Once we reach 1.0.0, we will follow semantic versioning strictly
+
+---
+
+## Known Limitations (0.4.0-alpha)
+
+**This alpha release is NOT production-hardened.** Known security limitations:
+
+1. **No authentication** on MCP server
+2. **No encryption** for database at rest
+3. **No audit trail** for database modifications
+4. **No rate limiting** on API endpoints
+5. **SQLite limitations** (not suitable for high-concurrency)
+6. **Example scanners not audited** (Python/PHP in `examples/scanners/`)
+
+**Acceptable for:**
+- ✅ Local development by single developer
+- ✅ Private automation scripts
+- ✅ Small trusted teams on secure networks
+
+**NOT acceptable for:**
+- ❌ Public internet-facing services
+- ❌ Multi-tenant SaaS applications
+- ❌ Environments with compliance requirements
+- ❌ High-security production environments
+
+See `docs/SECURITY_POSTURE.md` for detailed guidance and production roadmap
 
 ---
 
