@@ -51,5 +51,31 @@
       "description": "Optional human-readable hint (printed to stderr)"
     }
   },
-  "additionalProperties": false
+  "additionalProperties": false,
+  "examples": [
+    {
+      "v": 1,
+      "ts": "2025-11-22T08:00:00.000Z",
+      "level": "info",
+      "scope": "cli:remember",
+      "code": "MEM_WRITE_OK",
+      "message": "Memory saved successfully",
+      "data": {
+        "id": "abc123",
+        "count": 1
+      },
+      "hint": "Use --verbose for more details"
+    },
+    {
+      "v": 1,
+      "ts": "2025-11-22T08:00:00.000Z",
+      "level": "error",
+      "message": "Operation failed"
+    },
+    {
+      "v": 1,
+      "ts": "2025-11-22T08:00:00.000Z",
+      "level": "success"
+    }
+  ]
 }

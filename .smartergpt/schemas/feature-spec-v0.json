@@ -44,5 +44,27 @@
       "format": "date-time",
       "description": "ISO 8601 timestamp when the spec was created"
     }
-  }
+  },
+  "examples": [
+    {
+      "schemaVersion": "0.1.0",
+      "title": "Add dark mode support",
+      "description": "Implement theme switcher with light/dark modes",
+      "acceptanceCriteria": [
+        "User can toggle between light and dark themes via UI control",
+        "Theme preference persists across browser sessions",
+        "All UI components render correctly in both themes"
+      ],
+      "technicalContext": "Use CSS variables for theming. Store preference in localStorage.",
+      "constraints": "Must support IE11+ (no CSS Grid). Theme switcher must be accessible.",
+      "repo": "owner/repo",
+      "createdAt": "2025-11-22T08:00:00.000Z"
+    },
+    {
+      "schemaVersion": "0.1.0",
+      "title": "Minimal feature",
+      "description": "A minimal feature specification",
+      "repo": "owner/repo"
+    }
+  ]
 }
