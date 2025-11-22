@@ -26,6 +26,7 @@ import { loadPolicy } from "../../shared/policy/loader.js";
 import { getCurrentBranch } from "../../shared/git/branch.js";
 import { randomUUID } from "crypto";
 import { join } from "path";
+import { existsSync } from "fs";
 
 const logger = getLogger("memory:mcp_server:server");
 
@@ -65,10 +66,29 @@ export class MCPServer {
     // Load policy once at initialization for better performance
     // If policy is not found, operate without policy enforcement
     try {
-      // If repoRoot is provided, construct the policy path directly
-      const policyPath = this.repoRoot
-        ? join(this.repoRoot, "policy/policy_spec/lexmap.policy.json")
-        : undefined;
+      // Policy path resolution priority:
+      // 1. LEX_POLICY_PATH env var (explicit override)
+      // 2. If repoRoot provided, use standard locations within it
+      // 3. Let loadPolicy() use its default search logic
+      let policyPath: string | undefined;
+
+      if (process.env.LEX_POLICY_PATH) {
+        // Explicit policy path from environment
+        policyPath = process.env.LEX_POLICY_PATH;
+      } else if (this.repoRoot) {
+        // Try standard locations within provided repoRoot
+        // Check working file first, then example
+        const workingPath = join(this.repoRoot, ".smartergpt.local/lex/lexmap.policy.json");
+        const examplePath = join(this.repoRoot, "policy/policy_spec/lexmap.policy.json");
+
+        if (existsSync(workingPath)) {
+          policyPath = workingPath;
+        } else if (existsSync(examplePath)) {
+          policyPath = examplePath;
+        }
+        // If neither exists, policyPath remains undefined and loadPolicy will handle it
+      }
+
       this.policy = loadPolicy(policyPath);
     } catch (error: any) {
       if (process.env.LEX_DEBUG) {
@@ -116,7 +136,9 @@ export class MCPServer {
     return {
       protocolVersion: "2024-11-05",
       capabilities: {
-        tools: {},
+        tools: {
+          listChanged: false,
+        },
       },
       serverInfo: {
         name: "lex-memory-mcp-server",
