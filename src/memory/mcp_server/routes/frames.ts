@@ -170,28 +170,41 @@ function validateFrameRequest(body: any): { valid: boolean; error?: ApiErrorResp
 }
 
 /**
- * Create frames router
+ * Create frames router with authentication and rate limiting
  */
-export function createFramesRouter(db: Database.Database, apiKey?: string): Router {
+export function createFramesRouter(
+  db: Database.Database,
+  apiKey: string,
+  authFailureLimiter?: any
+): Router {
   const router = Router();
 
-  // Authentication middleware
-  if (apiKey) {
-    router.use((req: Request, res: Response, next: NextFunction) => {
-      const authHeader = req.headers.authorization;
-      const providedKey = authHeader?.replace("Bearer ", "");
+  // Authentication middleware (MANDATORY - apiKey is now required)
+  router.use((req: Request, res: Response, next: NextFunction) => {
+    const authHeader = req.headers.authorization;
+    const providedKey = authHeader?.replace("Bearer ", "");
 
-      if (!providedKey || providedKey !== apiKey) {
-        return res.status(401).json({
-          error: "UNAUTHORIZED",
-          message: "Invalid or missing API key",
-          code: 401,
-        } as ApiErrorResponse);
+    if (!providedKey || providedKey !== apiKey) {
+      // Apply stricter rate limiting on auth failures if provided
+      if (authFailureLimiter) {
+        return authFailureLimiter(req, res, () => {
+          return res.status(401).json({
+            error: "UNAUTHORIZED",
+            message: "Invalid or missing API key",
+            code: 401,
+          } as ApiErrorResponse);
+        });
       }
 
-      next();
-    });
-  }
+      return res.status(401).json({
+        error: "UNAUTHORIZED",
+        message: "Invalid or missing API key",
+        code: 401,
+      } as ApiErrorResponse);
+    }
+
+    next();
+  });
 
   /**
    * POST /api/frames - Create a new Frame
