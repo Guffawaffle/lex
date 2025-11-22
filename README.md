@@ -18,7 +18,7 @@
 **Our Thesis:** *Cognitive architecture can bridge this gap.* Just as human experts rely on external memory, structured reasoning, and policy-driven decision-making, AI agents can achieve near-parity performance with deliberate architectural support—even on consumer hardware.
 
 **Proof of Value — EsoBench Target:**  
-We're designing toward a future where a **Llama 3.1 8B agent (8GB VRAM baseline)**, equipped with Lex episodic memory, LexRunner orchestration, and LexSona behavioral rules, achieves **≥85% success rate** on the EsoBench benchmark—approaching the performance of frontier models without requiring enterprise infrastructure.
+We are designing toward a future where a locally run Llama 3.1 8B agent (around an 8 GB VRAM baseline), equipped with Lex episodic memory, LexRunner orchestration, and LexSona behavioral rules, can achieve at least **85% of the best-reported EsoBench score (and Solved%) of contemporary frontier models**.
 
 **Why This Matters:**
 - **Access over exclusivity:** Democratizes advanced AI workflows for developers without $200/month API budgets or 80GB GPUs
@@ -37,7 +37,7 @@ This is the North Star guiding our roadmap. Today, Lex provides the **episodic m
 > - ❌ Breaking API changes between minor versions
 > - ❌ Not recommended for production multi-tenant systems
 >
-> **Best for:** Personal projects, local dev tools, private MCP servers, experimental automation  
+> **Best for:** Personal projects, local dev tools, private MCP servers, experimental automation
 > **Not yet for:** Public SaaS, production deployments, mission-critical systems
 >
 > **Feedback welcome:** [Report issues](https://github.com/Guffawaffle/lex/issues)
@@ -46,8 +46,8 @@ This is the North Star guiding our roadmap. Today, Lex provides the **episodic m
 
 ## 📊 Project 0.5.0 — Production Hardening (Active)
 
-**Timeline:** 16 weeks (Jan 6 - Mar 31, 2026)  
-**Methodology:** Six Sigma DMAIC  
+**Timeline:** 16 weeks (Jan 6 - Mar 31, 2026)
+**Methodology:** Six Sigma DMAIC
 **Target:** Production-ready with SQLCipher encryption, OAuth2/JWT, and enhanced audit logging
 
 | Metric | Current | Target | Status |
