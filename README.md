@@ -3,6 +3,21 @@
 ![MIT License](https://img.shields.io/badge/License-MIT-green)
 ![OSS](https://img.shields.io/badge/Community-OSS-blue)
 
+> ⚠️ **Alpha Release Notice**
+>
+> **Lex 0.4.0-alpha is an early preview** for local development and private automation use cases.
+>
+> **Expected:**
+> - ✅ Core features work (memory, policy, MCP server, CLI)
+> - ✅ 556 passing tests, full type safety
+> - ❌ Breaking API changes between minor versions
+> - ❌ Not recommended for production multi-tenant systems
+>
+> **Best for:** Personal projects, local dev tools, private MCP servers, experimental automation
+> **Not yet for:** Public SaaS, production deployments, mission-critical systems
+>
+> **Feedback welcome:** [Report issues](https://github.com/Guffawaffle/lex-pr-runner/issues)
+
 **Policy-aware work continuity with receipts.**
 
 Lex is an MIT-licensed memory, policy, and atlas framework for TypeScript. It can be used standalone or as the foundation for workflow orchestration tools.
@@ -58,6 +73,9 @@ Policy is machine-readable architecture boundaries. The policy file defines whic
 - Example template: `src/policy/policy_spec/lexmap.policy.json.example`
 - Override via environment: `LEX_POLICY_PATH=/custom/path/policy.json`
 
+**Multi-Language Scanning:**
+The TypeScript scanner is built-in. **Python and PHP scanners** are available as optional examples in `examples/scanners/` — see their README for security considerations and usage instructions.
+
 **Prompt Templates & Schemas:**
 Lex uses a precedence chain for loading prompt templates and includes JSON schemas for configuration validation:
 - **Package defaults:** `prompts/` and `schemas/` (published with package, copied from `canon/` during build)
@@ -88,10 +106,25 @@ This shared vocabulary is what lets Lex answer:
 
 ### Installation
 
+**Option A: Global (recommended for CLI usage)**
 ```bash
-npm install @guffawaffle/lex
+npm install -g lex
+lex --version  # Should show 0.4.0-alpha
+```
 
-# Initialize workspace structure
+**Option B: Local project**
+```bash
+npm install lex
+npx lex --version  # Use npx prefix for all commands
+```
+
+### Initialize Workspace
+
+```bash
+# Global install
+lex init
+
+# OR local install (use npx prefix)
 npx lex init
 ```
 
@@ -136,6 +169,8 @@ The package includes:
 ### Quick Start
 
 Here's the complete workflow from creating a Frame to recalling it and viewing your timeline:
+
+> **Note:** The examples below use bare `lex` commands (global install). If you installed locally, prefix all commands with `npx` (e.g., `npx lex remember ...`).
 
 #### 1. Create a Frame
 
