@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { getLogger } from "lex/logger";
+import { getLogger } from "@smartergpt/lex/logger";
 import { renderMemoryCard } from "./card.js";
 import type { Frame } from "./types.js";
 import { writeFileSync, mkdirSync } from "fs";
