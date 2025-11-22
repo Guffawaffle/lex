@@ -168,8 +168,6 @@ Example:
 # ❌ Error if "auth-core" is not exact or explicit alias
 ```
 
-For comprehensive documentation and troubleshooting, see [Aliasing for LexRunner](./ALIASING_FOR_RUNNER.md).
-
 ### Alias Tables (✅ Implemented)
 
 You can now use alias tables for team shorthand and historical renames:
@@ -187,8 +185,6 @@ You can now use alias tables for team shorthand and historical renames:
 ```
 
 This allows `/remember "Auth work" --modules "auth"` while storing the canonical ID internally.
-
-See [Aliasing for LexRunner](./ALIASING_FOR_RUNNER.md) for comprehensive documentation and troubleshooting.
 
 ---
 
@@ -486,8 +482,6 @@ After rebuilding (`npm run build`), you can use `--modules "auth"` and it will s
 
 You can also use substring matching (enabled by default). For example, `--modules "auth-core"` will work if only one module contains that substring.
 
-For detailed documentation and troubleshooting, see [Aliasing for LexRunner](./ALIASING_FOR_RUNNER.md).
-
 ---
 
 ## What if a module gets renamed in our codebase?
@@ -511,8 +505,6 @@ When you refactor and rename a module (e.g., `services/user-access-api` → `api
 ```
 
 This allows recall to work seamlessly across the rename. New Frames can use either the old alias or the new canonical name.
-
-For detailed documentation, see [Aliasing for LexRunner](./ALIASING_FOR_RUNNER.md).
 
 ---
 
