@@ -18,9 +18,9 @@
       "types": "./dist/shared/cli/output.d.ts",
       "import": "./dist/shared/cli/output.js"
     },
-    "./schemas/cli-output.v1.schema.json": "./canon/schemas/cli-output.v1.schema.json",
-    "./schemas/feature-spec-v0.json": "./canon/schemas/feature-spec-v0.json",
-    "./schemas/profile.schema.json": "./canon/schemas/profile.schema.json",
+    "./schemas/cli-output.v1.schema.json": "./schemas/cli-output.v1.schema.json",
+    "./schemas/feature-spec-v0.json": "./schemas/feature-spec-v0.json",
+    "./schemas/profile.schema.json": "./schemas/profile.schema.json",
     "./logger": {
       "types": "./dist/shared/logger/index.d.ts",
       "import": "./dist/shared/logger/index.js"
