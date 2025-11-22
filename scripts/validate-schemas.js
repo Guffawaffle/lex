@@ -30,18 +30,7 @@ async function validateSchemas() {
     const schemaPath = path.join(schemasDir, file);
     const schema = JSON.parse(await fs.readFile(schemaPath, 'utf-8'));
     
-    // Validate schema itself with AJV and compile it
-    let validate;
-    try {
-      validate = ajv.compile(schema);
-      console.log(`✓ ${file} is valid`);
-    } catch (err) {
-      console.error(`✗ ${file}: ${err.message}`);
-      errors++;
-      continue;
-    }
-    
-    // Check for required hardening properties
+    // Check for required hardening properties first (independent of compilation)
     const issues = [];
     
     if (!schema.$id) {
@@ -59,6 +48,17 @@ async function validateSchemas() {
     if (issues.length > 0) {
       console.warn(`  ⚠ ${file}: ${issues.join(', ')}`);
       warnings++;
+    }
+    
+    // Validate schema itself with AJV and compile it
+    let validate;
+    try {
+      validate = ajv.compile(schema);
+      console.log(`✓ ${file} is valid`);
+    } catch (err) {
+      console.error(`✗ ${file}: ${err.message}`);
+      errors++;
+      continue; // Skip example validation if schema itself is invalid
     }
     
     // Validate examples against the schema (reuse compiled validator)
