@@ -132,12 +132,6 @@ Possibilities:
 2. **Module not yet added to policy** → Add it to `lexmap.policy.json`
 3. **Module was renamed** → Add historical alias (see [Historical Rename Issues](#historical-rename-issues))
 
-### LexRunner Context
-
-When LexRunner encounters this error:
-- **In local dev**: Non-blocking warning, falls back to substring matching
-- **In CI (strict mode)**: Build fails, must fix before merge
-
 ---
 
 ## Typo Detection and Suggestions
@@ -423,7 +417,7 @@ Warning: Module resolution took 2500ms (expected < 100ms)
 1. **Verify caching is working:**
    ```typescript
    import { loadAliasTable } from 'lex/shared/aliases';
-   
+
    // Table is cached after first load
    const table1 = loadAliasTable(); // Slow (disk read)
    const table2 = loadAliasTable(); // Fast (cached)
@@ -433,7 +427,7 @@ Warning: Module resolution took 2500ms (expected < 100ms)
    ```typescript
    // At startup, load once
    const aliasTable = loadAliasTable();
-   
+
    // Pass to all subsequent calls
    await resolveModuleId('auth', policy, aliasTable);
    ```
@@ -512,52 +506,24 @@ import { loadPolicy } from 'lex/shared/policy';
 async function validateAliasTable(aliasPath: string, policyPath: string) {
   const table = loadAliasTable(aliasPath);
   const policy = await loadPolicy(policyPath);
-  
+
   const errors: string[] = [];
-  
+
   for (const [alias, entry] of Object.entries(table.aliases)) {
     if (!policy.modules[entry.canonical]) {
       errors.push(`Alias '${alias}' points to unknown module '${entry.canonical}'`);
     }
   }
-  
+
   if (errors.length > 0) {
     console.error('❌ Alias table validation failed:');
     errors.forEach(err => console.error(`  - ${err}`));
     process.exit(1);
   }
-  
+
   console.log('✅ Alias table valid');
 }
 ```
-
-### Pattern: Handling Resolution Warnings in LexRunner
-
-```typescript
-async function lexrunnerValidateModules(modules: string[], policy: Policy) {
-  const resolutions = await Promise.all(
-    modules.map(id => resolveModuleId(id, policy))
-  );
-  
-  const warnings = resolutions.filter(r => r.confidence < 1.0 && r.confidence > 0);
-  const errors = resolutions.filter(r => r.confidence === 0);
-  
-  if (warnings.length > 0) {
-    console.warn('⚠️  Low-confidence resolutions:');
-    warnings.forEach(w => {
-      console.warn(`  '${w.original}' → '${w.canonical}' (${w.source})`);
-    });
-  }
-  
-  if (errors.length > 0) {
-    throw new Error(`Invalid modules: ${errors.map(e => e.original).join(', ')}`);
-  }
-  
-  return resolutions.map(r => r.canonical);
-}
-```
-
----
 
 ## Summary Table: Error Types and Resolutions
 
@@ -574,7 +540,6 @@ async function lexrunnerValidateModules(modules: string[], policy: Policy) {
 
 ## Related Documentation
 
-- [LexRunner Aliasing Guide](./LEXRUNNER_ALIASING.md) — Integration patterns
 - [Alias System README](../src/shared/aliases/README.md) — Implementation details
 - [Migration Guide](../src/shared/aliases/MIGRATION_GUIDE.md) — Handling renames
 - [Module ID Validation](../src/shared/module_ids/README.md) — THE CRITICAL RULE
@@ -589,5 +554,3 @@ If you encounter an error not covered here:
 2. **Validate inputs:** Test with minimal example
 3. **Search issues:** Check if it's a known problem
 4. **File a bug:** Include error message, alias table, and policy file (redacted)
-
-**For LexRunner-specific issues:** See the [LexRunner repo](https://github.com/Guffawaffle/lex-pr-runner) for support.

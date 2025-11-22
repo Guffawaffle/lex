@@ -130,8 +130,6 @@ Ambiguous substring 'user' matches:
 3. Add an alias in `src/shared/aliases/aliases.json`
 4. Disable substring matching for strict mode: `lex remember --modules user --no-substring`
 
-See [Aliasing for LexRunner](./docs/ALIASING_FOR_RUNNER.md) for detailed troubleshooting.
-
 ### Module Not Found with Typo
 
 **Problem:**
@@ -162,8 +160,6 @@ Module 'payment-gateway' not found in policy.
 2. Add the module to the policy if it should exist
 3. Use the correct module ID from the policy
 4. Create an alias once you find the correct name
-
-For comprehensive aliasing documentation, see [docs/ALIASING_FOR_RUNNER.md](./docs/ALIASING_FOR_RUNNER.md).
 
 ---
 
@@ -262,8 +258,7 @@ import { types } from "lex/shared/types";
 If you're still having issues:
 
 1. Check [FAQ](./docs/FAQ.md) for common questions
-2. Check [Aliasing for LexRunner](./docs/ALIASING_FOR_RUNNER.md) for module ID and aliasing issues
-3. Open an issue on GitHub with:
+2. Open an issue on GitHub with:
    - Your Node.js version (`node --version`)
    - Your npm version (`npm --version`)
    - Full error output

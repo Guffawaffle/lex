@@ -216,49 +216,6 @@ You'll receive a 409 Conflict response with the existing frame ID:
 }
 ```
 
-## Integration with LexRunner
-
-LexRunner can use this API to automatically capture Frames during development sessions:
-
-```typescript
-// LexRunner integration example
-class LexRunnerIntegration {
-  private apiUrl: string;
-  private apiKey: string;
-
-  constructor(apiUrl: string, apiKey: string) {
-    this.apiUrl = apiUrl;
-    this.apiKey = apiKey;
-  }
-
-  async captureFrame(context: RunContext) {
-    const frame = {
-      reference_point: context.referencePoint,
-      summary_caption: context.summary,
-      module_scope: context.touchedModules,
-      status_snapshot: {
-        next_action: context.nextAction,
-        blockers: context.blockers,
-      },
-      branch: context.gitBranch,
-      runId: context.runId,
-      planHash: context.planHash,
-    };
-
-    const response = await fetch(`${this.apiUrl}/api/frames`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${this.apiKey}`,
-      },
-      body: JSON.stringify(frame),
-    });
-
-    return response.json();
-  }
-}
-```
-
 ## Health Check
 
 The server includes a health check endpoint:
