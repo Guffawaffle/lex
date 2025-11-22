@@ -1,5 +1,5 @@
 {
-  "name": "lex",
+  "name": "@smartergpt/lex",
   "version": "0.4.2-alpha",
   "description": "MIT-licensed memory, policy, and atlas framework with MCP server. For local dev and private automation.",
   "type": "module",
@@ -112,7 +112,8 @@
     "url": "git+https://github.com/Guffawaffle/lex.git"
   },
   "publishConfig": {
-    "tag": "alpha"
+    "tag": "alpha",
+    "access": "public"
   },
   "bugs": {
     "url": "https://github.com/Guffawaffle/lex/issues"
