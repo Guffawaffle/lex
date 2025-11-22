@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.2-alpha] - 2025-01-21
+
+### Security
+
+- **HTTP server hardening (BREAKING CHANGE):** Comprehensive security overhaul for Frame Ingestion API
+  - `apiKey` now **required** (was optional) - throws error if missing
+  - Rate limiting: 100 requests per 15 minutes (general), 5 auth failures per 15 minutes
+  - Security headers via Helmet: CSP, HSTS, X-Frame-Options, X-Content-Type-Options
+  - Request size limits: 1MB maximum body size
+  - Audit logging: Method, path, status, duration, IP, hashed API key
+  - **Migration required:** All HTTP server deployments must add `apiKey` configuration
+  - See `SECURITY.md` for deployment best practices (reverse proxy, TLS, environment variables)
+
+### Added
+
+- **Security dependencies:** express-rate-limit@7.5.0, helmet@8.0.0 for production hardening
+- **Test coverage:** 11 new HTTP security tests (authentication, rate limiting, headers, validation)
+
+### Changed
+
+- **Type definitions:** `http-server.d.ts` now requires `apiKey` (breaking change)
+- **Route behavior:** Frame creation routes now enforce authentication unconditionally
+
+### Documentation
+
+- **SECURITY.md:** New HTTP Server Security section with Nginx reverse proxy example
+- **Deployment guidance:** Production best practices, DO/DON'T lists, MCP stdio vs HTTP comparison
+
+## [Previous Releases]
+
 ### Security
 
 - **Dependency vulnerabilities fixed:** Updated glob and js-yaml to patch security issues
