@@ -132,6 +132,33 @@ jobs:
       - name: Build all packages
         run: npm run build
 
+      - name: Validate schemas
+        if: matrix.node-version == '22'
+        run: npm run validate-schemas
+
+      - name: Verify canon assets copied
+        if: matrix.node-version == '22'
+        run: |
+          # Verify prompts/ and schemas/ directories exist and are populated
+          if [ ! -d prompts ] || [ -z "$(ls -A prompts)" ]; then
+            echo "❌ prompts/ directory missing or empty"
+            exit 1
+          fi
+          if [ ! -d schemas ] || [ -z "$(ls -A schemas)" ]; then
+            echo "❌ schemas/ directory missing or empty"
+            exit 1
+          fi
+          # Verify content matches canon/
+          if ! diff -r canon/prompts prompts > /dev/null 2>&1; then
+            echo "❌ prompts/ does not match canon/prompts"
+            exit 1
+          fi
+          if ! diff -r canon/schemas schemas > /dev/null 2>&1; then
+            echo "❌ schemas/ does not match canon/schemas"
+            exit 1
+          fi
+          echo "✅ Canon assets verified: prompts/ and schemas/ match canon/"
+
       - name: Pack (dry run)
         if: matrix.node-version == '22'
         run: npm pack --json > pack.json
@@ -143,13 +170,27 @@ jobs:
             const fs = require('fs');
             const packData = JSON.parse(fs.readFileSync('pack.json', 'utf8'));
             const files = packData[0].files.map(x => x.path);
-            const allowed = ['README.md', 'LICENSE', 'package.json'];
-            const bad = files.filter(p => !/^dist\//.test(p) && !allowed.includes(p));
+            const allowed = ['README.md', 'LICENSE', 'package.json', 'CHANGELOG.md'];
+            // Allow dist/, prompts/, schemas/, examples/, and src/policy/ files
+            const bad = files.filter(p => 
+              !/^dist\//.test(p) && 
+              !/^prompts\//.test(p) && 
+              !/^schemas\//.test(p) && 
+              !/^examples\//.test(p) && 
+              !/^src\/policy\//.test(p) && 
+              !allowed.includes(p)
+            );
             if (bad.length) {
               console.error('❌ Unexpected files in tarball:', bad);
               process.exit(1);
             }
-            console.log('✅ Pack guard passed: only dist/, README.md, LICENSE, package.json');
+            // Verify no canon/ source directories in tarball
+            const canonFiles = files.filter(p => /^canon\//.test(p));
+            if (canonFiles.length) {
+              console.error('❌ Canon source directories should not be in tarball:', canonFiles);
+              process.exit(1);
+            }
+            console.log('✅ Pack guard passed: valid structure, no canon/ source');
           "
 
       - name: Bin guard (shebang + exec)

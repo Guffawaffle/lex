@@ -44,8 +44,6 @@
     "src/policy/policy_spec/lexmap.policy.json.example",
     "src/policy/README.md",
     "examples/",
-    "canon/prompts/",
-    "canon/schemas/",
     "prompts/",
     "schemas/",
     "README.md",
