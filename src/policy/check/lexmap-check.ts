@@ -212,7 +212,7 @@ class LexMapChecker {
   private matchPath(filePath: string, pattern: string): boolean {
     // Simple glob matching (** means any nested path)
     // First escape all special regex characters except * and /
-    const escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, '\\$&');
+    const escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, "\\$&");
     // Then convert glob patterns
     const regexPattern = escaped
       .replace(/\*\*/g, ".*")
