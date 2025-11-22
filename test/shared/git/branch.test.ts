@@ -80,6 +80,7 @@ describe("Git Branch Detection", () => {
       execSync("git init", { stdio: "pipe" });
       execSync('git config user.email "test@example.com"', { stdio: "pipe" });
       execSync('git config user.name "Test User"', { stdio: "pipe" });
+      execSync("git config commit.gpgsign false", { stdio: "pipe" });
 
       // Create a commit
       execSync("touch test.txt", { stdio: "pipe" });
@@ -173,6 +174,7 @@ describe("Git Branch Detection", () => {
       execSync("git init", { stdio: "pipe" });
       execSync('git config user.email "test@example.com"', { stdio: "pipe" });
       execSync('git config user.name "Test User"', { stdio: "pipe" });
+      execSync("git config commit.gpgsign false", { stdio: "pipe" });
       execSync("touch test.txt", { stdio: "pipe" });
       execSync("git add test.txt", { stdio: "pipe" });
       execSync('git commit -m "Initial commit"', { stdio: "pipe" });
