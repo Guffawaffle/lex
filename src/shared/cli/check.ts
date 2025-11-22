@@ -249,7 +249,10 @@ function resolveImportToModule(importPath: string, policy: Policy): string | nul
  * Match file path against pattern with glob support
  */
 function matchPath(filePath: string, pattern: string): boolean {
-  const regexPattern = pattern.replace(/\*\*/g, ".*").replace(/\*/g, "[^/]*").replace(/\//g, "\\/");
+  // Escape all special regex characters except * and /
+  const escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, "\\$&");
+  // Convert glob patterns: ** = any nested path, * = any non-slash characters
+  const regexPattern = escaped.replace(/\*\*/g, ".*").replace(/\*/g, "[^/]*").replace(/\//g, "\\/");
   const regex = new RegExp(`^${regexPattern}$`);
   return regex.test(filePath);
 }
