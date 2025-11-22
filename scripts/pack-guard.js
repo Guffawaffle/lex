@@ -34,7 +34,7 @@ if (!packData[0].files || !Array.isArray(packData[0].files)) {
   process.exit(1);
 }
 
-const files = packData[0].files.map(x => x.path);
+const files = packData[0].files.map(x => x?.path).filter(p => p != null);
 const allowed = ['README.md', 'LICENSE', 'package.json', 'CHANGELOG.md'];
 
 // Check for unexpected files
