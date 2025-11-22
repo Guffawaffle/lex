@@ -37,12 +37,14 @@ describe("HTTP Server Security", () => {
 
   describe("Authentication", () => {
     it("should reject requests without Authorization header", async () => {
-      const response = await request(app).post("/api/frames").send({
-        reference_point: "test",
-        summary_caption: "test",
-        module_scope: ["test"],
-        status_snapshot: { next_action: "test" },
-      });
+      const response = await request(app)
+        .post("/api/frames")
+        .send({
+          reference_point: "test",
+          summary_caption: "test",
+          module_scope: ["test"],
+          status_snapshot: { next_action: "test" },
+        });
 
       assert.equal(response.status, 401);
       assert.equal(response.body.error, "UNAUTHORIZED");
