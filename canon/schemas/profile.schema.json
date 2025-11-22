@@ -34,5 +34,19 @@
       "type": "string",
       "description": "Owner or creator of this profile"
     }
-  }
+  },
+  "examples": [
+    {
+      "role": "development",
+      "name": "Development Profile",
+      "version": "1.0.0",
+      "projectType": "nodejs",
+      "created": "2025-11-22T08:00:00.000Z",
+      "owner": "developer@example.com"
+    },
+    {
+      "role": "ci",
+      "projectType": "python"
+    }
+  ]
 }
