@@ -1,6 +1,6 @@
 {
   "name": "lex",
-  "version": "0.4.0-alpha",
+  "version": "0.4.1-alpha",
   "description": "MIT-licensed memory, policy, and atlas framework with MCP server. For local dev and private automation.",
   "type": "module",
   "main": "dist/index.js",
