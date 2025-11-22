@@ -15,6 +15,17 @@ const testDir = join(tmpdir(), "lex-cli-test-" + Date.now());
 const testDbPath = join(testDir, "frames.db");
 const lexBin = join(process.cwd(), "dist", "shared", "cli", "lex.js");
 
+// Create safe test environment (isolated from process.env to prevent shell injection)
+function getTestEnv(): NodeJS.ProcessEnv {
+  return {
+    NODE_ENV: "test",
+    LEX_LOG_LEVEL: "silent",
+    LEX_POLICY_PATH: join(testDir, "lexmap.policy.json"),
+    LEX_DB_PATH: testDbPath,
+    PATH: process.env.PATH, // Only inherit PATH for node resolution
+  };
+}
+
 // Setup test environment
 function setupTest() {
   if (existsSync(testDir)) {
@@ -84,7 +95,7 @@ test("CLI: lex remember with valid module_scope succeeds", () => {
         `--summary "Test summary" ` +
         `--next "Test next action" ` +
         `--modules "ui/admin-panel,services/user-api"`,
-      { encoding: "utf-8", env: { ...process.env, LEX_DB_PATH: testDbPath } }
+      { encoding: "utf-8", env: getTestEnv() }
     );
 
     assert.match(output, /Frame created successfully/, "Should show success message");
@@ -103,7 +114,7 @@ test("CLI: lex remember with invalid module_scope fails", () => {
         `--summary "Test summary" ` +
         `--next "Test next action" ` +
         `--modules "invalid-module"`,
-      { encoding: "utf-8", env: { ...process.env, LEX_DB_PATH: testDbPath } }
+      { encoding: "utf-8", env: getTestEnv() }
     );
     assert.fail("Should have thrown an error");
   } catch (error: any) {
@@ -126,7 +137,7 @@ test("CLI: lex remember with --json outputs JSON", () => {
         `--summary "JSON test" ` +
         `--next "Test action" ` +
         `--modules "ui/admin-panel"`,
-      { encoding: "utf-8", env: { ...process.env, LEX_DB_PATH: testDbPath } }
+      { encoding: "utf-8", env: getTestEnv() }
     );
 
     const json = JSON.parse(output.trim());
@@ -147,13 +158,13 @@ test("CLI: lex recall retrieves created frame", () => {
         `--summary "Test recall" ` +
         `--next "Test action" ` +
         `--modules "ui/admin-panel"`,
-      { encoding: "utf-8", env: { ...process.env, LEX_DB_PATH: testDbPath } }
+      { encoding: "utf-8", env: getTestEnv() }
     );
 
     // Recall it
     const output = execSync(`node ${lexBin} recall "recall test frame"`, {
       encoding: "utf-8",
-      env: { ...process.env, LEX_DB_PATH: testDbPath },
+      env: getTestEnv(),
     });
 
     assert.match(output, /recall test frame/, "Should show reference point");
@@ -173,13 +184,13 @@ test("CLI: lex recall with --json outputs JSON", () => {
         `--summary "JSON recall" ` +
         `--next "Test action" ` +
         `--modules "ui/admin-panel"`,
-      { encoding: "utf-8", env: { ...process.env, LEX_DB_PATH: testDbPath } }
+      { encoding: "utf-8", env: getTestEnv() }
     );
 
     // Recall it
     const output = execSync(`node ${lexBin} --json recall "json recall test"`, {
       encoding: "utf-8",
-      env: { ...process.env, LEX_DB_PATH: testDbPath },
+      env: getTestEnv(),
     });
 
     const json = JSON.parse(output.trim());
@@ -296,7 +307,7 @@ test("CLI: lex timeline shows frames for a ticket", () => {
         `--summary "First frame" ` +
         `--next "Test action 1" ` +
         `--modules "ui/admin-panel"`,
-      { encoding: "utf-8", env: { ...process.env, LEX_DB_PATH: testDbPath } }
+      { encoding: "utf-8", env: getTestEnv() }
     );
 
     execSync(
@@ -306,13 +317,13 @@ test("CLI: lex timeline shows frames for a ticket", () => {
         `--summary "Second frame" ` +
         `--next "Test action 2" ` +
         `--modules "ui/admin-panel,services/user-api"`,
-      { encoding: "utf-8", env: { ...process.env, LEX_DB_PATH: testDbPath } }
+      { encoding: "utf-8", env: getTestEnv() }
     );
 
     // Get timeline
     const output = execSync(`node ${lexBin} timeline TICKET-123`, {
       encoding: "utf-8",
-      env: { ...process.env, LEX_DB_PATH: testDbPath },
+      env: getTestEnv(),
     });
 
     assert.match(output, /TICKET-123/, "Should show ticket ID");
@@ -335,13 +346,13 @@ test("CLI: lex timeline with --format=json outputs JSON", () => {
         `--summary "JSON test" ` +
         `--next "Test action" ` +
         `--modules "ui/admin-panel"`,
-      { encoding: "utf-8", env: { ...process.env, LEX_DB_PATH: testDbPath } }
+      { encoding: "utf-8", env: getTestEnv() }
     );
 
     // Get timeline as JSON
     const output = execSync(`node ${lexBin} timeline TICKET-456 --format=json`, {
       encoding: "utf-8",
-      env: { ...process.env, LEX_DB_PATH: testDbPath },
+      env: getTestEnv(),
     });
 
     const json = JSON.parse(output.trim());
@@ -365,7 +376,7 @@ test("CLI: lex timeline shows blocker evolution", () => {
         `--next "Test action" ` +
         `--modules "ui/admin-panel" ` +
         `--blockers "CORS issue"`,
-      { encoding: "utf-8", env: { ...process.env, LEX_DB_PATH: testDbPath } }
+      { encoding: "utf-8", env: getTestEnv() }
     );
 
     execSync(
@@ -375,13 +386,13 @@ test("CLI: lex timeline shows blocker evolution", () => {
         `--summary "Frame without blocker" ` +
         `--next "Test action" ` +
         `--modules "ui/admin-panel"`,
-      { encoding: "utf-8", env: { ...process.env, LEX_DB_PATH: testDbPath } }
+      { encoding: "utf-8", env: getTestEnv() }
     );
 
     // Get timeline
     const output = execSync(`node ${lexBin} timeline TICKET-789`, {
       encoding: "utf-8",
-      env: { ...process.env, LEX_DB_PATH: testDbPath },
+      env: getTestEnv(),
     });
 
     assert.match(output, /CORS issue/, "Should show blocker");

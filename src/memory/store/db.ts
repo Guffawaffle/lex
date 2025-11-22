@@ -30,9 +30,9 @@ export interface FrameRow {
 }
 
 /**
- * Get default database path: .smartergpt.local/lex/memory.db (relative to repo root)
+ * Get default database path: .smartergpt.local/lex/memory.db (relative to workspace root)
  * Falls back to ~/.lex/frames.db if not in a lex repository
- * Can be overridden with LEX_DB_PATH environment variable
+ * Can be overridden with LEX_DB_PATH or LEX_WORKSPACE_ROOT environment variables
  */
 export function getDefaultDbPath(): string {
   // Check for environment variable override
@@ -40,9 +40,11 @@ export function getDefaultDbPath(): string {
     return process.env.LEX_DB_PATH;
   }
 
-  // Try to find repo root
+  // Try to find workspace root (with LEX_WORKSPACE_ROOT override support)
   try {
-    const repoRoot = findRepoRoot(process.cwd());
+    const repoRoot = process.env.LEX_WORKSPACE_ROOT
+      ? process.env.LEX_WORKSPACE_ROOT
+      : findRepoRoot(process.cwd());
     const localPath = join(repoRoot, ".smartergpt.local", "lex", "memory.db");
 
     // Ensure directory exists

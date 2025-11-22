@@ -7,20 +7,97 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.2-alpha] - 2025-01-21
+
+### Security
+
+- **HTTP server hardening (BREAKING CHANGE):** Comprehensive security overhaul for Frame Ingestion API
+  - `apiKey` now **required** (was optional) - throws error if missing
+  - Rate limiting: 100 requests per 15 minutes (general), 5 auth failures per 15 minutes
+  - Security headers via Helmet: CSP, HSTS, X-Frame-Options, X-Content-Type-Options
+  - Request size limits: 1MB maximum body size
+  - Audit logging: Method, path, status, duration, IP, hashed API key
+  - **Migration required:** All HTTP server deployments must add `apiKey` configuration
+  - See `SECURITY.md` for deployment best practices (reverse proxy, TLS, environment variables)
+
+### Added
+
+- **Security dependencies:** express-rate-limit@7.5.0, helmet@8.0.0 for production hardening
+- **Test coverage:** 11 new HTTP security tests (authentication, rate limiting, headers, validation)
+
+### Changed
+
+- **Type definitions:** `http-server.d.ts` now requires `apiKey` (breaking change)
+- **Route behavior:** Frame creation routes now enforce authentication unconditionally
+
+### Documentation
+
+- **SECURITY.md:** New HTTP Server Security section with Nginx reverse proxy example
+- **Deployment guidance:** Production best practices, DO/DON'T lists, MCP stdio vs HTTP comparison
+
+## [Previous Releases]
+
+### Security
+
+- **Dependency vulnerabilities fixed:** Updated glob and js-yaml to patch security issues
+  - `glob@11.0.3 → 11.1.0` - Fixes command injection vulnerability (GHSA-5j98-mcp5-4vw2, HIGH)
+  - `js-yaml@4.1.0 → 4.1.1` - Fixes prototype pollution (GHSA-mh29-5h37-fv8m, MODERATE)
+  - All tests pass (123/123), no breaking changes
+  - See `.smartergpt.local/VULNERABILITY_FIXES_20251119.md` for detailed analysis
+
+### Security Posture & Documentation
+
+- **SECURITY.md enhanced:** Added comprehensive security guidance for dev-time vs production use
+  - Clear scope: "Local dev / small teams" (acceptable) vs "Public multi-tenant" (not recommended for 0.4.0-alpha)
+  - Known limitations documented: No auth, no encryption, no audit logging
+  - Production roadmap: P0/P1/P2 features planned for 0.5.0-0.7.0
+  - Vulnerability disclosure process established
+
+- **Package messaging clarified:** Removed LexRunner commercial positioning
+  - package.json description now emphasizes MIT licensing and dev-time use
+  - README no longer positions Lex as "powers paid LexRunner"
+  - Clear separation: Lex is standalone MIT library, not a marketing funnel
+
+- **Scanner security warnings:** Added comprehensive disclaimers to `examples/scanners/README.md`
+  - "Examples only, not production-hardened" warnings
+  - Safe usage guidelines (review code, sandbox execution, validate output)
+  - Production scanning pipeline recommendations
+
+- **ARCHITECTURE.md created:** New documentation for design decisions
+  - Dependency rationale (why Express, Sharp, Shiki despite size)
+  - Future modularization plan (peer deps in 0.5.0, package split in 0.6.0)
+  - Design philosophy ("dumb by design" scanners, local-first, explicit over implicit)
+  - Database design decisions and performance considerations
+
+- **Lint cleanup roadmap:** Created 4 GitHub issues for post-alpha warning reduction
+  - Issue #1: Remove 48 unused variables/imports (P1)
+  - Issue #2: Type MCP server arguments (25 explicit any → proper types) (P1)
+  - Issue #3: Fix 30 unsafe any operations (P2, depends on #2)
+  - Issue #4: Address 4 misc warnings (P2)
+  - New policy: No new warnings in PRs after 0.4.0-alpha
+
+### Repository Cleanup
+
+- **Tracked MCP symlink:** `memory/mcp_server/frame-mcp.mjs` now tracked (required by `lex-launcher.sh`)
+- **Removed lint baseline:** Deleted empty `lint-baseline.json` from tracking (optional dev tool)
+- **CLI cleanup:** Removed commented-out commands for unimplemented features (`db vacuum`, `db backup`, `frames export`)
+- **Architecture notes:** Clarified Zod/TypeScript type separation in `src/memory/frames/types.ts`
+- **Scanner examples:** Relocated Python/PHP scanners to `examples/scanners/` (not part of TS runtime)
+
 ### ⚠️ Breaking Changes
 
 - **REMOVED:** `LEX_PROMPTS_DIR`, `LEX_SCHEMAS_DIR`, `LEX_CONFIG_DIR` environment variables
   - **Use:** `LEX_CANON_DIR=/path/to/canon` (points to directory containing `prompts/` and `schemas/`)
   - **Example:** `export LEX_CANON_DIR=/custom/canon` loads prompts from `/custom/canon/prompts/`
-  
+
 - **REMOVED:** Runtime reads of `.smartergpt/` directory for prompts
   - **Use:** `.smartergpt.local/prompts/` for local overlay prompts
   - **Note:** `.smartergpt/` schemas remain for build-time compilation only
-  
+
 - **CHANGED:** Prompt loading precedence (3-level instead of 5-level)
   - **Old:** `LEX_PROMPTS_DIR` → `.smartergpt.local/prompts` → `.smartergpt/prompts`
   - **New:** `LEX_CANON_DIR/prompts` → `.smartergpt.local/prompts` → `prompts/` (package location)
-  
+
 - **CHANGED:** Zod schemas now use `.loose()` instead of `.passthrough()`
   - Affects: `GateConfigSchema`, `StackComponentConfigSchema` in infrastructure schemas
   - Behavior unchanged, but aligns with Zod 4.x best practices
@@ -32,7 +109,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    # OLD
    export LEX_PROMPTS_DIR=/custom/prompts
    export LEX_SCHEMAS_DIR=/custom/schemas
-   
+
    # NEW
    export LEX_CANON_DIR=/custom/canon  # containing prompts/ and schemas/
    ```
