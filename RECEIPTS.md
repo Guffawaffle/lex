@@ -36,7 +36,7 @@ The assistant has **no memory**, **no context**, and **no proof**. It's just gue
 > "Why is the Add User button still disabled?"
 
 **Lex responds:**
-> "The Add User button is still disabled because the admin UI (`ui/user-admin-panel`) was calling `services/auth-core` directly, which is **forbidden by policy**. Policy says that path must go through the approved service layer and be gated by the `can_manage_users` permission. 
+> "The Add User button is still disabled because the admin UI (`ui/user-admin-panel`) was calling `services/auth-core` directly, which is **forbidden by policy**. Policy says that path must go through the approved service layer and be gated by the `can_manage_users` permission.
 >
 > Here's the timestamped Frame from **11:04 PM last night** where you said you'd fix the `UserAccessController` wiring after sleep."
 
