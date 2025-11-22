@@ -161,37 +161,11 @@ jobs:
 
       - name: Pack (dry run)
         if: matrix.node-version == '22'
-        run: npm pack --json > pack.json
+        run: node scripts/create-pack-json.js
 
       - name: Pack guard
         if: matrix.node-version == '22'
-        run: |
-          node -e "
-            const fs = require('fs');
-            const packData = JSON.parse(fs.readFileSync('pack.json', 'utf8'));
-            const files = packData[0].files.map(x => x.path);
-            const allowed = ['README.md', 'LICENSE', 'package.json', 'CHANGELOG.md'];
-            // Allow dist/, prompts/, schemas/, examples/, and src/policy/ files
-            const bad = files.filter(p => 
-              !/^dist\//.test(p) && 
-              !/^prompts\//.test(p) && 
-              !/^schemas\//.test(p) && 
-              !/^examples\//.test(p) && 
-              !/^src\/policy\//.test(p) && 
-              !allowed.includes(p)
-            );
-            if (bad.length) {
-              console.error('❌ Unexpected files in tarball:', bad);
-              process.exit(1);
-            }
-            // Verify no canon/ source directories in tarball
-            const canonFiles = files.filter(p => /^canon\//.test(p));
-            if (canonFiles.length) {
-              console.error('❌ Canon source directories should not be in tarball:', canonFiles);
-              process.exit(1);
-            }
-            console.log('✅ Pack guard passed: valid structure, no canon/ source');
-          "
+        run: node scripts/pack-guard.js
 
       - name: Bin guard (shebang + exec)
         if: matrix.node-version == '22'
