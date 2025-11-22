@@ -1,0 +1,69 @@
+name: Project 0.5.0 Automation
+
+on:
+  issues:
+    types: [opened, labeled, closed]
+  pull_request:
+    types: [opened, labeled, closed]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  auto-add-to-project:
+    name: Add 0.5.0 Items to Project
+    runs-on: ubuntu-latest
+    if: (github.event_name == 'issues' || github.event_name == 'pull_request') && (github.event.action == 'opened' || github.event.action == 'labeled')
+    steps:
+      - name: Check for 0.5.0 label
+        id: check
+        run: |
+          LABELS='${{ toJSON(github.event.issue.labels) }}${{ toJSON(github.event.pull_request.labels) }}'
+          if echo "$LABELS" | grep -q '"name":"0.5.0"'; then
+            echo "has_label=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_label=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Add to Project #4
+        if: steps.check.outputs.has_label == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PROJECT_ID: "PVT_kwHOBk3Lf84BIx7Y"
+          ITEM_ID: ${{ github.event.issue.node_id || github.event.pull_request.node_id }}
+        run: |
+          gh api graphql -f query='
+            mutation($project:ID!, $contentId:ID!) {
+              addProjectV2ItemById(input: {projectId: $project, contentId: $contentId}) {
+                item { id }
+              }
+            }' -f project=$PROJECT_ID -f contentId=$ITEM_ID || echo "Already added"
+
+  update-completion:
+    name: Update Project Completion
+    runs-on: ubuntu-latest
+    if: github.event_name == 'issues' && github.event.action == 'closed'
+    steps:
+      - name: Calculate and post completion
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUM: ${{ github.event.issue.number }}
+        run: |
+          TOTAL=$(gh issue list --label "0.5.0" --limit 1000 --json state | jq length)
+          CLOSED=$(gh issue list --label "0.5.0" --state closed --limit 1000 --json state | jq length)
+
+          if [ $TOTAL -gt 0 ]; then
+            PCT=$(echo "scale=1; $CLOSED * 100 / $TOTAL" | bc)
+            echo "Completion: ${PCT}% ($CLOSED/$TOTAL)"
+
+            PHASE="TBD"
+            if (( $(echo "$PCT < 25" | bc -l) )); then PHASE="Foundation (Weeks 1-3)"
+            elif (( $(echo "$PCT < 50" | bc -l) )); then PHASE="Security (Weeks 4-6)"
+            elif (( $(echo "$PCT < 75" | bc -l) )); then PHASE="Hardening (Weeks 7-8)"
+            else PHASE="Release (Weeks 9-12)"; fi
+
+            gh issue comment 256 --body "📊 Project Status: ${PCT}% complete ($CLOSED/$TOTAL). Trigger: #${ISSUE_NUM} closed. Phase: $PHASE. [Board](https://github.com/users/Guffawaffle/projects/4)"
+          fi
