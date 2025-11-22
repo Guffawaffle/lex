@@ -1,4 +1,4 @@
-import { getLogger } from "lex/logger";
+import { getLogger } from "@smartergpt/lex/logger";
 import { createDatabase } from "../store/db.js";
 import {
   saveFrame,
