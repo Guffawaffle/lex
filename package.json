@@ -131,7 +131,9 @@
     "better-sqlite3": "^12.4.1",
     "commander": "^12.0.0",
     "express": "^5.1.0",
+    "express-rate-limit": "^8.2.1",
     "glob": "^11.1.0",
+    "helmet": "^8.1.0",
     "inquirer": "^12.10.0",
     "minimatch": "^10.1.1",
     "pino": "^10.1.0",
@@ -151,6 +153,7 @@
     "@types/better-sqlite3": "^7.6.11",
     "@types/inquirer": "^9.0.9",
     "@types/node": "^24.9.2",
+    "@types/supertest": "^6.0.3",
     "@types/uuid": "^10.0.0",
     "@typescript-eslint/eslint-plugin": "^8.46.3",
     "@typescript-eslint/parser": "^8.46.3",
@@ -162,6 +165,7 @@
     "lex-pr-runner": "file:../lex-pr-runner",
     "prettier": "^3.6.2",
     "rimraf": "^6.0.0",
+    "supertest": "^7.1.4",
     "ts-morph": "^27.0.2",
     "tsx": "^4.20.6"
   }

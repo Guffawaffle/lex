@@ -22,14 +22,14 @@ We provide security updates for the following versions:
 
 ---
 
-## Known Limitations (0.4.0-alpha)
+## Known Limitations (0.4.2-alpha)
 
 **This alpha release is NOT production-hardened.** Known security limitations:
 
-1. **No authentication** on MCP server
-2. **No encryption** for database at rest
-3. **No audit trail** for database modifications
-4. **No rate limiting** on API endpoints
+1. **No authentication on MCP stdio mode** (MCP server runs as local process)
+2. **HTTP mode requires API key** (mandatory as of 0.4.2) - See HTTP Server Security below
+3. **No encryption** for database at rest
+4. **Limited audit trail** (HTTP requests logged, database ops not tracked)
 5. **SQLite limitations** (not suitable for high-concurrency)
 6. **Example scanners not audited** (Python/PHP in `examples/scanners/`)
 
@@ -47,6 +47,155 @@ We provide security updates for the following versions:
 See `docs/SECURITY_POSTURE.md` for detailed guidance and production roadmap
 
 ---
+
+## HTTP Server Security (New in 0.4.2)
+
+**⚠️ IMPORTANT: HTTP mode is less secure than MCP stdio mode. Use stdio for local development.**
+
+### Security Features (0.4.2+)
+
+The HTTP Frame Ingestion API includes the following security hardening:
+
+✅ **Mandatory API Key Authentication**
+- API key is REQUIRED (cannot start server without it)
+- Bearer token authentication on all `/api/frames` endpoints
+- Separate rate limiting for auth failures (5 attempts / 15min)
+
+✅ **Rate Limiting**
+- General API: 100 requests per 15 minutes per IP
+- Auth failures: 5 attempts per 15 minutes per IP
+- Configurable via `HttpServerOptions`
+
+✅ **Request Security**
+- 1MB request size limit (prevents memory exhaustion)
+- Security headers via Helmet (CSP, HSTS, etc.)
+- JSON strict parsing only
+
+✅ **Audit Logging**
+- All HTTP requests logged with: method, path, status, duration, IP, user agent
+- API key hashes logged (NOT the actual keys)
+- Separate audit logger: `memory:mcp_server:audit`
+
+### Deployment Best Practices
+
+**DO:**
+- ✅ Use strong, randomly-generated API keys (32+ characters)
+- ✅ Deploy behind TLS-terminating reverse proxy (nginx, Caddy, Traefik)
+- ✅ Bind to localhost and proxy from reverse proxy
+- ✅ Monitor audit logs for suspicious activity
+- ✅ Rotate API keys regularly
+- ✅ Use environment variables for API keys (never commit to git)
+
+**DON'T:**
+- ❌ Expose HTTP server directly to internet without reverse proxy
+- ❌ Use weak or guessable API keys
+- ❌ Share API keys across multiple clients
+- ❌ Log API keys in application code
+- ❌ Use HTTP mode for local development (use stdio instead)
+
+### Example: Nginx Reverse Proxy with TLS
+
+```nginx
+server {
+  listen 443 ssl http2;
+  server_name lex.internal.company.com;
+
+  # TLS configuration (Let's Encrypt)
+  ssl_certificate /etc/letsencrypt/live/lex.internal.company.com/fullchain.pem;
+  ssl_certificate_key /etc/letsencrypt/live/lex.internal.company.com/privkey.pem;
+  ssl_protocols TLSv1.2 TLSv1.3;
+  ssl_ciphers HIGH:!aNULL:!MD5;
+
+  # Security headers
+  add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+  add_header X-Frame-Options DENY always;
+  add_header X-Content-Type-Options nosniff always;
+
+  # Proxy to Lex HTTP server (localhost only)
+  location /api/frames {
+    proxy_pass http://127.0.0.1:3000;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+
+    # Additional rate limiting at nginx level
+    limit_req zone=api_limit burst=20 nodelay;
+  }
+
+  # Health check (no auth required)
+  location /health {
+    proxy_pass http://127.0.0.1:3000;
+    access_log off;
+  }
+}
+
+# Rate limit zone definition (add to http block)
+limit_req_zone $binary_remote_addr zone=api_limit:10m rate=10r/s;
+```
+
+### Starting HTTP Server
+
+```typescript
+import { startHttpServer } from "lex/memory/mcp_server";
+import { openDatabase } from "lex/memory/store";
+
+const db = openDatabase();
+
+// API key MUST be provided (will throw error if missing)
+await startHttpServer(db, {
+  apiKey: process.env.LEX_HTTP_API_KEY!, // Required
+  port: 3000,
+  rateLimitWindowMs: 15 * 60 * 1000, // Optional: 15min (default)
+  rateLimitMaxRequests: 100, // Optional: 100 req/window (default)
+});
+```
+
+### Environment Variables
+
+```bash
+# Required for HTTP mode
+export LEX_HTTP_API_KEY="your-secure-random-api-key-here"
+
+# Optional configuration
+export LEX_HTTP_PORT="3000"
+export LEX_HTTP_RATE_LIMIT_WINDOW="900000"  # 15min in ms
+export LEX_HTTP_RATE_LIMIT_MAX="100"
+```
+
+### MCP Stdio Mode (Recommended for Local Dev)
+
+For local development and personal use, **MCP stdio mode is safer**:
+
+```json
+// Claude Desktop config: ~/.config/Claude/claude_desktop_config.json
+{
+  "mcpServers": {
+    "lex": {
+      "command": "lex",
+      "args": ["mcp"],  // stdio mode (default) - NO HTTP server
+      "env": {}
+    }
+  }
+}
+```
+
+**Why stdio is safer:**
+- ✅ No network exposure (not listening on any port)
+- ✅ Runs as subprocess of MCP client
+- ✅ Inherits OS-level permissions
+- ✅ Cannot be accessed remotely
+- ✅ No need for API keys or TLS
+
+**When to use HTTP mode:**
+- CI/CD pipelines need to POST frames programmatically
+- External tools (non-MCP) require webhook-based ingestion
+- Distributed systems need centralized frame storage
+- You have proper reverse proxy with TLS
+
+---
+
+## Known Limitations (0.4.0-alpha)
 
 ## Reporting a Vulnerability
 

@@ -250,7 +250,7 @@ function resolveImportToModule(importPath: string, policy: Policy): string | nul
  */
 function matchPath(filePath: string, pattern: string): boolean {
   // Escape all special regex characters except * and /
-  const escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, '\\$&');
+  const escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, "\\$&");
   // Convert glob patterns: ** = any nested path, * = any non-slash characters
   const regexPattern = escaped.replace(/\*\*/g, ".*").replace(/\*/g, "[^/]*").replace(/\//g, "\\/");
   const regex = new RegExp(`^${regexPattern}$`);
