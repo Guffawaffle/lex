@@ -1,0 +1,166 @@
+name: "0.5.0 Task"
+description: Create a task/subtask for Project 0.5.0 (Production Hardening & Canon Assets)
+title: "[0.5.0] "
+labels: ["0.5.0"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Project 0.5.0 Task Template
+
+        This template is for creating tasks related to the 0.5.0 release (Production Hardening & Canon Assets).
+
+        **Project Board:** [GitHub Project #4](https://github.com/users/Guffawaffle/projects/4)
+        **Charter:** [Issue #256](https://github.com/Guffawaffle/lex/issues/256)
+        **DMAIC Framework:** [Six Sigma Methodology](../.github/PROJECT_0.5.0_SIXSIGMA.md)
+
+  - type: dropdown
+    id: tier
+    attributes:
+      label: Project Tier
+      description: Which tier does this task belong to?
+      options:
+        - "P0: Production Hardening (SQLCipher, OAuth2, Audit)"
+        - "P1: Canon Restructuring (Assets, Loaders, Tests)"
+        - "P1: Cross-Repo Alignment (LexRunner sync)"
+        - "P2: Support/Documentation"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: phase
+    attributes:
+      label: Execution Phase
+      description: Which phase of the 16-week timeline?
+      options:
+        - "Weeks 1-3: Foundation"
+        - "Weeks 4-6: Security Phase"
+        - "Weeks 7-8: Hardening & Freeze"
+        - "Weeks 9-12: Release"
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Task Description
+      description: What needs to be done?
+      placeholder: |
+        Clear description of the work required.
+
+        **Context:** Why is this needed for 0.5.0?
+        **Scope:** What's in/out of scope?
+        **Dependencies:** Blocks/blocked by which other issues?
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance Criteria
+      description: How will we know this is done?
+      placeholder: |
+        - [ ] Criterion 1 (specific, measurable)
+        - [ ] Criterion 2
+        - [ ] All tests passing (if code changes)
+        - [ ] Documentation updated (if user-facing)
+      value: |
+        - [ ]
+    validations:
+      required: true
+
+  - type: textarea
+    id: six_sigma_metrics
+    attributes:
+      label: Six Sigma Quality Metrics
+      description: Which CTQ (Critical to Quality) metrics does this impact?
+      placeholder: |
+        Check all that apply:
+        - [ ] Test Coverage (target: ≥90%)
+        - [ ] Security Audit (target: 0 critical/high findings)
+        - [ ] Performance (target: <10% regression)
+        - [ ] CI Success Rate (target: ≥98%)
+        - [ ] PR Cycle Time (target: ≤2 days)
+      value: |
+        - [ ] Test Coverage (target: ≥90%)
+        - [ ] Security Audit (target: 0 critical/high findings)
+        - [ ] Performance (target: <10% regression)
+
+  - type: dropdown
+    id: risk_level
+    attributes:
+      label: Risk Level (FMEA)
+      description: What's the risk if this fails?
+      options:
+        - "Critical (RPN >100): Release blocker"
+        - "High (RPN 50-100): Must fix before release"
+        - "Medium (RPN 20-50): Should fix if time"
+        - "Low (RPN <20): Nice to have"
+    validations:
+      required: true
+
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies
+      description: What must happen before this can start? What does this unblock?
+      placeholder: |
+        **Blocks:** #123, #456
+        **Blocked by:** #789
+        **Related (LexRunner):** #370-#375 (if cross-repo)
+      value: |
+        **Blocks:**
+        **Blocked by:**
+        **Related:**
+
+  - type: input
+    id: estimated_effort
+    attributes:
+      label: Estimated Effort
+      description: How long will this take? (e.g., "2 days", "1 week")
+      placeholder: "1 week"
+
+  - type: textarea
+    id: verification
+    attributes:
+      label: Verification Steps
+      description: How should reviewers/QA verify this is correct?
+      placeholder: |
+        1. Step-by-step instructions to test
+        2. Expected outcomes
+        3. What to check for regressions
+      value: |
+        1.
+        2.
+        3.
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Pre-Submission Checklist
+      description: Ensure this task is ready for review
+      options:
+        - label: "Task is specific and actionable (not vague)"
+          required: true
+        - label: "Acceptance criteria are measurable"
+          required: true
+        - label: "Dependencies are identified"
+          required: true
+        - label: "Risk level is assessed"
+          required: true
+        - label: "Tier and phase are correct"
+          required: true
+
+  - type: markdown
+    attributes:
+      value: |
+        ---
+
+        **Professional Standards (Six Sigma DMAIC):**
+        - All P0 tasks must pass security audit + performance benchmarks
+        - Test coverage ≥90% for any code changes
+        - Breaking changes require migration guide
+        - Cross-repo changes need LexRunner PM sync
+
+        **Ref:** [PROJECT_0.5.0_SIXSIGMA.md](../.github/PROJECT_0.5.0_SIXSIGMA.md)

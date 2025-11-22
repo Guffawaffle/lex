@@ -2,6 +2,12 @@
 
 ![MIT License](https://img.shields.io/badge/License-MIT-green)
 ![OSS](https://img.shields.io/badge/Community-OSS-blue)
+![Version](https://img.shields.io/badge/version-0.4.4--alpha-blue)
+![CI](https://img.shields.io/badge/CI-passing-success)
+![Coverage](https://img.shields.io/badge/coverage-89.2%25-yellow)
+![Tests](https://img.shields.io/badge/tests-123%2F123-success)
+
+**🚀 Active Project:** [0.5.0 Release](https://github.com/users/Guffawaffle/projects/4) — Production Hardening & Canon Assets (Jan-Mar 2026)
 
 > ⚠️ **Alpha Release Notice**
 >
@@ -9,14 +15,41 @@
 >
 > **Expected:**
 > - ✅ Core features work (memory, policy, MCP server, CLI)
-> - ✅ 556 passing tests, full type safety
+> - ✅ 123 passing tests, full type safety
 > - ❌ Breaking API changes between minor versions
 > - ❌ Not recommended for production multi-tenant systems
 >
-> **Best for:** Personal projects, local dev tools, private MCP servers, experimental automation
+> **Best for:** Personal projects, local dev tools, private MCP servers, experimental automation  
 > **Not yet for:** Public SaaS, production deployments, mission-critical systems
 >
-> **Feedback welcome:** [Report issues](https://github.com/Guffawaffle/lex-pr-runner/issues)
+> **Feedback welcome:** [Report issues](https://github.com/Guffawaffle/lex/issues)
+
+---
+
+## 📊 Project 0.5.0 — Production Hardening (Active)
+
+**Timeline:** 16 weeks (Jan 6 - Mar 31, 2026)  
+**Methodology:** Six Sigma DMAIC  
+**Target:** Production-ready with SQLCipher encryption, OAuth2/JWT, and enhanced audit logging
+
+| Metric | Current | Target | Status |
+|--------|---------|--------|--------|
+| **Completion** | 0% (planning) | 100% by Mar 31 | 🟡 On track |
+| **Test Coverage** | 89.2% | ≥90% | 🟡 Near target |
+| **CI Success** | 96.4% | ≥98% | 🟡 Improving |
+| **Security** | 2 medium findings | 0 critical/high | 🟢 Clean |
+
+**📌 Key Links:**
+- [Project Board](https://github.com/users/Guffawaffle/projects/4) (GitHub Project #4)
+- [Charter & Scope](https://github.com/Guffawaffle/lex/issues/256) (Issue #256)
+- [Six Sigma Framework](./.github/PROJECT_0.5.0_SIXSIGMA.md) (DMAIC methodology)
+- [Metrics Dashboard](./docs/PROJECT_0.5.0_METRICS.md) (live tracking)
+
+**🎯 Deliverables:**
+- **Pre-Alpha (Feb 28):** SQLCipher + OAuth2 + audit logging (σ ≥3.5)
+- **Stable Release (Mar 31):** Production-ready v0.5.0 (σ ≥4.0)
+
+---
 
 **Policy-aware work continuity with receipts.**
 
