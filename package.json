@@ -89,16 +89,21 @@
     "prepare": "npm run build"
   },
   "keywords": [
+    "mcp",
+    "model-context-protocol",
     "memory",
     "policy",
-    "continuity",
-    "mcp",
-    "frames",
-    "atlas",
-    "fold-radius",
-    "policy-scanner",
+    "developer-tools",
     "work-continuity",
-    "typescript"
+    "atlas",
+    "frame-storage",
+    "session-tracking",
+    "code-analysis",
+    "policy-scanner",
+    "fold-radius",
+    "typescript",
+    "continuity",
+    "receipts"
   ],
   "author": "Guffawaffle",
   "license": "MIT",
