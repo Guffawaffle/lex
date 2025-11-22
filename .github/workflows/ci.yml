@@ -149,12 +149,14 @@ jobs:
             exit 1
           fi
           # Verify content matches canon/
-          if ! diff -r canon/prompts prompts > /dev/null 2>&1; then
+          if ! diff -r canon/prompts prompts > /dev/null; then
             echo "❌ prompts/ does not match canon/prompts"
+            diff -r canon/prompts prompts
             exit 1
           fi
-          if ! diff -r canon/schemas schemas > /dev/null 2>&1; then
+          if ! diff -r canon/schemas schemas > /dev/null; then
             echo "❌ schemas/ does not match canon/schemas"
+            diff -r canon/schemas schemas
             exit 1
           fi
           echo "✅ Canon assets verified: prompts/ and schemas/ match canon/"
