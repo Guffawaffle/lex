@@ -9,6 +9,24 @@
 
 **🚀 Active Project:** [0.5.0 Release](https://github.com/users/Guffawaffle/projects/4) — Production Hardening & Canon Assets (Jan-Mar 2026)
 
+---
+
+## 🌟 Mission — Democratizing AI Capability Through Cognitive Architecture
+
+**The Challenge:** AI capability today is gated by model access. Claude 3.7 Sonnet outperforms Llama 3.1 8B on complex tasks—not because of fundamentally different reasoning, but because of massive parameter advantages. This creates a two-tier system: those with API budgets or high-end GPUs, and everyone else.
+
+**Our Thesis:** *Cognitive architecture can bridge this gap.* Just as human experts rely on external memory, structured reasoning, and policy-driven decision-making, AI agents can achieve near-parity performance with deliberate architectural support—even on consumer hardware.
+
+**Proof of Value — EsoBench Target:**  
+We're designing toward a future where a **Llama 3.1 8B agent (8GB VRAM baseline)**, equipped with Lex episodic memory, LexRunner orchestration, and LexSona behavioral rules, achieves **≥85% success rate** on the EsoBench benchmark—approaching the performance of frontier models without requiring enterprise infrastructure.
+
+**Why This Matters:**
+- **Access over exclusivity:** Democratizes advanced AI workflows for developers without $200/month API budgets or 80GB GPUs
+- **Architecture over parameters:** Shifts focus from "bigger models" to "smarter systems"
+- **Raising the floor:** Makes sophisticated agent patterns accessible to students, hobbyists, and resource-constrained teams
+
+This is the North Star guiding our roadmap. Today, Lex provides the **episodic memory foundation**. With LexRunner (automated orchestration) and LexSona (behavioral rules), we're building toward that proof point.
+
 > ⚠️ **Alpha Release Notice**
 >
 > **Lex 0.4.0-alpha is an early preview** for local development and private automation use cases.
