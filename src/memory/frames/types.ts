@@ -1,4 +1,6 @@
-// TODO(merge): Wire this into shared/types/ once schema unification is complete
+// Note: This file provides Zod runtime validation schemas for Frame types.
+// The canonical TypeScript types are in src/shared/types/frame.ts.
+// Future: Consider consolidating into a single source with both Zod schemas and TS types.
 // This file originated from LexBrain packages/sdk-ts/src/index.ts (pre-merge)
 
 import { z } from "zod";

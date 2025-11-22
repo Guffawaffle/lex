@@ -123,8 +123,23 @@ node dist/memory/mcp_server/frame-mcp.js
 ```
 
 ### Environment Variables:
-- `LEX_MEMORY_DB` - Path to SQLite database (default: `lex-memory.db`)
+- `LEX_WORKSPACE_ROOT` - Workspace/project root directory (overrides auto-detection from script location)
+- `LEX_MEMORY_DB` - Path to SQLite database (default: `<workspace>/.smartergpt.local/lex/memory.db` or `~/.lex/frames.db`)
+- `LEX_POLICY_PATH` - Explicit path to policy file (overrides auto-detection)
+- `LEX_DB_PATH` - Alternative to LEX_MEMORY_DB for database path
+- `LEX_DEFAULT_BRANCH` - Override git branch detection
 - `LEX_DEBUG` - Enable debug logging
+
+**Policy Resolution (in order of priority):**
+1. `LEX_POLICY_PATH` environment variable (explicit override)
+2. `LEX_WORKSPACE_ROOT` (if set) or auto-detected workspace root: `.smartergpt.local/lex/lexmap.policy.json` (working file)
+3. `LEX_WORKSPACE_ROOT` (if set) or auto-detected workspace root: `policy/policy_spec/lexmap.policy.json` (example)
+4. Operate without policy enforcement (allows any module IDs)
+
+**Database Path Resolution (in order of priority):**
+1. `LEX_MEMORY_DB` or `LEX_DB_PATH` environment variable (explicit override)
+2. `LEX_WORKSPACE_ROOT` (if set) or auto-detected workspace root: `.smartergpt.local/lex/memory.db`
+3. Home directory fallback: `~/.lex/frames.db`
 
 ### Example Usage:
 ```bash
@@ -202,9 +217,9 @@ node -e "
   import('./dist/memory/store/index.js').then(store => {
     import('./dist/memory/mcp_server/http-server.js').then(server => {
       const db = store.createDatabase();
-      server.startHttpServer(db, { 
-        port: process.env.LEX_API_PORT, 
-        apiKey: process.env.LEX_API_KEY 
+      server.startHttpServer(db, {
+        port: process.env.LEX_API_PORT,
+        apiKey: process.env.LEX_API_KEY
       });
     });
   });
