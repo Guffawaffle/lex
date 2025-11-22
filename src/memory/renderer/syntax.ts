@@ -1,4 +1,4 @@
-import { getLogger } from "lex/logger";
+import { getLogger } from "@smartergpt/lex/logger";
 import { codeToHtml, createHighlighter } from "shiki";
 import type { BundledLanguage } from "shiki";
 

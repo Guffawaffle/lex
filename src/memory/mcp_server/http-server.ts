@@ -16,7 +16,7 @@ import rateLimit from "express-rate-limit";
 import helmet from "helmet";
 import { createHash } from "crypto";
 import { createFramesRouter } from "./routes/frames.js";
-import { getLogger } from "lex/logger";
+import { getLogger } from "@smartergpt/lex/logger";
 
 const logger = getLogger("memory:mcp_server:http-server");
 const auditLogger = getLogger("memory:mcp_server:audit");
