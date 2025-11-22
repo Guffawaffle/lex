@@ -30,9 +30,10 @@ async function validateSchemas() {
     const schemaPath = path.join(schemasDir, file);
     const schema = JSON.parse(await fs.readFile(schemaPath, 'utf-8'));
     
-    // Validate schema itself with AJV
+    // Validate schema itself with AJV and compile it
+    let validate;
     try {
-      ajv.compile(schema);
+      validate = ajv.compile(schema);
       console.log(`✓ ${file} is valid`);
     } catch (err) {
       console.error(`✗ ${file}: ${err.message}`);
@@ -60,9 +61,8 @@ async function validateSchemas() {
       warnings++;
     }
     
-    // Validate examples against the schema
+    // Validate examples against the schema (reuse compiled validator)
     if (schema.examples && Array.isArray(schema.examples)) {
-      const validate = ajv.compile(schema);
       schema.examples.forEach((example, idx) => {
         const valid = validate(example);
         if (!valid) {
