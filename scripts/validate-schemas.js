@@ -24,22 +24,62 @@ async function validateSchemas() {
   );
   
   let errors = 0;
+  let warnings = 0;
+  
   for (const file of schemaFiles) {
     const schemaPath = path.join(schemasDir, file);
     const schema = JSON.parse(await fs.readFile(schemaPath, 'utf-8'));
     
+    // Check for required hardening properties first (independent of compilation)
+    const issues = [];
+    
+    if (!schema.$id) {
+      issues.push('missing $id field');
+    }
+    
+    if (schema.type === 'object' && schema.additionalProperties !== false) {
+      issues.push('missing additionalProperties: false');
+    }
+    
+    if (!schema.examples || !Array.isArray(schema.examples) || schema.examples.length === 0) {
+      issues.push('missing examples array');
+    }
+    
+    if (issues.length > 0) {
+      console.warn(`  ⚠ ${file}: ${issues.join(', ')}`);
+      warnings++;
+    }
+    
+    // Validate schema itself with AJV and compile it
+    let validate;
     try {
-      ajv.compile(schema);
+      validate = ajv.compile(schema);
       console.log(`✓ ${file} is valid`);
     } catch (err) {
       console.error(`✗ ${file}: ${err.message}`);
       errors++;
+      continue; // Skip example validation if schema itself is invalid
+    }
+    
+    // Validate examples against the schema (reuse compiled validator)
+    if (schema.examples && Array.isArray(schema.examples)) {
+      schema.examples.forEach((example, idx) => {
+        const valid = validate(example);
+        if (!valid) {
+          console.error(`  ✗ ${file}: example[${idx}] is invalid:`, validate.errors);
+          errors++;
+        }
+      });
     }
   }
   
   if (errors > 0) {
     console.error(`\n${errors} schema(s) failed validation`);
     process.exit(1);
+  }
+  
+  if (warnings > 0) {
+    console.warn(`\n⚠ ${warnings} schema(s) have hardening warnings`);
   }
   
   console.log(`\n✓ All ${schemaFiles.length} schemas valid`);
