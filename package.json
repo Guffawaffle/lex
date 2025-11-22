@@ -34,7 +34,7 @@
     "./shared/*": "./dist/shared/*"
   },
   "bin": {
-    "lex": "./dist/shared/cli/lex.js"
+    "lex": "dist/shared/cli/lex.js"
   },
   "files": [
     "dist/**/*.js",
@@ -109,7 +109,10 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Guffawaffle/lex.git"
+    "url": "git+https://github.com/Guffawaffle/lex.git"
+  },
+  "publishConfig": {
+    "tag": "alpha"
   },
   "bugs": {
     "url": "https://github.com/Guffawaffle/lex/issues"
