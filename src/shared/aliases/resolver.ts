@@ -10,7 +10,6 @@ export { AmbiguousSubstringError, NoMatchFoundError } from "./types.js";
 // @ts-ignore - cross-package import from compiled dist
 import type { Policy } from "../types/policy.js";
 import type { AliasTable, AliasResolution, ResolverOptions } from "./types.js";
-import { AmbiguousSubstringError, NoMatchFoundError } from "./types.js";
 import { readFileSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";

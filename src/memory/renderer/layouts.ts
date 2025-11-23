@@ -172,7 +172,7 @@ export function forceDirectedLayout(
 export function hierarchicalLayout(
   nodes: GraphNode[],
   edges: AtlasEdge[],
-  config: LayoutConfig = {}
+  _config: LayoutConfig = {}
 ): Layout {
   const cfg = { ...DEFAULT_FORCE_CONFIG, ...config };
 

@@ -7,13 +7,11 @@
 
 import type { AtlasFrame } from "./types.js";
 
-/**
- * Cache key for an Atlas Frame computation
- */
-interface CacheKey {
-  moduleScope: string[]; // Sorted module IDs
-  radius: number;
-}
+// Future: CacheKey interface for typed cache keys
+// interface CacheKey {
+//   moduleScope: string[]; // Sorted module IDs
+//   radius: number;
+// }
 
 /**
  * Cache statistics for monitoring
