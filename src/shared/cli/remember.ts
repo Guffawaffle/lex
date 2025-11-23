@@ -113,7 +113,8 @@ async function promptForFrameData(
   options: RememberOptions,
   _currentBranch: string
 ): Promise<RememberOptions> {
-  const questions: Record<string, unknown>[] = [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const questions: any[] = [];
 
   if (!options.jira) {
     questions.push({
