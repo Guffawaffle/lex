@@ -10,7 +10,6 @@ export { AmbiguousSubstringError, NoMatchFoundError } from "./types.js";
 // @ts-ignore - cross-package import from compiled dist
 import type { Policy } from "../types/policy.js";
 import type { AliasTable, AliasResolution, ResolverOptions } from "./types.js";
-import { AmbiguousSubstringError, NoMatchFoundError } from "./types.js";
 import { readFileSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
@@ -39,11 +38,12 @@ export function loadAliasTable(aliasTablePath?: string): AliasTable {
     aliasTableCache = JSON.parse(content) as AliasTable;
 
     return aliasTableCache;
-  } catch (error: any) {
+  } catch (error: unknown) {
     // If alias table doesn't exist or can't be loaded, return empty table
     // This is expected for new installations
     if (process.env.LEX_DEBUG) {
-      console.error(`[LEX] Could not load alias table: ${error.message}`);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error(`[LEX] Could not load alias table: ${errorMessage}`);
       console.error(`[LEX] Using empty alias table`);
     }
 

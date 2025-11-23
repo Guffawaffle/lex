@@ -161,9 +161,7 @@ describe("Policy Integration Tests", () => {
         ],
       };
 
-      const merged = mergeScans([scan1, scan2]);
-
-      // Should have 3 unique edges (auth->utils, auth->config, admin->utils)
+      const merged = mergeScans([scan1, scan2]); // Should have 3 unique edges (auth->utils, auth->config, admin->utils)
       assert.equal(merged.edges.length, 3);
 
       const edgeKeys = merged.edges.map((e) => `${e.from}->${e.to}`);
@@ -279,7 +277,7 @@ describe("Policy Integration Tests", () => {
         ],
       };
 
-      const merged = mergeScans([scan]);
+      mergeScans([scan]);
 
       // Create a Frame from scan results
       const frame = {
