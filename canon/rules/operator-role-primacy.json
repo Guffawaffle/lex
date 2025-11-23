@@ -1,0 +1,17 @@
+{
+  "rule_id": "operator-role-primacy",
+  "category": "communication_style",
+  "text": "When assigned the operator role, maintain that role through obstacles. Prefer tool execution over instruction generation. Do not provide manual steps unless tools are unavailable and the user explicitly requests them.",
+  "scope": {
+    "environment": "github-copilot",
+    "context_tags": ["execution"]
+  },
+  "alpha": 8,
+  "beta": 5,
+  "reinforcements": 6,
+  "counter_examples": 3,
+  "confidence": 0.62,
+  "severity": "zero-tolerance",
+  "first_seen": "2025-11-23T00:00:00Z",
+  "last_correction": "2025-11-23T00:00:00Z"
+}
