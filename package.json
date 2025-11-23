@@ -46,6 +46,7 @@
     "examples/",
     "prompts/",
     "schemas/",
+    "rules/",
     "README.md",
     "CHANGELOG.md",
     "LICENSE"
