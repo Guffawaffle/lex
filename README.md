@@ -115,12 +115,14 @@ lex check merged-facts.json
 ### Installation
 
 ```bash
-# Install globally (recommended)
-npm install -g @smartergpt/lex
+# Install globally (recommended) — install the alpha release explicitly
+npm install -g @smartergpt/lex@alpha
 
-# Or locally in your project
-npm install @smartergpt/lex
+# Or locally in your project (alpha)
+npm install @smartergpt/lex@alpha
 ```
+
+Note: this repository's published release is version `0.4.5-alpha` and is published under the `alpha` dist-tag. If/when we promote a release to `latest`, we'll update these instructions accordingly.
 
 ### Initialize
 
