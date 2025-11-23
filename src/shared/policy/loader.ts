@@ -161,8 +161,9 @@ export function loadPolicy(path?: string): Policy {
           `Run 'npm run setup-local' to initialize working files.`
       );
     }
+    const errorMessage = error instanceof Error ? error.message : String(error);
     throw new Error(
-      `Failed to load policy from ${envPath || path || DEFAULT_POLICY_PATH}: ${error.message}`
+      `Failed to load policy from ${envPath || path || DEFAULT_POLICY_PATH}: ${errorMessage}`
     );
   }
 }
