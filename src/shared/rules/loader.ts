@@ -11,7 +11,10 @@ import { readFileSync, existsSync, readdirSync } from "fs";
 import { resolve, dirname, join } from "path";
 import { fileURLToPath } from "url";
 import { z } from "zod";
+import { getLogger } from "../logger/index.js";
 import type { BehavioralRule, RuleContext, ResolvedRule, RuleScope } from "./types.js";
+
+const logger = getLogger("rules");
 
 /**
  * Zod schema for rule scope validation
@@ -92,9 +95,10 @@ function loadRuleFile(filePath: string, source: 'env' | 'workspace' | 'package')
     };
   } catch (error) {
     // Log warning but continue (graceful degradation)
-    if (process.env.LEX_LOG_LEVEL !== 'silent') {
-      console.warn(`Warning: Failed to load rule from ${filePath}:`, error instanceof Error ? error.message : String(error));
-    }
+    logger.warn(
+      { path: filePath, error: error instanceof Error ? error.message : String(error) },
+      "Failed to load rule file"
+    );
     return null;
   }
 }
@@ -127,9 +131,10 @@ function loadRulesFromDirectory(dirPath: string, source: 'env' | 'workspace' | '
     }
   } catch (error) {
     // Ignore errors when reading directory (graceful degradation)
-    if (process.env.LEX_LOG_LEVEL !== 'silent') {
-      console.warn(`Warning: Failed to read rules directory ${dirPath}:`, error instanceof Error ? error.message : String(error));
-    }
+    logger.warn(
+      { path: dirPath, error: error instanceof Error ? error.message : String(error) },
+      "Failed to read rules directory"
+    );
   }
 
   return rules;

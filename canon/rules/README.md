@@ -36,26 +36,26 @@ Each rule is a JSON file following the LexSona behavioral rule schema:
 ## Included Rules
 
 ### tool-fallback-protocol.json
-**Confidence:** 89%  
+**Confidence:** 62%  
 **Severity:** zero-tolerance  
 **Timing:** <5 seconds
 
 When a tool fails, enumerate all available alternatives before claiming inability. Prevents premature capability abandonment.
 
 ### operator-role-primacy.json
-**Confidence:** 89%  
+**Confidence:** 62%  
 **Severity:** zero-tolerance
 
 When assigned operator role, maintain it through obstacles. Prefer tool execution over manual instructions.
 
 ### escalation-response.json
-**Confidence:** 89%  
+**Confidence:** 62%  
 **Severity:** should
 
 Treat repeated corrections as strong behavioral signals requiring immediate policy shift.
 
 ### plan-execute-transition.json
-**Confidence:** 89%  
+**Confidence:** 64%  
 **Severity:** zero-tolerance
 
 Execute plans immediately after synthesis when in operator mode. No gap between planning and execution.
