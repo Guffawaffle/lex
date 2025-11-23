@@ -37,7 +37,7 @@ describe("Image Manager", () => {
     if (testDbPath) {
       try {
         rmSync(testDbPath, { force: true });
-      } catch (_e) {
+      } catch {
         // Ignore cleanup errors
       }
     }
@@ -283,7 +283,7 @@ describe("Image Manager", () => {
       const imageData = Buffer.from("test-image-data");
 
       const beforeTime = Date.now();
-      const imageId = imageManager.storeImage(frame.id, imageData, "image/png");
+      const _imageId = imageManager.storeImage(frame.id, imageData, "image/png");
       const afterTime = Date.now();
 
       const images = imageManager.listFrameImages(frame.id);

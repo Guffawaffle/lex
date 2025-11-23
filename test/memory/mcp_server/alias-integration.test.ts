@@ -56,7 +56,7 @@ describe("MCP Server Alias Resolution Integration Tests", () => {
     if (testRepoRoot) {
       try {
         rmSync(testRepoRoot, { force: true, recursive: true });
-      } catch (e) {
+      } catch {
         // Ignore cleanup errors
       }
     }
