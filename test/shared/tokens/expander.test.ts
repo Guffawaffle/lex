@@ -16,7 +16,7 @@ import {
   hasTokens,
   extractTokens,
   expandTokensInObject,
-} from "@app/shared/tokens/expander.js";
+} from "../../../src/shared/tokens/expander.js";
 import { mkdtempSync, rmSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";

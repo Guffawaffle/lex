@@ -19,7 +19,7 @@ import {
   getRepoRoot,
   getWorkspaceRoot,
   expandPath,
-} from "@app/shared/paths/normalizer.js";
+} from "../../../src/shared/paths/normalizer.js";
 import { mkdtempSync, rmSync, mkdirSync, symlinkSync } from "fs";
 import { join, resolve } from "path";
 import { tmpdir, homedir, platform } from "os";
