@@ -1,5 +1,7 @@
 import { getLogger } from "@smartergpt/lex/logger";
-import { codeToHtml, createHighlighter } from "shiki";
+import { codeToHtml } from "shiki";
+// Future: createHighlighter for custom syntax themes
+// import { createHighlighter } from "shiki";
 import type { BundledLanguage } from "shiki";
 
 const logger = getLogger("memory:renderer:syntax");
@@ -187,5 +189,6 @@ function escapeHtml(text: string): string {
  * Check if a language is supported
  */
 export function isLanguageSupported(language: string): language is BundledLanguage {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return SUPPORTED_LANGUAGES.includes(language as any);
 }

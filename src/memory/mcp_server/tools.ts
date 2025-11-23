@@ -11,7 +11,7 @@ export interface MCPTool {
   inputSchema: {
     type: string;
     required?: string[];
-    properties: Record<string, any>;
+    properties: Record<string, unknown>;
   };
 }
 

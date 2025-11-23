@@ -57,7 +57,7 @@ export function getCurrentBranch(): string {
     // Cache and return the branch name
     branchCache = result;
     return branchCache;
-  } catch (error) {
+  } catch {
     // Not a git repository or git command failed
     branchCache = "unknown";
     return branchCache;
