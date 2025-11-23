@@ -293,11 +293,13 @@ Lex is **production-ready for local development** but still alpha for multi-tena
 
 ### 🚧 Active Development: Project 0.5.0
 
-**Timeline:** January–March 2026
-**Goal:** Production-ready release with security hardening
+**Timeline:** Q1 2026 (January–March)
+**Goal:** Production-ready release with security hardening and LexSona behavioral rules
 
 | Feature | Status | Target |
 |---------|--------|--------|
+| Canon assets + precedence | ✅ Complete | Nov 2025 |
+| LexSona behavioral rules (v0) | 🟡 In Progress | Dec 2025 |
 | SQLCipher encryption | 🟡 Planned | Feb 2026 |
 | OAuth2/JWT auth | 🟡 Planned | Feb 2026 |
 | Enhanced audit logging | 🟡 Planned | Feb 2026 |
@@ -318,14 +320,14 @@ Lex is **production-ready for local development** but still alpha for multi-tena
 
 ### Democratizing AI Capability
 
-**The Challenge:** Today's AI landscape is two-tier. Frontier models (GPT-4, Claude 3.5) outperform smaller models (Llama 8B) primarily due to parameter count—not reasoning architecture.
+**The Challenge:** Today's AI landscape is two-tier. Frontier models (GPT-5.1, Claude 4.5 Sonnet) outperform smaller models (Llama 3.3 70B, Qwen 32B) primarily due to parameter count—not reasoning architecture.
 
 **Our Thesis:** *Cognitive architecture can bridge this gap.* Just as human experts use external memory and structured reasoning, AI agents can achieve near-frontier performance with:
 - Episodic memory (Lex Frames)
 - Orchestration tools (LexRunner)
 - Behavioral constraints (LexSona)
 
-**Proof Target:** A locally-run Llama 3.1 8B agent (~8GB VRAM) achieving **≥85% of frontier model scores** on EsoBench.
+**Proof Target:** A locally-run Llama 3.3 70B agent (~40GB VRAM) or Qwen 32B (~20GB VRAM) achieving **≥85% of frontier model scores** on EsoBench.
 
 **Why This Matters:**
 - **Access over exclusivity** — No $200/month API budget required
