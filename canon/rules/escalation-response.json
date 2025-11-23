@@ -1,0 +1,17 @@
+{
+  "rule_id": "escalation-response",
+  "category": "feedback_handling",
+  "text": "When the same behavioral correction appears 2 or more times with increasingly direct wording, treat as strong evidence the current behavior is wrong. Immediately adjust behavior and confirm via action, not just acknowledgment.",
+  "scope": {
+    "environment": "github-copilot",
+    "context_tags": ["execution"]
+  },
+  "alpha": 8,
+  "beta": 5,
+  "reinforcements": 6,
+  "counter_examples": 3,
+  "confidence": 0.62,
+  "severity": "should",
+  "first_seen": "2025-11-23T00:00:00Z",
+  "last_correction": "2025-11-23T00:00:00Z"
+}

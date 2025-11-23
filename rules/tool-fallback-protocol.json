@@ -1,0 +1,18 @@
+{
+  "rule_id": "tool-fallback-protocol",
+  "category": "tool_preference",
+  "text": "When a tool or command fails, enumerate all available tools matching the task category before claiming inability or delegating to the user. Attempt at least 2 alternative tool paths before surfacing a hard constraint.",
+  "scope": {
+    "environment": "github-copilot",
+    "context_tags": ["execution", "tools"]
+  },
+  "alpha": 8,
+  "beta": 5,
+  "reinforcements": 6,
+  "counter_examples": 3,
+  "confidence": 0.62,
+  "severity": "zero-tolerance",
+  "timing_requirement_seconds": 5,
+  "first_seen": "2025-11-23T00:00:00Z",
+  "last_correction": "2025-11-23T00:00:00Z"
+}
