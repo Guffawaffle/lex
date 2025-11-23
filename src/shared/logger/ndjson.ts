@@ -17,9 +17,8 @@
  * }
  */
 
-import { writeFileSync, appendFileSync, mkdirSync, existsSync, statSync, readdirSync, renameSync } from "fs";
-import { join, dirname } from "path";
-import { homedir } from "os";
+import { writeFileSync, appendFileSync, mkdirSync, existsSync, statSync, readdirSync, renameSync, unlinkSync } from "fs";
+import { join } from "path";
 
 export type LogLevel = "trace" | "debug" | "info" | "warn" | "error" | "fatal";
 
@@ -102,8 +101,7 @@ function cleanupOldLogs(keepCount: number): void {
   // Remove oldest files beyond keepCount
   files.slice(keepCount).forEach(file => {
     try {
-      const fs = require("fs");
-      fs.unlinkSync(file.path);
+      unlinkSync(file.path);
     } catch {
       // Ignore errors during cleanup
     }
@@ -145,7 +143,9 @@ export function writeLog(entry: LogEntry): void {
     }
   } catch (error) {
     // Silent fail - don't disrupt application if logging fails
+    // Only log to stderr in debug mode to avoid polluting application output
     if (process.env.LEX_DEBUG === "1") {
+      // eslint-disable-next-line no-console
       console.error("Failed to write log:", error);
     }
   }
