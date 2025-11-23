@@ -19,8 +19,7 @@ import { strict as assert } from "assert";
 import { test, describe, beforeEach, afterEach } from "node:test";
 import { loadPolicy, clearPolicyCache } from "@app/shared/policy/loader.js";
 import { fileURLToPath } from "url";
-import { dirname, resolve, join } from "path";
-import { existsSync, readFileSync, unlinkSync, mkdirSync, writeFileSync, rmSync, mkdtempSync } from "fs";
+import { dirname, join } from "path";
 import { tmpdir } from "os";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -79,9 +78,9 @@ describe("Policy Loader Precedence", () => {
         [moduleName]: {
           enabled: true,
           fold_radius: 2,
-          rules: {}
-        }
-      }
+          rules: {},
+        },
+      },
     };
   }
 
@@ -89,7 +88,7 @@ describe("Policy Loader Precedence", () => {
     const repo = createTestRepo();
     const customPolicyDir = join(repo, "custom-policy");
     mkdirSync(customPolicyDir, { recursive: true });
-    
+
     const policyPath = join(customPolicyDir, "policy.json");
     writeFileSync(policyPath, JSON.stringify(createTestPolicy("env-override")));
 
@@ -102,11 +101,14 @@ describe("Policy Loader Precedence", () => {
 
   test("custom path parameter overrides working file", () => {
     const repo = createTestRepo();
-    
+
     // Create working file
     const workingDir = join(repo, ".smartergpt.local", "lex");
     mkdirSync(workingDir, { recursive: true });
-    writeFileSync(join(workingDir, "lexmap.policy.json"), JSON.stringify(createTestPolicy("working")));
+    writeFileSync(
+      join(workingDir, "lexmap.policy.json"),
+      JSON.stringify(createTestPolicy("working"))
+    );
 
     // Create custom path file
     const customPath = join(repo, "custom.json");
@@ -120,10 +122,13 @@ describe("Policy Loader Precedence", () => {
 
   test("falls back to working file when no overrides", () => {
     const repo = createTestRepo();
-    
+
     const workingDir = join(repo, ".smartergpt.local", "lex");
     mkdirSync(workingDir, { recursive: true });
-    writeFileSync(join(workingDir, "lexmap.policy.json"), JSON.stringify(createTestPolicy("working")));
+    writeFileSync(
+      join(workingDir, "lexmap.policy.json"),
+      JSON.stringify(createTestPolicy("working"))
+    );
 
     process.env.LEX_WORKSPACE_ROOT = repo;
 
@@ -133,11 +138,14 @@ describe("Policy Loader Precedence", () => {
 
   test("falls back to example file when working file missing", () => {
     const repo = createTestRepo();
-    
+
     // Create example file
     const exampleDir = join(repo, "src", "policy", "policy_spec");
     mkdirSync(exampleDir, { recursive: true });
-    writeFileSync(join(exampleDir, "lexmap.policy.json.example"), JSON.stringify(createTestPolicy("example")));
+    writeFileSync(
+      join(exampleDir, "lexmap.policy.json.example"),
+      JSON.stringify(createTestPolicy("example"))
+    );
 
     process.env.LEX_WORKSPACE_ROOT = repo;
 
@@ -147,18 +155,24 @@ describe("Policy Loader Precedence", () => {
 
   test("LEX_POLICY_PATH overrides all other sources", () => {
     const repo = createTestRepo();
-    
+
     // Create all levels
     const envPath = join(repo, "env.json");
     writeFileSync(envPath, JSON.stringify(createTestPolicy("env")));
 
     const workingDir = join(repo, ".smartergpt.local", "lex");
     mkdirSync(workingDir, { recursive: true });
-    writeFileSync(join(workingDir, "lexmap.policy.json"), JSON.stringify(createTestPolicy("working")));
+    writeFileSync(
+      join(workingDir, "lexmap.policy.json"),
+      JSON.stringify(createTestPolicy("working"))
+    );
 
     const exampleDir = join(repo, "src", "policy", "policy_spec");
     mkdirSync(exampleDir, { recursive: true });
-    writeFileSync(join(exampleDir, "lexmap.policy.json.example"), JSON.stringify(createTestPolicy("example")));
+    writeFileSync(
+      join(exampleDir, "lexmap.policy.json.example"),
+      JSON.stringify(createTestPolicy("example"))
+    );
 
     process.env.LEX_WORKSPACE_ROOT = repo;
     process.env.LEX_POLICY_PATH = envPath;
@@ -171,14 +185,20 @@ describe("Policy Loader Precedence", () => {
 
   test("working file overrides example file", () => {
     const repo = createTestRepo();
-    
+
     const workingDir = join(repo, ".smartergpt.local", "lex");
     mkdirSync(workingDir, { recursive: true });
-    writeFileSync(join(workingDir, "lexmap.policy.json"), JSON.stringify(createTestPolicy("working")));
+    writeFileSync(
+      join(workingDir, "lexmap.policy.json"),
+      JSON.stringify(createTestPolicy("working"))
+    );
 
     const exampleDir = join(repo, "src", "policy", "policy_spec");
     mkdirSync(exampleDir, { recursive: true });
-    writeFileSync(join(exampleDir, "lexmap.policy.json.example"), JSON.stringify(createTestPolicy("example")));
+    writeFileSync(
+      join(exampleDir, "lexmap.policy.json.example"),
+      JSON.stringify(createTestPolicy("example"))
+    );
 
     process.env.LEX_WORKSPACE_ROOT = repo;
 
@@ -189,7 +209,7 @@ describe("Policy Loader Precedence", () => {
 
   test("caches policy on subsequent loads", () => {
     const repo = createTestRepo();
-    
+
     const workingDir = join(repo, ".smartergpt.local", "lex");
     mkdirSync(workingDir, { recursive: true });
     writeFileSync(join(workingDir, "lexmap.policy.json"), JSON.stringify(createTestPolicy("test")));
@@ -205,7 +225,7 @@ describe("Policy Loader Precedence", () => {
 
   test("clearPolicyCache clears the cache", () => {
     const repo = createTestRepo();
-    
+
     const workingDir = join(repo, ".smartergpt.local", "lex");
     mkdirSync(workingDir, { recursive: true });
     writeFileSync(join(workingDir, "lexmap.policy.json"), JSON.stringify(createTestPolicy("test")));
@@ -289,15 +309,15 @@ describe("Policy Loader Edge Cases", () => {
         [moduleName]: {
           enabled: true,
           fold_radius: 2,
-          rules: {}
-        }
-      }
+          rules: {},
+        },
+      },
     };
   }
 
   test("handles invalid JSON in policy file", () => {
     const repo = createTestRepo();
-    
+
     const workingDir = join(repo, ".smartergpt.local", "lex");
     mkdirSync(workingDir, { recursive: true });
     writeFileSync(join(workingDir, "lexmap.policy.json"), "{ invalid json }");
@@ -311,7 +331,7 @@ describe("Policy Loader Edge Cases", () => {
 
   test("handles missing modules field in policy", () => {
     const repo = createTestRepo();
-    
+
     const workingDir = join(repo, ".smartergpt.local", "lex");
     mkdirSync(workingDir, { recursive: true });
     writeFileSync(join(workingDir, "lexmap.policy.json"), JSON.stringify({ version: "1.0" }));
@@ -326,7 +346,7 @@ describe("Policy Loader Edge Cases", () => {
   test("handles relative paths in LEX_POLICY_PATH", () => {
     const repo = createTestRepo();
     const originalCwd = process.cwd();
-    
+
     try {
       const policyPath = join(repo, "custom.json");
       writeFileSync(policyPath, JSON.stringify(createTestPolicy("relative")));
@@ -344,10 +364,13 @@ describe("Policy Loader Edge Cases", () => {
 
   test("handles concurrent loadPolicy() calls", async () => {
     const repo = createTestRepo();
-    
+
     const workingDir = join(repo, ".smartergpt.local", "lex");
     mkdirSync(workingDir, { recursive: true });
-    writeFileSync(join(workingDir, "lexmap.policy.json"), JSON.stringify(createTestPolicy("concurrent")));
+    writeFileSync(
+      join(workingDir, "lexmap.policy.json"),
+      JSON.stringify(createTestPolicy("concurrent"))
+    );
 
     process.env.LEX_WORKSPACE_ROOT = repo;
 
@@ -365,7 +388,7 @@ describe("Policy Loader Edge Cases", () => {
 
   test("does not cache when using custom path", () => {
     const repo = createTestRepo();
-    
+
     const path1 = join(repo, "policy1.json");
     const path2 = join(repo, "policy2.json");
     writeFileSync(path1, JSON.stringify(createTestPolicy("policy1")));
@@ -383,7 +406,7 @@ describe("Policy Loader Edge Cases", () => {
 
   test("does not cache when using LEX_POLICY_PATH", () => {
     const repo = createTestRepo();
-    
+
     const path1 = join(repo, "policy1.json");
     const path2 = join(repo, "policy2.json");
     writeFileSync(path1, JSON.stringify(createTestPolicy("policy1")));
@@ -404,11 +427,14 @@ describe("Policy Loader Edge Cases", () => {
 
   test("handles missing .smartergpt.local directory gracefully", () => {
     const repo = createTestRepo();
-    
+
     // Create only example file
     const exampleDir = join(repo, "src", "policy", "policy_spec");
     mkdirSync(exampleDir, { recursive: true });
-    writeFileSync(join(exampleDir, "lexmap.policy.json.example"), JSON.stringify(createTestPolicy("example")));
+    writeFileSync(
+      join(exampleDir, "lexmap.policy.json.example"),
+      JSON.stringify(createTestPolicy("example"))
+    );
 
     process.env.LEX_WORKSPACE_ROOT = repo;
 

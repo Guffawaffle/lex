@@ -1,5 +1,7 @@
 import { getLogger } from "@smartergpt/lex/logger";
-import { codeToHtml, createHighlighter } from "shiki";
+import { codeToHtml } from "shiki";
+// Future: createHighlighter for custom syntax themes
+// import { createHighlighter } from "shiki";
 import type { BundledLanguage } from "shiki";
 
 const logger = getLogger("memory:renderer:syntax");

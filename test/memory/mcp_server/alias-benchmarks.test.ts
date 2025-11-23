@@ -19,13 +19,10 @@
  * Run with: npm run build && node --test dist/alias-benchmarks.test.js
  */
 
-import { test, describe, before, after } from "node:test";
+import { test, describe } from "node:test";
 import assert from "node:assert";
 // @ts-ignore
 import { validateModuleIds } from "@app/shared/module_ids/validator.js";
-import { mkdtempSync, rmSync, writeFileSync } from "fs";
-import { join } from "path";
-import { tmpdir } from "os";
 
 // Mock policy for benchmarking
 const createTestPolicy = (moduleCount: number) => {
@@ -54,7 +51,7 @@ async function measureTime(fn: () => Promise<void>): Promise<number> {
   const start = performance.now();
   try {
     await fn();
-  } catch (error) {
+  } catch (_error) {
     // Still record timing even if function throws
     // This ensures we measure actual execution time
   }

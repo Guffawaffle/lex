@@ -41,7 +41,7 @@ describe("Git Branch Detection", () => {
     if (testDir) {
       try {
         rmSync(testDir, { recursive: true, force: true });
-      } catch (e) {
+      } catch (_e) {
         // Ignore cleanup errors
       }
     }

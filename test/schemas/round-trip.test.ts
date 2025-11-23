@@ -5,7 +5,6 @@ import addFormats from "ajv-formats";
 import { readFileSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
-import { createRequire } from "module";
 
 import { ProfileSchema } from "../../.smartergpt/schemas/profile.schema.js";
 // NOTE: These schemas migrated to lex-pr-runner in PR #219
@@ -17,7 +16,6 @@ import { FeatureSpecV0Schema } from "../../.smartergpt/schemas/feature-spec-v0.j
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const require = createRequire(import.meta.url);
 
 describe("Zod ↔ JSON Schema Round-Trip", () => {
   const ajv = new Ajv({
