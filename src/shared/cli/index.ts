@@ -11,6 +11,7 @@ import { check, type CheckOptions } from "./check.js";
 import { timeline, type TimelineCommandOptions } from "./timeline.js";
 import { init, type InitOptions } from "./init.js";
 import { exportFrames, type ExportCommandOptions } from "./export.js";
+import { dbVacuum, dbBackup, type DbVacuumOptions, type DbBackupOptions } from "./db.js";
 import * as output from "./output.js";
 import { readFileSync } from "fs";
 import { join, dirname } from "path";
@@ -188,6 +189,37 @@ export function createProgram(): Command {
         json: globalOptions.json || false,
       };
       await exportFrames(options);
+    });
+
+  // lex db command group
+  const dbCommand = program
+    .command("db")
+    .description("Database maintenance commands");
+
+  // lex db vacuum
+  dbCommand
+    .command("vacuum")
+    .description("Optimize database (rebuild and compact)")
+    .action(async () => {
+      const globalOptions = program.opts();
+      const options: DbVacuumOptions = {
+        json: globalOptions.json || false,
+      };
+      await dbVacuum(options);
+    });
+
+  // lex db backup
+  dbCommand
+    .command("backup")
+    .description("Create timestamped database backup")
+    .option("--rotate <n>", "Keep N most recent backups (0 = no rotation)", parseInt)
+    .action(async (cmdOptions) => {
+      const globalOptions = program.opts();
+      const options: DbBackupOptions = {
+        rotate: cmdOptions.rotate,
+        json: globalOptions.json || false,
+      };
+      await dbBackup(options);
     });
 
   return program;
