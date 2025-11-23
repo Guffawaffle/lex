@@ -428,7 +428,7 @@ While TypeScript scanning is built-in, **Python and PHP scanners** are available
 # Scan Python codebase
 python examples/scanners/python/scan.py src/ > python-facts.json
 
-# Scan PHP codebase  
+# Scan PHP codebase
 php examples/scanners/php/scan.php src/ > php-facts.json
 
 # Merge with TypeScript facts
