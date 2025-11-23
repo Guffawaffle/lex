@@ -209,6 +209,66 @@ export function getAllFrames(db: Database.Database, limit?: number): Frame[] {
 }
 
 /**
+ * Query options for exporting frames
+ */
+export interface ExportFramesOptions {
+  since?: string; // ISO 8601 timestamp
+  jira?: string;
+  branch?: string;
+}
+
+/**
+ * Get frames iterator for export with optional filters
+ * Uses iterator for memory-efficient streaming of large result sets
+ */
+export function getFramesForExport(
+  db: Database.Database,
+  options: ExportFramesOptions = {}
+): IterableIterator<Frame> {
+  const whereClauses: string[] = [];
+  const params: any[] = [];
+
+  if (options.since) {
+    whereClauses.push("timestamp >= ?");
+    params.push(options.since);
+  }
+
+  if (options.jira) {
+    whereClauses.push("jira = ?");
+    params.push(options.jira);
+  }
+
+  if (options.branch) {
+    whereClauses.push("branch = ?");
+    params.push(options.branch);
+  }
+
+  const whereClause = whereClauses.length > 0 ? `WHERE ${whereClauses.join(" AND ")}` : "";
+
+  const stmt = db.prepare(`
+    SELECT * FROM frames
+    ${whereClause}
+    ORDER BY timestamp ASC
+  `);
+
+  const rows = stmt.iterate(...params) as IterableIterator<FrameRow>;
+
+  // Transform iterator to return Frame objects instead of FrameRow
+  return {
+    [Symbol.iterator](): IterableIterator<Frame> {
+      return this;
+    },
+    next(): IteratorResult<Frame> {
+      const result = rows.next();
+      if (result.done) {
+        return { done: true, value: undefined };
+      }
+      return { done: false, value: rowToFrame(result.value) };
+    },
+  };
+}
+
+/**
  * Delete a Frame by ID
  */
 export function deleteFrame(db: Database.Database, id: string): boolean {

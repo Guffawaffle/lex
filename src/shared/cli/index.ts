@@ -10,6 +10,7 @@ import { recall, type RecallOptions } from "./recall.js";
 import { check, type CheckOptions } from "./check.js";
 import { timeline, type TimelineCommandOptions } from "./timeline.js";
 import { init, type InitOptions } from "./init.js";
+import { exportFrames, type ExportCommandOptions } from "./export.js";
 import * as output from "./output.js";
 import { readFileSync } from "fs";
 import { join, dirname } from "path";
@@ -161,8 +162,33 @@ export function createProgram(): Command {
       await timeline(ticketOrBranch, options);
     });
 
-  // Note: 'db' and 'frames export' commands are not available in 0.4.0 alpha.
-  // Planned for future release - see backlog for database maintenance features.
+  // lex frames command group
+  const framesCommand = program.command("frames").description("Frame database operations");
+
+  // lex frames export command
+  framesCommand
+    .command("export")
+    .description("Export frames from database to JSON files")
+    .option("--out <dir>", "Output directory (default: .smartergpt.local/lex/frames.export)")
+    .option(
+      "--since <date|duration>",
+      "Export frames since date or duration (e.g., 7d, 2025-01-01)"
+    )
+    .option("--jira <ticket>", "Export frames for specific Jira ticket")
+    .option("--branch <name>", "Export frames for specific branch")
+    .option("--format <type>", "Output format: json or ndjson", /^(json|ndjson)$/, "json")
+    .action(async (cmdOptions) => {
+      const globalOptions = program.opts();
+      const options: ExportCommandOptions = {
+        out: cmdOptions.out,
+        since: cmdOptions.since,
+        jira: cmdOptions.jira,
+        branch: cmdOptions.branch,
+        format: cmdOptions.format,
+        json: globalOptions.json || false,
+      };
+      await exportFrames(options);
+    });
 
   return program;
 }
