@@ -189,5 +189,5 @@ function escapeHtml(text: string): string {
  * Check if a language is supported
  */
 export function isLanguageSupported(language: string): language is BundledLanguage {
-  return SUPPORTED_LANGUAGES.includes(language as any);
+  return SUPPORTED_LANGUAGES.includes(language as BundledLanguage);
 }

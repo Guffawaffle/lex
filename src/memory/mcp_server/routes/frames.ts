@@ -175,7 +175,7 @@ function validateFrameRequest(body: any): { valid: boolean; error?: ApiErrorResp
 export function createFramesRouter(
   db: Database.Database,
   apiKey: string,
-  authFailureLimiter?: any
+  authFailureLimiter?: unknown
 ): Router {
   const router = Router();
 

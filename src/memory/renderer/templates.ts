@@ -3,6 +3,8 @@
  * Optimized for LLM vision input with high-contrast, readable design
  */
 
+import type { Frame } from "../frames/types.js";
+
 export interface CardDimensions {
   width: number;
   height: number;
@@ -126,7 +128,7 @@ export function wrapText(text: string, maxWidth: number, charWidth: number): str
 /**
  * Calculate dynamic card height based on content
  */
-export function calculateCardHeight(frame: any, dimensions: CardDimensions): number {
+export function calculateCardHeight(frame: Frame, dimensions: CardDimensions): number {
   let lines = 0;
 
   // Title + timestamp + branch + divider
@@ -149,26 +151,26 @@ export function calculateCardHeight(frame: any, dimensions: CardDimensions): num
   lines += nextActionLines;
 
   // Blockers
-  if (frame.status_snapshot.blockers?.length > 0) {
+  const blockers = frame.status_snapshot.blockers || [];
+  if (blockers.length > 0) {
     lines += 1; // heading
-    const blockerCount = Math.min(frame.status_snapshot.blockers.length, TEXT_LIMITS.maxBlockers);
+    const blockerCount = Math.min(blockers.length, TEXT_LIMITS.maxBlockers);
     lines += blockerCount;
   }
 
   // Merge blockers
-  if (frame.status_snapshot.merge_blockers?.length > 0) {
+  const mergeBlockers = frame.status_snapshot.merge_blockers || [];
+  if (mergeBlockers.length > 0) {
     lines += 1; // heading
-    const mergeBlockerCount = Math.min(
-      frame.status_snapshot.merge_blockers.length,
-      TEXT_LIMITS.maxBlockers
-    );
+    const mergeBlockerCount = Math.min(mergeBlockers.length, TEXT_LIMITS.maxBlockers);
     lines += mergeBlockerCount;
   }
 
   // Tests failing
-  if (frame.status_snapshot.tests_failing?.length > 0) {
+  const testsFailing = frame.status_snapshot.tests_failing || [];
+  if (testsFailing.length > 0) {
     lines += 1; // heading
-    const testCount = Math.min(frame.status_snapshot.tests_failing.length, TEXT_LIMITS.maxBlockers);
+    const testCount = Math.min(testsFailing.length, TEXT_LIMITS.maxBlockers);
     lines += testCount;
   }
 
@@ -176,7 +178,8 @@ export function calculateCardHeight(frame: any, dimensions: CardDimensions): num
   lines += 2;
 
   // Keywords
-  if (frame.keywords?.length > 0) {
+  const keywords = frame.keywords || [];
+  if (keywords.length > 0) {
     lines += 2;
   }
 

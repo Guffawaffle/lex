@@ -308,16 +308,18 @@ function processLoops(
       continue;
     }
 
+    const arrayItems = items as unknown[];
+
     // Render each item
     let loopOutput = "";
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i];
+    for (let i = 0; i < arrayItems.length; i++) {
+      const item = arrayItems[i];
       const itemContext = {
         ...context,
         this: item,
         "@index": i,
         "@first": i === 0,
-        "@last": i === items.length - 1,
+        "@last": i === arrayItems.length - 1,
       };
 
       // Render loop body with item context
