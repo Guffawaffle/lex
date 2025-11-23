@@ -28,6 +28,13 @@ const RuleScopeSchema = z.object({
 
 /**
  * Zod schema for behavioral rule validation
+ * 
+ * Note on Bayesian priors:
+ * - alpha (successes): minimum 2 (skeptical prior)
+ * - beta (failures): minimum 5 (skeptical prior)
+ * These asymmetric minimums reflect the LexSona Bayesian framework's
+ * skeptical stance: rules must prove themselves more convincingly
+ * than they can fail to be considered valid.
  */
 const BehavioralRuleSchema = z.object({
   rule_id: z.string(),
