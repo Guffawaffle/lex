@@ -65,7 +65,7 @@ export function getDefaultDbPath(): string {
 }
 
 /**
- * Find repository root by looking for package.json with name "lex"
+ * Find repository root by looking for package.json with name "lex" or "@smartergpt/lex"
  */
 function findRepoRoot(startPath: string): string {
   let currentPath = startPath;
@@ -75,7 +75,7 @@ function findRepoRoot(startPath: string): string {
     if (existsSync(packageJsonPath)) {
       try {
         const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf-8"));
-        if (packageJson.name === "lex") {
+        if (packageJson.name === "lex" || packageJson.name === "@smartergpt/lex") {
           return currentPath;
         }
       } catch {
