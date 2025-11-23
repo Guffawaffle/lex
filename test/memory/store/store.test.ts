@@ -22,7 +22,7 @@ import {
   getAllFrames,
   deleteFrame,
   getFrameCount,
-} from \"@app/memory/store/index.js\";
+} from "@app/memory/store/index.js";
 import type { Frame } from "../frames/types.js";
 
 // Test database path

@@ -32,7 +32,7 @@ describe("MCP Server - Protocol", () => {
     if (testDbPath) {
       try {
         rmSync(testDbPath, { force: true });
-      } catch (_e) {
+      } catch {
         // Ignore cleanup errors
       }
     }
