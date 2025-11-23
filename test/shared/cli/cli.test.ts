@@ -7,7 +7,7 @@
 import { test } from "node:test";
 import assert from "node:assert";
 import { execSync } from "node:child_process";
-import { writeFileSync, mkdirSync, existsSync, rmSync, readFileSync } from "fs";
+import { writeFileSync, mkdirSync, existsSync, rmSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
 

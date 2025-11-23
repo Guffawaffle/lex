@@ -141,7 +141,7 @@ describe("autoTuneRadius", () => {
       critical_rule: "x".repeat(radius * 200 + 200),
     });
 
-    const result = autoTuneRadius(generateFn, 3, 120, (oldRadius, newRadius, tokens, limit) => {
+    autoTuneRadius(generateFn, 3, 120, (oldRadius, newRadius, tokens, limit) => {
       adjustments.push({ oldRadius, newRadius, tokens, limit });
     });
 
