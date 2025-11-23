@@ -69,10 +69,11 @@ function extractVariables(template: string): string[] {
     ""
   );
 
-  const varRegex = /\{\{[\{]?\s*([a-zA-Z_][a-zA-Z0-9_\.]*)\s*[\}]?\}\}/g;
+  // Use a safer regex that avoids potential ReDoS with explicit brace matching
+  const varRegex = /\{\{(\{?)\s*([a-zA-Z_][a-zA-Z0-9_\.]*)\s*(\}?)\}\}/g;
 
   while ((match = varRegex.exec(cleanedTemplate)) !== null) {
-    const varName = match[1];
+    const varName = match[2]; // Group 2 is the variable name now
 
     // Skip control keywords and special variables
     if (
@@ -248,8 +249,9 @@ function processConditionals(
   _shouldEscape: boolean
 ): string {
   // Match nested if/else/endif blocks
+  // Use tempered greedy token to avoid ReDoS: ((?:(?!{{else}}|{{\/if}})[\s\S])*)
   const ifRegex =
-    /\{\{#if\s+([a-zA-Z_][a-zA-Z0-9_\.]*)\s*\}\}([\s\S]*?)(?:\{\{else\}\}([\s\S]*?))?\{\{\/if\}\}/g;
+    /\{\{#if\s+([a-zA-Z_][a-zA-Z0-9_\.]*)\s*\}\}((?:(?!\{\{else\}\}|\{\{\/if\}\})[\s\S])*?)(?:\{\{else\}\}((?:(?!\{\{\/if\}\})[\s\S])*?))?\{\{\/if\}\}/g;
 
   let result = template;
   let match;
@@ -285,7 +287,9 @@ function processLoops(
   strict: boolean,
   shouldEscape: boolean
 ): string {
-  const eachRegex = /\{\{#each\s+([a-zA-Z_][a-zA-Z0-9_\.]*)\s*\}\}([\s\S]*?)\{\{\/each\}\}/g;
+  // Use tempered greedy token to avoid ReDoS: ((?:(?!{{\/each}})[\s\S])*)
+  const eachRegex =
+    /\{\{#each\s+([a-zA-Z_][a-zA-Z0-9_\.]*)\s*\}\}((?:(?!\{\{\/each\}\})[\s\S])*?)\{\{\/each\}\}/g;
 
   let result = template;
   let match;
