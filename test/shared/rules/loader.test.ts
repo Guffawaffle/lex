@@ -4,7 +4,7 @@
 
 import { test, describe, beforeEach, afterEach } from "node:test";
 import assert from "node:assert";
-import { resolveRules, listRules, getRule } from "../../../src/shared/rules/loader.js";
+import { resolveRules } from "../../../src/shared/rules/loader.js";
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
