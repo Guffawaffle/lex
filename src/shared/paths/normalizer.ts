@@ -70,7 +70,7 @@ export function normalizePath(
 
   // Step 2: Expand Windows environment variables (%VAR%)
   if (process.platform === "win32") {
-    normalized = normalized.replace(/%([^%]+)%/g, (_, varName) => {
+    normalized = normalized.replace(/%([^%]+)%/g, (_, varName: string) => {
       return process.env[varName] || `%${varName}%`;
     });
   }

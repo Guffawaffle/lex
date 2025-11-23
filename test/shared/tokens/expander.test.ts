@@ -20,7 +20,6 @@ import {
 import { mkdtempSync, rmSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
-import { execSync } from "child_process";
 
 describe("Token Expansion", () => {
   let originalDir: string;
