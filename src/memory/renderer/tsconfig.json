@@ -8,7 +8,7 @@
       "lex/logger/*": ["../../shared/logger/*"]
     }
   },
-  "include": ["./*.ts"],
+  "include": ["./*.ts", "../frames/types.ts"],
   "exclude": ["node_modules", "dist", "integration-demo.ts", "*.test.ts"],
   "references": [
     { "path": "../../shared/logger" }
