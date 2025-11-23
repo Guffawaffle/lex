@@ -23,7 +23,7 @@ function resolvePackageAsset(type: "prompts" | "schemas", name: string): string 
   // When local dev: <repo>/prompts/ or <repo>/schemas/
   const currentFile = fileURLToPath(import.meta.url);
   let pkgRoot = dirname(currentFile);
-  
+
   // Walk up until we find package.json or reach a dist/ or src/ boundary
   // In dist: /home/runner/work/lex/lex/dist/shared/schemas/loader.js -> /home/runner/work/lex/lex
   // In src:  /home/runner/work/lex/lex/src/shared/schemas/loader.ts -> /home/runner/work/lex/lex
@@ -35,7 +35,7 @@ function resolvePackageAsset(type: "prompts" | "schemas", name: string): string 
     }
     pkgRoot = dirname(pkgRoot);
   }
-  
+
   // Fallback: shouldn't reach here in normal use
   throw new Error(`Could not resolve package root from ${currentFile}`);
 }
@@ -79,7 +79,7 @@ export function loadSchema(schemaName: string): object {
     const envPath = resolve(envDir, schemaName);
     attemptedPaths.push(envPath);
     if (existsSync(envPath)) {
-      return JSON.parse(readFileSync(envPath, "utf-8"));
+      return JSON.parse(readFileSync(envPath, "utf-8")) as object;
     }
   }
 
@@ -87,14 +87,14 @@ export function loadSchema(schemaName: string): object {
   const localPath = join(process.cwd(), ".smartergpt.local", "schemas", schemaName);
   attemptedPaths.push(localPath);
   if (existsSync(localPath)) {
-    return JSON.parse(readFileSync(localPath, "utf-8"));
+    return JSON.parse(readFileSync(localPath, "utf-8")) as object;
   }
 
   // Priority 3: Package canon (resolve from package installation)
   const canonPath = resolvePackageAsset("schemas", schemaName);
   attemptedPaths.push(canonPath);
   if (existsSync(canonPath)) {
-    return JSON.parse(readFileSync(canonPath, "utf-8"));
+    return JSON.parse(readFileSync(canonPath, "utf-8")) as object;
   }
 
   throw new Error(
