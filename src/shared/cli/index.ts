@@ -192,9 +192,7 @@ export function createProgram(): Command {
     });
 
   // lex db command group
-  const dbCommand = program
-    .command("db")
-    .description("Database maintenance commands");
+  const dbCommand = program.command("db").description("Database maintenance commands");
 
   // lex db vacuum
   dbCommand
