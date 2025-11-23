@@ -17,7 +17,7 @@ import { createDatabase, getDefaultDbPath } from "./db.js";
 
 export type { FrameRow } from "./db.js";
 export type { Frame, FrameStatusSnapshot } from "../frames/types.js";
-export type { SearchResult } from "./queries.js";
+export type { SearchResult, ExportFramesOptions } from "./queries.js";
 
 export {
   saveFrame,
@@ -27,6 +27,7 @@ export {
   getFramesByJira,
   getFramesByModuleScope,
   getAllFrames,
+  getFramesForExport,
   deleteFrame,
   getFrameCount,
 } from "./queries.js";
