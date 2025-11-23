@@ -10,7 +10,7 @@
 
 import { test, describe, beforeEach } from "node:test";
 import assert from "node:assert";
-import { getCurrentCommit, clearCommitCache } from "@app/shared/git/commit.js";
+import { getCurrentCommit, clearCommitCache } from "../../../src/shared/git/commit.js";
 import { execSync } from "child_process";
 import { mkdtempSync, rmSync } from "fs";
 import { join } from "path";
