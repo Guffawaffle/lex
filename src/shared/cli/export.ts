@@ -64,6 +64,29 @@ function getDefaultExportDir(): string {
 }
 
 /**
+ * Prepare frame for export by including only defined fields
+ */
+function prepareFrameForExport(frame: Frame): Frame {
+  return {
+    id: frame.id,
+    reference_point: frame.reference_point,
+    summary_caption: frame.summary_caption,
+    status_snapshot: frame.status_snapshot,
+    module_scope: frame.module_scope,
+    branch: frame.branch,
+    timestamp: frame.timestamp,
+    ...(frame.jira && { jira: frame.jira }),
+    ...(frame.keywords && { keywords: frame.keywords }),
+    ...(frame.atlas_frame_id && { atlas_frame_id: frame.atlas_frame_id }),
+    ...(frame.feature_flags && { feature_flags: frame.feature_flags }),
+    ...(frame.permissions && { permissions: frame.permissions }),
+    ...(frame.runId && { runId: frame.runId }),
+    ...(frame.planHash && { planHash: frame.planHash }),
+    ...(frame.spend && { spend: frame.spend }),
+  };
+}
+
+/**
  * Execute the 'lex frames export' command
  */
 export async function exportFrames(options: ExportCommandOptions = {}): Promise<void> {
@@ -105,25 +128,7 @@ export async function exportFrames(options: ExportCommandOptions = {}): Promise<
         const filename = `frame-${frame.id}.json`;
         const filepath = join(dateDir, filename);
 
-        // Prepare frame for export (remove internal fields if needed)
-        const exportFrame: Frame = {
-          id: frame.id,
-          reference_point: frame.reference_point,
-          summary_caption: frame.summary_caption,
-          status_snapshot: frame.status_snapshot,
-          module_scope: frame.module_scope,
-          branch: frame.branch,
-          timestamp: frame.timestamp,
-          ...(frame.jira && { jira: frame.jira }),
-          ...(frame.keywords && { keywords: frame.keywords }),
-          ...(frame.atlas_frame_id && { atlas_frame_id: frame.atlas_frame_id }),
-          ...(frame.feature_flags && { feature_flags: frame.feature_flags }),
-          ...(frame.permissions && { permissions: frame.permissions }),
-          ...(frame.runId && { runId: frame.runId }),
-          ...(frame.planHash && { planHash: frame.planHash }),
-          ...(frame.spend && { spend: frame.spend }),
-        };
-
+        const exportFrame = prepareFrameForExport(frame);
         writeFileSync(filepath, JSON.stringify(exportFrame, null, 2));
         count++;
 
@@ -139,25 +144,7 @@ export async function exportFrames(options: ExportCommandOptions = {}): Promise<
       let ndjsonContent = "";
 
       for (const frame of frames) {
-        // Prepare frame for export
-        const exportFrame: Frame = {
-          id: frame.id,
-          reference_point: frame.reference_point,
-          summary_caption: frame.summary_caption,
-          status_snapshot: frame.status_snapshot,
-          module_scope: frame.module_scope,
-          branch: frame.branch,
-          timestamp: frame.timestamp,
-          ...(frame.jira && { jira: frame.jira }),
-          ...(frame.keywords && { keywords: frame.keywords }),
-          ...(frame.atlas_frame_id && { atlas_frame_id: frame.atlas_frame_id }),
-          ...(frame.feature_flags && { feature_flags: frame.feature_flags }),
-          ...(frame.permissions && { permissions: frame.permissions }),
-          ...(frame.runId && { runId: frame.runId }),
-          ...(frame.planHash && { planHash: frame.planHash }),
-          ...(frame.spend && { spend: frame.spend }),
-        };
-
+        const exportFrame = prepareFrameForExport(frame);
         ndjsonContent += JSON.stringify(exportFrame) + "\n";
         count++;
 
