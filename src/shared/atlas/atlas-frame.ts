@@ -6,7 +6,8 @@
  */
 
 import { loadPolicy } from "../policy/loader.js";
-import type { PolicyModule } from "../types/policy.js";
+// Future: PolicyModule type for enhanced metadata
+// import type { PolicyModule } from "../types/policy.js";
 import { extractNeighborhood, generateCoordinates } from "./graph.js";
 export interface AtlasFrame {
   atlas_timestamp: string;

@@ -74,7 +74,7 @@ function findRepoRoot(startPath: string): string {
     const packageJsonPath = join(currentPath, "package.json");
     if (existsSync(packageJsonPath)) {
       try {
-        const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf-8"));
+        const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf-8")) as { name?: string };
         if (packageJson.name === "lex" || packageJson.name === "@smartergpt/lex") {
           return currentPath;
         }

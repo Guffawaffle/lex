@@ -175,6 +175,7 @@ function validateFrameRequest(body: any): { valid: boolean; error?: ApiErrorResp
 export function createFramesRouter(
   db: Database.Database,
   apiKey: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   authFailureLimiter?: any
 ): Router {
   const router = Router();

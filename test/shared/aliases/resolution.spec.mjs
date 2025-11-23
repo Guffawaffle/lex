@@ -8,15 +8,11 @@
  * Update snapshots with: LEX_UPDATE_SNAPSHOTS=1 node --test src/shared/aliases/resolution.spec.mjs
  */
 
-import { strict as assert } from "assert";
 import { test, describe } from "node:test";
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
-import {
-  resolveModuleId,
-  clearAliasTableCache,
-} from "../../../dist/shared/aliases/resolver.js";
+import { resolveModuleId, clearAliasTableCache } from "../../../dist/shared/aliases/resolver.js";
 
 // Get directory for snapshots
 const __filename = fileURLToPath(import.meta.url);
@@ -139,12 +135,12 @@ describe("Snapshot Tests: Alias Resolution", () => {
           confidence: 1.0,
           reason: "shorthand",
         },
-        "auth": {
+        auth: {
           canonical: "services/auth-core",
           confidence: 1.0,
           reason: "common shorthand",
         },
-        "user": {
+        user: {
           canonical: "services/user-api",
           confidence: 1.0,
           reason: "common shorthand",
@@ -154,7 +150,7 @@ describe("Snapshot Tests: Alias Resolution", () => {
 
     // Resolve all aliases
     const aliasResolutionMap = {};
-    for (const [alias, entry] of Object.entries(aliasTable.aliases)) {
+    for (const alias of Object.keys(aliasTable.aliases)) {
       const result = await resolveModuleId(alias, samplePolicy, aliasTable);
       aliasResolutionMap[alias] = result.canonical;
     }
@@ -198,7 +194,7 @@ describe("Snapshot Tests: Alias Resolution", () => {
 
     const aliasTable = {
       aliases: {
-        "auth": {
+        auth: {
           canonical: "services/auth-core",
           confidence: 1.0,
         },
@@ -357,11 +353,11 @@ describe("Snapshot Tests: Real-World Scenarios", () => {
 
     const aliasTable = {
       aliases: {
-        "auth": {
+        auth: {
           canonical: "services/auth-core",
           confidence: 1.0,
         },
-        "user": {
+        user: {
           canonical: "services/user-api",
           confidence: 1.0,
         },
@@ -423,16 +419,14 @@ describe("Snapshot Update Instructions", () => {
   test("documentation: how to update snapshots", () => {
     const instructions = {
       command: "LEX_UPDATE_SNAPSHOTS=1 node --test src/shared/aliases/resolution.spec.mjs",
-      purpose:
-        "Updates snapshot files when the resolution output intentionally changes",
+      purpose: "Updates snapshot files when the resolution output intentionally changes",
       when_to_update: [
         "Adding new fields to AliasResolution interface",
         "Changing resolution algorithm output",
         "Updating canonical module IDs in policy",
         "Modifying alias table structure",
       ],
-      review_required:
-        "Always review snapshot diffs in PR to ensure changes are intentional",
+      review_required: "Always review snapshot diffs in PR to ensure changes are intentional",
       location: "__snapshots__/resolution.spec.mjs.snap",
     };
 
