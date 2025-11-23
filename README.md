@@ -320,19 +320,19 @@ Lex is **production-ready for local development** but still alpha for multi-tena
 
 ### Democratizing AI Capability
 
-**The Challenge:** Today's AI landscape is two-tier. Frontier models (GPT-5.1, Claude 4.5 Sonnet) outperform smaller models (Llama 3.3 70B, Qwen 32B) primarily due to parameter count—not reasoning architecture.
+**The Challenge:** Today's AI landscape is two-tier. Frontier models (GPT-5.1, Claude 4.5 Sonnet) outperform smaller models primarily due to parameter count—not reasoning architecture.
 
 **Our Thesis:** *Cognitive architecture can bridge this gap.* Just as human experts use external memory and structured reasoning, AI agents can achieve near-frontier performance with:
 - Episodic memory (Lex Frames)
 - Orchestration tools (LexRunner)
 - Behavioral constraints (LexSona)
 
-**Proof Target:** A locally-run Llama 3.3 70B agent (~40GB VRAM) or Qwen 32B (~20GB VRAM) achieving **≥85% of frontier model scores** on EsoBench.
+**Proof Target:** A locally-run Llama 3.3 8B agent (~8GB VRAM) or Qwen 2.5 14B (~16GB VRAM) achieving **≥85% of frontier model scores** on EsoBench.
 
 **Why This Matters:**
-- **Access over exclusivity** — No $200/month API budget required
+- **Access over exclusivity** — No $200/month API budget or high-end GPU required
 - **Architecture over parameters** — Smarter systems, not just bigger models
-- **Raising the floor** — Advanced AI for students, hobbyists, and resource-constrained teams
+- **Raising the floor** — Advanced AI for students, hobbyists, and consumer hardware (RTX 4060 Ti 16GB, RX 7900 XT)
 
 [Mission Statement →](./docs/OVERVIEW.md)
 
