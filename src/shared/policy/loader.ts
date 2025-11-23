@@ -9,6 +9,9 @@ import { readFileSync, existsSync } from "fs";
 import { resolve, dirname, join } from "path";
 // @ts-ignore - importing from compiled dist directory
 import type { Policy } from "../../types/policy.js";
+import { getNDJSONLogger } from "../logger/index.js";
+
+const logger = getNDJSONLogger("policy/loader");
 
 /**
  * Default working policy path (from repository root)
@@ -123,6 +126,10 @@ export function loadPolicy(path?: string): Policy {
         const examplePath = join(repoRoot, EXAMPLE_POLICY_PATH);
         if (existsSync(examplePath)) {
           resolvedPath = examplePath;
+          logger.warn("Using fallback policy path", {
+            operation: "loadPolicy",
+            metadata: { path: examplePath }
+          });
         } else {
           throw new Error(
             `Policy file not found. Tried:\n` +
@@ -135,6 +142,7 @@ export function loadPolicy(path?: string): Policy {
     }
 
     // Read and parse policy file
+    const startTime = Date.now();
     const policyContent = readFileSync(resolvedPath, "utf-8");
     const rawPolicy = JSON.parse(policyContent);
 
@@ -145,6 +153,13 @@ export function loadPolicy(path?: string): Policy {
     if (!policy.modules || typeof policy.modules !== "object") {
       throw new Error('Invalid policy structure: missing or invalid "modules" field');
     }
+
+    const duration = Date.now() - startTime;
+    logger.info("Policy loaded", {
+      operation: "loadPolicy",
+      duration_ms: duration,
+      metadata: { path: resolvedPath, moduleCount: Object.keys(policy.modules).length }
+    });
 
     // Cache policy if using default path (not env var or custom path)
     if (!envPath && !path) {
@@ -158,11 +173,21 @@ export function loadPolicy(path?: string): Policy {
     }
     const err = error as NodeError;
     if (err.code === "ENOENT") {
+      logger.error("Policy file not found", {
+        operation: "loadPolicy",
+        error: err,
+        metadata: { path: envPath || path || DEFAULT_POLICY_PATH }
+      });
       throw new Error(
         `Policy file not found: ${envPath || path || DEFAULT_POLICY_PATH}\n` +
           `Run 'npm run setup-local' to initialize working files.`
       );
     }
+    logger.error("Failed to load policy", {
+      operation: "loadPolicy",
+      error: err instanceof Error ? err : new Error(String(error)),
+      metadata: { path: envPath || path || DEFAULT_POLICY_PATH }
+    });
     const errorMessage = error instanceof Error ? error.message : String(error);
     throw new Error(
       `Failed to load policy from ${envPath || path || DEFAULT_POLICY_PATH}: ${errorMessage}`
