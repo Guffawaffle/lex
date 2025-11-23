@@ -46,15 +46,17 @@ function findRepoRoot(startPath: string): string {
     const packageJsonPath = join(currentPath, "package.json");
     if (existsSync(packageJsonPath)) {
       const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf-8"));
-      // Check if this is the lex root package
-      if (packageJson.name === "lex") {
+      // Check if this is the lex root package (with or without scope)
+      if (packageJson.name === "lex" || packageJson.name === "@smartergpt/lex") {
         return currentPath;
       }
     }
     currentPath = dirname(currentPath);
   }
 
-  throw new Error('Could not find repository root (looking for package.json with name "lex")');
+  throw new Error(
+    'Could not find repository root (looking for package.json with name "lex" or "@smartergpt/lex")'
+  );
 }
 
 /**
