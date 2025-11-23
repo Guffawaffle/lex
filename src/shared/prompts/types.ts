@@ -2,10 +2,15 @@
  * Types for prompt templates and rendering
  */
 
+import type { TokenContext } from "../tokens/expander.js";
+
 /**
  * API version for prompt utilities (semver stability)
  */
 export const PROMPTS_API_VERSION = 1;
+
+// Re-export TokenContext for convenience
+export type { TokenContext };
 
 /**
  * Context for rendering prompt templates
@@ -27,6 +32,17 @@ export interface RenderOptions {
    * Escape HTML by default (default: true)
    */
   escapeHtml?: boolean;
+
+  /**
+   * Enable token expansion (default: true)
+   * When enabled, tokens like {{today}}, {{now}}, etc. are expanded before rendering
+   */
+  expandTokens?: boolean;
+
+  /**
+   * Context for token expansion (useful for testing)
+   */
+  tokenContext?: TokenContext;
 }
 
 /**

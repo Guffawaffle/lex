@@ -12,6 +12,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { getLogger } from "../logger/index.js";
+import { expandTokensInObject } from "../tokens/expander.js";
 
 const logger = getLogger("config");
 
@@ -75,7 +76,12 @@ function loadConfigFile(): Partial<LexConfig> | null {
 
   try {
     const content = fs.readFileSync(configPath, "utf-8");
-    return JSON.parse(content) as Partial<LexConfig>;
+    const parsed = JSON.parse(content) as Partial<LexConfig>;
+    
+    // Expand tokens in the configuration
+    const expanded = expandTokensInObject(parsed);
+    
+    return expanded;
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logger.warn(`Failed to parse .lex.config.json: ${errorMessage}`);
