@@ -148,6 +148,27 @@ lex recall "payment"
 # Shows your context, blockers, and architectural neighborhood
 ```
 
+### Database Maintenance
+
+Keep your memory database optimized and backed up:
+
+```bash
+# Create a timestamped backup (memory-20251123.sqlite)
+lex db backup --rotate 7
+# Keeps last 7 backups, stored in .smartergpt.local/lex/backups/
+
+# Optimize database (rebuild and compact)
+lex db vacuum
+
+# Set backup retention via environment variable
+export LEX_BACKUP_RETENTION=14  # Keep 14 most recent backups
+```
+
+**NDJSON Logging:** Lex automatically logs operations to `.smartergpt.local/lex/logs/lex.log.ndjson` with structured fields:
+- `timestamp`, `level`, `message`, `module`, `operation`, `duration_ms`, `metadata`, `error`
+- Log files rotate automatically at 100MB
+- Logs are silent in test mode unless `LEX_LOG_NDJSON=1`
+
 **That's it!** You now have persistent memory for your AI workflows.
 
 [Full Quick Start Guide →](./QUICK_START.md)

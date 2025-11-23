@@ -6,6 +6,7 @@
   "include": ["*.ts"],
   "exclude": ["node_modules", "dist", "*.test.ts"],
   "references": [
-    { "path": "../types" }
+    { "path": "../types" },
+    { "path": "../logger" }
   ]
 }
