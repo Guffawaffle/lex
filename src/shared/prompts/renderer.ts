@@ -66,9 +66,12 @@ function extractVariables(template: string): string[] {
   // Remove {{#each}} blocks first (recursively to handle nesting)
   let cleanedTemplate = template;
   // Use tempered greedy token to avoid ReDoS: ((?:(?!{{\/each}})[\s\S])*)
+  // Note: This pattern prevents catastrophic backtracking but may be slow on very large templates.
+  // Recommended template size limit: 1MB.
   const eachRegex =
     /\{\{#each\s+[a-zA-Z_][a-zA-Z0-9_\.]*\s*\}\}((?:(?!\{\{\/each\}\})[\s\S])*?)\{\{\/each\}\}/g;
 
+  // Limit iterations to prevent infinite loops or excessive processing on deeply nested templates
   let maxIterations = 100;
   while (eachRegex.test(cleanedTemplate) && maxIterations-- > 0) {
     cleanedTemplate = cleanedTemplate.replace(eachRegex, "");

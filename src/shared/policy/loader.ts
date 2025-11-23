@@ -153,8 +153,10 @@ export function loadPolicy(path?: string): Policy {
 
     return policy;
   } catch (error: unknown) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const err = error as any;
+    interface NodeError extends Error {
+      code?: string;
+    }
+    const err = error as NodeError;
     if (err.code === "ENOENT") {
       throw new Error(
         `Policy file not found: ${envPath || path || DEFAULT_POLICY_PATH}\n` +
