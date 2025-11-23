@@ -10,6 +10,18 @@ import { getCurrentCommit } from "../git/commit.js";
 import { findRepoRoot, getWorkspaceRoot } from "../paths/normalizer.js";
 
 /**
+ * List of known token names
+ */
+export const KNOWN_TOKENS = [
+  "today",
+  "now",
+  "repo_root",
+  "workspace_root",
+  "branch",
+  "commit",
+] as const;
+
+/**
  * Token definitions
  */
 export interface TokenContext {
@@ -78,33 +90,52 @@ function formatNow(date: Date = new Date()): string {
 export function expandTokens(input: string, context: TokenContext = {}): string {
   let result = input;
 
-  // Resolve token values
-  const today = context.today ? formatToday(context.today) : formatToday();
-  const now = context.now ? formatNow(context.now) : formatNow();
-  
-  // Repository root - use override or detect
-  let repoRoot: string;
-  if (context.repoRoot !== undefined) {
-    repoRoot = context.repoRoot;
-  } else {
-    const detected = findRepoRoot();
-    repoRoot = detected || "";
+  // Early return if no tokens present
+  if (!hasTokens(result)) {
+    return result;
   }
 
-  // Workspace root - use override or detect
-  const workspaceRoot = context.workspaceRoot !== undefined 
-    ? context.workspaceRoot 
-    : getWorkspaceRoot();
+  // Resolve token values (only compute values for tokens that are actually in the input)
+  const today = result.includes("{{today}}")
+    ? context.today
+      ? formatToday(context.today)
+      : formatToday()
+    : "";
+  const now = result.includes("{{now}}")
+    ? context.now
+      ? formatNow(context.now)
+      : formatNow()
+    : "";
 
-  // Git branch - use override or detect
-  const branch = context.branch !== undefined 
-    ? context.branch 
-    : getCurrentBranch();
+  // Repository root - use override or detect (only if needed)
+  let repoRoot = "";
+  if (result.includes("{{repo_root}}")) {
+    if (context.repoRoot !== undefined) {
+      repoRoot = context.repoRoot;
+    } else {
+      const detected = findRepoRoot();
+      repoRoot = detected || "";
+    }
+  }
 
-  // Git commit - use override or detect
-  const commit = context.commit !== undefined 
-    ? context.commit 
-    : getCurrentCommit();
+  // Workspace root - use override or detect (only if needed)
+  let workspaceRoot = "";
+  if (result.includes("{{workspace_root}}")) {
+    workspaceRoot =
+      context.workspaceRoot !== undefined ? context.workspaceRoot : getWorkspaceRoot();
+  }
+
+  // Git branch - use override or detect (only if needed)
+  let branch = "";
+  if (result.includes("{{branch}}")) {
+    branch = context.branch !== undefined ? context.branch : getCurrentBranch();
+  }
+
+  // Git commit - use override or detect (only if needed)
+  let commit = "";
+  if (result.includes("{{commit}}")) {
+    commit = context.commit !== undefined ? context.commit : getCurrentCommit();
+  }
 
   // Replace tokens (process in order to avoid replacement conflicts)
   const replacements: Array<[RegExp, string]> = [
