@@ -20,9 +20,12 @@ import {
   getWorkspaceRoot,
   expandPath,
 } from "../../../src/shared/paths/normalizer.js";
-import { mkdtempSync, rmSync, mkdirSync, symlinkSync } from "fs";
+import { mkdtempSync, rmSync, mkdirSync, symlinkSync, existsSync } from "fs";
 import { join, resolve } from "path";
 import { tmpdir, homedir, platform } from "os";
+
+// Helper to detect if we're in an environment without .git (e.g., Docker CI)
+const hasGitRepo = existsSync(join(process.cwd(), ".git"));
 
 describe("Path Normalization", () => {
   let originalDir: string;
@@ -280,13 +283,13 @@ describe("Path Normalization", () => {
   });
 
   describe("Repository Root Detection", () => {
-    test("finds .git directory in current repo", () => {
+    test("finds .git directory in current repo", { skip: !hasGitRepo }, () => {
       const root = findRepoRoot();
       assert.ok(root, "Should find repo root");
       assert.ok(root!.endsWith("lex"), "Should find lex repo root");
     });
 
-    test("finds .git directory when starting from subdirectory", () => {
+    test("finds .git directory when starting from subdirectory", { skip: !hasGitRepo }, () => {
       const repoRoot = findRepoRoot();
       assert.ok(repoRoot);
 
@@ -322,7 +325,7 @@ describe("Path Normalization", () => {
       }
     });
 
-    test("getRepoRoot returns root when .git exists", () => {
+    test("getRepoRoot returns root when .git exists", { skip: !hasGitRepo }, () => {
       const root = getRepoRoot();
       assert.ok(root);
       assert.ok(root.endsWith("lex"));
@@ -341,7 +344,7 @@ describe("Path Normalization", () => {
       }
     });
 
-    test("falls back to repository root when env not set", () => {
+    test("falls back to repository root when env not set", { skip: !hasGitRepo }, () => {
       delete process.env.LEX_WORKSPACE_ROOT;
       const root = getWorkspaceRoot();
       const repoRoot = findRepoRoot();

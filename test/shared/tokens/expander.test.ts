@@ -17,9 +17,12 @@ import {
   extractTokens,
   expandTokensInObject,
 } from "../../../src/shared/tokens/expander.js";
-import { mkdtempSync, rmSync } from "fs";
+import { mkdtempSync, rmSync, existsSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
+
+// Helper to detect if we're in an environment without .git (e.g., Docker CI)
+const hasGitRepo = existsSync(join(process.cwd(), ".git"));
 
 describe("Token Expansion", () => {
   let originalDir: string;
@@ -78,12 +81,12 @@ describe("Token Expansion", () => {
   });
 
   describe("Repository Tokens", () => {
-    test("expands {{repo_root}} to repository root", () => {
+    test("expands {{repo_root}} to repository root", { skip: !hasGitRepo }, () => {
       const result = expandTokens("{{repo_root}}/file.txt");
       assert.ok(result.endsWith("/lex/file.txt") || result.endsWith("\\lex\\file.txt"));
     });
 
-    test("expands {{workspace_root}} to workspace root", () => {
+    test("expands {{workspace_root}} to workspace root", { skip: !hasGitRepo }, () => {
       const result = expandTokens("{{workspace_root}}/config");
       assert.ok(result.includes("lex"));
     });

@@ -14,9 +14,12 @@ import { test, describe, beforeEach } from "node:test";
 import assert from "node:assert";
 import { getCurrentBranch, clearBranchCache } from "@app/shared/git/branch.js";
 import { execSync } from "child_process";
-import { mkdtempSync, rmSync } from "fs";
+import { mkdtempSync, rmSync, existsSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
+
+// Helper to detect if we're in an environment without .git (e.g., Docker CI)
+const hasGitRepo = existsSync(join(process.cwd(), ".git"));
 
 describe("Git Branch Detection", () => {
   let originalDir: string;
@@ -48,7 +51,7 @@ describe("Git Branch Detection", () => {
     clearBranchCache();
   }
 
-  test("detects current branch in normal git repository", () => {
+  test("detects current branch in normal git repository", { skip: !hasGitRepo }, () => {
     try {
       // We're in the lex repo, so this should return the actual branch
       const branch = getCurrentBranch();
