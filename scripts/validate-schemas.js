@@ -31,22 +31,32 @@ async function validateSchemas() {
     const schema = JSON.parse(await fs.readFile(schemaPath, 'utf-8'));
     
     // Check for required hardening properties first (independent of compilation)
-    const issues = [];
+    const hardeningErrors = [];
+    const hardeningWarnings = [];
     
+    // Required: $id field (MUST fail CI if missing)
     if (!schema.$id) {
-      issues.push('missing $id field');
+      hardeningErrors.push('missing $id field');
     }
     
+    // Required: additionalProperties: false for object types (MUST fail CI if missing)
     if (schema.type === 'object' && schema.additionalProperties !== false) {
-      issues.push('missing additionalProperties: false');
+      hardeningErrors.push('missing additionalProperties: false');
     }
     
+    // Recommended: examples array (warning only)
     if (!schema.examples || !Array.isArray(schema.examples) || schema.examples.length === 0) {
-      issues.push('missing examples array');
+      hardeningWarnings.push('missing examples array');
     }
     
-    if (issues.length > 0) {
-      console.warn(`  ⚠ ${file}: ${issues.join(', ')}`);
+    if (hardeningErrors.length > 0) {
+      console.error(`  ✗ ${file}: ${hardeningErrors.join(', ')}`);
+      errors++;
+      continue; // Skip further validation if hardening requirements not met
+    }
+    
+    if (hardeningWarnings.length > 0) {
+      console.warn(`  ⚠ ${file}: ${hardeningWarnings.join(', ')}`);
       warnings++;
     }
     
