@@ -3,6 +3,7 @@
 **Date:** 2025-11-22
 **Branch:** `merge-weave/umbrella-20251122-2155`
 **Author:** Claude (via GitHub Copilot)
+**Last Updated:** 2025-11-22 (Phase 1a completed)
 
 ---
 
@@ -22,7 +23,7 @@ npm run lint
 # Executes: eslint .
 ```
 
-**Status:** ⚠️ **116 warnings, 0 errors**
+**Status:** ⚠️ **88 warnings, 0 errors** (was 116)
 
 ---
 
@@ -33,20 +34,23 @@ npm run lint
 - **Status:** All TypeScript compilation passes successfully
 
 ### Lint Warnings
-- **Total:** 116 warnings
+- **Total:** 88 warnings (reduced from 116, -24%)
 - **Errors:** 0
 
 **Breakdown by Rule:**
 
-| Rule ID | Count | Category |
-|---------|-------|----------|
-| `@typescript-eslint/no-unused-vars` | 55 | Unused code |
-| `@typescript-eslint/no-explicit-any` | 26 | Type safety |
-| `@typescript-eslint/no-unsafe-member-access` | 18 | Type safety |
-| `@typescript-eslint/no-unsafe-assignment` | 10 | Type safety |
-| `@typescript-eslint/no-unsafe-call` | 3 | Type safety |
-| `@typescript-eslint/no-unsafe-return` | 3 | Type safety |
-| `@typescript-eslint/restrict-template-expressions` | 1 | Type safety |
+| Rule ID | Count | Baseline | Change |
+|---------|-------|----------|--------|
+| `@typescript-eslint/no-unused-vars` | ~18 | 55 | -37 (-67%) |
+| `@typescript-eslint/no-explicit-any` | 26 | 26 | 0 |
+| `@typescript-eslint/no-unsafe-member-access` | 18 | 18 | 0 |
+| `@typescript-eslint/no-unsafe-assignment` | 10 | 10 | 0 |
+| `@typescript-eslint/no-unsafe-call` | 3 | 3 | 0 |
+| `@typescript-eslint/no-unsafe-return` | 3 | 3 | 0 |
+| `@typescript-eslint/restrict-template-expressions` | 1 | 1 | 0 |
+| **Misc (other)** | ~9 | 0 | +9 |
+
+**Note:** Exact counts pending next lint JSON export. Rough estimate from grep output.
 
 ---
 
@@ -325,6 +329,63 @@ After completing code fixes, assess whether any rules should be adjusted:
 2. ✅ Run type-check: `npm run type-check`
 3. ✅ Run lint: `npm run lint` and verify warning count decreased
 4. ✅ Update this document with progress
+
+### Red Flags (Stop and Review):
+- 🚨 Test failures after "safe" cleanup
+- 🚨 New type errors introduced
+
+---
+
+## Progress Tracking
+
+### Phase 1a: Test Files Cleanup ✅ COMPLETED (2025-11-22)
+
+**Commit:** `3b01ab8` - "lint: Phase 1a - remove/comment unused variables (116→88 warnings)"
+
+**Scope:**
+- Remove unused imports from test files (before, after, createRequire, fs utils)
+- Remove unused variables in test assertions
+- Prefix intentionally-unused error variables with `_` in catch blocks
+- Comment future-expansion imports in source files with 'Future:' notes
+- Remove unused type imports
+
+**Files Modified:** 27 files
+- Test files: 16
+- Source files: 11
+
+**Impact:**
+- Warnings: 116 → 88 (-28, -24%)
+- Tests: 419 tests, 384 pass, 35 fail (unchanged - no breakage)
+- Type check: ✅ Still passing (0 errors)
+
+**Patterns Applied:**
+1. **Removed truly dead imports:**
+   - `before, after` from test lifecycle (not using hooks)
+   - `createRequire` when only using import
+   - `fs` utilities when not performing file ops
+   - `assert` when not making assertions
+
+2. **Commented future-expansion code:**
+   - `wrapText, highlightDiff` (card.ts) - future text wrapping features
+   - `createHighlighter` (syntax.ts) - future custom syntax themes
+   - `writeFileSync` (timeline.example.ts) - commented usage exists
+   - Type imports: `PolicyModule`, `CacheKey`, `AtlasNode` - not in annotations
+
+3. **Prefixed unused vars:**
+   - `_layer`, `_config`, `_language` in loops/destructuring
+   - `_MIN_DISTANCE_THRESHOLD` - defined for future use
+   - `_error`, `_e` in catch blocks (intentionally ignored)
+
+**Remaining Work:**
+- ~18 more no-unused-vars warnings (catch blocks where even `_e` is flagged)
+- 62 type safety warnings (`no-explicit-any`, `no-unsafe-*`) for Phase 2
+
+**Notes:**
+- ESLint requires omitting catch parameter entirely if truly unused (not just `_` prefix)
+- Some test files have `_e` in catch blocks still flagged - need to remove parameter
+- All cleanup was mechanical - no behavior changes, no config weakening
+
+---
 
 ### Red Flags (Stop and Review):
 - 🚨 Test failures after "safe" cleanup
