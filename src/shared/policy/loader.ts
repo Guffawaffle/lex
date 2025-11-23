@@ -152,15 +152,20 @@ export function loadPolicy(path?: string): Policy {
     }
 
     return policy;
-  } catch (error: any) {
-    if (error.code === "ENOENT") {
+  } catch (error: unknown) {
+    interface NodeError extends Error {
+      code?: string;
+    }
+    const err = error as NodeError;
+    if (err.code === "ENOENT") {
       throw new Error(
         `Policy file not found: ${envPath || path || DEFAULT_POLICY_PATH}\n` +
           `Run 'npm run setup-local' to initialize working files.`
       );
     }
+    const errorMessage = error instanceof Error ? error.message : String(error);
     throw new Error(
-      `Failed to load policy from ${envPath || path || DEFAULT_POLICY_PATH}: ${error.message}`
+      `Failed to load policy from ${envPath || path || DEFAULT_POLICY_PATH}: ${errorMessage}`
     );
   }
 }

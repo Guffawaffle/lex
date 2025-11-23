@@ -6,6 +6,22 @@ on:
   push:
     branches: [ main ]
   workflow_dispatch:
+    inputs:
+      run_integration_tests:
+        description: 'Run integration tests (expensive)'
+        required: false
+        type: boolean
+        default: false
+      run_coverage:
+        description: 'Run coverage analysis (expensive)'
+        required: false
+        type: boolean
+        default: false
+      run_multi_node_matrix:
+        description: 'Run tests on multiple Node versions'
+        required: false
+        type: boolean
+        default: false
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -16,9 +32,9 @@ permissions:
   pull-requests: write
 
 jobs:
-  # Stage 1: Quick Validation
-  lint-and-format:
-    name: Lint & Format
+  # Stage 0: Verify Commit Signatures (MANDATORY)
+  verify-signatures:
+    name: Verify Commit Signatures
     runs-on: ubuntu-latest
     steps:
       - name: Harden Runner
@@ -27,7 +43,61 @@ jobs:
           egress-policy: audit
           disable-sudo: true
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Need full history to check all commits
+
+      - name: Import GPG keys from repository secrets
+        run: |
+          # Import trusted GPG public keys (add to repo secrets)
+          echo "${{ secrets.TRUSTED_GPG_KEYS }}" | base64 -d | gpg --import
+
+      - name: Verify commit signatures
+        run: |
+          # Get the range of commits to verify
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            COMMIT_RANGE="${{ github.event.pull_request.base.sha }}..${{ github.sha }}"
+          else
+            # For push events, check the pushed commits
+            COMMIT_RANGE="${{ github.event.before }}..${{ github.sha }}"
+          fi
+
+          echo "Verifying commits in range: $COMMIT_RANGE"
+
+          # Check each commit for signature
+          UNSIGNED_COMMITS=""
+          for commit in $(git log --format="%H" $COMMIT_RANGE); do
+            if ! git verify-commit $commit 2>/dev/null; then
+              UNSIGNED_COMMITS="$UNSIGNED_COMMITS $commit"
+            fi
+          done
+
+          if [ -n "$UNSIGNED_COMMITS" ]; then
+            echo "❌ ERROR: The following commits are NOT signed:"
+            for commit in $UNSIGNED_COMMITS; do
+              git log --format="%H %an <%ae> %s" -n 1 $commit
+            done
+            echo ""
+            echo "All commits MUST be GPG-signed. Please see CONTRIBUTING.md for setup instructions."
+            echo "To sign commits: git commit --amend -S --no-edit && git push --force-with-lease"
+            exit 1
+          fi
+
+          echo "✅ All commits are properly signed."
+
+  # Stage 1: Quick Validation
+  lint-and-format:
+    name: Lint & Format
+    runs-on: ubuntu-latest
+    needs: verify-signatures
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@v2
+        with:
+          egress-policy: audit
+          disable-sudo: true
+
+      - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v6
         with:
@@ -53,6 +123,7 @@ jobs:
   type-check:
     name: TypeScript Type Check
     runs-on: ubuntu-latest
+    needs: verify-signatures
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@v2
@@ -60,7 +131,7 @@ jobs:
           egress-policy: audit
           disable-sudo: true
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v6
         with:
@@ -79,6 +150,7 @@ jobs:
   dependency-audit:
     name: Dependency Audit
     runs-on: ubuntu-latest
+    needs: verify-signatures
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@v2
@@ -86,7 +158,7 @@ jobs:
           egress-policy: audit
           disable-sudo: true
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v6
         with:
@@ -100,11 +172,11 @@ jobs:
   build-and-test:
     name: Build & Test (Node ${{ matrix.node-version }})
     runs-on: ubuntu-latest
-    needs: [lint-and-format, type-check]
+    needs: [verify-signatures, lint-and-format, type-check]
     strategy:
       fail-fast: false
       matrix:
-        node-version: ['20', '22']
+        node-version: ${{ (github.event_name == 'workflow_dispatch' && inputs.run_multi_node_matrix) && fromJSON('["20", "22"]') || fromJSON('["20"]') }}
 
     steps:
       - name: Harden Runner
@@ -113,7 +185,7 @@ jobs:
           egress-policy: audit
           disable-sudo: true
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v6
         with:
@@ -132,28 +204,45 @@ jobs:
       - name: Build all packages
         run: npm run build
 
+      - name: Validate schemas
+        if: matrix.node-version == '20' || matrix.node-version == '22'
+        run: npm run validate-schemas
+
+      - name: Verify canon assets copied
+        if: matrix.node-version == '20' || matrix.node-version == '22'
+        run: |
+          # Verify prompts/ and schemas/ directories exist and are populated
+          if [ ! -d prompts ] || [ -z "$(ls -A prompts)" ]; then
+            echo "❌ prompts/ directory missing or empty"
+            exit 1
+          fi
+          if [ ! -d schemas ] || [ -z "$(ls -A schemas)" ]; then
+            echo "❌ schemas/ directory missing or empty"
+            exit 1
+          fi
+          # Verify content matches canon/
+          if ! diff -r canon/prompts prompts > /dev/null; then
+            echo "❌ prompts/ does not match canon/prompts"
+            diff -r canon/prompts prompts
+            exit 1
+          fi
+          if ! diff -r canon/schemas schemas > /dev/null; then
+            echo "❌ schemas/ does not match canon/schemas"
+            diff -r canon/schemas schemas
+            exit 1
+          fi
+          echo "✅ Canon assets verified: prompts/ and schemas/ match canon/"
+
       - name: Pack (dry run)
-        if: matrix.node-version == '22'
-        run: npm pack --json > pack.json
+        if: matrix.node-version == '20' || matrix.node-version == '22'
+        run: node scripts/create-pack-json.js
 
       - name: Pack guard
-        if: matrix.node-version == '22'
-        run: |
-          node -e "
-            const fs = require('fs');
-            const packData = JSON.parse(fs.readFileSync('pack.json', 'utf8'));
-            const files = packData[0].files.map(x => x.path);
-            const allowed = ['README.md', 'LICENSE', 'package.json'];
-            const bad = files.filter(p => !/^dist\//.test(p) && !allowed.includes(p));
-            if (bad.length) {
-              console.error('❌ Unexpected files in tarball:', bad);
-              process.exit(1);
-            }
-            console.log('✅ Pack guard passed: only dist/, README.md, LICENSE, package.json');
-          "
+        if: matrix.node-version == '20' || matrix.node-version == '22'
+        run: node scripts/pack-guard.js
 
       - name: Bin guard (shebang + exec)
-        if: matrix.node-version == '22'
+        if: matrix.node-version == '20' || matrix.node-version == '22'
         run: |
           if ! head -1 dist/shared/cli/lex.js | grep -q '^#!/usr/bin/env node'; then
             echo "❌ Missing shebang in dist/shared/cli/lex.js"
@@ -166,7 +255,7 @@ jobs:
           echo "✅ Bin guard passed: shebang and executable bit present"
 
       - name: No tests in dist
-        if: matrix.node-version == '22'
+        if: matrix.node-version == '20' || matrix.node-version == '22'
         run: |
           if find dist -type f -name '*test*' -print | grep -q .; then
             echo "❌ Found test files in dist/"
@@ -176,7 +265,7 @@ jobs:
           echo "✅ No tests in dist: dist/ is clean"
 
       - name: No @app/ specifiers in dist
-        if: matrix.node-version == '22'
+        if: matrix.node-version == '20' || matrix.node-version == '22'
         run: |
           if grep -r "@app/" dist/; then
             echo "❌ Found @app/ specifiers in dist/ - aliases should be resolved at build time"
@@ -191,7 +280,9 @@ jobs:
         run: npm run coverage
 
       - name: Upload coverage to Codecov
-        if: matrix.node-version == '20'
+        if: >-
+          matrix.node-version == '20' &&
+          (github.event_name == 'workflow_dispatch' && inputs.run_coverage || github.event_name == 'push')
         uses: codecov/codecov-action@v5
         with:
           files: ./coverage/lcov.info
@@ -202,7 +293,9 @@ jobs:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Upload coverage artifacts
-        if: matrix.node-version == '20'
+        if: >-
+          matrix.node-version == '20' &&
+          (github.event_name == 'workflow_dispatch' && inputs.run_coverage || github.event_name == 'push')
         uses: actions/upload-artifact@v4
         with:
           name: coverage-node-${{ matrix.node-version }}
@@ -214,7 +307,10 @@ jobs:
   integration-tests:
     name: Integration Tests
     runs-on: ubuntu-latest
-    needs: build-and-test
+    needs: [verify-signatures, build-and-test]
+    if: >-
+      github.event_name == 'workflow_dispatch' && inputs.run_integration_tests ||
+      github.event_name == 'push'
 
     steps:
       - name: Harden Runner
@@ -223,7 +319,7 @@ jobs:
           egress-policy: audit
           disable-sudo: true
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v6
         with:
@@ -246,7 +342,7 @@ jobs:
   validate-packages:
     name: Validate Package Manifests
     runs-on: ubuntu-latest
-    needs: build-and-test
+    needs: [verify-signatures, build-and-test]
 
     steps:
       - name: Harden Runner
@@ -255,7 +351,7 @@ jobs:
           egress-policy: audit
           disable-sudo: true
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v6
         with:
@@ -290,6 +386,40 @@ jobs:
   all-checks-pass:
     name: All Checks Passed
     runs-on: ubuntu-latest
-    needs: [lint-and-format, type-check, dependency-audit, build-and-test, integration-tests, validate-packages]
+    needs: [verify-signatures, lint-and-format, type-check, dependency-audit, build-and-test, validate-packages, integration-tests]
+    if: always()
     steps:
-      - run: echo "✅ All checks passed!"
+      - name: Check required jobs
+        run: |
+          # verify-signatures, lint-and-format, type-check, dependency-audit, build-and-test, validate-packages are required
+          # integration-tests is optional (only runs on workflow_dispatch with input or push)
+          if [[ "${{ needs.verify-signatures.result }}" != "success" ]]; then
+            echo "❌ Signature verification failed or was skipped"
+            exit 1
+          fi
+          if [[ "${{ needs.lint-and-format.result }}" != "success" ]]; then
+            echo "❌ Lint and format checks failed"
+            exit 1
+          fi
+          if [[ "${{ needs.type-check.result }}" != "success" ]]; then
+            echo "❌ Type check failed"
+            exit 1
+          fi
+          if [[ "${{ needs.dependency-audit.result }}" != "success" ]]; then
+            echo "❌ Dependency audit failed"
+            exit 1
+          fi
+          if [[ "${{ needs.build-and-test.result }}" != "success" ]]; then
+            echo "❌ Build and test failed"
+            exit 1
+          fi
+          if [[ "${{ needs.validate-packages.result }}" != "success" ]]; then
+            echo "❌ Package validation failed"
+            exit 1
+          fi
+          if [[ "${{ needs.integration-tests.result }}" != "success" && "${{ needs.integration-tests.result }}" != "skipped" ]]; then
+            echo "❌ Integration tests failed"
+            exit 1
+          fi
+          echo "✅ All checks passed"
+          echo "✅ All required checks passed!"

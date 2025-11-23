@@ -28,7 +28,8 @@
  */
 
 import * as fs from "fs";
-import * as path from "path";
+// Future: path module for file path manipulation
+// import * as path from "path";
 
 interface Declaration {
   type: string;
@@ -80,7 +81,7 @@ class LexMapMerge {
   loadScanner(filePath: string): void {
     try {
       const content = fs.readFileSync(filePath, "utf-8");
-      const data: ScannerOutput = JSON.parse(content);
+      const data = JSON.parse(content) as ScannerOutput;
 
       // Basic validation
       if (!data.language || !Array.isArray(data.files)) {

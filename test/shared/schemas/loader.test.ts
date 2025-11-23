@@ -1,33 +1,168 @@
 /**
- * Tests for Schema Loader
+ * Schema loader tests with precedence chain validation
  *
- * Run with: npx tsx --test test/shared/schemas/loader.test.ts
+ * Precedence chain:
+ * 1. LEX_SCHEMAS_DIR (explicit environment override)
+ * 2. .smartergpt.local/schemas/ (local untracked overlay)
+ * 3. Package schemas/ (published canon from build)
+ *
+ * Tests cover:
+ * - Basic precedence at each level
+ * - Override priority (ENV > local > package)
+ * - Deduplication in listSchemas()
+ * - Error handling
+ * - Edge cases (missing dirs, concurrent access)
  */
 
 import { strict as assert } from "assert";
-import { test, describe } from "node:test";
+import { test, describe, beforeEach, afterEach } from "node:test";
 import { loadSchema, getSchemaPath, listSchemas } from "@app/shared/schemas/loader.js";
 import { fileURLToPath } from "url";
-import { dirname, resolve, join } from "path";
-import { existsSync, unlinkSync, mkdirSync, writeFileSync } from "fs";
+import { dirname, join } from "path";
+import { tmpdir } from "os";
+import { mkdtempSync, writeFileSync, rmSync, mkdirSync } from "fs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-describe("loadSchema", () => {
-  test("loads schema from package canon", () => {
-    const schema = loadSchema("test-schema.json");
-    assert.ok(schema);
-    assert.equal(typeof schema, "object");
+describe("Schema Loader Precedence", () => {
+  let originalDir: string;
+  let originalSchemasDir: string | undefined;
+  let testRepoDir: string | undefined;
+
+  beforeEach(() => {
+    originalDir = process.cwd();
+    originalSchemasDir = process.env.LEX_SCHEMAS_DIR;
+    delete process.env.LEX_SCHEMAS_DIR;
   });
 
-  test("throws error for non-existent schema", () => {
+  afterEach(() => {
+    process.chdir(originalDir);
+
+    if (originalSchemasDir !== undefined) {
+      process.env.LEX_SCHEMAS_DIR = originalSchemasDir;
+    } else {
+      delete process.env.LEX_SCHEMAS_DIR;
+    }
+
+    if (testRepoDir) {
+      try {
+        rmSync(testRepoDir, { recursive: true, force: true });
+      } catch {
+        // Ignore cleanup errors
+      }
+      testRepoDir = undefined;
+    }
+  });
+
+  function createTestRepo(): string {
+    const dir = mkdtempSync(join(tmpdir(), "lex-schema-test-"));
+    testRepoDir = dir;
+
+    // Create package.json to make it a valid repo
+    writeFileSync(join(dir, "package.json"), JSON.stringify({ name: "lex", version: "1.0.0" }));
+
+    return dir;
+  }
+
+  test("loads from LEX_SCHEMAS_DIR when set", () => {
+    const customCanon = mkdtempSync(join(tmpdir(), "lex-canon-"));
+    const repo = createTestRepo();
+
+    try {
+      mkdirSync(join(customCanon, "schemas"), { recursive: true });
+      writeFileSync(join(customCanon, "schemas", "test.json"), JSON.stringify({ source: "env" }));
+
+      process.env.LEX_SCHEMAS_DIR = join(customCanon, "schemas");
+      process.chdir(repo);
+
+      const result = loadSchema("test.json");
+      assert.deepEqual(result, { source: "env" });
+    } finally {
+      rmSync(customCanon, { recursive: true, force: true });
+    }
+  });
+
+  test("falls back to .smartergpt.local/ when LEX_SCHEMAS_DIR not set", () => {
+    const repo = createTestRepo();
+
+    mkdirSync(join(repo, ".smartergpt.local", "schemas"), { recursive: true });
+    writeFileSync(
+      join(repo, ".smartergpt.local", "schemas", "test.json"),
+      JSON.stringify({ source: "local" })
+    );
+
+    process.chdir(repo);
+
+    const result = loadSchema("test.json");
+    assert.deepEqual(result, { source: "local" });
+  });
+
+  test("falls back to package schemas/ when no overrides exist", () => {
+    const repo = createTestRepo();
+    process.chdir(repo);
+
+    // Should load from actual package's schemas/ (test-schema.json exists there)
+    const result = loadSchema("test-schema.json");
+    assert.ok(result);
+    assert.equal(typeof result, "object");
+  });
+
+  test("LEX_SCHEMAS_DIR overrides .smartergpt.local/", () => {
+    const customCanon = mkdtempSync(join(tmpdir(), "lex-canon-"));
+    const repo = createTestRepo();
+
+    try {
+      mkdirSync(join(customCanon, "schemas"), { recursive: true });
+      writeFileSync(join(customCanon, "schemas", "test.json"), JSON.stringify({ source: "env" }));
+
+      mkdirSync(join(repo, ".smartergpt.local", "schemas"), { recursive: true });
+      writeFileSync(
+        join(repo, ".smartergpt.local", "schemas", "test.json"),
+        JSON.stringify({ source: "local" })
+      );
+
+      process.env.LEX_SCHEMAS_DIR = join(customCanon, "schemas");
+      process.chdir(repo);
+
+      const result = loadSchema("test.json");
+      assert.deepEqual(result, { source: "env" });
+    } finally {
+      rmSync(customCanon, { recursive: true, force: true });
+    }
+  });
+
+  test(".smartergpt.local/ overrides package schemas/", () => {
+    const repo = createTestRepo();
+
+    mkdirSync(join(repo, ".smartergpt.local", "schemas"), { recursive: true });
+    writeFileSync(
+      join(repo, ".smartergpt.local", "schemas", "test-schema.json"),
+      JSON.stringify({ source: "local" })
+    );
+
+    mkdirSync(join(repo, "schemas"), { recursive: true });
+    writeFileSync(join(repo, "schemas", "test-schema.json"), JSON.stringify({ source: "package" }));
+
+    process.chdir(repo);
+
+    const result = loadSchema("test-schema.json");
+    assert.deepEqual(result, { source: "local" });
+  });
+
+  test("throws when schema not found anywhere", () => {
+    const repo = createTestRepo();
+    process.chdir(repo);
+
     assert.throws(() => {
-      loadSchema("nonexistent-schema.json");
-    }, /Schema file 'nonexistent-schema.json' not found/);
+      loadSchema("nonexistent.json");
+    }, /Schema file 'nonexistent\.json' not found/);
   });
 
   test("error message shows all attempted paths", () => {
+    const repo = createTestRepo();
+    process.chdir(repo);
+
     try {
       loadSchema("missing.json");
       assert.fail("Should have thrown an error");
@@ -41,96 +176,250 @@ describe("loadSchema", () => {
     }
   });
 
-  test("local overlay takes precedence over package canon", () => {
-    const repoRoot = resolve(__dirname, "../../..");
-    const localDir = join(repoRoot, ".smartergpt.local", "schemas");
-    const localPath = join(localDir, "test-overlay.json");
-
-    let createdLocalFile = false;
+  test("listSchemas() deduplicates across all sources", () => {
+    const customCanon = mkdtempSync(join(tmpdir(), "lex-canon-"));
+    const repo = createTestRepo();
 
     try {
-      // Create local overlay
-      if (!existsSync(localDir)) {
-        mkdirSync(localDir, { recursive: true });
-      }
-      writeFileSync(localPath, JSON.stringify({ source: "local-overlay" }));
-      createdLocalFile = true;
+      // Setup: schema exists in all 3 locations
+      mkdirSync(join(customCanon, "schemas"), { recursive: true });
+      writeFileSync(join(customCanon, "schemas", "shared.json"), JSON.stringify({ source: "env" }));
+      writeFileSync(
+        join(customCanon, "schemas", "env-only.json"),
+        JSON.stringify({ source: "env" })
+      );
 
-      const schema = loadSchema("test-overlay.json");
-      assert.ok(schema);
-      assert.equal((schema as any).source, "local-overlay");
+      mkdirSync(join(repo, ".smartergpt.local", "schemas"), { recursive: true });
+      writeFileSync(
+        join(repo, ".smartergpt.local", "schemas", "shared.json"),
+        JSON.stringify({ source: "local" })
+      );
+      writeFileSync(
+        join(repo, ".smartergpt.local", "schemas", "local-only.json"),
+        JSON.stringify({ source: "local" })
+      );
+
+      process.env.LEX_SCHEMAS_DIR = join(customCanon, "schemas");
+      process.chdir(repo);
+
+      const schemas = listSchemas();
+
+      // Deduplicated: should have unique schemas
+      assert.ok(schemas.includes("shared.json"));
+      assert.ok(schemas.includes("env-only.json"));
+      assert.ok(schemas.includes("local-only.json"));
+      // Package schemas come from real lex package
+      assert.ok(schemas.includes("test-schema.json")); // From real package
+
+      // Verify shared.json appears only once (despite being in multiple locations)
+      assert.strictEqual(
+        schemas.filter((s) => s === "shared.json").length,
+        1,
+        "shared.json should appear once"
+      );
     } finally {
-      // Cleanup
-      if (createdLocalFile && existsSync(localPath)) {
-        unlinkSync(localPath);
-      }
+      rmSync(customCanon, { recursive: true, force: true });
     }
   });
 
-  test("environment variable override works", async () => {
-    const originalEnv = process.env.LEX_SCHEMAS_DIR;
-    const repoRoot = resolve(__dirname, "../../..");
-    const envDir = join(repoRoot, ".tmp-schemas-test");
-    const envPath = join(envDir, "env-test.json");
-
-    let createdEnvFile = false;
+  test("getSchemaPath() returns correct path for each level", () => {
+    const customCanon = mkdtempSync(join(tmpdir(), "lex-canon-"));
+    const repo = createTestRepo();
 
     try {
-      // Create env override directory
-      if (!existsSync(envDir)) {
-        mkdirSync(envDir, { recursive: true });
-      }
-      writeFileSync(envPath, JSON.stringify({ source: "env-override" }));
-      createdEnvFile = true;
+      mkdirSync(join(customCanon, "schemas"), { recursive: true });
+      writeFileSync(join(customCanon, "schemas", "env.json"), JSON.stringify({ source: "env" }));
 
-      process.env.LEX_SCHEMAS_DIR = envDir;
-      const schema = loadSchema("env-test.json");
-      assert.ok(schema);
-      assert.equal((schema as any).source, "env-override");
+      mkdirSync(join(repo, ".smartergpt.local", "schemas"), { recursive: true });
+      writeFileSync(
+        join(repo, ".smartergpt.local", "schemas", "local.json"),
+        JSON.stringify({ source: "local" })
+      );
+
+      process.env.LEX_SCHEMAS_DIR = join(customCanon, "schemas");
+      process.chdir(repo);
+
+      // Test each level
+      const envPath = getSchemaPath("env.json");
+      assert.ok(envPath?.includes(join(customCanon, "schemas", "env.json")));
+
+      const localPath = getSchemaPath("local.json");
+      assert.ok(localPath?.includes(join(repo, ".smartergpt.local", "schemas", "local.json")));
+
+      // Package path - should resolve to real package's test-schema.json
+      const packagePath = getSchemaPath("test-schema.json");
+      assert.ok(packagePath?.includes("schemas"));
+      assert.ok(packagePath?.includes("test-schema.json"));
+
+      // Non-existent schema
+      const nonExistent = getSchemaPath("nonexistent.json");
+      assert.strictEqual(nonExistent, null);
     } finally {
-      // Cleanup
-      if (originalEnv) {
-        process.env.LEX_SCHEMAS_DIR = originalEnv;
-      } else {
-        delete process.env.LEX_SCHEMAS_DIR;
-      }
-      if (createdEnvFile && existsSync(envPath)) {
-        unlinkSync(envPath);
-      }
-      if (existsSync(envDir)) {
-        try {
-          const fs = await import("fs");
-          fs.rmSync(envDir, { recursive: true, force: true });
-        } catch {
-          // Ignore cleanup errors
-        }
-      }
+      rmSync(customCanon, { recursive: true, force: true });
     }
   });
 });
 
-describe("getSchemaPath", () => {
-  test("returns path for existing schema", () => {
-    const path = getSchemaPath("test-schema.json");
-    assert.ok(path);
-    assert.ok(path.endsWith("test-schema.json"));
+describe("Schema Loader Edge Cases", () => {
+  let originalDir: string;
+  let originalSchemasDir: string | undefined;
+  let testRepoDir: string | undefined;
+
+  beforeEach(() => {
+    originalDir = process.cwd();
+    originalSchemasDir = process.env.LEX_SCHEMAS_DIR;
+    delete process.env.LEX_SCHEMAS_DIR;
   });
 
-  test("returns null for non-existent schema", () => {
-    const path = getSchemaPath("nonexistent.json");
-    assert.strictEqual(path, null);
-  });
-});
+  afterEach(() => {
+    process.chdir(originalDir);
 
-describe("listSchemas", () => {
-  test("lists available schemas", () => {
+    if (originalSchemasDir !== undefined) {
+      process.env.LEX_SCHEMAS_DIR = originalSchemasDir;
+    } else {
+      delete process.env.LEX_SCHEMAS_DIR;
+    }
+
+    if (testRepoDir) {
+      try {
+        rmSync(testRepoDir, { recursive: true, force: true });
+      } catch {
+        // Ignore cleanup errors
+      }
+      testRepoDir = undefined;
+    }
+  });
+
+  function createTestRepo(): string {
+    const dir = mkdtempSync(join(tmpdir(), "lex-schema-test-"));
+    testRepoDir = dir;
+    writeFileSync(join(dir, "package.json"), JSON.stringify({ name: "lex", version: "1.0.0" }));
+    return dir;
+  }
+
+  test("handles relative paths in LEX_SCHEMAS_DIR", () => {
+    const repo = createTestRepo();
+
+    // Create canon directory inside the repo
+    mkdirSync(join(repo, "custom-canon", "schemas"), { recursive: true });
+    writeFileSync(
+      join(repo, "custom-canon", "schemas", "test.json"),
+      JSON.stringify({ source: "relative" })
+    );
+
+    process.chdir(repo);
+    process.env.LEX_SCHEMAS_DIR = "./custom-canon/schemas";
+
+    const result = loadSchema("test.json");
+    assert.deepEqual(result, { source: "relative" });
+  });
+
+  test("handles missing .smartergpt.local/ directory gracefully", () => {
+    const repo = createTestRepo();
+    process.chdir(repo);
+
+    // Should not throw, should fall back to package schemas
+    const result = loadSchema("test-schema.json");
+    assert.ok(result);
+    assert.equal(typeof result, "object");
+  });
+
+  test("handles concurrent loadSchema() calls", async () => {
+    const repo = createTestRepo();
+
+    mkdirSync(join(repo, ".smartergpt.local", "schemas"), { recursive: true });
+    writeFileSync(
+      join(repo, ".smartergpt.local", "schemas", "concurrent1.json"),
+      JSON.stringify({ id: 1 })
+    );
+    writeFileSync(
+      join(repo, ".smartergpt.local", "schemas", "concurrent2.json"),
+      JSON.stringify({ id: 2 })
+    );
+    writeFileSync(
+      join(repo, ".smartergpt.local", "schemas", "concurrent3.json"),
+      JSON.stringify({ id: 3 })
+    );
+
+    process.chdir(repo);
+
+    // Load multiple schemas concurrently
+    const [result1, result2, result3] = await Promise.all([
+      Promise.resolve(loadSchema("concurrent1.json")),
+      Promise.resolve(loadSchema("concurrent2.json")),
+      Promise.resolve(loadSchema("concurrent3.json")),
+    ]);
+
+    assert.deepEqual(result1, { id: 1 });
+    assert.deepEqual(result2, { id: 2 });
+    assert.deepEqual(result3, { id: 3 });
+  });
+
+  test("handles invalid JSON in schema file", () => {
+    const repo = createTestRepo();
+
+    mkdirSync(join(repo, ".smartergpt.local", "schemas"), { recursive: true });
+    writeFileSync(join(repo, ".smartergpt.local", "schemas", "invalid.json"), "{ invalid json }");
+
+    process.chdir(repo);
+
+    assert.throws(() => {
+      loadSchema("invalid.json");
+    }, /SyntaxError|JSON/);
+  });
+
+  test("listSchemas() includes package schemas when no overrides exist", () => {
+    const repo = createTestRepo();
+    process.chdir(repo);
+    delete process.env.LEX_SCHEMAS_DIR; // Ensure no env override
+
     const schemas = listSchemas();
     assert.ok(Array.isArray(schemas));
-    // Should include at least the test schema
-    assert.ok(schemas.includes("test-schema.json"));
+    // Should include schemas from the real package
+    assert.ok(schemas.length > 0);
+    assert.ok(schemas.includes("test-schema.json")); // From package
   });
 
-  test("returns sorted array", () => {
+  test("listSchemas() filters out non-.json files", () => {
+    const repo = createTestRepo();
+
+    mkdirSync(join(repo, ".smartergpt.local", "schemas"), { recursive: true });
+    writeFileSync(
+      join(repo, ".smartergpt.local", "schemas", "valid.json"),
+      JSON.stringify({ valid: true })
+    );
+    writeFileSync(join(repo, ".smartergpt.local", "schemas", "invalid.txt"), "Not JSON");
+    writeFileSync(join(repo, ".smartergpt.local", "schemas", "README"), "No extension");
+
+    process.chdir(repo);
+
+    const schemas = listSchemas();
+    assert.ok(schemas.includes("valid.json"));
+    assert.ok(!schemas.includes("invalid.txt"));
+    assert.ok(!schemas.includes("README"));
+  });
+
+  test("handles LEX_SCHEMAS_DIR with missing schemas subdirectory", () => {
+    const customCanon = mkdtempSync(join(tmpdir(), "lex-canon-"));
+    const repo = createTestRepo();
+
+    try {
+      // Don't create schemas subdirectory
+      writeFileSync(join(customCanon, "README.md"), "# Canon");
+
+      process.env.LEX_SCHEMAS_DIR = customCanon;
+      process.chdir(repo);
+
+      // Should fall back to package schemas
+      const result = loadSchema("test-schema.json");
+      assert.ok(result);
+      assert.equal(typeof result, "object");
+    } finally {
+      rmSync(customCanon, { recursive: true, force: true });
+    }
+  });
+
+  test("returns sorted array from listSchemas()", () => {
     const schemas = listSchemas();
     const sorted = [...schemas].sort();
     assert.deepEqual(schemas, sorted);

@@ -234,7 +234,7 @@ async function runTests() {
   // Create output directory
   try {
     mkdirSync(TEST_OUTPUT_DIR, { recursive: true });
-  } catch (err) {
+  } catch {
     // Directory already exists
   }
 

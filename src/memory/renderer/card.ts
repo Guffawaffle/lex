@@ -13,14 +13,18 @@ import {
   MONOSPACE_FONT,
   TEXT_LIMITS,
   truncateText,
-  wrapText,
+  // Future: wrapText for multi-line text handling
+  // wrapText,
   calculateCardHeight,
   type CardDimensions,
   type ColorScheme,
   type FontConfig,
 } from "./templates.js";
-import { highlightDiff } from "./syntax.js";
-import { renderDiff, getDiffStats, type TruncationOptions } from "./diff.js";
+// Future: highlightDiff for syntax-highlighted diffs
+// import { highlightDiff } from "./syntax.js";
+import { renderDiff, getDiffStats } from "./diff.js";
+// Future: TruncationOptions for configurable diff truncation
+// import type { TruncationOptions } from "./diff.js";
 import type { BundledLanguage } from "shiki";
 
 export interface RenderOptions {
@@ -169,7 +173,7 @@ async function generateSVG(frame: Frame, options: Required<RenderOptions>): Prom
       );
       yOffset += lineHeight;
 
-      for (const { diff, language } of diffs.slice(0, 2)) {
+      for (const { diff, language: _language } of diffs.slice(0, 2)) {
         // Limit to 2 diffs
         // Apply smart truncation
         const truncatedDiff = renderDiff(diff, { maxLines: 20, contextLines: 2 });

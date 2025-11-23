@@ -103,9 +103,9 @@ class TypeScriptScanner {
     if (policyPath && fs.existsSync(policyPath)) {
       try {
         const policyContent = fs.readFileSync(policyPath, "utf-8");
-        this.policy = JSON.parse(policyContent);
+        this.policy = JSON.parse(policyContent) as Policy;
       } catch (error) {
-        console.error(`Warning: Failed to load policy file: ${error}`);
+        console.error(`Warning: Failed to load policy file: ${String(error)}`);
       }
     }
   }
@@ -166,7 +166,7 @@ class TypeScriptScanner {
       }
 
       return fileData;
-    } catch (error) {
+    } catch {
       return null;
     }
   }

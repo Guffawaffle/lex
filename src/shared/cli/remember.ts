@@ -99,8 +99,9 @@ export async function remember(options: RememberOptions = {}): Promise<void> {
       output.info(`Reference: ${frame.reference_point}`);
       output.info(`Modules: ${frame.module_scope.join(", ")}`);
     }
-  } catch (error: any) {
-    output.error(`\n❌ Error: ${error.message}\n`);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    output.error(`\n❌ Error: ${errorMessage}\n`);
     process.exit(2);
   }
 }
@@ -112,6 +113,7 @@ async function promptForFrameData(
   options: RememberOptions,
   _currentBranch: string
 ): Promise<RememberOptions> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const questions: any[] = [];
 
   if (!options.jira) {

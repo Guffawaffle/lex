@@ -22,7 +22,6 @@ import {
   getAllFrames,
   deleteFrame,
   getFrameCount,
-  createDatabase,
 } from "@app/memory/store/index.js";
 import type { Frame } from "../frames/types.js";
 
