@@ -7,6 +7,9 @@
 import Database from "better-sqlite3";
 import type { FrameRow } from "./db.js";
 import type { Frame, FrameStatusSnapshot, FrameSpendMetadata } from "../frames/types.js";
+import { getNDJSONLogger } from "../../shared/logger/index.js";
+
+const logger = getNDJSONLogger("memory/store");
 
 /**
  * Convert Frame object to database row
@@ -60,6 +63,7 @@ function rowToFrame(row: FrameRow): Frame {
  * Save a Frame to the database (insert or update)
  */
 export function saveFrame(db: Database.Database, frame: Frame): void {
+  const startTime = Date.now();
   const row = frameToRow(frame);
 
   const stmt = db.prepare(`
@@ -87,17 +91,37 @@ export function saveFrame(db: Database.Database, frame: Frame): void {
     row.plan_hash,
     row.spend
   );
+  
+  const duration = Date.now() - startTime;
+  logger.info("Frame saved", {
+    operation: "saveFrame",
+    duration_ms: duration,
+    metadata: { frameId: frame.id, jira: frame.jira, branch: frame.branch }
+  });
 }
 
 /**
  * Get a Frame by ID
  */
 export function getFrameById(db: Database.Database, id: string): Frame | null {
+  const startTime = Date.now();
   const stmt = db.prepare("SELECT * FROM frames WHERE id = ?");
   const row = stmt.get(id) as FrameRow | undefined;
 
-  if (!row) return null;
+  if (!row) {
+    logger.debug("Frame not found", {
+      operation: "getFrameById",
+      duration_ms: Date.now() - startTime,
+      metadata: { frameId: id }
+    });
+    return null;
+  }
 
+  logger.debug("Frame retrieved", {
+    operation: "getFrameById",
+    duration_ms: Date.now() - startTime,
+    metadata: { frameId: id }
+  });
   return rowToFrame(row);
 }
 
@@ -112,6 +136,7 @@ export interface SearchResult {
  * @returns SearchResult with frames array and optional hint for FTS5 syntax errors
  */
 export function searchFrames(db: Database.Database, query: string): SearchResult {
+  const startTime = Date.now();
   try {
     const stmt = db.prepare(`
       SELECT f.*
@@ -122,6 +147,12 @@ export function searchFrames(db: Database.Database, query: string): SearchResult
     `);
 
     const rows = stmt.all(query) as FrameRow[];
+    const duration = Date.now() - startTime;
+    logger.info("Search completed", {
+      operation: "searchFrames",
+      duration_ms: duration,
+      metadata: { query, resultCount: rows.length }
+    });
     return { frames: rows.map(rowToFrame) };
   } catch (error: unknown) {
     // Check if this is an FTS5-related error (caused by special characters)
@@ -137,6 +168,12 @@ export function searchFrames(db: Database.Database, query: string): SearchResult
       const hint = simplifiedQuery
         ? `Search contained special characters. Try simpler terms (e.g., '${simplifiedQuery}')`
         : "Search contained special characters. Try simpler terms";
+      
+      logger.warn("Search query contained special characters", {
+        operation: "searchFrames",
+        duration_ms: Date.now() - startTime,
+        metadata: { query, error: err.message }
+      });
 
       return {
         frames: [],
