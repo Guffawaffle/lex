@@ -23,6 +23,8 @@ import type { ModuleIdError } from "../../shared/types/validation.js";
 // @ts-ignore - importing from compiled dist directories
 import { loadPolicy } from "../../shared/policy/loader.js";
 // @ts-ignore - importing from compiled dist directories
+import type { Policy } from "../../shared/types/policy.js";
+// @ts-ignore - importing from compiled dist directories
 import { getCurrentBranch } from "../../shared/git/branch.js";
 import { randomUUID } from "crypto";
 import { join } from "path";
@@ -30,14 +32,51 @@ import { existsSync } from "fs";
 
 const logger = getLogger("memory:mcp_server:server");
 
+interface RememberArgs {
+  reference_point: string;
+  summary_caption: string;
+  status_snapshot: {
+    next_action: string;
+    blockers?: string[];
+    merge_blockers?: string[];
+    tests_failing?: string[];
+  };
+  module_scope: string[];
+  branch?: string;
+  jira?: string;
+  keywords?: string[];
+  atlas_frame_id?: string;
+  images?: { data: string; mime_type: string }[];
+}
+
+interface RecallArgs {
+  reference_point?: string;
+  jira?: string;
+  branch?: string;
+  limit?: number;
+}
+
+interface ListFramesArgs {
+  branch?: string;
+  module?: string;
+  limit?: number;
+  since?: string;
+}
+
 export interface MCPRequest {
   method: string;
-  params?: any;
+  params?: unknown;
 }
 
 export interface MCPResponse {
-  tools?: any[];
-  content?: any[];
+  protocolVersion?: string;
+  capabilities?: unknown;
+  serverInfo?: {
+    name: string;
+    version: string;
+  };
+  tools?: unknown[];
+  content?: unknown[];
   error?: {
     message: string;
     code: string;
@@ -46,7 +85,7 @@ export interface MCPResponse {
 
 export interface ToolCallParams {
   name: string;
-  arguments: any;
+  arguments: Record<string, unknown>;
 }
 
 /**
@@ -55,7 +94,7 @@ export interface ToolCallParams {
 export class MCPServer {
   private db: Database.Database;
   private imageManager: ImageManager;
-  private policy: any | null; // Cached policy for validation (null if not available)
+  private policy: Policy | null; // Cached policy for validation (null if not available)
   private repoRoot: string | null; // Repository root path
 
   constructor(dbPath: string, repoRoot?: string) {
@@ -90,9 +129,10 @@ export class MCPServer {
       }
 
       this.policy = loadPolicy(policyPath);
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (process.env.LEX_DEBUG) {
-        logger.error(`[LEX] Policy not available: ${error.message}`);
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        logger.error(`[LEX] Policy not available: ${errorMessage}`);
         logger.error(`[LEX] Operating without policy enforcement`);
       }
       this.policy = null;
@@ -119,11 +159,14 @@ export class MCPServer {
         default:
           throw new Error(`Unknown method: ${method}`);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const errorCode = (error as any).code || "INTERNAL_ERROR";
       return {
         error: {
-          message: error.message,
-          code: error.code || "INTERNAL_ERROR",
+          message: errorMessage,
+          code: errorCode,
         },
       };
     }
@@ -144,7 +187,7 @@ export class MCPServer {
         name: "lex-memory-mcp-server",
         version: "0.1.0",
       },
-    } as any;
+    };
   }
 
   /**
@@ -182,7 +225,7 @@ export class MCPServer {
    *
    * Validates module IDs against policy with alias resolution before creating Frame (THE CRITICAL RULE)
    */
-  private async handleRemember(args: any): Promise<MCPResponse> {
+  private async handleRemember(args: Record<string, unknown>): Promise<MCPResponse> {
     const {
       reference_point,
       summary_caption,
@@ -193,7 +236,7 @@ export class MCPServer {
       keywords,
       atlas_frame_id,
       images,
-    } = args;
+    } = args as unknown as RememberArgs;
 
     // Validate required fields
     if (!reference_point || !summary_caption || !status_snapshot || !module_scope) {
@@ -265,13 +308,13 @@ export class MCPServer {
       id: frameId,
       timestamp,
       branch: frameBranch,
-      jira: jira || null,
+      jira: jira || undefined,
       module_scope: canonicalModuleScope, // Store canonical IDs only
       summary_caption,
       reference_point,
       status_snapshot,
       keywords: keywords || undefined,
-      atlas_frame_id: atlas_frame_id || null,
+      atlas_frame_id: atlas_frame_id || undefined,
       image_ids: [] as string[],
     };
 
@@ -286,10 +329,11 @@ export class MCPServer {
           const imageBuffer = Buffer.from(img.data, "base64");
           const imageId = this.imageManager.storeImage(frameId, imageBuffer, img.mime_type);
           imageIds.push(imageId);
-        } catch (error: any) {
+        } catch (error: unknown) {
           // If image storage fails, clean up the Frame and rethrow
           deleteFrame(this.db, frameId);
-          throw new Error(`Failed to store image: ${error.message}`);
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          throw new Error(`Failed to store image: ${errorMessage}`);
         }
       }
 
@@ -326,8 +370,8 @@ export class MCPServer {
   /**
    * Handle lex.recall tool - search Frames with Atlas Frame
    */
-  private handleRecall(args: any): MCPResponse {
-    const { reference_point, jira, branch, limit = 10 } = args;
+  private handleRecall(args: Record<string, unknown>): MCPResponse {
+    const { reference_point, jira, branch, limit = 10 } = args as unknown as RecallArgs;
 
     if (!reference_point && !jira && !branch) {
       throw new Error("At least one search parameter required: reference_point, jira, or branch");
@@ -346,10 +390,12 @@ export class MCPServer {
       } else {
         frames = [];
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       // FTS5 search can fail with special characters (e.g., "zzz-nonexistent-query-zzz")
       // Treat search errors as empty results rather than propagating the error
-      if (error.code === "SQLITE_ERROR" || error.message?.includes("no such column")) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const err = error as any;
+      if (err.code === "SQLITE_ERROR" || err.message?.includes("no such column")) {
         frames = [];
       } else {
         throw error;
@@ -415,8 +461,8 @@ export class MCPServer {
   /**
    * Handle lex.list_frames tool - list recent Frames
    */
-  private handleListFrames(args: any): MCPResponse {
-    const { branch, module, limit = 10, since } = args;
+  private handleListFrames(args: Record<string, unknown>): MCPResponse {
+    const { branch, module, limit = 10, since } = args as unknown as ListFramesArgs;
 
     // Get frames based on filters
     let frames: Frame[];

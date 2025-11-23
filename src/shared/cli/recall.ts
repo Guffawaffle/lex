@@ -12,6 +12,7 @@ import {
   autoTuneRadius,
   estimateTokens,
   getCacheStats,
+  type AtlasFrame,
 } from "../atlas/index.js";
 import { output, json } from "./output.js";
 
@@ -98,8 +99,9 @@ export async function recall(query: string, options: RecallOptions = {}): Promis
         output.info(`   Evictions: ${stats.evictions}`);
       }
     }
-  } catch (error: any) {
-    output.error(`\n❌ Error: ${error.message}\n`);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    output.error(`\n❌ Error: ${errorMessage}\n`);
     process.exit(2);
   }
 }
@@ -196,7 +198,7 @@ async function generateAtlasFrameWithAutoTune(
   frame: Frame,
   options: RecallOptions
 ): Promise<{
-  atlasFrame: any;
+  atlasFrame: AtlasFrame | null;
   actualRadius: number;
   requestedRadius: number;
   tokens: number;

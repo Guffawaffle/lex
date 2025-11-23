@@ -114,8 +114,9 @@ export async function check(
     } else {
       process.exit(0);
     }
-  } catch (error: any) {
-    output.error(`\n❌ Error: ${error.message}\n`);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    output.error(`\n❌ Error: ${errorMessage}\n`);
     process.exit(2);
   }
 }
