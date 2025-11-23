@@ -21,7 +21,7 @@ import {
   RenderedPrompt,
   type TokenContext,
 } from "./types.js";
-import { expandTokens } from "../tokens/expander.js";
+import { expandTokens, KNOWN_TOKENS } from "../tokens/expander.js";
 
 /**
  * HTML escape map for security
@@ -57,14 +57,7 @@ function extractVariables(template: string): string[] {
   const variables = new Set<string>();
 
   // Known tokens that should be excluded from variable extraction
-  const knownTokens = new Set([
-    "today",
-    "now",
-    "repo_root",
-    "workspace_root",
-    "branch",
-    "commit",
-  ]);
+  const knownTokensSet = new Set<string>([...KNOWN_TOKENS]);
 
   // Match control structures: {{#if var}} and {{#each var}}
   const controlRegex = /\{\{#(if|each)\s+([a-zA-Z_][a-zA-Z0-9_\.]*)\s*\}\}/g;
@@ -73,7 +66,7 @@ function extractVariables(template: string): string[] {
   while ((match = controlRegex.exec(template)) !== null) {
     const varName = match[2];
     const rootVar = varName.split(".")[0];
-    if (!knownTokens.has(rootVar)) {
+    if (!knownTokensSet.has(rootVar)) {
       variables.add(rootVar);
     }
   }
@@ -113,7 +106,7 @@ function extractVariables(template: string): string[] {
 
     // Skip known tokens
     const rootVar = varName.split(".")[0];
-    if (knownTokens.has(rootVar)) {
+    if (knownTokensSet.has(rootVar)) {
       continue;
     }
 
@@ -244,8 +237,7 @@ export function renderPrompt(
     const filteredTokenContext: TokenContext = { ...tokenContext };
     
     // If a variable with the same name exists in the render context, don't expand it as a token
-    const knownTokens = ["today", "now", "repo_root", "workspace_root", "branch", "commit"];
-    for (const tokenName of knownTokens) {
+    for (const tokenName of KNOWN_TOKENS) {
       if (tokenName in context) {
         // Mark this token to not be expanded by using a placeholder that will be processed later
         // We'll replace it back to the token syntax so the variable renderer can handle it
@@ -258,7 +250,7 @@ export function renderPrompt(
     result = expandTokens(result, filteredTokenContext);
     
     // Restore escaped tokens back to template syntax
-    for (const tokenName of knownTokens) {
+    for (const tokenName of KNOWN_TOKENS) {
       if (tokenName in context) {
         const escapedToken = `__TOKEN_ESCAPED_${tokenName}__`;
         result = result.replace(new RegExp(escapedToken, "g"), `{{${tokenName}}}`);
