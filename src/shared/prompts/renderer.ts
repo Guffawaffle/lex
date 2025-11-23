@@ -63,11 +63,16 @@ function extractVariables(template: string): string[] {
 
   // Match regular variables: {{var}} and {{{var}}}
   // But NOT inside {{#each}}...{{/each}} blocks where {{this}} is valid
-  // Remove {{#each}} blocks first
-  let cleanedTemplate = template.replace(
-    /\{\{#each\s+[a-zA-Z_][a-zA-Z0-9_\.]*\s*\}\}[\s\S]*?\{\{\/each\}\}/g,
-    ""
-  );
+  // Remove {{#each}} blocks first (recursively to handle nesting)
+  let cleanedTemplate = template;
+  // Use tempered greedy token to avoid ReDoS: ((?:(?!{{\/each}})[\s\S])*)
+  const eachRegex =
+    /\{\{#each\s+[a-zA-Z_][a-zA-Z0-9_\.]*\s*\}\}((?:(?!\{\{\/each\}\})[\s\S])*?)\{\{\/each\}\}/g;
+
+  let maxIterations = 100;
+  while (eachRegex.test(cleanedTemplate) && maxIterations-- > 0) {
+    cleanedTemplate = cleanedTemplate.replace(eachRegex, "");
+  }
 
   // Use a safer regex that avoids potential ReDoS with explicit brace matching
   const varRegex = /\{\{(\{?)\s*([a-zA-Z_][a-zA-Z0-9_\.]*)\s*(\}?)\}\}/g;
