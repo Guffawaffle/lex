@@ -75,8 +75,43 @@ jobs:
       - name: Build native dependencies
         run: npm rebuild better-sqlite3
 
+      - name: Initialize working files
+        run: npm run setup-local
+
+      - name: Validate schemas (pre-build)
+        run: npm run validate-schemas
+
       - name: Build package
         run: npm run build
+
+      - name: Verify canon assets copied
+        run: |
+          # Verify prompts/ and schemas/ directories exist and are populated
+          if [ ! -d prompts ] || [ -z "$(ls -A prompts)" ]; then
+            echo "❌ prompts/ directory missing or empty"
+            exit 1
+          fi
+          if [ ! -d schemas ] || [ -z "$(ls -A schemas)" ]; then
+            echo "❌ schemas/ directory missing or empty"
+            exit 1
+          fi
+          # Verify content matches canon/
+          if ! diff -r canon/prompts prompts > /dev/null; then
+            echo "❌ prompts/ does not match canon/prompts"
+            diff -r canon/prompts prompts
+            exit 1
+          fi
+          if ! diff -r canon/schemas schemas > /dev/null; then
+            echo "❌ schemas/ does not match canon/schemas"
+            diff -r canon/schemas schemas
+            exit 1
+          fi
+          echo "✅ Canon assets verified: prompts/ and schemas/ match canon/"
+
+      - name: Validate tarball structure
+        run: |
+          npm run guard:pack
+          echo "✅ Tarball structure validated"
 
       - name: Run all tests
         run: npm run test:all
@@ -117,6 +152,32 @@ jobs:
           name: npm-package
           path: .
 
+      - name: Inspect tarball contents
+        run: |
+          EXPECTED_DIRS="dist prompts schemas examples"
+          echo "📦 Tarball contents preview:"
+          tar -tzf lex-*.tgz | head -50
+          echo ""
+          echo "📊 Tarball statistics:"
+          tar -tzf lex-*.tgz | wc -l
+          echo "total files in tarball"
+          echo ""
+          echo "📁 Directory breakdown:"
+          for dir in $EXPECTED_DIRS; do
+            count=$(tar -tzf lex-*.tgz | grep "^package/$dir/" | wc -l)
+            if [ "$count" -gt 0 ]; then
+              echo "  $dir: $count files"
+            fi
+          done
+          echo ""
+          echo "✅ Verifying no canon/ source directories in tarball..."
+          if tar -tzf lex-*.tgz | grep -q "^package/canon/"; then
+            echo "❌ ERROR: canon/ source directories found in tarball!"
+            tar -tzf lex-*.tgz | grep "^package/canon/"
+            exit 1
+          fi
+          echo "✅ No canon/ source directories - tarball is clean"
+
       - name: Verify npm authentication
         run: |
           echo "Verifying npm authentication..."
@@ -132,6 +193,48 @@ jobs:
           echo "✅ Dry-run successful"
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Final pre-publish verification
+        run: |
+          # Define required directories
+          REQUIRED_DIRS="dist prompts schemas"
+          OPTIONAL_DIRS="examples"
+
+          echo "🔍 Final verification before publish..."
+
+          # Extract tarball to verify contents
+          mkdir -p /tmp/verify-tarball
+          tar -xzf lex-*.tgz -C /tmp/verify-tarball
+
+          # Verify required directories exist
+          for dir in $REQUIRED_DIRS; do
+            if [ ! -d "/tmp/verify-tarball/package/$dir" ]; then
+              echo "❌ Required directory missing: $dir"
+              exit 1
+            fi
+            echo "✅ Found required directory: $dir"
+          done
+
+          # Verify no canon/ source
+          if [ -d "/tmp/verify-tarball/package/canon" ]; then
+            echo "❌ ERROR: canon/ source directory found in tarball"
+            exit 1
+          fi
+          echo "✅ Confirmed no canon/ source directory"
+
+          # Count files in each directory
+          echo ""
+          echo "📊 Final package structure:"
+          for dir in $REQUIRED_DIRS $OPTIONAL_DIRS; do
+            if [ -d "/tmp/verify-tarball/package/$dir" ]; then
+              count=$(find "/tmp/verify-tarball/package/$dir" -type f | wc -l)
+              echo "  $dir/: $count files"
+            fi
+          done
+
+          echo ""
+          echo "✅ All pre-publish verifications passed"
+          echo "📦 Package is ready for publication"
 
       - name: Publish package with provenance
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')

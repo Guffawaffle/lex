@@ -201,12 +201,12 @@ jobs:
       - name: Initialize working files
         run: npm run setup-local
 
-      - name: Build all packages
-        run: npm run build
-
-      - name: Validate schemas
+      - name: Validate schemas (before build)
         if: matrix.node-version == '20' || matrix.node-version == '22'
         run: npm run validate-schemas
+
+      - name: Build all packages
+        run: npm run build
 
       - name: Verify canon assets copied
         if: matrix.node-version == '20' || matrix.node-version == '22'
