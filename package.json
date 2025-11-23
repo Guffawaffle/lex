@@ -29,6 +29,10 @@
       "types": "./dist/shared/prompts/index.d.ts",
       "import": "./dist/shared/prompts/index.js"
     },
+    "./rules": {
+      "types": "./dist/shared/rules/index.d.ts",
+      "import": "./dist/shared/rules/index.js"
+    },
     "./policy/*": "./dist/policy/*",
     "./memory/*": "./dist/memory/*",
     "./shared/*": "./dist/shared/*"
