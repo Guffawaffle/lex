@@ -17,10 +17,10 @@
 import * as fs from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url";
-import { exec } from "child_process";
+import { execFile } from "child_process";
 import { promisify } from "util";
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 // ESM equivalent of __dirname
 const __filename = fileURLToPath(import.meta.url);
@@ -120,9 +120,12 @@ export class AdminPanel {
   );
 
   await test("TS: File path maps to module via owns_paths", async () => {
-    const { stdout } = await execAsync(
-      `npx tsx ${path.join(SCANNERS_DIR, "ts_scanner.ts")} ${TEST_DIR} ${POLICY_FILE}`
-    );
+    const { stdout } = await execFileAsync("npx", [
+      "tsx",
+      path.join(SCANNERS_DIR, "ts_scanner.ts"),
+      TEST_DIR,
+      POLICY_FILE,
+    ]);
     const result = JSON.parse(stdout);
     const file = result.files.find((f: any) => f.path === "ui/admin/panel.ts");
     if (!file || file.module_scope !== "ui/admin") {
@@ -150,9 +153,12 @@ export class AuthService {}
   );
 
   await test("TS: Cross-module calls are detected", async () => {
-    const { stdout } = await execAsync(
-      `npx tsx ${path.join(SCANNERS_DIR, "ts_scanner.ts")} ${TEST_DIR} ${POLICY_FILE}`
-    );
+    const { stdout } = await execFileAsync("npx", [
+      "tsx",
+      path.join(SCANNERS_DIR, "ts_scanner.ts"),
+      TEST_DIR,
+      POLICY_FILE,
+    ]);
     const result = JSON.parse(stdout);
     const edge = result.module_edges?.find(
       (e: any) => e.from_module === "ui/admin" && e.to_module === "services/auth"
@@ -175,9 +181,12 @@ export function View() {
   );
 
   await test("TS: Feature flag detection - flags.flag_name", async () => {
-    const { stdout } = await execAsync(
-      `npx tsx ${path.join(SCANNERS_DIR, "ts_scanner.ts")} ${TEST_DIR} ${POLICY_FILE}`
-    );
+    const { stdout } = await execFileAsync("npx", [
+      "tsx",
+      path.join(SCANNERS_DIR, "ts_scanner.ts"),
+      TEST_DIR,
+      POLICY_FILE,
+    ]);
     const result = JSON.parse(stdout);
     const file = result.files.find((f: any) => f.path.includes("userAdmin/view"));
     if (!file || !file.feature_flags.includes("beta_user_admin")) {
@@ -196,9 +205,12 @@ if (featureFlags.isEnabled('admin_panel')) {
   );
 
   await test("TS: Feature flag detection - featureFlags.isEnabled()", async () => {
-    const { stdout } = await execAsync(
-      `npx tsx ${path.join(SCANNERS_DIR, "ts_scanner.ts")} ${TEST_DIR} ${POLICY_FILE}`
-    );
+    const { stdout } = await execFileAsync("npx", [
+      "tsx",
+      path.join(SCANNERS_DIR, "ts_scanner.ts"),
+      TEST_DIR,
+      POLICY_FILE,
+    ]);
     const result = JSON.parse(stdout);
     const file = result.files.find((f: any) => f.path.includes("feature.ts"));
     if (!file || !file.feature_flags.includes("admin_panel")) {
@@ -217,9 +229,12 @@ export function checkAccess(user: User) {
   );
 
   await test("TS: Permission checks are detected", async () => {
-    const { stdout } = await execAsync(
-      `npx tsx ${path.join(SCANNERS_DIR, "ts_scanner.ts")} ${TEST_DIR} ${POLICY_FILE}`
-    );
+    const { stdout } = await execFileAsync("npx", [
+      "tsx",
+      path.join(SCANNERS_DIR, "ts_scanner.ts"),
+      TEST_DIR,
+      POLICY_FILE,
+    ]);
     const result = JSON.parse(stdout);
     const file = result.files.find((f: any) => f.path.includes("access.ts"));
     if (!file || !file.permissions.includes("can_manage_users")) {
@@ -246,9 +261,11 @@ class AuthService:
   );
 
   await test("Python: File path maps to module via owns_paths", async () => {
-    const { stdout } = await execAsync(
-      `python3 ${path.join(EXAMPLES_SCANNERS_DIR, "python_scanner.py")} ${TEST_DIR} ${POLICY_FILE}`
-    );
+    const { stdout } = await execFileAsync("python3", [
+      path.join(EXAMPLES_SCANNERS_DIR, "python_scanner.py"),
+      TEST_DIR,
+      POLICY_FILE,
+    ]);
     const result = JSON.parse(stdout);
     const file = result.files.find((f: any) => f.path.includes("services/auth"));
     if (!file || file.module_scope !== "services/auth") {
@@ -268,9 +285,11 @@ class AdminPanel:
   );
 
   await test("Python: Cross-module imports are detected", async () => {
-    const { stdout } = await execAsync(
-      `python3 ${path.join(EXAMPLES_SCANNERS_DIR, "python_scanner.py")} ${TEST_DIR} ${POLICY_FILE}`
-    );
+    const { stdout } = await execFileAsync("python3", [
+      path.join(EXAMPLES_SCANNERS_DIR, "python_scanner.py"),
+      TEST_DIR,
+      POLICY_FILE,
+    ]);
     const result = JSON.parse(stdout);
     const edge = result.module_edges?.find(
       (e: any) => e.from_module === "ui/admin" && e.to_module === "services/auth"
@@ -291,9 +310,11 @@ def view(request):
   );
 
   await test("Python: Feature flag detection - feature_flags.is_enabled()", async () => {
-    const { stdout } = await execAsync(
-      `python3 ${path.join(EXAMPLES_SCANNERS_DIR, "python_scanner.py")} ${TEST_DIR} ${POLICY_FILE}`
-    );
+    const { stdout } = await execFileAsync("python3", [
+      path.join(EXAMPLES_SCANNERS_DIR, "python_scanner.py"),
+      TEST_DIR,
+      POLICY_FILE,
+    ]);
     const result = JSON.parse(stdout);
     const file = result.files.find((f: any) => f.path.includes("controller.py"));
     if (!file || !file.feature_flags.includes("beta_user_admin")) {
@@ -311,9 +332,11 @@ def check(user):
   );
 
   await test("Python: Permission checks are detected", async () => {
-    const { stdout } = await execAsync(
-      `python3 ${path.join(EXAMPLES_SCANNERS_DIR, "python_scanner.py")} ${TEST_DIR} ${POLICY_FILE}`
-    );
+    const { stdout } = await execFileAsync("python3", [
+      path.join(EXAMPLES_SCANNERS_DIR, "python_scanner.py"),
+      TEST_DIR,
+      POLICY_FILE,
+    ]);
     const result = JSON.parse(stdout);
     const file = result.files.find((f: any) => f.path.includes("perms.py"));
     if (!file || !file.permissions.includes("can_manage_users")) {
@@ -341,9 +364,11 @@ class AuthService {}
   );
 
   await test("PHP: File path maps to module via owns_paths", async () => {
-    const { stdout } = await execAsync(
-      `python3 ${path.join(EXAMPLES_SCANNERS_DIR, "php_scanner.py")} ${TEST_DIR} ${POLICY_FILE}`
-    );
+    const { stdout } = await execFileAsync("python3", [
+      path.join(EXAMPLES_SCANNERS_DIR, "php_scanner.py"),
+      TEST_DIR,
+      POLICY_FILE,
+    ]);
     const result = JSON.parse(stdout);
     const file = result.files.find((f: any) => f.path.includes("services/auth"));
     if (!file || file.module_scope !== "services/auth") {
@@ -367,9 +392,11 @@ class Controller {
   );
 
   await test("PHP: Feature flag detection - FeatureFlags::enabled()", async () => {
-    const { stdout } = await execAsync(
-      `python3 ${path.join(EXAMPLES_SCANNERS_DIR, "php_scanner.py")} ${TEST_DIR} ${POLICY_FILE}`
-    );
+    const { stdout } = await execFileAsync("python3", [
+      path.join(EXAMPLES_SCANNERS_DIR, "php_scanner.py"),
+      TEST_DIR,
+      POLICY_FILE,
+    ]);
     const result = JSON.parse(stdout);
     const file = result.files.find((f: any) => f.path.includes("Controller.php"));
     if (!file || !file.feature_flags.includes("admin_panel")) {
@@ -391,9 +418,11 @@ class Access {
   );
 
   await test("PHP: Permission checks are detected", async () => {
-    const { stdout } = await execAsync(
-      `python3 ${path.join(EXAMPLES_SCANNERS_DIR, "php_scanner.py")} ${TEST_DIR} ${POLICY_FILE}`
-    );
+    const { stdout } = await execFileAsync("python3", [
+      path.join(EXAMPLES_SCANNERS_DIR, "php_scanner.py"),
+      TEST_DIR,
+      POLICY_FILE,
+    ]);
     const result = JSON.parse(stdout);
     const file = result.files.find((f: any) => f.path.includes("Access.php"));
     if (!file || !file.permissions.includes("can_manage_users")) {
