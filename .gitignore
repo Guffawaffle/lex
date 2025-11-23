@@ -12,7 +12,7 @@ tsconfig.tsbuildinfo
 *.tgz
 
 # Generated directories (copied from canon/ during build)
-prompts/
+# prompts/ - NOW TRACKED (contains package default prompts)
 schemas/
 
 # Generated TypeScript compilation outputs (source is .ts)
