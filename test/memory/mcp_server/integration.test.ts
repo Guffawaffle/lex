@@ -11,7 +11,7 @@
  * Run with: npm run build && node --test dist/integration.test.js
  */
 
-import { test, describe, before, after } from "node:test";
+import { test, describe } from "node:test";
 import assert from "node:assert";
 import { MCPServer } from "@app/memory/mcp_server/server.js";
 import { mkdtempSync, rmSync } from "fs";

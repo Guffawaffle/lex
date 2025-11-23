@@ -7,7 +7,9 @@
  * - Edge weights within valid range [0, 1]
  */
 
-import type { Atlas, AtlasNode, AtlasEdge } from "./rebuild.js";
+import type { Atlas, AtlasEdge } from "./rebuild.js";
+// Future: AtlasNode type for node-specific validation
+// import type { AtlasNode } from "./rebuild.js";
 
 /**
  * Validation result

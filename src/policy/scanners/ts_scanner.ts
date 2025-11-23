@@ -166,7 +166,7 @@ class TypeScriptScanner {
       }
 
       return fileData;
-    } catch (error) {
+    } catch (_error) {
       return null;
     }
   }
