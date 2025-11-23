@@ -154,6 +154,7 @@ jobs:
 
       - name: Inspect tarball contents
         run: |
+          EXPECTED_DIRS="dist prompts schemas examples"
           echo "📦 Tarball contents preview:"
           tar -tzf lex-*.tgz | head -50
           echo ""
@@ -162,7 +163,12 @@ jobs:
           echo "total files in tarball"
           echo ""
           echo "📁 Directory breakdown:"
-          tar -tzf lex-*.tgz | grep -E "^package/(dist|prompts|schemas|examples)/" | cut -d/ -f2 | sort | uniq -c || true
+          for dir in $EXPECTED_DIRS; do
+            count=$(tar -tzf lex-*.tgz | grep "^package/$dir/" | wc -l)
+            if [ "$count" -gt 0 ]; then
+              echo "  $dir: $count files"
+            fi
+          done
           echo ""
           echo "✅ Verifying no canon/ source directories in tarball..."
           if tar -tzf lex-*.tgz | grep -q "^package/canon/"; then
@@ -190,6 +196,10 @@ jobs:
 
       - name: Final pre-publish verification
         run: |
+          # Define required directories
+          REQUIRED_DIRS="dist prompts schemas"
+          OPTIONAL_DIRS="examples"
+
           echo "🔍 Final verification before publish..."
 
           # Extract tarball to verify contents
@@ -197,7 +207,7 @@ jobs:
           tar -xzf lex-*.tgz -C /tmp/verify-tarball
 
           # Verify required directories exist
-          for dir in dist prompts schemas; do
+          for dir in $REQUIRED_DIRS; do
             if [ ! -d "/tmp/verify-tarball/package/$dir" ]; then
               echo "❌ Required directory missing: $dir"
               exit 1
@@ -215,7 +225,7 @@ jobs:
           # Count files in each directory
           echo ""
           echo "📊 Final package structure:"
-          for dir in dist prompts schemas examples; do
+          for dir in $REQUIRED_DIRS $OPTIONAL_DIRS; do
             if [ -d "/tmp/verify-tarball/package/$dir" ]; then
               count=$(find "/tmp/verify-tarball/package/$dir" -type f | wc -l)
               echo "  $dir/: $count files"
