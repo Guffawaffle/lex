@@ -19,7 +19,7 @@
  * Run with: npm run build && node --test dist/alias-benchmarks.test.js
  */
 
-import { test, describe } from "node:test";
+import { test, describe, before } from "node:test";
 import assert from "node:assert";
 // @ts-ignore
 import { validateModuleIds } from "@app/shared/module_ids/validator.js";
@@ -51,7 +51,7 @@ async function measureTime(fn: () => Promise<void>): Promise<number> {
   const start = performance.now();
   try {
     await fn();
-  } catch (_error) {
+  } catch {
     // Still record timing even if function throws
     // This ensures we measure actual execution time
   }

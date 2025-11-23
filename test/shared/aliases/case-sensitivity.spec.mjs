@@ -69,7 +69,7 @@ export function validateAliasCase(alias) {
 export function lintAliasTableCase(aliasTable) {
   const errors = [];
 
-  for (const [alias, entry] of Object.entries(aliasTable.aliases)) {
+  for (const [alias, _entry] of Object.entries(aliasTable.aliases)) {
     if (!validateAliasCase(alias)) {
       errors.push({
         alias,

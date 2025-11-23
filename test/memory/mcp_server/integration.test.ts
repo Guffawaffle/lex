@@ -36,7 +36,7 @@ describe("MCP Server Integration Tests", () => {
     if (testDbPath) {
       try {
         rmSync(testDbPath, { force: true });
-      } catch (e) {
+      } catch {
         // Ignore cleanup errors
       }
     }
