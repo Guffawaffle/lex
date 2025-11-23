@@ -6,7 +6,7 @@
 
 import Database from "better-sqlite3";
 import type { FrameRow } from "./db.js";
-import type { Frame, FrameStatusSnapshot } from "../frames/types.js";
+import type { Frame, FrameStatusSnapshot, FrameSpendMetadata } from "../frames/types.js";
 
 /**
  * Convert Frame object to database row
@@ -41,18 +41,18 @@ function rowToFrame(row: FrameRow): Frame {
     timestamp: row.timestamp,
     branch: row.branch,
     jira: row.jira || undefined,
-    module_scope: JSON.parse(row.module_scope),
+    module_scope: JSON.parse(row.module_scope) as string[],
     summary_caption: row.summary_caption,
     reference_point: row.reference_point,
     status_snapshot: JSON.parse(row.status_snapshot) as FrameStatusSnapshot,
-    keywords: row.keywords ? JSON.parse(row.keywords) : undefined,
+    keywords: row.keywords ? (JSON.parse(row.keywords) as string[]) : undefined,
     atlas_frame_id: row.atlas_frame_id || undefined,
-    feature_flags: row.feature_flags ? JSON.parse(row.feature_flags) : undefined,
-    permissions: row.permissions ? JSON.parse(row.permissions) : undefined,
+    feature_flags: row.feature_flags ? (JSON.parse(row.feature_flags) as string[]) : undefined,
+    permissions: row.permissions ? (JSON.parse(row.permissions) as string[]) : undefined,
     // Merge-weave metadata (v2) - backward compatible, defaults to undefined
     runId: row.run_id || undefined,
     planHash: row.plan_hash || undefined,
-    spend: row.spend ? JSON.parse(row.spend) : undefined,
+    spend: row.spend ? (JSON.parse(row.spend) as FrameSpendMetadata) : undefined,
   };
 }
 
@@ -123,13 +123,14 @@ export function searchFrames(db: Database.Database, query: string): SearchResult
 
     const rows = stmt.all(query) as FrameRow[];
     return { frames: rows.map(rowToFrame) };
-  } catch (error: any) {
+  } catch (error: unknown) {
     // Check if this is an FTS5-related error (caused by special characters)
+    const err = error as { code?: string; message?: string };
     if (
-      error?.code === "SQLITE_ERROR" &&
-      (error?.message?.includes("fts5: syntax error") ||
-        error?.message?.includes("no such column") ||
-        error?.message?.includes("unknown special query"))
+      err?.code === "SQLITE_ERROR" &&
+      (err?.message?.includes("fts5: syntax error") ||
+        err?.message?.includes("no such column") ||
+        err?.message?.includes("unknown special query"))
     ) {
       // Extract a simpler search term by removing special characters
       const simplifiedQuery = query.replace(/[^a-zA-Z0-9\s]/g, " ").trim();

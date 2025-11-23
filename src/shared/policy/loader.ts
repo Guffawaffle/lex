@@ -152,8 +152,10 @@ export function loadPolicy(path?: string): Policy {
     }
 
     return policy;
-  } catch (error: any) {
-    if (error.code === "ENOENT") {
+  } catch (error: unknown) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const err = error as any;
+    if (err.code === "ENOENT") {
       throw new Error(
         `Policy file not found: ${envPath || path || DEFAULT_POLICY_PATH}\n` +
           `Run 'npm run setup-local' to initialize working files.`
