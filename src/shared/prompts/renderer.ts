@@ -19,8 +19,9 @@ import {
   ValidationResult,
   PromptTemplate,
   RenderedPrompt,
+  type TokenContext,
 } from "./types.js";
-import { expandTokens, type TokenContext } from "../tokens/expander.js";
+import { expandTokens } from "../tokens/expander.js";
 
 /**
  * HTML escape map for security
@@ -236,8 +237,33 @@ export function renderPrompt(
   let result = template;
 
   // Step 1: Expand tokens (if enabled)
+  // Note: Tokens are only expanded if they are NOT present in the context
+  // This allows context variables to override token expansion
   if (shouldExpandTokens) {
-    result = expandTokens(result, tokenContext);
+    // Build a token context, but exclude any keys that are in the render context
+    const filteredTokenContext: TokenContext = { ...tokenContext };
+    
+    // If a variable with the same name exists in the render context, don't expand it as a token
+    const knownTokens = ["today", "now", "repo_root", "workspace_root", "branch", "commit"];
+    for (const tokenName of knownTokens) {
+      if (tokenName in context) {
+        // Mark this token to not be expanded by using a placeholder that will be processed later
+        // We'll replace it back to the token syntax so the variable renderer can handle it
+        const escapedToken = `__TOKEN_ESCAPED_${tokenName}__`;
+        result = result.replace(new RegExp(`\\{\\{${tokenName}\\}\\}`, "g"), escapedToken);
+      }
+    }
+    
+    // Expand tokens
+    result = expandTokens(result, filteredTokenContext);
+    
+    // Restore escaped tokens back to template syntax
+    for (const tokenName of knownTokens) {
+      if (tokenName in context) {
+        const escapedToken = `__TOKEN_ESCAPED_${tokenName}__`;
+        result = result.replace(new RegExp(escapedToken, "g"), `{{${tokenName}}}`);
+      }
+    }
   }
 
   // Step 2: Validate context in strict mode

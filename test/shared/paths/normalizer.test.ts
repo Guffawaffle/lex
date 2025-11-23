@@ -20,8 +20,7 @@ import {
   getWorkspaceRoot,
   expandPath,
 } from "@app/shared/paths/normalizer.js";
-import { execSync } from "child_process";
-import { mkdtempSync, rmSync, writeFileSync, mkdirSync, symlinkSync } from "fs";
+import { mkdtempSync, rmSync, mkdirSync, symlinkSync } from "fs";
 import { join, resolve } from "path";
 import { tmpdir, homedir, platform } from "os";
 
