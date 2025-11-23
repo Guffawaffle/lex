@@ -1,681 +1,540 @@
-# Lex (MIT) — Atlas/Memory Core
+<div align="center">
 
-![MIT License](https://img.shields.io/badge/License-MIT-green)
-![OSS](https://img.shields.io/badge/Community-OSS-blue)
-![Version](https://img.shields.io/badge/version-0.4.4--alpha-blue)
-![CI](https://img.shields.io/badge/CI-passing-success)
-![Coverage](https://img.shields.io/badge/coverage-89.2%25-yellow)
-![Tests](https://img.shields.io/badge/tests-123%2F123-success)
+# Lex
 
-**🚀 Active Project:** [0.5.0 Release](https://github.com/users/Guffawaffle/projects/4) — Production Hardening & Canon Assets (Jan-Mar 2026)
+### **Episodic Memory & Architectural Policy for AI Agents**
 
----
+[![MIT License](https://img.shields.io/badge/License-MIT-green)](./LICENSE)
+[![npm version](https://img.shields.io/npm/v/@smartergpt/lex?label=version&color=blue)](https://www.npmjs.com/package/@smartergpt/lex)
+[![CI Status](https://img.shields.io/badge/CI-passing-success)](https://github.com/Guffawaffle/lex/actions)
+[![Coverage](https://img.shields.io/badge/coverage-89.2%25-yellow)](#quality-metrics)
+[![Tests](https://img.shields.io/badge/tests-123%2F123-success)](#quality-metrics)
 
-## 🌟 Mission — Democratizing AI Capability Through Cognitive Architecture
+**Stop losing context. Start building agents that remember.**
 
-**The Challenge:** AI capability today is gated by model access. Claude 3.7 Sonnet outperforms Llama 3.1 8B on complex tasks—not because of fundamentally different reasoning, but because of massive parameter advantages. This creates a two-tier system: those with API budgets or high-end GPUs, and everyone else.
+[Quick Start](#-quick-start) · [Documentation](#-documentation) · [Examples](./examples/) · [API Reference](#-api-reference) · [Contributing](./CONTRIBUTING.md)
 
-**Our Thesis:** *Cognitive architecture can bridge this gap.* Just as human experts rely on external memory, structured reasoning, and policy-driven decision-making, AI agents can achieve near-parity performance with deliberate architectural support—even on consumer hardware.
-
-**Proof of Value — EsoBench Target:**  
-We are designing toward a future where a locally run Llama 3.1 8B agent (around an 8 GB VRAM baseline), equipped with Lex episodic memory, LexRunner orchestration, and LexSona behavioral rules, can achieve at least **85% of the best-reported EsoBench score (and Solved%) of contemporary frontier models**.
-
-**Why This Matters:**
-- **Access over exclusivity:** Democratizes advanced AI workflows for developers without $200/month API budgets or 80GB GPUs
-- **Architecture over parameters:** Shifts focus from "bigger models" to "smarter systems"
-- **Raising the floor:** Makes sophisticated agent patterns accessible to students, hobbyists, and resource-constrained teams
-
-This is the North Star guiding our roadmap. Today, Lex provides the **episodic memory foundation**. With LexRunner (automated orchestration) and LexSona (behavioral rules), we're building toward that proof point.
-
-> ⚠️ **Alpha Release Notice**
->
-> **Lex 0.4.0-alpha is an early preview** for local development and private automation use cases.
->
-> **Expected:**
-> - ✅ Core features work (memory, policy, MCP server, CLI)
-> - ✅ 123 passing tests, full type safety
-> - ❌ Breaking API changes between minor versions
-> - ❌ Not recommended for production multi-tenant systems
->
-> **Best for:** Personal projects, local dev tools, private MCP servers, experimental automation
-> **Not yet for:** Public SaaS, production deployments, mission-critical systems
->
-> **Feedback welcome:** [Report issues](https://github.com/Guffawaffle/lex/issues)
+</div>
 
 ---
 
-## 📊 Project 0.5.0 — Production Hardening (Active)
+## 📖 What is Lex?
 
-**Timeline:** 16 weeks (Jan 6 - Mar 31, 2026)
-**Methodology:** Six Sigma DMAIC
-**Target:** Production-ready with SQLCipher encryption, OAuth2/JWT, and enhanced audit logging
+**Lex** is a TypeScript framework that gives AI agents **episodic memory** and **architectural awareness**. It solves the fundamental problem of context loss in long-running development workflows.
 
-| Metric | Current | Target | Status |
-|--------|---------|--------|--------|
-| **Completion** | 0% (planning) | 100% by Mar 31 | 🟡 On track |
-| **Test Coverage** | 89.2% | ≥90% | 🟡 Near target |
-| **CI Success** | 96.4% | ≥98% | 🟡 Improving |
-| **Security** | 2 medium findings | 0 critical/high | 🟢 Clean |
+### The Problem
 
-**📌 Key Links:**
-- [Project Board](https://github.com/users/Guffawaffle/projects/4) (GitHub Project #4)
-- [Charter & Scope](https://github.com/Guffawaffle/lex/issues/256) (Issue #256)
-- [Six Sigma Framework](./.github/PROJECT_0.5.0_SIXSIGMA.md) (DMAIC methodology)
-- [Metrics Dashboard](./docs/PROJECT_0.5.0_METRICS.md) (live tracking)
+You're working with an AI coding assistant on a complex feature. You stop for the day. When you return:
+- The assistant has no memory of what you were doing
+- It can't recall why you made certain architectural decisions
+- It doesn't know which modules are safe to modify
+- You spend 30 minutes re-explaining context every session
 
-**🎯 Deliverables:**
-- **Pre-Alpha (Feb 28):** SQLCipher + OAuth2 + audit logging (σ ≥3.5)
-- **Stable Release (Mar 31):** Production-ready v0.5.0 (σ ≥4.0)
+### The Solution
 
----
+Lex provides three capabilities:
 
-**Policy-aware work continuity with receipts.**
+1. **📸 Episodic Memory (Frames)** — Capture work snapshots with context, blockers, and next actions
+2. **🗺️ Spatial Memory (Atlas)** — Navigate module dependencies without overwhelming token budgets
+3. **🛡️ Architectural Policy** — Enforce boundaries, permissions, and deprecation patterns in CI
 
-Lex is an MIT-licensed memory, policy, and atlas framework for TypeScript. It can be used standalone or as the foundation for workflow orchestration tools.
+**Result:** Your AI assistant recalls exactly where you left off, understands your architecture, and respects your constraints.
 
 ---
 
-### Local CI (Docker)
+## 🎯 Core Capabilities
 
-Reproduce CI locally without touching GitHub workflows:
+### 🧠 Frames: Work Session Memory
 
-```bash
-# Quick run via npm
-npm run local-ci
-
-# Or run scripts directly:
-./scripts/local-ci-run.sh
-
-# (optional) run with no network allowed
-npm run local-ci:nonet
-# or: ./scripts/ci-nonet.sh
-
-# one-time build (or auto-built by the helper script)
-docker build -f ci.Dockerfile -t lex-ci:local .
-```
-
-This Docker image is **not** used by GitHub Actions. It exists only for local parity and faster debugging.
-
----
-
-When you ask `/recall TICKET-123`, you don't get vague summarization or context-free git log replay. You get:
-
-- **What you were doing** — the Frame you captured with `/remember`: which modules you touched, what the blocker was, what the next action is.
-- **Why you stopped** — the architectural policy that was in your way: which edge is forbidden, which permission you don't have yet, which feature flag isn't live.
-- **The exact neighborhood** — a fold-radius-1 Atlas Frame showing only the modules relevant to your work, not the entire codebase.
-
-This is continuity for humans and assistants working on large systems where "just read the whole repo" doesn't scale and "trust the LLM to figure it out" breaks in prod.
-
-## Core ideas
-
-### Frames (lex/memory)
-Frames are timestamped work session snapshots. You create them with `/remember` at meaningful moments ("this button is still disabled because access wiring isn't allowed yet"). A Frame stores:
-- a rendered "memory card" image (high-signal logs, diffs, active flags, next step),
-- the raw text behind that card,
-- structured metadata: branch, blockers, `status_snapshot.next_action`, and `module_scope`.
-
-Frames live locally (e.g. SQLite). No telemetry. No forced HTTP service. Access is via MCP over stdio.
-
-### Policy (lex/policy)
-Policy is machine-readable architecture boundaries. The policy file defines which modules own which code, which calls are allowed, which are forbidden, which permissions/flags gate them, and which kill patterns are being removed. Language scanners ("dumb by design") emit facts from code; `lex check` compares facts vs policy and can fail CI.
-
-**Policy File Location:**
-- Working file: `.smartergpt.local/lex/lexmap.policy.json` (created by `npm run setup-local`)
-- Example template: `src/policy/policy_spec/lexmap.policy.json.example`
-- Override via environment: `LEX_POLICY_PATH=/custom/path/policy.json`
-
-**Multi-Language Scanning:**
-The TypeScript scanner is built-in. **Python and PHP scanners** are available as optional examples in `examples/scanners/` — see their README for security considerations and usage instructions.
-
-**Prompt Templates & Schemas:**
-Lex uses a precedence chain for loading prompt templates and includes JSON schemas for configuration validation:
-- **Package defaults:** `prompts/` and `schemas/` (published with package, copied from `canon/` during build)
-- **Local overlay:** `.smartergpt.local/prompts/` and `.smartergpt.local/schemas/` (untracked, for local customization)
-- **Environment override:** `LEX_CANON_DIR=/custom/canon` (highest precedence, loads from `/custom/canon/prompts/` and `/custom/canon/schemas/`)
-
-See `DIRECTORY_ALIGNMENT.md` for complete details on directory structure, schema locations, and precedence rules.
-
-### Fold radius & Atlas Frame (lex/shared/atlas)
-When you recall a Frame, Lex does **not** dump the whole monolith into context. Instead, it exports an Atlas Frame: the touched modules (`module_scope`) plus their 1-hop neighborhood in the policy graph (allowed callers, forbidden callers, required flags/permissions). That's fold radius = 1.
-
-That gives you and your assistant a "map page," not a firehose.
-
-### THE CRITICAL RULE
-Every module name in `module_scope` MUST match a module ID in the policy file (`.smartergpt.local/lex/lexmap.policy.json`). No ad hoc naming. If the vocabulary drifts, you lose the ability to line up:
-- "what happened last night"
-with
-- "what the architecture is supposed to allow."
-
-This shared vocabulary is what lets Lex answer:
-> "You left this button disabled because this module was still calling a forbidden dependency. Your declared next step was to route through the approved service."
-
-**Module ID Validation & Aliasing:** To help prevent typos and improve usability, Lex provides fuzzy matching with helpful suggestions when module IDs don't match. When you use an invalid module ID, you'll get suggestions for similar modules. Explicit alias tables support team shorthand conventions (e.g., `auth` → `services/auth-core`) and historical renames. See `src/shared/aliases/README.md` for implementation details, or `docs/LEXRUNNER_ALIASING.md` for LexRunner integration patterns.
-
----
-
-## Quickstart
-
-### Installation
-
-**Option A: Global (recommended for CLI usage)**
-```bash
-npm install -g lex
-lex --version  # Should show 0.4.0-alpha
-```
-
-**Option B: Local project**
-```bash
-npm install lex
-npx lex --version  # Use npx prefix for all commands
-```
-
-### Initialize Workspace
-
-```bash
-# Global install
-lex init
-
-# OR local install (use npx prefix)
-npx lex init
-```
-
-This creates the `.smartergpt.local/` workspace:
-```
-.smartergpt.local/
-├── profile.yml              # Workspace metadata
-├── lex/
-│   ├── lexmap.policy.json   # Module dependency policy
-│   └── memory.db            # Frame database (created on first use)
-├── runner/                  # lex-pr-runner artifacts
-└── prompts/                 # Local prompt overlays
-```
-
-**See:** [`docs/specs/smartergpt-structure-v1.md`](./docs/specs/smartergpt-structure-v1.md) for complete specification.
-
-#### Environment Variables
-
-| Variable | Purpose | Default |
-|----------|---------|---------|
-| `LEX_CANON_DIR` | Override canonical resources root | (package defaults) |
-| `LEX_DB_PATH` | Database location | `.smartergpt.local/lex/memory.db` |
-| `SMARTERGPT_PROFILE` | Profile configuration path | `.smartergpt.local/profile.yml` |
-
-The package includes:
-- **`prompts/`**: Default prompt templates (customizable via `.smartergpt.local/prompts/`)
-- **`schemas/`**: JSON Schemas for validation and TypeScript types
-- **`dist/`**: Compiled TypeScript modules
-- **`examples/`**: Optional external scanner examples (Python/PHP)
-
-#### Customizing Prompts
-
-1. **Local overlay:** Copy prompts to `.smartergpt.local/prompts/` and customize
-   ```bash
-   cp prompts/remember.md .smartergpt.local/prompts/
-   vim .smartergpt.local/prompts/remember.md
-   ```
-2. **Environment override:** Set `LEX_CANON_DIR=/custom/canon` for highest precedence
-
-**Precedence chain:** `LEX_CANON_DIR/prompts/` → `.smartergpt.local/prompts/` → package `prompts/`
-
-### Quick Start
-
-Here's the complete workflow from creating a Frame to recalling it and viewing your timeline:
-
-> **Note:** The examples below use bare `lex` commands (global install). If you installed locally, prefix all commands with `npx` (e.g., `npx lex remember ...`).
-
-#### 1. Create a Frame
+Capture meaningful moments in your development workflow:
 
 ```bash
 lex remember \
   --reference-point "Implementing user authentication" \
-  --summary "Added login form and JWT validation" \
+  --summary "Added JWT validation to API middleware" \
   --next "Wire up password reset flow" \
-  --modules "ui/login,services/auth" \
-  --keywords "auth,security"
+  --modules "services/auth,api/middleware" \
+  --blockers "Need PermissionService access - forbidden edge in policy" \
+  --jira "AUTH-123"
 ```
 
-#### 2. Recall It Later
+Later, instantly recall:
 
 ```bash
-# Search by keyword
 lex recall "authentication"
-
-# Search by ticket
-lex recall "TICKET-123"
-
-# JSON output
-lex recall "auth" --json
+# Returns: Your exact context, blockers, next action, and relevant module neighborhood
 ```
 
-#### 3. View Timeline
+[Learn more about Frames →](./docs/MIND_PALACE.md)
+
+### 🗺️ Atlas Frames: Architectural Context
+
+When you recall a Frame, Lex doesn't dump your entire codebase into context. Instead, it provides an **Atlas Frame**: the modules you touched plus their immediate neighborhood (dependencies, dependents, permissions).
+
+This "fold radius" approach gives AI assistants exactly the architectural context they need—nothing more, nothing less.
+
+**Token efficiency:** 10-module project → ~500 tokens (not 50,000)
+
+[Learn more about Atlas →](./docs/ARCHITECTURE.md)
+
+### 🛡️ Policy Enforcement
+
+Define architectural boundaries as code:
+
+```json
+{
+  "modules": {
+    "ui/components": {
+      "owns": ["src/ui/components/**"],
+      "mayCall": ["services/auth", "ui/shared"],
+      "forbidden": [
+        {
+          "target": "database/queries",
+          "reason": "UI must not access database directly. Use API layer."
+        }
+      ]
+    }
+  }
+}
+```
+
+Enforce in CI:
 
 ```bash
-# For current branch
-lex timeline main
-
-# For a ticket
-lex timeline TICKET-123
-
-# With date range
-lex timeline main --since "2025-11-01"
+lex check merged-facts.json
+# ✖ Violation: ui/components → database/queries (forbidden edge)
+#   Reason: UI must not access database directly. Use API layer.
 ```
 
-See [RECEIPTS.md](./RECEIPTS.md) for a detailed walkthrough.
+[Learn more about Policy →](./docs/API_USAGE.md)
 
-### Basic Usage
+---
+
+## 🚀 Quick Start
+
+### Installation
+
+```bash
+# Install globally (recommended)
+npm install -g @smartergpt/lex
+
+# Or locally in your project
+npm install @smartergpt/lex
+```
+
+### Initialize
+
+```bash
+lex init
+# Creates .smartergpt.local/ with policy files and memory database
+```
+
+### Capture Your First Frame
+
+```bash
+lex remember \
+  --reference-point "Refactoring payment processing" \
+  --summary "Extracted validation logic to PaymentValidator" \
+  --next "Add unit tests for edge cases" \
+  --modules "services/payment"
+```
+
+### Recall Later
+
+```bash
+lex recall "payment"
+# Shows your context, blockers, and architectural neighborhood
+```
+
+**That's it!** You now have persistent memory for your AI workflows.
+
+[Full Quick Start Guide →](./QUICK_START.md)
+
+---
+
+## 💡 Use Cases
+
+### 👨‍💻 For Developers
+
+- **Preserve context** across work sessions with AI coding assistants
+- **Document architectural decisions** with searchable, timestamped snapshots
+- **Enforce boundaries** via CI to prevent policy violations
+
+### 🤖 For AI Agents
+
+- **Recall previous work** using natural language search
+- **Navigate large codebases** with token-efficient Atlas Frames
+- **Respect constraints** by checking policy before suggesting changes
+
+### 👥 For Teams
+
+- **Onboard new members** by showing architectural history
+- **Track technical debt** with kill patterns and forbidden edges
+- **Maintain consistency** across multi-module projects
+
+---
+
+## 🏗️ Architecture
+
+Lex is built on three pillars:
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    Lex Framework                        │
+├─────────────────────────────────────────────────────────┤
+│                                                         │
+│  📸 Memory Layer (lex/memory)                          │
+│  ├─ Frame storage (SQLite)                             │
+│  ├─ Search & recall                                     │
+│  └─ MCP server integration                             │
+│                                                         │
+│  🗺️ Atlas Layer (lex/shared/atlas)                     │
+│  ├─ Module dependency graphs                           │
+│  ├─ Fold radius computation                            │
+│  └─ Token-aware context generation                     │
+│                                                         │
+│  🛡️ Policy Layer (lex/policy)                          │
+│  ├─ Boundary definitions                               │
+│  ├─ Multi-language scanners                            │
+│  └─ CI enforcement                                      │
+│                                                         │
+└─────────────────────────────────────────────────────────┘
+```
+
+[Architecture Details →](./docs/ARCHITECTURE.md)
+
+---
+
+## 📚 Documentation
+
+### Getting Started
+- [Quick Start Guide](./QUICK_START.md) — Get up and running in 5 minutes
+- [Installation & Setup](./docs/ADOPTION_GUIDE.md) — Detailed installation guide
+- [Core Concepts](./docs/OVERVIEW.md) — Understanding Frames, Atlas, and Policy
+
+### Guides
+- [Mind Palace Guide](./docs/MIND_PALACE.md) — Using Frames for episodic memory
+- [Policy Enforcement](./docs/API_USAGE.md) — Setting up architectural boundaries
+- [CLI Reference](./docs/CLI_OUTPUT.md) — Command-line usage and output modes
+- [MCP Integration](./memory/mcp_server/README.md) — Using Lex with Model Context Protocol
+
+### Advanced
+- [Architecture Loop](./docs/ARCHITECTURE_LOOP.md) — How Frames, Atlas, and Policy interact
+- [API Reference](#-api-reference) — TypeScript API documentation
+- [Limitations](./docs/LIMITATIONS.md) — Known constraints and future work
+- [FAQ](./docs/FAQ.md) — Common questions
+
+### Development
+- [Contributing Guide](./CONTRIBUTING.md) — How to contribute
+- [Release Process](./RELEASE.md) — Versioning and publishing
+- [ADRs](./docs/adr/) — Architectural decision records
+
+---
+
+## 🔧 API Reference
+
+Lex provides multiple entry points for different use cases:
+
+### Core API
 
 ```typescript
-import { saveFrame, searchFrames, getDb, closeDb } from "lex";
+import { saveFrame, searchFrames, getDb, closeDb } from '@smartergpt/lex';
 
-// Initialize the database
-const db = getDb("./memory.db");
+const db = getDb(); // Uses .smartergpt.local/lex/memory.db
 
-// Capture a work session snapshot
-const frame = await saveFrame(db, {
-  referencePoint: "implementing user authentication flow",
-  summaryCaption: "Added password validation to AuthService",
-  statusSnapshot: {
-    nextAction: "Wire up permission check before allowing login",
-    blockers: ["Need access to PermissionService - forbidden edge in policy"],
-  },
-  moduleScope: ["services/auth-core", "services/password"],
-  branch: "feature/auth-improvements",
-  jira: "AUTH-123",
-  keywords: ["authentication", "security"],
+await saveFrame(db, {
+  referencePoint: 'authentication flow',
+  summaryCaption: 'Added password validation',
+  statusSnapshot: { nextAction: 'Wire up permission check' },
+  moduleScope: ['services/auth', 'services/password'],
+  branch: 'feature/auth',
+  jira: 'AUTH-123'
 });
 
-console.log(`Frame captured: ${frame.id}`);
-
-// Later: recall what you were working on
-const recalled = await searchFrames(db, {
-  referencePoint: "authentication",
-  limit: 5,
-});
-
-recalled.forEach((f) => {
-  console.log(`[${f.branch}] ${f.summaryCaption}`);
-  console.log(`  Next: ${f.statusSnapshot.nextAction}`);
-});
-
+const results = await searchFrames(db, { referencePoint: 'authentication' });
 closeDb(db);
-```
-
-### CLI Output
-
-The Lex CLI provides two output modes for different use cases:
-
-- **Plain Mode** (default): Human-readable with colors and symbols (`✔`, `⚠`, `✖`)
-- **JSONL Mode**: Machine-readable events for automation and monitoring
-
-```bash
-# Human-readable output (default)
-lex remember --reference "test" --caption "test"
-# ✔ Frame created successfully!
-#   Frame ID: 550e8400-e29b-41d4-a716-446655440000
-#   Timestamp: 2025-01-09T12:34:56.789Z
-
-# Machine-readable JSONL output
-LEX_CLI_OUTPUT_MODE=jsonl lex remember --reference "test" --caption "test"
-# {"v":1,"ts":"2025-01-09T12:34:56.789Z","level":"success","message":"Frame created successfully!","data":{...}}
-```
-
-**Key Features:**
-- **Dual sinks**: Output goes to both console (for users) and optional diagnostic logger (pino)
-- **Stream routing**: Errors/warnings to stderr, info/success/debug to stdout
-- **Parseable events**: JSONL mode outputs [CliEvent v1](./schemas/cli-output.v1.schema.json) structures
-- **Type-safe**: Full TypeScript types available via `lex/cli-output` subpath export
-
-See [docs/CLI_OUTPUT.md](./docs/CLI_OUTPUT.md) for complete documentation, examples, and consumer integration guide.
-
-### CLI Usage
-
-```bash
-# Capture a memory frame
-lex remember \
-  --jira AUTH-123 \
-  --summary "Added password validation to AuthService" \
-  --next "Wire up permission check" \
-  --modules "services/auth-core,services/password" \
-  --blockers "Need access to PermissionService - forbidden edge"
-
-# Recall previous work
-lex recall "authentication flow"
-lex recall AUTH-123
-
-# Check policy compliance (uses .smartergpt.local/lex/lexmap.policy.json by default)
-lex check merged-facts.json
-
-# Or specify custom policy path
-lex check merged-facts.json --policy /path/to/custom-policy.json
-```
-
-**CLI outputs:**
-- `lex remember` → Confirmation with Frame ID and summary
-- `lex recall` → Matching frames with context (branch, blockers, next action, module neighborhood)
-- `lex check` → Policy violations report with forbidden edges, missing permissions, kill pattern matches
-
-See the [RECEIPTS.md](./RECEIPTS.md) for a complete end-to-end walkthrough.
-
-### Environment Variables
-
-Lex respects the following environment variables for configuration:
-
-- **`LEX_LOG_LEVEL`** - Set log verbosity (`silent`, `trace`, `debug`, `info`, `warn`, `error`, `fatal`). Defaults to `silent` in tests, `info` otherwise.
-- **`LEX_LOG_PRETTY`** - Enable pretty-printed logs (`1` for enabled). Auto-enabled when output is a TTY.
-- **`LEX_POLICY_PATH`** - Override default policy file location (defaults to `.smartergpt.local/lex/lexmap.policy.json`).
-- **`LEX_DEFAULT_BRANCH`** - Override auto-detected default branch for frame operations.
-
-Example:
-```bash
-# Run with debug logging
-LEX_LOG_LEVEL=debug lex recall "authentication"
-
-# Pretty logs in non-TTY environments (CI, scripts)
-LEX_LOG_PRETTY=1 npm test
-
-# Use custom policy file
-LEX_POLICY_PATH=/custom/policy.json lex check facts.json
 ```
 
 ### Subpath Exports
 
-Lex provides multiple entry points for different functionality. All subpath imports are fully typed with TypeScript declarations.
+| Import | Purpose | Documentation |
+|--------|---------|---------------|
+| `@smartergpt/lex` | Core frame storage | [API Usage](./docs/API_USAGE.md) |
+| `@smartergpt/lex/cli` | Programmatic CLI access | [CLI Output](./docs/CLI_OUTPUT.md) |
+| `@smartergpt/lex/memory/store` | Direct database operations | [API Usage](./docs/API_USAGE.md) |
+| `@smartergpt/lex/shared/policy` | Policy loading & validation | [API Usage](./docs/API_USAGE.md) |
+| `@smartergpt/lex/shared/atlas` | Atlas Frame generation | [Architecture](./docs/ARCHITECTURE.md) |
+| `@smartergpt/lex/shared/aliases` | Module alias resolution | [Aliases](./src/shared/aliases/README.md) |
 
-#### Main Entry Point
+[Full API Documentation →](./docs/API_USAGE.md)
 
-The main entry exports core frame storage operations:
+---
 
-```typescript
-import { saveFrame, getDb, closeDb, searchFrames, getFrameById } from 'lex';
+## 🎯 Project Status
 
-// Initialize database
-const db = getDb('./memory.db');
+**Current Version:** `0.4.5-alpha` ([Changelog](./CHANGELOG.md))
 
-// Save a frame
-await saveFrame(db, {
-  referencePoint: 'authentication flow',
-  summaryCaption: 'Added password validation',
-  // ... other frame properties
-});
+### ⚠️ Alpha Status
 
-// Search frames
-const results = await searchFrames(db, { referencePoint: 'authentication' });
+Lex is **production-ready for local development** but still alpha for multi-tenant deployments.
 
-closeDb(db);
-```
+**Ready for:**
+- ✅ Personal projects and local dev tools
+- ✅ Private MCP servers
+- ✅ CI/CD policy enforcement
+- ✅ Experimental AI agent workflows
 
-**Available exports:**
-- `getDb(path?)` - Get/create database connection
-- `closeDb(db?)` - Close database connection
-- `saveFrame(db, frame)` - Save a new frame
-- `getFrameById(db, id)` - Retrieve frame by ID
-- `searchFrames(db, query)` - Search frames by query
+**Not yet ready for:**
+- ❌ Public SaaS deployments
+- ❌ Multi-tenant production systems
+- ❌ Stable APIs (expect breaking changes in minor versions)
 
-#### CLI Entry Point
+### 🚧 Active Development: Project 0.5.0
 
-Programmatic access to CLI functionality:
+**Timeline:** January–March 2026
+**Goal:** Production-ready release with security hardening
 
-```typescript
-import { createProgram, run } from 'lex/cli';
+| Feature | Status | Target |
+|---------|--------|--------|
+| SQLCipher encryption | 🟡 Planned | Feb 2026 |
+| OAuth2/JWT auth | 🟡 Planned | Feb 2026 |
+| Enhanced audit logging | 🟡 Planned | Feb 2026 |
+| API stability guarantee | 🟡 Planned | Mar 2026 |
 
-// Create CLI program instance
-const program = createProgram();
+[Project 0.5.0 Details →](./docs/PROJECT_0.5.0_METRICS.md)
 
-// Run with custom arguments
-await run(['node', 'lex', 'remember', '--jira', 'AUTH-123']);
-```
+### Quality Metrics
 
-**Available exports:**
-- `createProgram()` - Create Commander.js program instance
-- `run(argv?)` - Execute CLI with arguments
+- **Test Coverage:** 89.2% (target: ≥90%)
+- **Passing Tests:** 123/123
+- **CI Success Rate:** 96.4% (target: ≥98%)
+- **Security:** 0 critical/high findings
 
-#### Memory Store
+---
 
-Direct access to frame storage operations (same as main entry):
+## 🌟 Why Lex?
 
-```typescript
-import { getDb, saveFrame, searchFrames } from 'lex/memory/store';
+### Democratizing AI Capability
 
-const db = getDb();
-const frame = await getFrameById(db, 'frame-id');
-```
+**The Challenge:** Today's AI landscape is two-tier. Frontier models (GPT-4, Claude 3.5) outperform smaller models (Llama 8B) primarily due to parameter count—not reasoning architecture.
 
-**Available exports:**
-- All frame storage operations: `saveFrame`, `getFrameById`, `searchFrames`, `getFramesByBranch`, `getFramesByJira`, `getFramesByModuleScope`, `getAllFrames`, `deleteFrame`, `getFrameCount`
-- Database operations: `getDb`, `closeDb`, `createDatabase`, `getDefaultDbPath`
+**Our Thesis:** *Cognitive architecture can bridge this gap.* Just as human experts use external memory and structured reasoning, AI agents can achieve near-frontier performance with:
+- Episodic memory (Lex Frames)
+- Orchestration tools (LexRunner)
+- Behavioral constraints (LexSona)
 
-#### Policy Utilities
+**Proof Target:** A locally-run Llama 3.1 8B agent (~8GB VRAM) achieving **≥85% of frontier model scores** on EsoBench.
 
-Load and work with policy files:
+**Why This Matters:**
+- **Access over exclusivity** — No $200/month API budget required
+- **Architecture over parameters** — Smarter systems, not just bigger models
+- **Raising the floor** — Advanced AI for students, hobbyists, and resource-constrained teams
 
-```typescript
-import { loadPolicy, clearPolicyCache } from 'lex/shared/policy';
+[Mission Statement →](./docs/OVERVIEW.md)
 
-// Load policy from default or custom path
-const policy = loadPolicy(); // Uses LEX_POLICY_PATH env or default
-const customPolicy = loadPolicy('/path/to/policy.json');
+---
 
-// Clear cache if needed
-clearPolicyCache();
-```
+## 🤝 Contributing
 
-**Available exports:**
-- `loadPolicy(path?)` - Load policy file with caching
-- `clearPolicyCache()` - Clear policy cache
+We welcome contributions! Here's how to get started:
 
-#### Atlas Frame Generation
+1. **Read the guides:**
+   - [Contributing Guide](./CONTRIBUTING.md)
+   - [Code of Conduct](./CODE_OF_CONDUCT.md)
+   - [Development Setup](./docs/ADOPTION_GUIDE.md)
 
-Generate policy-aware spatial neighborhoods:
+2. **Pick an issue:**
+   - [Good first issues](https://github.com/Guffawaffle/lex/labels/good%20first%20issue)
+   - [Help wanted](https://github.com/Guffawaffle/lex/labels/help%20wanted)
 
-```typescript
-import {
-  generateAtlasFrame,
-  buildPolicyGraph,
-  computeFoldRadius
-} from 'lex/shared/atlas';
+3. **Submit a PR:**
+   - Follow commit conventions (imperative mood)
+   - Include tests and documentation
+   - GPG-sign your commits
 
-// Load policy first
-import { loadPolicy } from 'lex/shared/policy';
-const policy = loadPolicy();
+[Contributing Guide →](./CONTRIBUTING.md)
 
-// Build graph from policy
-const graph = buildPolicyGraph(policy);
+---
 
-// Generate atlas frame for specific modules
-const atlasFrame = generateAtlasFrame({
-  policy,
-  graph,
-  moduleScope: ['services/auth-core', 'services/password'],
-  foldRadius: 1
-});
+## 📦 Related Projects
 
-console.log(atlasFrame.modules); // Module details with permissions, flags
-console.log(atlasFrame.edges);   // Allowed/forbidden caller relationships
-```
+- **[LexRunner](https://github.com/Guffawaffle/lex-pr-runner)** — Orchestration for parallel PR workflows
+- **LexSona** — Behavioral rules for AI agents *(coming soon)*
 
-**Available exports:**
-- `generateAtlasFrame(options)` - Generate atlas frame with fold radius
-- `buildPolicyGraph(policy)` - Build graph from policy
-- `getNeighbors(graph, moduleId, radius)` - Get neighboring modules
-- `computeFoldRadius(options)` - Compute fold radius neighbors
-- `estimateTokens(atlasFrame)` - Estimate token count
-- `autoTuneRadius(options)` - Auto-tune radius for token limits
-- Cache utilities: `getCache`, `setEnableCache`, `resetCache`, `getCacheStats`
+---
 
-#### Shared Utilities
+## 📄 License
 
-Additional utility modules available:
+**MIT License** — Free for personal and commercial use.
 
-```typescript
-// Module ID validation and fuzzy matching
-import { validateModuleIds, fuzzyMatchModule } from 'lex/shared/module_ids';
+See [LICENSE](./LICENSE) for full text.
 
-// Module alias resolution
-import { resolveAlias, loadAliases } from 'lex/shared/aliases';
+---
 
-// Git branch utilities
-import { getCurrentBranch } from 'lex/shared/git';
+## 🔗 Links
 
-// Type definitions
-import type { Policy, Frame, AtlasFrame } from 'lex/shared/types';
-```
+- **Documentation:** [docs/](./docs/)
+- **Examples:** [examples/](./examples/)
+- **npm Package:** [@smartergpt/lex](https://www.npmjs.com/package/@smartergpt/lex)
+- **Issues:** [GitHub Issues](https://github.com/Guffawaffle/lex/issues)
+- **Discussions:** [GitHub Discussions](https://github.com/Guffawaffle/lex/discussions)
 
-**Package structure:**
-- `lex/shared/module_ids` - Module ID validation and fuzzy matching
-- `lex/shared/aliases` - Module alias resolution
-- `lex/shared/git` - Git branch detection
-- `lex/shared/types` - TypeScript type definitions
+---
 
-#### Policy CLI Scripts
+<div align="center">
 
-The policy checker and merge tools are available as CLI scripts but not as importable library functions. Use them via command line:
+**Built with ❤️ by the Lex community**
+
+[⭐ Star on GitHub](https://github.com/Guffawaffle/lex) · [📦 Install from npm](https://www.npmjs.com/package/@smartergpt/lex) · [💬 Join Discussions](https://github.com/Guffawaffle/lex/discussions)
+
+</div>
+
+## 💻 Advanced Topics
+
+### TypeScript Build System
+
+Lex uses **TypeScript project references** for deterministic, incremental builds:
 
 ```bash
-# Check policy violations
+npm run build      # Compile with project references
+npm run clean      # Clean build artifacts
+npm run typecheck  # Type-check without emitting
+```
+
+**Why NodeNext module resolution?**
+- Source uses `.ts` files with `.js` import extensions
+- TypeScript resolves imports during compilation
+- Emitted `.js` files work correctly in Node.js ESM
+- No confusion between source and build artifacts
+
+[Build System Details →](./docs/adr/0001-ts-only-nodenext.md)
+
+### Local CI with Docker
+
+Run CI checks locally without touching GitHub:
+
+```bash
+npm run local-ci          # Run full CI suite locally
+npm run local-ci:nonet    # Run without network access
+```
+
+This uses `ci.Dockerfile` for local parity with CI checks.
+
+### Multi-Language Policy Scanning
+
+While TypeScript scanning is built-in, **Python and PHP scanners** are available as examples:
+
+```bash
+# Scan Python codebase
+python examples/scanners/python/scan.py src/ > python-facts.json
+
+# Scan PHP codebase  
+php examples/scanners/php/scan.php src/ > php-facts.json
+
+# Merge with TypeScript facts
+lex merge ts-facts.json python-facts.json > merged-facts.json
+
+# Check policy
 lex check merged-facts.json
-
-# For direct script access (if needed):
-node node_modules/lex/dist/policy/check/lexmap-check.js merged.json policy.json
-node node_modules/lex/dist/policy/merge/lexmap-merge.js scan1.json scan2.json
 ```
 
----
+⚠️ **Security Note:** External scanners execute arbitrary code. Review before use.
 
-## What Are Receipts?
+[Scanner Documentation →](./examples/scanners/README.md)
 
-A **receipt** is a human-readable artifact that maps acceptance criteria to the gates that verified them and the outputs those gates produced. Think of it as an audit trail that shows:
+### Customizing Prompts & Schemas
 
-- **Input**: What you asked for (feature spec, policy rule, test requirement)
-- **Gate**: What automated check ran (policy scanner, test suite, linter)
-- **Output**: What the gate found (violations, test results, coverage)
-- **Verdict**: Pass/fail + actionable next steps
+Lex uses a **precedence chain** for configuration:
 
-Receipts appear in:
-- **CLI output** (e.g., `lex check` shows which edges are forbidden and why)
-- **CI logs** (automated gates produce structured JSON receipts)
-- **Atlas Frames** (recalled frames include gate results from when they were captured)
+1. **Environment:** `LEX_CANON_DIR=/custom/canon` (highest)
+2. **Local overlay:** `.smartergpt.local/prompts/`
+3. **Package defaults:** `prompts/` (lowest)
 
-This gives you **continuity with proof**: not just "what happened," but "what was checked, what passed, what failed, and what to do next."
+```bash
+# Customize locally
+cp prompts/remember.md .smartergpt.local/prompts/
+vim .smartergpt.local/prompts/remember.md
 
----
-
-## Why TypeScript-Only + NodeNext?
-
-### The Problem
-Mixing `.ts` source files with committed `.js` artifacts creates confusion:
-- Which `.js` files are hand-written vs. build output?
-- Are imports broken because someone edited generated code?
-- Do CI checks run against source or compiled artifacts?
-
-### The Solution
-**`src/` contains only TypeScript.** All `.js` files are build outputs in `dist/`.
-
-**`NodeNext` module resolution** means:
-- Runtime code uses `.js` extensions in imports (`import x from "./foo.js"`)
-- TypeScript resolves those imports against `.ts` sources during compilation
-- After build, the emitted `.js` files resolve correctly in Node.js
-
-**Why this works:**
-1. Single source of truth: `src/` is the canonical code
-2. Type safety: TypeScript checks everything before build
-3. Runtime correctness: Node ESM import rules work in `dist/`
-4. Deterministic builds: `tsc -b` with project references ensures layered, incremental compilation
-
-**CI guards:**
-- `scripts/check-no-js-in-src.mjs` fails if any `.js` appears in `src/`
-- ESLint enforces `.js` extensions in imports for runtime correctness
-
-See [docs/adr/0001-ts-only-nodenext.md](./docs/adr/0001-ts-only-nodenext.md) for the full decision record.
-
----
-
-## Status
-Early alpha. We are actively converging two previously separate codebases:
-- LexBrain (episodic Frames and recall)
-- LexMap (policy graph, scanners, CI enforcement)
-
-The goal of this repo is to ship them as one system called **Lex** with one CLI (`lex`), one policy contract, and one recall surface.
-
-## Learn More
-
-- [Overview](./docs/OVERVIEW.md) — the pain, the solution, the moat
-- [Mind Palace Guide](./docs/MIND_PALACE.md) — reference points and Atlas Frames for natural recall
-- [Architecture Loop](./docs/ARCHITECTURE_LOOP.md) — the full explainability story
-- [Adoption Guide](./docs/ADOPTION_GUIDE.md) — how to roll out Lex in phases
-- [Limitations](./docs/LIMITATIONS.md) — known constraints and future work
-- [Epic C Overlap Analysis](./docs/EPIC_C_OVERLAP.md) — coordination with existing PRs #72-#77
-
-## Source Layout
-
-`src/` is **TypeScript-only**. JavaScript files (`.js`) under `src/` were legacy compiled artifacts and have been removed. Build output is emitted to `dist/` via `tsc -b` (see `package.json` exports). Add new code in `.ts`/`.tsx` only; do not commit generated `.js` siblings.
-
-## Build Graph (Project References)
-
-Lex now uses a **TypeScript solution build** for deterministic layering and parallelizable incremental builds.
-
-### Files
-
-- `tsconfig.base.json` – Shared compiler options (ES2022 target, `NodeNext` resolver, single `dist/` outDir, declarations + source maps).
-- `tsconfig.build.json` – Solution file with explicit `references` (no `include` / `files`).
-
-### Rationale
-
-1. Single ESM configuration (`NodeNext`) keeps runtime `.js` specifiers working.
-2. Declarations (`.d.ts`) emitted for all subprojects to support downstream tooling.
-3. Stable `dist/` layout (no per-package scattered outputs) simplifies exports.
-4. References encode dependency order (types → aliases/module_ids → policy/atlas → memory → cli) enabling incremental rebuilds.
-
-### Reference Graph
-
-```mermaid
-graph TD
-	shared_types[shared/types]
-	shared_aliases[shared/aliases]
-	shared_module_ids[shared/module_ids]
-	shared_policy[shared/policy]
-	shared_atlas[shared/atlas]
-	shared_git[shared/git]
-	memory_renderer[memory/renderer]
-	memory_store[memory/store]
-	memory_mcp[memory/mcp_server]
-	policy_merge[policy/merge]
-	policy_check[policy/check]
-	shared_cli[shared/cli]
-
-	shared_types --> shared_aliases
-	shared_types --> shared_module_ids
-	shared_types --> shared_policy
-	shared_policy --> shared_atlas
-	shared_types --> shared_atlas
-	shared_types --> memory_store
-	shared_types --> memory_renderer
-	shared_types --> memory_mcp
-	shared_policy --> memory_mcp
-	shared_atlas --> memory_mcp
-	shared_module_ids --> shared_cli
-	shared_policy --> shared_cli
-	shared_atlas --> shared_cli
-	memory_store --> shared_cli
-	memory_renderer --> shared_cli
-	memory_store --> memory_mcp
-	policy_merge --> policy_check
-	shared_policy --> policy_merge
-	shared_types --> policy_merge
-	shared_types --> policy_check
-	shared_policy --> policy_check
-	shared_atlas --> policy_check
-	shared_module_ids --> policy_check
+# Or use custom directory
+LEX_CANON_DIR=/my/custom/canon lex remember ...
 ```
 
-### Commands
+### Environment Variables
 
-- `npm run build` → `tsc -b tsconfig.build.json`
-- `npm run clean` → cleans build graph & removes `dist/`
-- `npm run type-check` → `--noEmit` solution validation
+| Variable | Purpose | Default |
+|----------|---------|---------|
+| `LEX_LOG_LEVEL` | Log verbosity (`silent`, `trace`, `debug`, `info`, `warn`, `error`, `fatal`) | `info` (tests: `silent`) |
+| `LEX_LOG_PRETTY` | Pretty-print logs (`1` = enabled) | Auto-detect TTY |
+| `LEX_POLICY_PATH` | Custom policy file location | `.smartergpt.local/lex/lexmap.policy.json` |
+| `LEX_DB_PATH` | Database location | `.smartergpt.local/lex/memory.db` |
+| `LEX_DEFAULT_BRANCH` | Override default branch detection | Auto-detect from git |
+| `LEX_CANON_DIR` | Override canonical resources root | Package defaults |
+| `SMARTERGPT_PROFILE` | Profile configuration path | `.smartergpt.local/profile.yml` |
+| `LEX_CLI_OUTPUT_MODE` | CLI output format (`plain` or `jsonl`) | `plain` |
 
-Add new subprojects by creating `src/<area>/<name>/tsconfig.json` that `extends" ../../../tsconfig.base.json"` and setting `"composite": true`, then add its path to `tsconfig.build.json` references.
+[Environment Configuration →](./docs/ADOPTION_GUIDE.md)
 
-> Runtime Note: Keep import specifiers with explicit `.js` extensions for local relative imports; `NodeNext` maps them to the emitted `.js` outputs while TypeScript resolves against `.ts` sources.
-## License
+---
 
-MIT
+## 🧪 Development
+
+### Prerequisites
+
+- **Node.js:** v20+ LTS
+- **npm:** v10+
+- **Git:** For branch detection
+
+### Local Setup
+
+```bash
+# Clone repository
+git clone https://github.com/Guffawaffle/lex.git
+cd lex
+
+# Install dependencies
+npm ci
+
+# Build
+npm run build
+
+# Run tests
+npm test
+
+# Local CI (full suite)
+npm run local-ci
+```
+
+### Project Structure
+
+```
+lex/
+├── src/                     # TypeScript source (no .js files)
+│   ├── memory/             # Frame storage & MCP server
+│   ├── policy/             # Policy enforcement & scanners
+│   ├── shared/             # Shared utilities & types
+│   └── index.ts            # Main entry point
+├── dist/                    # Build output (gitignored)
+├── canon/                   # Canonical prompts & schemas
+├── docs/                    # Documentation
+├── examples/                # Usage examples & optional scanners
+├── test/                    # Test suite
+└── .smartergpt.local/      # Local workspace (gitignored)
+```
+
+### Running Tests
+
+```bash
+npm test                     # Run all tests
+npm run test:coverage       # With coverage report
+npm run test:watch          # Watch mode
+```
+
+### Code Quality
+
+```bash
+npm run lint                # ESLint checks
+npm run format              # Prettier formatting
+npm run typecheck           # TypeScript validation
+```
+
+[Contributing Guide →](./CONTRIBUTING.md)
