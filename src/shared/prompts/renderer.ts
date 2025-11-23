@@ -2,6 +2,7 @@
  * Prompt Template Renderer
  *
  * Provides deterministic, strict rendering of prompt templates with:
+ * - Token expansion: {{today}}, {{now}}, {{repo_root}}, etc.
  * - Variable substitution: {{variable}}
  * - Conditionals: {{#if condition}}...{{else}}...{{/if}}
  * - Loops: {{#each items}}...{{/each}}
@@ -19,6 +20,7 @@ import {
   PromptTemplate,
   RenderedPrompt,
 } from "./types.js";
+import { expandTokens, type TokenContext } from "../tokens/expander.js";
 
 /**
  * HTML escape map for security
@@ -48,9 +50,20 @@ function computeHash(content: string): string {
 /**
  * Extract all variable references from a template
  * Matches: {{var}}, {{{var}}}, {{#if var}}, {{#each var}}
+ * Excludes token patterns like {{today}}, {{now}}, {{branch}}, etc.
  */
 function extractVariables(template: string): string[] {
   const variables = new Set<string>();
+
+  // Known tokens that should be excluded from variable extraction
+  const knownTokens = new Set([
+    "today",
+    "now",
+    "repo_root",
+    "workspace_root",
+    "branch",
+    "commit",
+  ]);
 
   // Match control structures: {{#if var}} and {{#each var}}
   const controlRegex = /\{\{#(if|each)\s+([a-zA-Z_][a-zA-Z0-9_\.]*)\s*\}\}/g;
@@ -58,7 +71,10 @@ function extractVariables(template: string): string[] {
 
   while ((match = controlRegex.exec(template)) !== null) {
     const varName = match[2];
-    variables.add(varName.split(".")[0]);
+    const rootVar = varName.split(".")[0];
+    if (!knownTokens.has(rootVar)) {
+      variables.add(rootVar);
+    }
   }
 
   // Match regular variables: {{var}} and {{{var}}}
@@ -94,7 +110,13 @@ function extractVariables(template: string): string[] {
       continue;
     }
 
-    variables.add(varName.split(".")[0]);
+    // Skip known tokens
+    const rootVar = varName.split(".")[0];
+    if (knownTokens.has(rootVar)) {
+      continue;
+    }
+
+    variables.add(rootVar);
   }
 
   return Array.from(variables).sort();
@@ -189,17 +211,38 @@ export function validateContext(template: string, context: RenderContext): Valid
  * );
  * // => "a, b, c, "
  * ```
+ *
+ * @example Token Expansion
+ * ```typescript
+ * const result = renderPrompt(
+ *   "Created on {{today}} at {{branch}}",
+ *   {}
+ * );
+ * // => "Created on 2025-11-23 at main"
+ * ```
  */
 export function renderPrompt(
   template: string,
   context: RenderContext,
   options: RenderOptions = {}
 ): string {
-  const { strict = true, escapeHtml: shouldEscape = true } = options;
+  const { 
+    strict = true, 
+    escapeHtml: shouldEscape = true,
+    expandTokens: shouldExpandTokens = true,
+    tokenContext = {}
+  } = options;
 
-  // Validate context in strict mode
+  let result = template;
+
+  // Step 1: Expand tokens (if enabled)
+  if (shouldExpandTokens) {
+    result = expandTokens(result, tokenContext);
+  }
+
+  // Step 2: Validate context in strict mode
   if (strict) {
-    const validation = validateContext(template, context);
+    const validation = validateContext(result, context);
     if (!validation.valid) {
       throw new RenderError(
         `Missing required variables: ${validation.missing?.join(", ")}`,
@@ -209,13 +252,11 @@ export function renderPrompt(
     }
   }
 
-  let result = template;
-
-  // Process control structures first (if/each)
+  // Step 3: Process control structures first (if/each)
   result = processConditionals(result, context, strict, shouldEscape);
   result = processLoops(result, context, strict, shouldEscape);
 
-  // Process raw variables {{{var}}} (no escaping)
+  // Step 4: Process raw variables {{{var}}} (no escaping)
   result = result.replace(/\{\{\{\s*([a-zA-Z_][a-zA-Z0-9_\.]*)\s*\}\}\}/g, (match, varName) => {
     const value = resolvePath(context, varName);
     if (value === undefined || value === null) {
