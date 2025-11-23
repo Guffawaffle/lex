@@ -9,6 +9,7 @@
     { "path": "src/shared/policy" },
     { "path": "src/shared/prompts" },
     { "path": "src/shared/schemas" },
+    { "path": "src/shared/rules" },
     { "path": "src/shared/atlas" },
     { "path": "src/shared/git" },
     { "path": "src/shared/config" },

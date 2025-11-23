@@ -10,6 +10,10 @@ async function copyCanon() {
     await fs.cp("canon/schemas", "schemas", { recursive: true });
     console.log("✓ Copied canon/schemas → schemas/");
 
+    // Copy rules/ directory
+    await fs.cp("canon/rules", "rules", { recursive: true });
+    console.log("✓ Copied canon/rules → rules/");
+
     console.log("✓ Canon copy complete");
   } catch (error) {
     console.error("✗ Failed to copy canon:", error.message);

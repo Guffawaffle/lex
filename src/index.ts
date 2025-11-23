@@ -10,6 +10,7 @@
  * - `lex/shared/atlas` - Atlas frame generation
  * - `lex/shared/aliases` - Module ID alias resolution
  * - `lex/shared/module_ids` - Module ID validation
+ * - `lex/shared/rules` - LexSona behavioral rules
  */
 
 // Export core types
