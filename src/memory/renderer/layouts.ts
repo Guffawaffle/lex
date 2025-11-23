@@ -174,7 +174,7 @@ export function hierarchicalLayout(
   edges: AtlasEdge[],
   _config: LayoutConfig = {}
 ): Layout {
-  const cfg = { ...DEFAULT_FORCE_CONFIG, ...config };
+  const cfg = { ...DEFAULT_FORCE_CONFIG, ..._config };
 
   if (nodes.length === 0) {
     return { nodes: [], width: 800, height: 600 };
@@ -265,7 +265,7 @@ export function hierarchicalLayout(
   const height = (maxLayer + 1) * cfg.levelSpacing + 100;
 
   let maxWidth = 0;
-  for (const [layer, layerNodes] of layerGroups.entries()) {
+  for (const [_layer, layerNodes] of layerGroups.entries()) {
     const layerWidth = layerNodes.length * cfg.nodeSpacing;
     maxWidth = Math.max(maxWidth, layerWidth);
   }
@@ -293,7 +293,7 @@ export function hierarchicalLayout(
 export function circularLayout(
   nodes: GraphNode[],
   edges: AtlasEdge[],
-  config: LayoutConfig = {}
+  _config: LayoutConfig = {}
 ): Layout {
   if (nodes.length === 0) {
     return { nodes: [], width: 800, height: 600 };

@@ -28,7 +28,7 @@ describe("Image Manager - Performance", () => {
     if (testDbPath) {
       try {
         rmSync(testDbPath, { force: true });
-      } catch (_e) {
+      } catch {
         // Ignore cleanup errors
       }
     }
@@ -64,8 +64,8 @@ describe("Image Manager - Performance", () => {
 
         for (let i = 0; i < 10; i++) {
           const imageData = Buffer.alloc(imageSize, `img-${f}-${i}`);
-          const imageId = imageManager.storeImage(frame.id, imageData, "image/png");
-          imageIds.push(imageId);
+          const _imageId = imageManager.storeImage(frame.id, imageData, "image/png");
+          imageIds.push(_imageId);
         }
       }
       const storeTime = Date.now() - startStore;
