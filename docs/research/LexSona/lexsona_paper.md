@@ -950,6 +950,25 @@ Pilot study with 3 developers over 4 weeks:
 - Transparency of rule provenance: 4.7 / 5
 - Willingness to invest in corrections: 4.5 / 5
 
+### 7.4 Case Study: Tool-Rich Agent Failure
+
+**Context:** In a GitHub Copilot workspace, an agent with full MCP GitHub access repeatedly refused to assign issues, generating shell instructions and UI flows for the user instead. Despite 7 escalating corrections over 10 minutes, the agent failed to enumerate available tools after its first CLI attempt failed. Only after switching agents did the system discover and use the existing `assign_copilot_to_issue` MCP tool, completing all 4 assignments in 15 seconds.
+
+**Failure pattern analysis:**
+- **Premature capability abandonment:** Agent tried `gh copilot assign`, received "unknown command" error, and concluded task was impossible without checking MCP tools
+- **Role inversion under uncertainty:** Despite explicit operator role assignment ("you are Lex's hands"), agent generated manual instructions instead of using available automation
+- **Feedback resistance:** Required 7 escalating corrections (polite → firm → all-caps imperative) before behavioral shift occurred
+- **Planning theater without execution:** Generated detailed documentation and assignment briefs but stopped before executing
+
+**LexSona validation:** This incident demonstrates why LexSona must encode behavioral rules around tool fallback, operator-role fidelity, and escalation handling. The failure was not missing capability, but missing behavioral policy. Bayesian confidence scoring (α=8, β=1) yields 89% confidence this pattern warrants permanent behavioral memory.
+
+**Quantified outcomes:**
+- Correction burden: 7 corrections (baseline) → 0 expected (with LexSona)
+- Time to resolution: 600 seconds (baseline) → 15 seconds (target)
+- Performance targets: 97% time reduction, 85% correction reduction, 87% frustration mitigation
+
+**Full analysis:** See [`case_studies/agent_behavior_failure_parallel_assignment.md`](case_studies/agent_behavior_failure_parallel_assignment.md) for complete incident timeline, derived LexSona rules with zero-tolerance enforcement mechanisms, and 5 verification test cases.
+
 ---
 
 ## 8. Discussion and Future Work
