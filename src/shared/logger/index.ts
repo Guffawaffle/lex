@@ -46,3 +46,6 @@ export function getLogger(scope?: string): Log {
   }
   return root;
 }
+
+// Export NDJSON logger for structured file logging
+export { getNDJSONLogger, writeLog, type LogEntry, type LogLevel, type NDJSONLogger } from "./ndjson.js";

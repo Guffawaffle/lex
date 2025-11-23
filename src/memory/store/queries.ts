@@ -7,6 +7,9 @@
 import Database from "better-sqlite3";
 import type { FrameRow } from "./db.js";
 import type { Frame, FrameStatusSnapshot, FrameSpendMetadata } from "../frames/types.js";
+import { getNDJSONLogger } from "../../shared/logger/index.js";
+
+const logger = getNDJSONLogger("memory/store");
 
 /**
  * Convert Frame object to database row
@@ -60,6 +63,7 @@ function rowToFrame(row: FrameRow): Frame {
  * Save a Frame to the database (insert or update)
  */
 export function saveFrame(db: Database.Database, frame: Frame): void {
+  const startTime = Date.now();
   const row = frameToRow(frame);
 
   const stmt = db.prepare(`
@@ -87,17 +91,37 @@ export function saveFrame(db: Database.Database, frame: Frame): void {
     row.plan_hash,
     row.spend
   );
+  
+  const duration = Date.now() - startTime;
+  logger.info("Frame saved", {
+    operation: "saveFrame",
+    duration_ms: duration,
+    metadata: { frameId: frame.id, jira: frame.jira, branch: frame.branch }
+  });
 }
 
 /**
  * Get a Frame by ID
  */
 export function getFrameById(db: Database.Database, id: string): Frame | null {
+  const startTime = Date.now();
   const stmt = db.prepare("SELECT * FROM frames WHERE id = ?");
   const row = stmt.get(id) as FrameRow | undefined;
 
-  if (!row) return null;
+  if (!row) {
+    logger.debug("Frame not found", {
+      operation: "getFrameById",
+      duration_ms: Date.now() - startTime,
+      metadata: { frameId: id }
+    });
+    return null;
+  }
 
+  logger.debug("Frame retrieved", {
+    operation: "getFrameById",
+    duration_ms: Date.now() - startTime,
+    metadata: { frameId: id }
+  });
   return rowToFrame(row);
 }
 
@@ -112,6 +136,7 @@ export interface SearchResult {
  * @returns SearchResult with frames array and optional hint for FTS5 syntax errors
  */
 export function searchFrames(db: Database.Database, query: string): SearchResult {
+  const startTime = Date.now();
   try {
     const stmt = db.prepare(`
       SELECT f.*
@@ -122,6 +147,12 @@ export function searchFrames(db: Database.Database, query: string): SearchResult
     `);
 
     const rows = stmt.all(query) as FrameRow[];
+    const duration = Date.now() - startTime;
+    logger.info("Search completed", {
+      operation: "searchFrames",
+      duration_ms: duration,
+      metadata: { query, resultCount: rows.length }
+    });
     return { frames: rows.map(rowToFrame) };
   } catch (error: unknown) {
     // Check if this is an FTS5-related error (caused by special characters)
@@ -137,6 +168,12 @@ export function searchFrames(db: Database.Database, query: string): SearchResult
       const hint = simplifiedQuery
         ? `Search contained special characters. Try simpler terms (e.g., '${simplifiedQuery}')`
         : "Search contained special characters. Try simpler terms";
+      
+      logger.warn("Search query contained special characters", {
+        operation: "searchFrames",
+        duration_ms: Date.now() - startTime,
+        metadata: { query, error: err.message }
+      });
 
       return {
         frames: [],
@@ -206,6 +243,66 @@ export function getAllFrames(db: Database.Database, limit?: number): Frame[] {
 
   const rows = limit ? (stmt.all(limit) as FrameRow[]) : (stmt.all() as FrameRow[]);
   return rows.map(rowToFrame);
+}
+
+/**
+ * Query options for exporting frames
+ */
+export interface ExportFramesOptions {
+  since?: string; // ISO 8601 timestamp
+  jira?: string;
+  branch?: string;
+}
+
+/**
+ * Get frames iterator for export with optional filters
+ * Uses iterator for memory-efficient streaming of large result sets
+ */
+export function getFramesForExport(
+  db: Database.Database,
+  options: ExportFramesOptions = {}
+): IterableIterator<Frame> {
+  const whereClauses: string[] = [];
+  const params: (string | number)[] = [];
+
+  if (options.since) {
+    whereClauses.push("timestamp >= ?");
+    params.push(options.since);
+  }
+
+  if (options.jira) {
+    whereClauses.push("jira = ?");
+    params.push(options.jira);
+  }
+
+  if (options.branch) {
+    whereClauses.push("branch = ?");
+    params.push(options.branch);
+  }
+
+  const whereClause = whereClauses.length > 0 ? `WHERE ${whereClauses.join(" AND ")}` : "";
+
+  const stmt = db.prepare(`
+    SELECT * FROM frames
+    ${whereClause}
+    ORDER BY timestamp ASC
+  `);
+
+  const rows = stmt.iterate(...params) as IterableIterator<FrameRow>;
+
+  // Transform iterator to return Frame objects instead of FrameRow
+  return {
+    [Symbol.iterator](): IterableIterator<Frame> {
+      return this;
+    },
+    next(): IteratorResult<Frame> {
+      const result = rows.next();
+      if (result.done) {
+        return { done: true, value: undefined };
+      }
+      return { done: false, value: rowToFrame(result.value) };
+    },
+  };
 }
 
 /**
