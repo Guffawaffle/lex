@@ -2,17 +2,14 @@ import fs from "fs/promises";
 
 async function copyCanon() {
   try {
-    // Check if canon/ directory exists (it was removed in chore/canon-cleanup)
+    // Canon directory removed - IP-sensitive prompts no longer in repo
+    // Only copy schemas/ and rules/ if canon/ exists
     try {
-      await fs.access("canon/prompts");
+      await fs.access("canon/schemas");
     } catch {
       console.log("ℹ Canon directory not present (removed in cleanup) - skipping copy");
       return;
     }
-
-    // Copy prompts/ directory
-    await fs.cp("canon/prompts", "prompts", { recursive: true });
-    console.log("✓ Copied canon/prompts → prompts/");
 
     // Copy schemas/ directory
     await fs.cp("canon/schemas", "schemas", { recursive: true });
@@ -22,7 +19,7 @@ async function copyCanon() {
     await fs.cp("canon/rules", "rules", { recursive: true });
     console.log("✓ Copied canon/rules → rules/");
 
-    console.log("✓ Canon copy complete");
+    console.log("✓ Canon copy complete (prompts removed - no longer copied)");
   } catch (error) {
     console.error("✗ Failed to copy canon:", error.message);
     process.exit(1);
