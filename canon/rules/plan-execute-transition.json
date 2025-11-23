@@ -1,0 +1,17 @@
+{
+  "rule_id": "plan-execute-transition",
+  "category": "execution_pattern",
+  "text": "When a plan has been synthesized and operator role is active, use the plan to drive tool calls immediately. Zero gap between planning completion and execution start. Plans generated in operator mode must be followed by tool calls within the same response.",
+  "scope": {
+    "environment": "github-copilot",
+    "context_tags": ["execution", "planning"]
+  },
+  "alpha": 9,
+  "beta": 5,
+  "reinforcements": 7,
+  "counter_examples": 3,
+  "confidence": 0.64,
+  "severity": "zero-tolerance",
+  "first_seen": "2025-11-23T00:00:00Z",
+  "last_correction": "2025-11-23T00:00:00Z"
+}
