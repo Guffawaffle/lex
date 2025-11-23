@@ -178,10 +178,7 @@ describe("Token Expansion", () => {
           commit: "abc1234",
         }
       );
-      assert.strictEqual(
-        result,
-        "/workspace/logs/main/abc1234/2025-11-09/20251109T120000.log"
-      );
+      assert.strictEqual(result, "/workspace/logs/main/abc1234/2025-11-09/20251109T120000.log");
     });
 
     test("preserves non-token content", () => {
@@ -244,8 +241,7 @@ describe("Token Expansion", () => {
     });
 
     test("extractTokens finds all supported tokens", () => {
-      const input =
-        "{{today}} {{now}} {{repo_root}} {{workspace_root}} {{branch}} {{commit}}";
+      const input = "{{today}} {{now}} {{repo_root}} {{workspace_root}} {{branch}} {{commit}}";
       const tokens = extractTokens(input);
       assert.deepStrictEqual(tokens.sort(), [
         "branch",
@@ -332,7 +328,7 @@ describe("Token Expansion", () => {
     });
 
     test("handles complex nested structures", () => {
-      const testDate = new Date("2025-11-09T12:00:00");
+      const testDate = new Date("2025-11-09T12:00:00Z");
       const input = {
         root: "{{workspace_root}}",
         branches: ["{{branch}}", "develop", "{{branch}}-backup"],

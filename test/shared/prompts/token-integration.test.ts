@@ -7,11 +7,11 @@
 
 import { test, describe } from "node:test";
 import assert from "node:assert";
-import { renderPrompt } from "@app/shared/prompts/renderer.js";
+import { renderPrompt } from "../../../src/shared/prompts/renderer.js";
 
 describe("Prompt Renderer - Token Expansion Integration", () => {
   test("expands tokens before rendering variables", () => {
-    const testDate = new Date("2025-11-09T12:00:00");
+    const testDate = new Date("2025-11-09T12:00:00Z");
     const result = renderPrompt(
       "Date: {{today}}, Name: {{name}}",
       { name: "Test" },
@@ -24,7 +24,7 @@ describe("Prompt Renderer - Token Expansion Integration", () => {
   });
 
   test("expands tokens in conditional blocks", () => {
-    const testDate = new Date("2025-11-09");
+    const testDate = new Date("2025-11-09T00:00:00Z");
     const result = renderPrompt(
       "{{#if show}}Created on {{today}}{{/if}}",
       { show: true },
@@ -37,7 +37,7 @@ describe("Prompt Renderer - Token Expansion Integration", () => {
   });
 
   test("expands tokens in loop blocks", () => {
-    const testDate = new Date("2025-11-09");
+    const testDate = new Date("2025-11-09T00:00:00Z");
     const result = renderPrompt(
       "{{#each items}}{{this}}-{{today}}, {{/each}}",
       { items: ["a", "b"] },
@@ -50,7 +50,7 @@ describe("Prompt Renderer - Token Expansion Integration", () => {
   });
 
   test("works with all token types in template", () => {
-    const testDate = new Date("2025-11-09T15:30:00");
+    const testDate = new Date("2025-11-09T15:30:00Z");
     const result = renderPrompt(
       "Repository: {{repo_root}}\nBranch: {{branch}}\nCommit: {{commit}}\nDate: {{today}}\nTime: {{now}}\nWorkspace: {{workspace_root}}",
       {},
@@ -112,10 +112,7 @@ describe("Prompt Renderer - Token Expansion Integration", () => {
         tokenContext: { today: testDate },
       }
     );
-    assert.strictEqual(
-      result,
-      "2025-11-09: &lt;script&gt;alert(&#39;xss&#39;)&lt;/script&gt;"
-    );
+    assert.strictEqual(result, "2025-11-09: &lt;script&gt;alert(&#39;xss&#39;)&lt;/script&gt;");
   });
 
   test("tokens work with raw variable syntax", () => {
@@ -132,7 +129,7 @@ describe("Prompt Renderer - Token Expansion Integration", () => {
   });
 
   test("real-world example: deliverable path with tokens", () => {
-    const testDate = new Date("2025-11-09T12:34:56");
+    const testDate = new Date("2025-11-09T12:34:56Z");
     const template = "{{repo_root}}/.smartergpt.local/deliverables/weave-{{today}}-{{now}}";
     const result = renderPrompt(
       template,
@@ -153,7 +150,7 @@ describe("Prompt Renderer - Token Expansion Integration", () => {
   });
 
   test("real-world example: kickoff prompt with tokens", () => {
-    const testDate = new Date("2025-11-09T10:00:00");
+    const testDate = new Date("2025-11-09T10:00:00Z");
     const template = `UMBRELLA_NAME: umbrella-{{today}}-{{now}}
 PROMPT_FILE: {{repo_root}}/.smartergpt/prompts/merge-weave-main.md
 BRANCH: {{branch}}

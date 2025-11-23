@@ -66,11 +66,11 @@ describe("Rule Loader Precedence", () => {
     process.chdir(repo);
 
     const rules = resolveRules({ confidenceThreshold: 0.5 });
-    
+
     assert.ok(rules.length > 0);
-    assert.ok(rules.some(r => r.source === "package"));
-    
-    const fallbackRule = rules.find(r => r.rule_id === "tool-fallback-protocol");
+    assert.ok(rules.some((r) => r.source === "package"));
+
+    const fallbackRule = rules.find((r) => r.rule_id === "tool-fallback-protocol");
     assert.ok(fallbackRule);
     assert.strictEqual(fallbackRule.source, "package");
   });
@@ -93,8 +93,8 @@ describe("Rule Loader Precedence", () => {
       process.chdir(repo);
 
       const rules = resolveRules();
-      const sharedRule = rules.find(r => r.rule_id === "shared-rule");
-      
+      const sharedRule = rules.find((r) => r.rule_id === "shared-rule");
+
       assert.ok(sharedRule);
       assert.strictEqual(sharedRule.source, "env");
     } finally {
@@ -114,8 +114,8 @@ describe("Rule Loader Precedence", () => {
     process.chdir(repo);
 
     const rules = resolveRules();
-    const overriddenRule = rules.find(r => r.rule_id === "tool-fallback-protocol");
-    
+    const overriddenRule = rules.find((r) => r.rule_id === "tool-fallback-protocol");
+
     assert.ok(overriddenRule);
     assert.strictEqual(overriddenRule.source, "workspace");
     assert.strictEqual(overriddenRule.confidence, 0.95);
@@ -181,10 +181,10 @@ describe("Rule Confidence Filtering", () => {
     process.chdir(repo);
 
     const rules = resolveRules({ confidenceThreshold: 0.75 });
-    
-    assert.ok(rules.every(r => r.confidence >= 0.75));
-    assert.ok(rules.some(r => r.rule_id === "high-confidence"));
-    assert.ok(!rules.some(r => r.rule_id === "low-confidence"));
+
+    assert.ok(rules.every((r) => r.confidence >= 0.75));
+    assert.ok(rules.some((r) => r.rule_id === "high-confidence"));
+    assert.ok(!rules.some((r) => r.rule_id === "low-confidence"));
   });
 });
 
@@ -247,9 +247,9 @@ describe("Rule Scope Matching", () => {
     process.chdir(repo);
 
     const rules = resolveRules({ environment: "github-copilot" });
-    
-    assert.ok(rules.some(r => r.rule_id === "copilot-rule"));
-    assert.ok(!rules.some(r => r.rule_id === "awa-rule"));
+
+    assert.ok(rules.some((r) => r.rule_id === "copilot-rule"));
+    assert.ok(!rules.some((r) => r.rule_id === "awa-rule"));
   });
 
   test("matches rules with context tags", () => {
@@ -264,7 +264,7 @@ describe("Rule Scope Matching", () => {
     process.chdir(repo);
 
     const rules = resolveRules({ context_tags: ["execution", "tools"] });
-    
-    assert.ok(rules.some(r => r.rule_id === "tools-rule"));
+
+    assert.ok(rules.some((r) => r.rule_id === "tools-rule"));
   });
 });
