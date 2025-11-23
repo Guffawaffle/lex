@@ -13,6 +13,8 @@
     { "path": "src/shared/git" },
     { "path": "src/shared/config" },
     { "path": "src/shared/cli" },
+    { "path": "src/shared/paths" },
+    { "path": "src/shared/tokens" },
     { "path": "src/policy/check" },
     { "path": "src/policy/merge" },
     { "path": "src/merge-weave" },
