@@ -226,7 +226,7 @@ export function getFramesForExport(
   options: ExportFramesOptions = {}
 ): IterableIterator<Frame> {
   const whereClauses: string[] = [];
-  const params: any[] = [];
+  const params: (string | number)[] = [];
 
   if (options.since) {
     whereClauses.push("timestamp >= ?");
