@@ -28,7 +28,7 @@ We provide security updates for the following versions:
 
 1. **No authentication on MCP stdio mode** (MCP server runs as local process)
 2. **HTTP mode requires API key** (mandatory as of 0.4.2) - See HTTP Server Security below
-3. **No encryption** for database at rest
+3. **Database encryption available** (SQLCipher support added in 0.5.0-alpha) - See Database Encryption below
 4. **Limited audit trail** (HTTP requests logged, database ops not tracked)
 5. **SQLite limitations** (not suitable for high-concurrency)
 6. **Example scanners not audited** (Python/PHP in `examples/scanners/`)
@@ -45,6 +45,176 @@ We provide security updates for the following versions:
 - ❌ High-security production environments
 
 See `docs/SECURITY_POSTURE.md` for detailed guidance and production roadmap
+
+---
+
+## Database Encryption (New in 0.5.0-alpha)
+
+**⚠️ IMPORTANT: Database encryption is OPTIONAL but RECOMMENDED for production use.**
+
+Lex now supports database encryption at rest using SQLCipher. This protects Frame data, Atlas maps, and metadata from unauthorized access.
+
+### Encryption Features
+
+✅ **SQLCipher Integration**
+- AES-256 encryption for database files
+- PBKDF2 key derivation (64,000 iterations)
+- Drop-in replacement for better-sqlite3
+- Backward compatible with unencrypted databases
+
+✅ **Key Management**
+- Environment variable-based key configuration (`LEX_DB_KEY`)
+- Mandatory encryption in production mode (`NODE_ENV=production`)
+- Deterministic key derivation for consistent access
+- No key recovery mechanism (keep your passphrase secure!)
+
+✅ **Migration Support**
+- `lex db encrypt` command to migrate existing databases
+- Data integrity verification with SHA-256 checksums
+- Non-destructive migration (creates new encrypted database)
+
+### Quick Start
+
+**1. Enable Encryption (New Databases)**
+
+```bash
+# Set encryption passphrase (required in production)
+export LEX_DB_KEY="your-strong-passphrase-here-32-chars-minimum"
+
+# Start using Lex - database will be encrypted automatically
+lex remember --reference-point "my work" --summary "Testing encryption"
+```
+
+**2. Migrate Existing Database**
+
+```bash
+# Set passphrase for encryption
+export LEX_DB_KEY="your-strong-passphrase-here"
+
+# Encrypt existing database with verification
+lex db encrypt --verify
+
+# Output will be: .smartergpt/lex/memory-encrypted.db
+# Rename to replace original database (after verifying it works)
+```
+
+**3. Using Custom Paths**
+
+```bash
+# Encrypt specific database file
+lex db encrypt \
+  --input /path/to/unencrypted.db \
+  --output /path/to/encrypted.db \
+  --passphrase "your-passphrase" \
+  --verify
+```
+
+### Key Management Best Practices
+
+**DO:**
+- ✅ Use strong passphrases (32+ characters, mix of letters, numbers, symbols)
+- ✅ Store passphrase in environment variables (never commit to git)
+- ✅ Use different passphrases for dev/staging/production
+- ✅ Back up your passphrase securely (password manager, encrypted vault)
+- ✅ Rotate passphrases periodically (re-encrypt database)
+
+**DON'T:**
+- ❌ Hard-code passphrases in application code
+- ❌ Store passphrases in version control
+- ❌ Share passphrases between environments
+- ❌ Use weak or guessable passphrases
+- ❌ Lose your passphrase (no recovery mechanism exists)
+
+### Environment Variables
+
+```bash
+# Required for encrypted databases
+export LEX_DB_KEY="your-passphrase-here"
+
+# Optional: Custom database path
+export LEX_DB_PATH="/custom/path/to/database.db"
+
+# Production mode (requires LEX_DB_KEY)
+export NODE_ENV="production"
+```
+
+### Example: Production Deployment
+
+```bash
+#!/bin/bash
+# production-deploy.sh
+
+# Generate strong passphrase (save to password manager!)
+PASSPHRASE=$(openssl rand -base64 32)
+
+# Encrypt database for production
+LEX_DB_KEY="$PASSPHRASE" lex db encrypt \
+  --input .smartergpt/lex/memory.db \
+  --output .smartergpt/lex/memory-prod.db \
+  --verify
+
+# Deploy with encrypted database
+export NODE_ENV="production"
+export LEX_DB_KEY="$PASSPHRASE"
+export LEX_DB_PATH=".smartergpt/lex/memory-prod.db"
+
+# Application will now use encrypted database
+lex mcp
+```
+
+### Migration Workflow
+
+```bash
+# Step 1: Create backup of existing database
+lex db backup --rotate 5
+
+# Step 2: Encrypt database with verification
+LEX_DB_KEY="new-passphrase" lex db encrypt --verify
+
+# Step 3: Test encrypted database
+LEX_DB_KEY="new-passphrase" lex recall "test query"
+
+# Step 4: If successful, rename encrypted database
+mv .smartergpt/lex/memory-encrypted.db .smartergpt/lex/memory.db
+
+# Step 5: Update environment configuration
+echo 'export LEX_DB_KEY="new-passphrase"' >> ~/.bashrc
+```
+
+### Security Considerations
+
+**Encryption Scope:**
+- ✅ All Frame data (timestamps, branches, summaries, status)
+- ✅ Atlas maps and module metadata
+- ✅ FTS5 search indexes
+- ✅ Schema and migration history
+
+**NOT Encrypted:**
+- ❌ Backups (use `lex db backup` after encryption)
+- ❌ In-memory data during runtime
+- ❌ Log files (configure logger separately)
+- ❌ Files in `.smartergpt/` (git-ignored, but not encrypted)
+
+**Performance Impact:**
+- ~5-10% overhead for read operations
+- ~10-15% overhead for write operations
+- Negligible impact for typical workloads (<10K frames)
+- See `docs/PERFORMANCE.md` for detailed benchmarks
+
+### Troubleshooting
+
+**Error: "Failed to open encrypted database. The encryption key may be incorrect."**
+- Verify `LEX_DB_KEY` is set correctly
+- Check for typos in passphrase
+- Ensure database was encrypted with the same passphrase
+
+**Error: "LEX_DB_KEY environment variable is required in production mode."**
+- Set `LEX_DB_KEY` environment variable
+- Or change `NODE_ENV` to development/test for unencrypted mode
+
+**Database corrupted after power loss:**
+- SQLCipher uses SQLite's WAL mode (write-ahead logging)
+- Restore from most recent backup: `lex db backup --rotate 5`
 
 ---
 
