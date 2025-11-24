@@ -95,15 +95,27 @@ function findRepoRoot(startPath: string): string {
  * Derive encryption key from passphrase using PBKDF2
  * Uses 64K iterations as recommended by SQLCipher for security
  * 
+ * NOTE: This implementation uses a fixed application salt to ensure deterministic
+ * key derivation. This is necessary because:
+ * 1. SQLCipher doesn't support storing salt metadata separately
+ * 2. Users must derive the same key from their passphrase each session
+ * 3. The passphrase itself must be high-entropy to compensate
+ * 
+ * Security considerations:
+ * - Users MUST use strong, unique passphrases (32+ characters recommended)
+ * - The fixed salt prevents per-database key uniqueness
+ * - This is acceptable for single-user/small-team use cases
+ * - Enterprise deployments should consider HSM integration (future work)
+ * 
  * @param passphrase - User-provided passphrase from LEX_DB_KEY
- * @param salt - Optional salt (defaults to fixed salt for deterministic key derivation)
+ * @param salt - Optional salt (defaults to application-wide constant)
  * @returns Hex-encoded key suitable for SQLCipher
  */
 export function deriveEncryptionKey(passphrase: string, salt?: Buffer): string {
-  // Use a fixed salt if not provided to ensure same passphrase produces same key
-  // In production, this would be stored with the database, but for simplicity
-  // we use a fixed salt derived from the passphrase itself
-  const keySalt = salt || pbkdf2Sync(passphrase, "lex-db-salt", 1000, 16, "sha256");
+  // Use application-wide constant salt for deterministic key derivation
+  // This is necessary for password-based encryption without external metadata storage
+  const APPLICATION_SALT = Buffer.from("lex-sqlcipher-v1-2025", "utf-8");
+  const keySalt = salt || APPLICATION_SALT;
   
   // Derive 256-bit key with 64K iterations (SQLCipher recommendation)
   const key = pbkdf2Sync(passphrase, keySalt, 64000, 32, "sha256");

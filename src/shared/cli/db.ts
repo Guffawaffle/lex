@@ -9,7 +9,7 @@
 
 import { getDb, getDefaultDbPath } from "../../memory/store/index.js";
 import { backupDatabase, vacuumDatabase, getBackupRetention } from "../../memory/store/backup.js";
-import { createDatabase, deriveEncryptionKey } from "../../memory/store/db.js";
+import { deriveEncryptionKey, initializeDatabase } from "../../memory/store/db.js";
 import * as output from "./output.js";
 import { getNDJSONLogger } from "../logger/index.js";
 import Database from "better-sqlite3-multiple-ciphers";
@@ -223,15 +223,13 @@ export async function dbEncrypt(options: DbEncryptOptions = {}): Promise<void> {
     // Derive encryption key
     const encryptionKey = deriveEncryptionKey(passphrase);
     
-    // Create encrypted output database using createDatabase to get proper schema
-    const tempEnvKey = process.env.LEX_DB_KEY;
-    process.env.LEX_DB_KEY = passphrase;
-    const destDb = createDatabase(outputPath);
-    if (tempEnvKey !== undefined) {
-      process.env.LEX_DB_KEY = tempEnvKey;
-    } else {
-      delete process.env.LEX_DB_KEY;
-    }
+    // Create encrypted output database directly without environment variable manipulation
+    const destDb = new Database(outputPath);
+    destDb.pragma(`cipher='sqlcipher'`);
+    destDb.pragma(`key="x'${encryptionKey}'"`);
+    
+    // Initialize schema using same approach as createDatabase
+    initializeDatabase(destDb);
     
     // Copy data from all regular tables (exclude FTS virtual tables)
     const tableNames = sourceDb.prepare(
@@ -307,8 +305,9 @@ export async function dbEncrypt(options: DbEncryptOptions = {}): Promise<void> {
       output.success(`Database encrypted successfully in ${duration}ms`);
       output.info(`Encrypted database: ${outputPath}`);
       output.info(`Rows migrated: ${totalRows}`);
-      output.warn(`\nIMPORTANT: Set LEX_DB_KEY="${passphrase}" to use the encrypted database`);
+      output.warn(`\nIMPORTANT: Set LEX_DB_KEY environment variable to use the encrypted database`);
       output.warn(`Keep your passphrase secure - there is no way to recover it if lost!`);
+      output.info(`Example: export LEX_DB_KEY="your-passphrase-here"`);
     }
   } catch (error) {
     logger.error("Database encryption failed", {
