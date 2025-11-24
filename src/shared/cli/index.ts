@@ -47,9 +47,9 @@ export function createProgram(): Command {
   // lex init command
   program
     .command("init")
-    .description("Initialize .lex/ workspace with prompts and policy")
+    .description("Initialize .smartergpt/ workspace with prompts and policy")
     .option("--force", "Overwrite existing files")
-    .option("--prompts-dir <path>", "Custom prompts directory (default: .lex/prompts)")
+    .option("--prompts-dir <path>", "Custom prompts directory (default: .smartergpt/prompts)")
     .action(async (cmdOptions) => {
       const globalOptions = program.opts();
       const options: InitOptions = {
@@ -172,7 +172,7 @@ export function createProgram(): Command {
   framesCommand
     .command("export")
     .description("Export frames from database to JSON files")
-    .option("--out <dir>", "Output directory (default: .smartergpt.local/lex/frames.export)")
+    .option("--out <dir>", "Output directory (default: .smartergpt/lex/frames.export)")
     .option(
       "--since <date|duration>",
       "Export frames since date or duration (e.g., 7d, 2025-01-01)"

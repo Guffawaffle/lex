@@ -3,7 +3,7 @@
  *
  * Loads behavioral rule files with precedence chain support:
  * 1. LEX_RULES_DIR (explicit environment override)
- * 2. .smartergpt.local/canon/rules/ (local overlay)
+ * 2. .smartergpt/canon/rules/ (local overlay)
  * 3. Package canon/rules/ (resolved from package installation)
  */
 
@@ -208,7 +208,7 @@ function matchesContext(rule: BehavioralRule, context: RuleContext): boolean {
  *
  * Precedence chain:
  * 1. LEX_RULES_DIR (explicit environment override)
- * 2. .smartergpt.local/canon/rules/ (local overlay - untracked)
+ * 2. .smartergpt/canon/rules/ (local overlay - untracked)
  * 3. Package canon/rules/ (package defaults)
  *
  * Rules are merged by rule_id with precedence (higher priority overrides lower).
@@ -242,8 +242,8 @@ export function resolveRules(context: RuleContext = {}): ResolvedRule[] {
     ruleMap.set(rule.rule_id, rule);
   }
 
-  // Priority 2: .smartergpt.local/canon/rules/ (local overlay)
-  const localPath = join(process.cwd(), ".smartergpt.local", "canon", "rules");
+  // Priority 2: .smartergpt/canon/rules/ (local overlay)
+  const localPath = join(process.cwd(), ".smartergpt", "canon", "rules");
   const localRules = loadRulesFromDirectory(localPath, "workspace");
   for (const rule of localRules) {
     // Override package rules
@@ -297,7 +297,7 @@ export function listRules(): string[] {
   }
 
   // Collect from local
-  const localPath = join(process.cwd(), ".smartergpt.local", "canon", "rules");
+  const localPath = join(process.cwd(), ".smartergpt", "canon", "rules");
   const localRules = loadRulesFromDirectory(localPath, "workspace");
   localRules.forEach((rule) => ruleIds.add(rule.rule_id));
 
@@ -337,7 +337,7 @@ export function getRule(ruleId: string): ResolvedRule | null {
   }
 
   // Check local
-  const localPath = join(process.cwd(), ".smartergpt.local", "canon", "rules");
+  const localPath = join(process.cwd(), ".smartergpt", "canon", "rules");
   const localRules = loadRulesFromDirectory(localPath, "workspace");
   const found = localRules.find((r) => r.rule_id === ruleId);
   if (found) return found;

@@ -16,11 +16,10 @@ schemas/
 rules/
 
 # User workspace directories (created by 'lex init')
-# Note: .lex/prompts/ can be tracked if users want to commit customizations
-.lex/
+# .smartergpt/ is the organization workspace root
+# prompts/ is legacy location
+.smartergpt/
 prompts/
-.smartergpt/**
-.smartergpt.local/**
 
 # Generated TypeScript compilation outputs (source is .ts)
 # Keep only source .ts files, not compiled .js/.d.ts

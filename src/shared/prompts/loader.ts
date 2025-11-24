@@ -3,8 +3,8 @@
  *
  * Loads prompt templates with precedence chain support:
  * 1. LEX_PROMPTS_DIR (explicit environment override)
- * 2. ./.lex/prompts/ (workspace-local, preferred)
- * 3. ./prompts/ (workspace-local, legacy)
+ * 2. ./.smartergpt/prompts/ (organization workspace, preferred)
+ * 3. ./prompts/ (legacy location)
  * 4. Package canon/prompts/ (built-in fallback, read-only)
  */
 
@@ -50,8 +50,8 @@ function resolvePackageAsset(type: "prompts" | "schemas" | "rules", name: string
  *
  * Precedence chain:
  * 1. LEX_PROMPTS_DIR (explicit environment override)
- * 2. ./.lex/prompts/ (workspace-local, preferred location)
- * 3. ./prompts/ (workspace-local, legacy location)
+ * 2. ./.smartergpt/prompts/ (organization workspace, preferred)
+ * 3. ./prompts/ (legacy location)
  * 4. canon/prompts/ (package built-in, read-only fallback)
  *
  * @example
@@ -66,9 +66,9 @@ function resolvePackageAsset(type: "prompts" | "schemas" | "rules", name: string
  * const prompt = loadPrompt('idea.md'); // Loads from /custom/prompts/idea.md
  * ```
  *
- * @example Workspace override (create .lex/prompts/idea.md to override canon)
+ * @example Workspace override (create .smartergpt/prompts/idea.md to override canon)
  * ```typescript
- * // If .lex/prompts/idea.md exists, it takes precedence over canon
+ * // If .smartergpt/prompts/idea.md exists, it takes precedence over canon
  * const prompt = loadPrompt('idea.md');
  * ```
  */
@@ -85,14 +85,14 @@ export function loadPrompt(promptName: string): string {
     }
   }
 
-  // Priority 2: ./.lex/prompts/ (workspace-local, preferred)
-  const lexPath = join(process.cwd(), ".lex", "prompts", promptName);
-  attemptedPaths.push(lexPath);
-  if (existsSync(lexPath)) {
-    return readFileSync(lexPath, "utf-8");
+  // Priority 2: ./.smartergpt/prompts/ (organization workspace, preferred)
+  const smartergptPath = join(process.cwd(), ".smartergpt", "prompts", promptName);
+  attemptedPaths.push(smartergptPath);
+  if (existsSync(smartergptPath)) {
+    return readFileSync(smartergptPath, "utf-8");
   }
 
-  // Priority 3: ./prompts/ (workspace-local, legacy)
+  // Priority 3: ./prompts/ (legacy location)
   const legacyPath = join(process.cwd(), "prompts", promptName);
   attemptedPaths.push(legacyPath);
   if (existsSync(legacyPath)) {
@@ -121,7 +121,7 @@ export function loadPrompt(promptName: string): string {
  * @example
  * ```typescript
  * const path = getPromptPath('idea.md');
- * console.log(path); // '/workspace/.lex/prompts/idea.md'
+ * console.log(path); // '/workspace/.smartergpt/prompts/idea.md'
  * ```
  */
 export function getPromptPath(promptName: string): string | null {
@@ -134,10 +134,10 @@ export function getPromptPath(promptName: string): string | null {
     }
   }
 
-  // Priority 2: ./.lex/prompts/
-  const lexPath = join(process.cwd(), ".lex", "prompts", promptName);
-  if (existsSync(lexPath)) {
-    return lexPath;
+  // Priority 2: ./.smartergpt/prompts/
+  const smartergptPath = join(process.cwd(), ".smartergpt", "prompts", promptName);
+  if (existsSync(smartergptPath)) {
+    return smartergptPath;
   }
 
   // Priority 3: ./prompts/ (legacy)
@@ -184,11 +184,11 @@ export function listPrompts(): string[] {
     // Ignore errors when reading package canon
   }
 
-  // Collect from .lex/prompts/ (workspace prompts)
-  const lexPath = join(process.cwd(), ".lex", "prompts");
-  if (existsSync(lexPath)) {
+  // Collect from .smartergpt/prompts/ (organization workspace prompts)
+  const smartergptPath = join(process.cwd(), ".smartergpt", "prompts");
+  if (existsSync(smartergptPath)) {
     try {
-      const files = readdirSync(lexPath);
+      const files = readdirSync(smartergptPath);
       files.forEach((file: string) => {
         if (file.endsWith(".md")) {
           prompts.add(file);
@@ -199,7 +199,7 @@ export function listPrompts(): string[] {
     }
   }
 
-  // Collect from prompts/ (legacy workspace location)
+  // Collect from prompts/ (legacy location)
   const legacyPath = join(process.cwd(), "prompts");
   if (existsSync(legacyPath)) {
     try {

@@ -16,7 +16,7 @@ const logger = getNDJSONLogger("policy/loader");
 /**
  * Default working policy path (from repository root)
  */
-const DEFAULT_POLICY_PATH = ".smartergpt.local/lex/lexmap.policy.json";
+const DEFAULT_POLICY_PATH = ".smartergpt/lex/lexmap.policy.json";
 
 /**
  * Fallback example policy path (from repository root)
@@ -72,7 +72,7 @@ function findRepoRoot(startPath: string): string {
  * Policy loading precedence:
  * 1. LEX_POLICY_PATH environment variable (explicit override)
  * 2. Custom path parameter (if provided)
- * 3. .smartergpt.local/lex/lexmap.policy.json (working file)
+ * 3. .smartergpt/lex/lexmap.policy.json (working file)
  * 4. src/policy/policy_spec/lexmap.policy.json.example (example template)
  *
  * @example
@@ -128,7 +128,7 @@ export function loadPolicy(path?: string): Policy {
           resolvedPath = examplePath;
           logger.warn("Using fallback policy path", {
             operation: "loadPolicy",
-            metadata: { path: examplePath }
+            metadata: { path: examplePath },
           });
         } else {
           throw new Error(
@@ -158,7 +158,7 @@ export function loadPolicy(path?: string): Policy {
     logger.info("Policy loaded", {
       operation: "loadPolicy",
       duration_ms: duration,
-      metadata: { path: resolvedPath, moduleCount: Object.keys(policy.modules).length }
+      metadata: { path: resolvedPath, moduleCount: Object.keys(policy.modules).length },
     });
 
     // Cache policy if using default path (not env var or custom path)
@@ -176,7 +176,7 @@ export function loadPolicy(path?: string): Policy {
       logger.error("Policy file not found", {
         operation: "loadPolicy",
         error: err,
-        metadata: { path: envPath || path || DEFAULT_POLICY_PATH }
+        metadata: { path: envPath || path || DEFAULT_POLICY_PATH },
       });
       throw new Error(
         `Policy file not found: ${envPath || path || DEFAULT_POLICY_PATH}\n` +
@@ -186,7 +186,7 @@ export function loadPolicy(path?: string): Policy {
     logger.error("Failed to load policy", {
       operation: "loadPolicy",
       error: err instanceof Error ? err : new Error(String(error)),
-      metadata: { path: envPath || path || DEFAULT_POLICY_PATH }
+      metadata: { path: envPath || path || DEFAULT_POLICY_PATH },
     });
     const errorMessage = error instanceof Error ? error.message : String(error);
     throw new Error(

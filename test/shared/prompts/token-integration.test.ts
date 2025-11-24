@@ -130,7 +130,7 @@ describe("Prompt Renderer - Token Expansion Integration", () => {
 
   test("real-world example: deliverable path with tokens", () => {
     const testDate = new Date("2025-11-09T12:34:56Z");
-    const template = "{{repo_root}}/.smartergpt.local/deliverables/weave-{{today}}-{{now}}";
+    const template = "{{repo_root}}/.smartergpt/deliverables/weave-{{today}}-{{now}}";
     const result = renderPrompt(
       template,
       {},
@@ -145,7 +145,7 @@ describe("Prompt Renderer - Token Expansion Integration", () => {
     );
     assert.strictEqual(
       result,
-      "/home/user/project/.smartergpt.local/deliverables/weave-2025-11-09-20251109T123456"
+      "/home/user/project/.smartergpt/deliverables/weave-2025-11-09-20251109T123456"
     );
   });
 

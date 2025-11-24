@@ -11,14 +11,14 @@ import type Database from "better-sqlite3";
 /**
  * Get the backup directory path
  */
-export function getBackupDirectory(workspaceRoot?: string): string {
+export function getBackupDir(workspaceRoot?: string): string {
   const root = workspaceRoot || process.env.LEX_WORKSPACE_ROOT || process.cwd();
-  const backupDir = join(root, ".smartergpt.local", "lex", "backups");
-  
+  const backupDir = join(root, ".smartergpt", "lex", "backups");
+
   if (!existsSync(backupDir)) {
     mkdirSync(backupDir, { recursive: true });
   }
-  
+
   return backupDir;
 }
 
@@ -37,16 +37,16 @@ export function generateBackupFilename(date: Date = new Date()): string {
  */
 export function rotateBackups(backupDir: string, maxBackups: number = 7): void {
   const backups = readdirSync(backupDir)
-    .filter(f => f.startsWith("memory-") && f.endsWith(".sqlite"))
-    .map(f => ({
+    .filter((f) => f.startsWith("memory-") && f.endsWith(".sqlite"))
+    .map((f) => ({
       name: f,
       path: join(backupDir, f),
-      time: statSync(join(backupDir, f)).mtime
+      time: statSync(join(backupDir, f)).mtime,
     }))
     .sort((a, b) => b.time.getTime() - a.time.getTime());
-  
+
   // Keep only maxBackups newest
-  backups.slice(maxBackups).forEach(backup => {
+  backups.slice(maxBackups).forEach((backup) => {
     unlinkSync(backup.path);
   });
 }
@@ -59,23 +59,19 @@ export function rotateBackups(backupDir: string, maxBackups: number = 7): void {
  * @param workspaceRoot - Optional workspace root override
  * @returns Path to the created backup file
  */
-export function backupDatabase(
-  dbPath: string,
-  rotate: number = 7,
-  workspaceRoot?: string
-): string {
-  const backupDir = getBackupDirectory(workspaceRoot);
+export function backupDatabase(dbPath: string, rotate: number = 7, workspaceRoot?: string): string {
+  const backupDir = getBackupDir(workspaceRoot);
   const backupFilename = generateBackupFilename();
   const backupPath = join(backupDir, backupFilename);
-  
+
   // Copy database file
   copyFileSync(dbPath, backupPath);
-  
+
   // Rotate old backups if requested
   if (rotate > 0) {
     rotateBackups(backupDir, rotate);
   }
-  
+
   return backupPath;
 }
 

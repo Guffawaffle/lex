@@ -3,7 +3,7 @@
  *
  * Precedence chain:
  * 1. LEX_SCHEMAS_DIR (explicit environment override)
- * 2. .smartergpt.local/schemas/ (local untracked overlay)
+ * 2. .smartergpt/schemas/ (local untracked overlay)
  * 3. Package schemas/ (published canon from build)
  *
  * Tests cover:
@@ -83,12 +83,12 @@ describe("Schema Loader Precedence", () => {
     }
   });
 
-  test("falls back to .smartergpt.local/ when LEX_SCHEMAS_DIR not set", () => {
+  test("falls back to .smartergpt/ when LEX_SCHEMAS_DIR not set", () => {
     const repo = createTestRepo();
 
-    mkdirSync(join(repo, ".smartergpt.local", "schemas"), { recursive: true });
+    mkdirSync(join(repo, ".smartergpt", "schemas"), { recursive: true });
     writeFileSync(
-      join(repo, ".smartergpt.local", "schemas", "test.json"),
+      join(repo, ".smartergpt", "schemas", "test.json"),
       JSON.stringify({ source: "local" })
     );
 
@@ -108,7 +108,7 @@ describe("Schema Loader Precedence", () => {
     assert.equal(typeof result, "object");
   });
 
-  test("LEX_SCHEMAS_DIR overrides .smartergpt.local/", () => {
+  test("LEX_SCHEMAS_DIR overrides .smartergpt/", () => {
     const customCanon = mkdtempSync(join(tmpdir(), "lex-canon-"));
     const repo = createTestRepo();
 
@@ -116,9 +116,9 @@ describe("Schema Loader Precedence", () => {
       mkdirSync(join(customCanon, "schemas"), { recursive: true });
       writeFileSync(join(customCanon, "schemas", "test.json"), JSON.stringify({ source: "env" }));
 
-      mkdirSync(join(repo, ".smartergpt.local", "schemas"), { recursive: true });
+      mkdirSync(join(repo, ".smartergpt", "schemas"), { recursive: true });
       writeFileSync(
-        join(repo, ".smartergpt.local", "schemas", "test.json"),
+        join(repo, ".smartergpt", "schemas", "test.json"),
         JSON.stringify({ source: "local" })
       );
 
@@ -132,12 +132,12 @@ describe("Schema Loader Precedence", () => {
     }
   });
 
-  test(".smartergpt.local/ overrides package schemas/", () => {
+  test(".smartergpt/ overrides package schemas/", () => {
     const repo = createTestRepo();
 
-    mkdirSync(join(repo, ".smartergpt.local", "schemas"), { recursive: true });
+    mkdirSync(join(repo, ".smartergpt", "schemas"), { recursive: true });
     writeFileSync(
-      join(repo, ".smartergpt.local", "schemas", "test-schema.json"),
+      join(repo, ".smartergpt", "schemas", "test-schema.json"),
       JSON.stringify({ source: "local" })
     );
 
@@ -169,7 +169,7 @@ describe("Schema Loader Precedence", () => {
     } catch (error: unknown) {
       if (error instanceof Error) {
         assert.ok(error.message.includes("Tried:"));
-        assert.ok(error.message.includes(".smartergpt.local"));
+        assert.ok(error.message.includes(".smartergpt"));
       } else {
         assert.fail("Error should be an instance of Error");
       }
@@ -189,13 +189,13 @@ describe("Schema Loader Precedence", () => {
         JSON.stringify({ source: "env" })
       );
 
-      mkdirSync(join(repo, ".smartergpt.local", "schemas"), { recursive: true });
+      mkdirSync(join(repo, ".smartergpt", "schemas"), { recursive: true });
       writeFileSync(
-        join(repo, ".smartergpt.local", "schemas", "shared.json"),
+        join(repo, ".smartergpt", "schemas", "shared.json"),
         JSON.stringify({ source: "local" })
       );
       writeFileSync(
-        join(repo, ".smartergpt.local", "schemas", "local-only.json"),
+        join(repo, ".smartergpt", "schemas", "local-only.json"),
         JSON.stringify({ source: "local" })
       );
 
@@ -230,9 +230,9 @@ describe("Schema Loader Precedence", () => {
       mkdirSync(join(customCanon, "schemas"), { recursive: true });
       writeFileSync(join(customCanon, "schemas", "env.json"), JSON.stringify({ source: "env" }));
 
-      mkdirSync(join(repo, ".smartergpt.local", "schemas"), { recursive: true });
+      mkdirSync(join(repo, ".smartergpt", "schemas"), { recursive: true });
       writeFileSync(
-        join(repo, ".smartergpt.local", "schemas", "local.json"),
+        join(repo, ".smartergpt", "schemas", "local.json"),
         JSON.stringify({ source: "local" })
       );
 
@@ -244,7 +244,7 @@ describe("Schema Loader Precedence", () => {
       assert.ok(envPath?.includes(join(customCanon, "schemas", "env.json")));
 
       const localPath = getSchemaPath("local.json");
-      assert.ok(localPath?.includes(join(repo, ".smartergpt.local", "schemas", "local.json")));
+      assert.ok(localPath?.includes(join(repo, ".smartergpt", "schemas", "local.json")));
 
       // Package path - should resolve to real package's test-schema.json
       const packagePath = getSchemaPath("test-schema.json");
@@ -314,7 +314,7 @@ describe("Schema Loader Edge Cases", () => {
     assert.deepEqual(result, { source: "relative" });
   });
 
-  test("handles missing .smartergpt.local/ directory gracefully", () => {
+  test("handles missing .smartergpt/ directory gracefully", () => {
     const repo = createTestRepo();
     process.chdir(repo);
 
@@ -327,17 +327,17 @@ describe("Schema Loader Edge Cases", () => {
   test("handles concurrent loadSchema() calls", async () => {
     const repo = createTestRepo();
 
-    mkdirSync(join(repo, ".smartergpt.local", "schemas"), { recursive: true });
+    mkdirSync(join(repo, ".smartergpt", "schemas"), { recursive: true });
     writeFileSync(
-      join(repo, ".smartergpt.local", "schemas", "concurrent1.json"),
+      join(repo, ".smartergpt", "schemas", "concurrent1.json"),
       JSON.stringify({ id: 1 })
     );
     writeFileSync(
-      join(repo, ".smartergpt.local", "schemas", "concurrent2.json"),
+      join(repo, ".smartergpt", "schemas", "concurrent2.json"),
       JSON.stringify({ id: 2 })
     );
     writeFileSync(
-      join(repo, ".smartergpt.local", "schemas", "concurrent3.json"),
+      join(repo, ".smartergpt", "schemas", "concurrent3.json"),
       JSON.stringify({ id: 3 })
     );
 
@@ -358,8 +358,8 @@ describe("Schema Loader Edge Cases", () => {
   test("handles invalid JSON in schema file", () => {
     const repo = createTestRepo();
 
-    mkdirSync(join(repo, ".smartergpt.local", "schemas"), { recursive: true });
-    writeFileSync(join(repo, ".smartergpt.local", "schemas", "invalid.json"), "{ invalid json }");
+    mkdirSync(join(repo, ".smartergpt", "schemas"), { recursive: true });
+    writeFileSync(join(repo, ".smartergpt", "schemas", "invalid.json"), "{ invalid json }");
 
     process.chdir(repo);
 
@@ -383,13 +383,13 @@ describe("Schema Loader Edge Cases", () => {
   test("listSchemas() filters out non-.json files", () => {
     const repo = createTestRepo();
 
-    mkdirSync(join(repo, ".smartergpt.local", "schemas"), { recursive: true });
+    mkdirSync(join(repo, ".smartergpt", "schemas"), { recursive: true });
     writeFileSync(
-      join(repo, ".smartergpt.local", "schemas", "valid.json"),
+      join(repo, ".smartergpt", "schemas", "valid.json"),
       JSON.stringify({ valid: true })
     );
-    writeFileSync(join(repo, ".smartergpt.local", "schemas", "invalid.txt"), "Not JSON");
-    writeFileSync(join(repo, ".smartergpt.local", "schemas", "README"), "No extension");
+    writeFileSync(join(repo, ".smartergpt", "schemas", "invalid.txt"), "Not JSON");
+    writeFileSync(join(repo, ".smartergpt", "schemas", "README"), "No extension");
 
     process.chdir(repo);
 

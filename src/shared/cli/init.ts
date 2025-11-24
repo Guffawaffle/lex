@@ -1,5 +1,5 @@
 /**
- * Init Command - Initialize .lex/ workspace
+ * Init Command - Initialize .smartergpt/ workspace
  */
 
 import * as fs from "fs";
@@ -41,11 +41,11 @@ function resolveCanonDir(): string {
 }
 
 /**
- * Initialize .lex/ workspace with prompts and policy
+ * Initialize .smartergpt/ workspace with prompts and policy
  */
 export async function init(options: InitOptions = {}): Promise<InitResult> {
   const baseDir = process.cwd();
-  const workspaceDir = path.join(baseDir, ".lex");
+  const workspaceDir = path.join(baseDir, ".smartergpt");
   const promptsDir = options.promptsDir
     ? path.resolve(baseDir, options.promptsDir)
     : path.join(workspaceDir, "prompts");
@@ -71,13 +71,13 @@ export async function init(options: InitOptions = {}): Promise<InitResult> {
   const filesCreated: string[] = [];
 
   try {
-    // Create .lex/ directory
+    // Create .smartergpt/ directory
     fs.mkdirSync(workspaceDir, { recursive: true });
 
     // Create prompts directory
     fs.mkdirSync(promptsDir, { recursive: true });
 
-    // Copy canon/prompts to .lex/prompts (or custom location)
+    // Copy canon/prompts to .smartergpt/prompts (or custom location)
     const canonDir = resolveCanonDir();
     const canonPromptsDir = path.join(canonDir, "prompts");
 
@@ -105,8 +105,10 @@ export async function init(options: InitOptions = {}): Promise<InitResult> {
       filesCreated.push(path.relative(baseDir, gitkeepPath));
     }
 
-    // Create lexmap.policy.json template (optional, for advanced users)
-    const policyPath = path.join(workspaceDir, "lexmap.policy.json");
+    // Create lexmap.policy.json template in .smartergpt/lex/ subdirectory
+    const lexDir = path.join(workspaceDir, "lex");
+    fs.mkdirSync(lexDir, { recursive: true });
+    const policyPath = path.join(lexDir, "lexmap.policy.json");
     if (!fs.existsSync(policyPath) || options.force) {
       const packageRoot = resolveCanonDir().replace("/canon", "");
       const examplePath = path.join(
@@ -143,20 +145,20 @@ export async function init(options: InitOptions = {}): Promise<InitResult> {
       output.info("Created:");
       output.info(`  ${path.relative(baseDir, workspaceDir)}/`);
       output.info(
-        `  └── prompts/ (${filesCreated.filter((f) => f.includes("prompts/")).length} files from canon)`
+        `  ├── prompts/ (${filesCreated.filter((f) => f.includes("prompts/")).length} files from canon)`
       );
-      output.info(`  └── lexmap.policy.json (optional module policy)`);
+      output.info(`  └── lex/lexmap.policy.json (optional module policy)`);
       output.info("");
       output.info("Prompts resolution order:");
       output.info("  1. LEX_PROMPTS_DIR (env var override)");
-      output.info("  2. .lex/prompts/ (workspace - just created)");
+      output.info("  2. .smartergpt/prompts/ (workspace - just created)");
       output.info("  3. prompts/ (legacy location)");
       output.info("  4. canon/prompts/ (package built-in)");
       output.info("");
       output.info("Next steps:");
-      output.info("  • Customize prompts in .lex/prompts/");
+      output.info("  • Customize prompts in .smartergpt/prompts/");
       output.info("  • Run 'lex remember' to create your first frame");
-      output.info("  • Database will be created at .lex/memory.db");
+      output.info("  • Database will be created at .smartergpt/lex/memory.db");
     }
 
     return result;

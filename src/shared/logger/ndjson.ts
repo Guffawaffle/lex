@@ -1,7 +1,7 @@
 /**
  * NDJSON File Logger
  *
- * Writes structured logs to .smartergpt.local/lex/logs/lex.log.ndjson
+ * Writes structured logs to .smartergpt/lex/logs/lex.log.ndjson
  * with stable field names for parsing and analysis.
  *
  * Log format:
@@ -52,7 +52,7 @@ export interface LogEntry {
 export function getLogDirectory(): string {
   // Check for workspace root
   const workspaceRoot = process.env.LEX_WORKSPACE_ROOT || process.cwd();
-  const logDir = join(workspaceRoot, ".smartergpt.local", "lex", "logs");
+  const logDir = join(workspaceRoot, ".smartergpt", "lex", "logs");
 
   // Ensure directory exists
   if (!existsSync(logDir)) {

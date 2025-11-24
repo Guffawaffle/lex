@@ -169,7 +169,7 @@ describe("Token Expansion", () => {
     test("expands multiple different token types", () => {
       const testDate = new Date("2025-11-09T12:00:00Z");
       const result = expandTokens(
-        "{{repo_root}}/.smartergpt.local/deliverables/weave-{{today}}-{{now}}",
+        "{{repo_root}}/.smartergpt/deliverables/weave-{{today}}-{{now}}",
         {
           today: testDate,
           now: testDate,
@@ -178,7 +178,7 @@ describe("Token Expansion", () => {
       );
       assert.strictEqual(
         result,
-        "/test/repo/.smartergpt.local/deliverables/weave-2025-11-09-20251109T120000"
+        "/test/repo/.smartergpt/deliverables/weave-2025-11-09-20251109T120000"
       );
     });
 

@@ -83,9 +83,9 @@ describe("Rule Loader Precedence", () => {
       mkdirSync(join(customCanon, "rules"), { recursive: true });
       writeFileSync(join(customCanon, "rules", "test.json"), createTestRule("shared-rule", "env"));
 
-      mkdirSync(join(repo, ".smartergpt.local", "canon", "rules"), { recursive: true });
+      mkdirSync(join(repo, ".smartergpt", "canon", "rules"), { recursive: true });
       writeFileSync(
-        join(repo, ".smartergpt.local", "canon", "rules", "test.json"),
+        join(repo, ".smartergpt", "canon", "rules", "test.json"),
         createTestRule("shared-rule", "workspace")
       );
 
@@ -105,9 +105,9 @@ describe("Rule Loader Precedence", () => {
   test("workspace rules override package rules", () => {
     const repo = createTestRepo();
 
-    mkdirSync(join(repo, ".smartergpt.local", "canon", "rules"), { recursive: true });
+    mkdirSync(join(repo, ".smartergpt", "canon", "rules"), { recursive: true });
     writeFileSync(
-      join(repo, ".smartergpt.local", "canon", "rules", "tool-fallback-protocol.json"),
+      join(repo, ".smartergpt", "canon", "rules", "tool-fallback-protocol.json"),
       createTestRule("tool-fallback-protocol", "workspace-override", 0.95)
     );
 
@@ -168,13 +168,13 @@ describe("Rule Confidence Filtering", () => {
   test("filters rules below confidence threshold", () => {
     const repo = createTestRepo();
 
-    mkdirSync(join(repo, ".smartergpt.local", "canon", "rules"), { recursive: true });
+    mkdirSync(join(repo, ".smartergpt", "canon", "rules"), { recursive: true });
     writeFileSync(
-      join(repo, ".smartergpt.local", "canon", "rules", "high.json"),
+      join(repo, ".smartergpt", "canon", "rules", "high.json"),
       createRuleWithConfidence("high-confidence", 0.85)
     );
     writeFileSync(
-      join(repo, ".smartergpt.local", "canon", "rules", "low.json"),
+      join(repo, ".smartergpt", "canon", "rules", "low.json"),
       createRuleWithConfidence("low-confidence", 0.65)
     );
 
@@ -234,13 +234,13 @@ describe("Rule Scope Matching", () => {
   test("filters rules by environment scope", () => {
     const repo = createTestRepo();
 
-    mkdirSync(join(repo, ".smartergpt.local", "canon", "rules"), { recursive: true });
+    mkdirSync(join(repo, ".smartergpt", "canon", "rules"), { recursive: true });
     writeFileSync(
-      join(repo, ".smartergpt.local", "canon", "rules", "copilot.json"),
+      join(repo, ".smartergpt", "canon", "rules", "copilot.json"),
       createRuleWithScope("copilot-rule", { environment: "github-copilot" })
     );
     writeFileSync(
-      join(repo, ".smartergpt.local", "canon", "rules", "awa.json"),
+      join(repo, ".smartergpt", "canon", "rules", "awa.json"),
       createRuleWithScope("awa-rule", { environment: "awa" })
     );
 
@@ -255,9 +255,9 @@ describe("Rule Scope Matching", () => {
   test("matches rules with context tags", () => {
     const repo = createTestRepo();
 
-    mkdirSync(join(repo, ".smartergpt.local", "canon", "rules"), { recursive: true });
+    mkdirSync(join(repo, ".smartergpt", "canon", "rules"), { recursive: true });
     writeFileSync(
-      join(repo, ".smartergpt.local", "canon", "rules", "tools.json"),
+      join(repo, ".smartergpt", "canon", "rules", "tools.json"),
       createRuleWithScope("tools-rule", { context_tags: ["execution", "tools"] })
     );
 

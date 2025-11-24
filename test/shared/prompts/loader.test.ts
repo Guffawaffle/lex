@@ -89,11 +89,11 @@ describe("Prompt Loader Precedence", () => {
     }
   });
 
-  test("falls back to .lex/prompts/ when LEX_PROMPTS_DIR not set", async () => {
+  test("falls back to .smartergpt/prompts/ when LEX_PROMPTS_DIR not set", async () => {
     const repo = createTestRepo();
 
-    mkdirSync(join(repo, ".lex", "prompts"), { recursive: true });
-    writeFileSync(join(repo, ".lex", "prompts", "test.md"), "# Workspace Prompts");
+    mkdirSync(join(repo, ".smartergpt", "prompts"), { recursive: true });
+    writeFileSync(join(repo, ".smartergpt", "prompts", "test.md"), "# Workspace Prompts");
 
     process.env.REPO_ROOT = repo;
     process.chdir(repo);
@@ -113,7 +113,7 @@ describe("Prompt Loader Precedence", () => {
     assert.ok(result.includes("# Test Prompt"));
   });
 
-  test("LEX_PROMPTS_DIR overrides .lex/prompts/", async () => {
+  test("LEX_PROMPTS_DIR overrides .smartergpt/prompts/", async () => {
     const customCanon = mkdtempSync(join(tmpdir(), "lex-canon-"));
     const repo = createTestRepo();
 
@@ -121,8 +121,8 @@ describe("Prompt Loader Precedence", () => {
       mkdirSync(join(customCanon, "prompts"), { recursive: true });
       writeFileSync(join(customCanon, "prompts", "test.md"), "# ENV");
 
-      mkdirSync(join(repo, ".lex", "prompts"), { recursive: true });
-      writeFileSync(join(repo, ".lex", "prompts", "test.md"), "# WORKSPACE");
+      mkdirSync(join(repo, ".smartergpt", "prompts"), { recursive: true });
+      writeFileSync(join(repo, ".smartergpt", "prompts", "test.md"), "# WORKSPACE");
 
       process.env.LEX_PROMPTS_DIR = join(customCanon, "prompts");
       process.env.REPO_ROOT = repo;
@@ -135,11 +135,11 @@ describe("Prompt Loader Precedence", () => {
     }
   });
 
-  test(".lex/prompts/ overrides package prompts/", async () => {
+  test(".smartergpt/prompts/ overrides package prompts/", async () => {
     const repo = createTestRepo();
 
-    mkdirSync(join(repo, ".lex", "prompts"), { recursive: true });
-    writeFileSync(join(repo, ".lex", "prompts", "test.md"), "# Workspace Override");
+    mkdirSync(join(repo, ".smartergpt", "prompts"), { recursive: true });
+    writeFileSync(join(repo, ".smartergpt", "prompts", "test.md"), "# Workspace Override");
 
     mkdirSync(join(repo, "prompts"), { recursive: true });
     writeFileSync(join(repo, "prompts", "test.md"), "# Legacy");
@@ -172,9 +172,9 @@ describe("Prompt Loader Precedence", () => {
       writeFileSync(join(customCanon, "prompts", "shared.md"), "# ENV");
       writeFileSync(join(customCanon, "prompts", "env-only.md"), "# ENV");
 
-      mkdirSync(join(repo, ".lex", "prompts"), { recursive: true });
-      writeFileSync(join(repo, ".lex", "prompts", "shared.md"), "# WORKSPACE");
-      writeFileSync(join(repo, ".lex", "prompts", "workspace-only.md"), "# WORKSPACE");
+      mkdirSync(join(repo, ".smartergpt", "prompts"), { recursive: true });
+      writeFileSync(join(repo, ".smartergpt", "prompts", "shared.md"), "# WORKSPACE");
+      writeFileSync(join(repo, ".smartergpt", "prompts", "workspace-only.md"), "# WORKSPACE");
 
       process.env.LEX_PROMPTS_DIR = join(customCanon, "prompts");
       process.env.REPO_ROOT = repo;
@@ -209,8 +209,8 @@ describe("Prompt Loader Precedence", () => {
       mkdirSync(join(customCanon, "prompts"), { recursive: true });
       writeFileSync(join(customCanon, "prompts", "env.md"), "# ENV");
 
-      mkdirSync(join(repo, ".lex", "prompts"), { recursive: true });
-      writeFileSync(join(repo, ".lex", "prompts", "workspace.md"), "# WORKSPACE");
+      mkdirSync(join(repo, ".smartergpt", "prompts"), { recursive: true });
+      writeFileSync(join(repo, ".smartergpt", "prompts", "workspace.md"), "# WORKSPACE");
 
       process.env.LEX_PROMPTS_DIR = join(customCanon, "prompts");
       process.env.REPO_ROOT = repo;
@@ -221,7 +221,7 @@ describe("Prompt Loader Precedence", () => {
       assert.ok(envPath?.includes(join(customCanon, "prompts", "env.md")));
 
       const workspacePath = getPromptPath("workspace.md");
-      assert.ok(workspacePath?.includes(join(repo, ".lex", "prompts", "workspace.md")));
+      assert.ok(workspacePath?.includes(join(repo, ".smartergpt", "prompts", "workspace.md")));
 
       // Package path - should resolve to real package's test.md
       const packagePath = getPromptPath("test.md");
@@ -300,7 +300,7 @@ describe("Prompt Loader Edge Cases", () => {
     assert.strictEqual(result, "# Relative Canon");
   });
 
-  test("handles symlinks in .lex/prompts/", async () => {
+  test("handles symlinks in .smartergpt/prompts/", async () => {
     const repo = createTestRepo();
     const targetDir = mkdtempSync(join(tmpdir(), "lex-symlink-target-"));
 
@@ -310,8 +310,8 @@ describe("Prompt Loader Edge Cases", () => {
       writeFileSync(join(targetDir, "prompts", "test.md"), "# Symlinked");
 
       // Create symlink
-      mkdirSync(join(repo, ".lex"), { recursive: true });
-      symlinkSync(join(targetDir, "prompts"), join(repo, ".lex", "prompts"));
+      mkdirSync(join(repo, ".smartergpt"), { recursive: true });
+      symlinkSync(join(targetDir, "prompts"), join(repo, ".smartergpt", "prompts"));
 
       process.env.REPO_ROOT = repo;
       process.chdir(repo);
@@ -337,11 +337,11 @@ describe("Prompt Loader Edge Cases", () => {
   test("handles large prompt files", async () => {
     const repo = createTestRepo();
 
-    mkdirSync(join(repo, ".lex", "prompts"), { recursive: true });
+    mkdirSync(join(repo, ".smartergpt", "prompts"), { recursive: true });
 
     // Create a large file (1MB) in workspace prompts
     const largeContent = "# Large Prompt\n" + "x".repeat(1024 * 1024);
-    writeFileSync(join(repo, ".lex", "prompts", "large.md"), largeContent);
+    writeFileSync(join(repo, ".smartergpt", "prompts", "large.md"), largeContent);
 
     process.env.REPO_ROOT = repo;
     process.chdir(repo);
@@ -354,10 +354,10 @@ describe("Prompt Loader Edge Cases", () => {
   test("handles concurrent loadPrompt() calls", async () => {
     const repo = createTestRepo();
 
-    mkdirSync(join(repo, ".lex", "prompts"), { recursive: true });
-    writeFileSync(join(repo, ".lex", "prompts", "concurrent1.md"), "# Concurrent 1");
-    writeFileSync(join(repo, ".lex", "prompts", "concurrent2.md"), "# Concurrent 2");
-    writeFileSync(join(repo, ".lex", "prompts", "concurrent3.md"), "# Concurrent 3");
+    mkdirSync(join(repo, ".smartergpt", "prompts"), { recursive: true });
+    writeFileSync(join(repo, ".smartergpt", "prompts", "concurrent1.md"), "# Concurrent 1");
+    writeFileSync(join(repo, ".smartergpt", "prompts", "concurrent2.md"), "# Concurrent 2");
+    writeFileSync(join(repo, ".smartergpt", "prompts", "concurrent3.md"), "# Concurrent 3");
 
     process.env.REPO_ROOT = repo;
     process.chdir(repo);
@@ -377,8 +377,8 @@ describe("Prompt Loader Edge Cases", () => {
   test("handles empty prompt file", async () => {
     const repo = createTestRepo();
 
-    mkdirSync(join(repo, ".lex", "prompts"), { recursive: true });
-    writeFileSync(join(repo, ".lex", "prompts", "empty.md"), "");
+    mkdirSync(join(repo, ".smartergpt", "prompts"), { recursive: true });
+    writeFileSync(join(repo, ".smartergpt", "prompts", "empty.md"), "");
 
     process.env.REPO_ROOT = repo;
     process.chdir(repo);
@@ -390,9 +390,9 @@ describe("Prompt Loader Edge Cases", () => {
   test("handles prompt file with special characters", async () => {
     const repo = createTestRepo();
 
-    mkdirSync(join(repo, ".lex", "prompts"), { recursive: true });
+    mkdirSync(join(repo, ".smartergpt", "prompts"), { recursive: true });
     writeFileSync(
-      join(repo, ".lex", "prompts", "special.md"),
+      join(repo, ".smartergpt", "prompts", "special.md"),
       "# Special: émojis 🚀, symbols €£¥, newlines\n\nand tabs\t\there"
     );
 
@@ -422,10 +422,10 @@ describe("Prompt Loader Edge Cases", () => {
   test("listPrompts() filters out non-.md files", async () => {
     const repo = createTestRepo();
 
-    mkdirSync(join(repo, ".lex", "prompts"), { recursive: true });
-    writeFileSync(join(repo, ".lex", "prompts", "valid.md"), "# Valid");
-    writeFileSync(join(repo, ".lex", "prompts", "invalid.txt"), "Not a markdown");
-    writeFileSync(join(repo, ".lex", "prompts", "README"), "No extension");
+    mkdirSync(join(repo, ".smartergpt", "prompts"), { recursive: true });
+    writeFileSync(join(repo, ".smartergpt", "prompts", "valid.md"), "# Valid");
+    writeFileSync(join(repo, ".smartergpt", "prompts", "invalid.txt"), "Not a markdown");
+    writeFileSync(join(repo, ".smartergpt", "prompts", "README"), "No extension");
 
     process.env.REPO_ROOT = repo;
     process.chdir(repo);
