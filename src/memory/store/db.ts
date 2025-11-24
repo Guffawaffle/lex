@@ -27,6 +27,8 @@ export interface FrameRow {
   run_id: string | null;
   plan_hash: string | null;
   spend: string | null; // JSON stringified object
+  // OAuth2/JWT user isolation (v3)
+  user_id: string | null;
 }
 
 /**
@@ -125,6 +127,10 @@ export function initializeDatabase(db: Database.Database): void {
   if (currentVersion < 3) {
     applyMigrationV3(db);
     db.prepare("INSERT INTO schema_version (version) VALUES (?)").run(3);
+  }
+  if (currentVersion < 4) {
+    applyMigrationV4(db);
+    db.prepare("INSERT INTO schema_version (version) VALUES (?)").run(4);
   }
 }
 
@@ -241,6 +247,69 @@ function applyMigrationV3(db: Database.Database): void {
 
   db.exec(`
     ALTER TABLE frames ADD COLUMN spend TEXT;
+  `);
+}
+
+/**
+ * Migration V4: Add OAuth2/JWT authentication support
+ */
+function applyMigrationV4(db: Database.Database): void {
+  // Create users table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS users (
+      user_id TEXT PRIMARY KEY,
+      email TEXT NOT NULL UNIQUE,
+      name TEXT,
+      provider TEXT NOT NULL,
+      provider_user_id TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      last_login TEXT,
+      UNIQUE(provider, provider_user_id)
+    );
+  `);
+
+  // Create refresh tokens table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS refresh_tokens (
+      token_id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      token_hash TEXT NOT NULL,
+      expires_at TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      revoked_at TEXT,
+      FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+    );
+  `);
+
+  // Create index for token lookups
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user_id ON refresh_tokens(user_id);
+  `);
+
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_refresh_tokens_token_hash ON refresh_tokens(token_hash);
+  `);
+
+  // Add user_id column to frames table
+  db.exec(`
+    ALTER TABLE frames ADD COLUMN user_id TEXT;
+  `);
+
+  // Create index for user_id lookups
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_frames_user_id ON frames(user_id);
+  `);
+
+  // Create a default system user and assign existing frames to it
+  const defaultUserId = "system-default";
+  db.exec(`
+    INSERT OR IGNORE INTO users (user_id, email, name, provider, provider_user_id)
+    VALUES ('${defaultUserId}', 'system@localhost', 'System Default User', 'system', 'default');
+  `);
+
+  // Assign all existing frames (with NULL user_id) to the default user
+  db.exec(`
+    UPDATE frames SET user_id = '${defaultUserId}' WHERE user_id IS NULL;
   `);
 }
 

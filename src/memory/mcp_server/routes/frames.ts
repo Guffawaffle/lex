@@ -170,7 +170,8 @@ function validateFrameRequest(body: any): { valid: boolean; error?: ApiErrorResp
 }
 
 /**
- * Create frames router with authentication and rate limiting
+ * Create frames router
+ * Note: Authentication is now handled by middleware at the app level
  */
 export function createFramesRouter(
   db: Database.Database,
@@ -179,33 +180,6 @@ export function createFramesRouter(
   authFailureLimiter?: any
 ): Router {
   const router = Router();
-
-  // Authentication middleware (MANDATORY - apiKey is now required)
-  router.use((req: Request, res: Response, next: NextFunction) => {
-    const authHeader = req.headers.authorization;
-    const providedKey = authHeader?.replace("Bearer ", "");
-
-    if (!providedKey || providedKey !== apiKey) {
-      // Apply stricter rate limiting on auth failures if provided
-      if (authFailureLimiter) {
-        return authFailureLimiter(req, res, () => {
-          return res.status(401).json({
-            error: "UNAUTHORIZED",
-            message: "Invalid or missing API key",
-            code: 401,
-          } as ApiErrorResponse);
-        });
-      }
-
-      return res.status(401).json({
-        error: "UNAUTHORIZED",
-        message: "Invalid or missing API key",
-        code: 401,
-      } as ApiErrorResponse);
-    }
-
-    next();
-  });
 
   /**
    * POST /api/frames - Create a new Frame
@@ -246,6 +220,11 @@ export function createFramesRouter(
 
       // Create new Frame
       const frameId = body.id || `frame-${Date.now()}-${randomUUID()}`;
+      
+      // Extract user_id from JWT token if authenticated via JWT
+      // For API key auth (legacy), use system-default user
+      const userId = (req as any).user?.sub || "system-default";
+      
       const frame: Frame = {
         id: frameId,
         timestamp,
@@ -262,6 +241,7 @@ export function createFramesRouter(
         runId: body.runId,
         planHash: body.planHash,
         spend: body.spend,
+        userId: userId,
       };
 
       // Save to database
