@@ -4,35 +4,36 @@ This directory contains default prompt templates for Lex CLI commands. These pro
 
 ## Customization via Precedence Chain
 
-Lex uses a 3-level precedence chain for prompts:
+Lex uses a 4-level precedence chain for prompts:
 
-1. **Environment** (highest): `LEX_CANON_DIR=/custom/canon lex remember ...`
-2. **Local overlay**: `.smartergpt.local/prompts/`
-3. **Package defaults**: `prompts/` (this directory, lowest)
+1. **Environment** (highest): `LEX_PROMPTS_DIR=/custom/prompts`
+2. **Shared overlay**: `.smartergpt/prompts/` (organization-level, gitignored)
+3. **Package defaults**: `prompts/` (shipped with package)
+4. **Development source**: `canon/prompts/` (lowest, development only)
 
 ## How to Customize
 
-### Option 1: Local Overlay (Recommended)
+### Option 1: Shared Overlay (Recommended)
 
-Copy a prompt to your local overlay and edit:
+Copy a prompt to your shared overlay and edit:
 
 ```bash
-# Create local overlay directory
-mkdir -p .smartergpt.local/prompts/
+# Create shared overlay directory (organization-level)
+mkdir -p .smartergpt/prompts/
 
 # Copy and customize
-cp prompts/remember.md .smartergpt.local/prompts/
-vim .smartergpt.local/prompts/remember.md
+cp prompts/remember.md .smartergpt/prompts/
+vim .smartergpt/prompts/remember.md
 ```
 
 Your customized version will be used instead of the package default.
 
-### Option 2: Custom Canon Directory
+### Option 2: Custom Prompts Directory
 
 Point to a completely custom prompt directory:
 
 ```bash
-export LEX_CANON_DIR=/path/to/my/custom/canon
+export LEX_PROMPTS_DIR=/path/to/my/custom/prompts
 lex remember ...
 ```
 

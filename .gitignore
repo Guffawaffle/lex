@@ -75,6 +75,11 @@ yarn-error.log*
 .smartergpt.local/**
 
 # SQLite database files
+*.db
+*.db-shm
+*.db-wal
+
+# local-ci
 .local-ci/
 **/.docker-cache/
 docker-compose.override.yml

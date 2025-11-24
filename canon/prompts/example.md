@@ -19,7 +19,7 @@ You can use this as a template for creating custom prompts. The tokens will be a
 
 To customize this prompt:
 
-1. Copy to `.smartergpt.local/prompts/example.md`
+1. Copy to `.smartergpt/prompts/example.md`
 2. Edit the content as needed
 3. Your custom version will override this default
 

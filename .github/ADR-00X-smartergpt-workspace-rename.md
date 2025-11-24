@@ -222,14 +222,18 @@ To implement this ADR:
 
 ## 7. Implementation Checklist
 
-- [ ] Remove tracked `.smartergpt/` from the repo; add `.smartergpt/` to `.gitignore`.
-- [ ] Move any default config/prompt/policy content into `canon/**`.
-- [ ] Update `package.json` to:
-  - [ ] Remove `postinstall`.
-  - [ ] Ensure `canon/**` is included in the `files` list for npm.
-- [ ] Implement workspace root resolution using `.smartergpt/` and `LEX_ROOT_DIR`.
-- [ ] Update `LEX_DB_PATH`, `LEX_POLICY_PATH`, and `SMARTERGPT_PROFILE` defaults to `.smartergpt/...`.
-- [ ] Implement `lex migrate-workspace` as described.
-- [ ] Update `lex init` to use `.smartergpt/` and `canon/**` as described.
-- [ ] Update README and docs to reference `.smartergpt/` (not `.smartergpt.local/`).
-- [ ] Add a short "Breaking Changes" note to the changelog for the release that includes this ADR.
+- [x] Remove tracked `.smartergpt/` from the repo; add `.smartergpt/` to `.gitignore`.
+- [x] Move any default config/prompt/policy content into `canon/**`.
+- [x] Update `package.json` to:
+  - [x] Remove `postinstall`.
+  - [x] Ensure `canon/**` is included in the `files` list for npm.
+- [x] Implement workspace root resolution using `.smartergpt/` and `LEX_ROOT_DIR`.
+- [x] Update `LEX_DB_PATH`, `LEX_POLICY_PATH`, and `SMARTERGPT_PROFILE` defaults to `.smartergpt/...`.
+- [ ] Implement `lex migrate-workspace` command (deferred to future PR)
+- [x] Update `lex init` to use `.smartergpt/` and `canon/**` as described.
+- [x] Update README and docs to reference `.smartergpt/` (not `.smartergpt.local/`).
+- [x] Add a short "Breaking Changes" note to the changelog for the release that includes this ADR.
+
+**Implementation Status:** ✅ Core implementation complete (commit 19e2517, 7cab54f)
+**Remaining:** `lex migrate-workspace` command can be added in a future PR when needed.
+
