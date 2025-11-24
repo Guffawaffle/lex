@@ -86,3 +86,4 @@ docker-compose.override.yml
 # Lint artifacts (optional dev tools)
 current-lint.json
 lint-baseline.json
+/prompts/

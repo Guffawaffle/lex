@@ -13,13 +13,21 @@ async function copyCanon() {
 
     // Copy from canon/ if it exists (user may have custom canon/)
     if (canonExists) {
-      // Try copying prompts/ (optional - user may not have custom prompts)
+      // Copy prompts/ ONLY if user doesn't have them yet (on first install)
+      // canon/prompts/ contains built-in examples; prompts/ is user workspace
       try {
-        await fs.access("canon/prompts");
-        await fs.cp("canon/prompts", "prompts", { recursive: true });
-        console.log("✓ Copied canon/prompts → prompts/");
+        await fs.access("prompts");
+        // User already has prompts/ - don't overwrite
+        console.log("ℹ User prompts/ exists - not overwriting");
       } catch {
-        console.log("ℹ No canon/prompts/ - using package default prompts");
+        // No prompts/ yet - copy built-in examples from canon/prompts/
+        try {
+          await fs.access("canon/prompts");
+          await fs.cp("canon/prompts", "prompts", { recursive: true });
+          console.log("✓ Initialized prompts/ from canon/prompts/ (built-in examples)");
+        } catch {
+          console.log("⚠ No canon/prompts/ - prompts/ directory will need manual setup");
+        }
       }
 
       // Copy schemas/ directory
