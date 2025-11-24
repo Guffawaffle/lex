@@ -22,7 +22,7 @@ Copy a prompt to your shared overlay and edit:
 mkdir -p .smartergpt/prompts/
 
 # Copy and customize
-cp prompts/remember.md .smartergpt/prompts/
+cp canon/prompts/remember.md .smartergpt/prompts/
 vim .smartergpt/prompts/remember.md
 ```
 

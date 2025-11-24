@@ -61,4 +61,4 @@ lint-baseline.json
 
 # Generated directories
 # schemas/ and rules/ ARE published (copied from canon/ during build)
-# prompts/ is NOT published (user workspace, initialized from canon/prompts/ on install)
+# prompts/ is NOT published (user workspace, initialized via 'lex init')
