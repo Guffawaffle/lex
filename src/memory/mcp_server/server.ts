@@ -8,7 +8,7 @@ import {
   getFramesByJira,
   getAllFrames,
 } from "../store/queries.js";
-import type Database from "better-sqlite3";
+import type Database from "better-sqlite3-multiple-ciphers";
 // @ts-ignore - importing from compiled dist directories
 import { ImageManager } from "../store/images.js";
 // @ts-ignore - importing from compiled dist directories

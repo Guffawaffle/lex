@@ -3,12 +3,15 @@
  *
  * Creates SQLite database with FTS5 virtual table for full-text search
  * on reference_point, keywords, and summary_caption.
+ * 
+ * Supports encryption via SQLCipher when LEX_DB_KEY environment variable is set.
  */
 
-import Database from "better-sqlite3";
+import Database from "better-sqlite3-multiple-ciphers";
 import { homedir } from "os";
 import { join, dirname } from "path";
 import { mkdirSync, existsSync, readFileSync } from "fs";
+import { pbkdf2Sync, randomBytes } from "crypto";
 
 export interface FrameRow {
   id: string;
@@ -86,6 +89,49 @@ function findRepoRoot(startPath: string): string {
   }
 
   throw new Error("Repository root not found");
+}
+
+/**
+ * Derive encryption key from passphrase using PBKDF2
+ * Uses 64K iterations as recommended by SQLCipher for security
+ * 
+ * @param passphrase - User-provided passphrase from LEX_DB_KEY
+ * @param salt - Optional salt (defaults to fixed salt for deterministic key derivation)
+ * @returns Hex-encoded key suitable for SQLCipher
+ */
+export function deriveEncryptionKey(passphrase: string, salt?: Buffer): string {
+  // Use a fixed salt if not provided to ensure same passphrase produces same key
+  // In production, this would be stored with the database, but for simplicity
+  // we use a fixed salt derived from the passphrase itself
+  const keySalt = salt || pbkdf2Sync(passphrase, "lex-db-salt", 1000, 16, "sha256");
+  
+  // Derive 256-bit key with 64K iterations (SQLCipher recommendation)
+  const key = pbkdf2Sync(passphrase, keySalt, 64000, 32, "sha256");
+  
+  return key.toString("hex");
+}
+
+/**
+ * Get encryption key from environment variable
+ * Required in production (NODE_ENV=production)
+ * Optional in development/test environments
+ * 
+ * @returns Derived encryption key or undefined if not set
+ * @throws Error if NODE_ENV=production and LEX_DB_KEY is not set
+ */
+export function getEncryptionKey(): string | undefined {
+  const passphrase = process.env.LEX_DB_KEY;
+  
+  // In production, encryption key is mandatory
+  if (process.env.NODE_ENV === "production" && !passphrase) {
+    throw new Error(
+      "LEX_DB_KEY environment variable is required in production mode. " +
+      "Set LEX_DB_KEY to a strong passphrase (32+ characters) to enable database encryption."
+    );
+  }
+  
+  // Return derived key if passphrase is provided
+  return passphrase ? deriveEncryptionKey(passphrase) : undefined;
 }
 
 /**
@@ -246,10 +292,36 @@ function applyMigrationV3(db: Database.Database): void {
 
 /**
  * Create and initialize a database connection
+ * 
+ * Automatically applies encryption if LEX_DB_KEY is set.
+ * In production mode (NODE_ENV=production), encryption is mandatory.
+ * 
+ * @param dbPath - Optional database file path (defaults to getDefaultDbPath())
+ * @returns Initialized database connection
  */
 export function createDatabase(dbPath?: string): Database.Database {
   const path = dbPath || getDefaultDbPath();
   const db = new Database(path);
+  
+  // Apply encryption if key is available
+  const encryptionKey = getEncryptionKey();
+  if (encryptionKey) {
+    // Set cipher configuration for SQLCipher
+    // Using sqlcipher defaults (PRAGMA cipher_page_size = 4096, etc.)
+    db.pragma(`cipher='sqlcipher'`);
+    db.pragma(`key="x'${encryptionKey}'"`);
+    
+    // Verify encryption is working by testing database access
+    try {
+      db.prepare("SELECT 1").get();
+    } catch (error) {
+      throw new Error(
+        `Failed to open encrypted database. The encryption key may be incorrect. ` +
+        `Error: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+  
   initializeDatabase(db);
   return db;
 }
