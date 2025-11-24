@@ -47,13 +47,15 @@ export function createProgram(): Command {
   // lex init command
   program
     .command("init")
-    .description("Initialize .smartergpt.local/ workspace")
-    .option("--force", "Overwrite existing configuration")
+    .description("Initialize .lex/ workspace with prompts and policy")
+    .option("--force", "Overwrite existing files")
+    .option("--prompts-dir <path>", "Custom prompts directory (default: .lex/prompts)")
     .action(async (cmdOptions) => {
       const globalOptions = program.opts();
       const options: InitOptions = {
         force: cmdOptions.force || false,
         json: globalOptions.json || false,
+        promptsDir: cmdOptions.promptsDir,
       };
       await init(options);
     });

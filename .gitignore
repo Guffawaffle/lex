@@ -12,8 +12,15 @@ tsconfig.tsbuildinfo
 *.tgz
 
 # Generated directories (copied from canon/ during build)
-# prompts/ - NOW TRACKED (contains package default prompts)
 schemas/
+rules/
+
+# User workspace directories (created by 'lex init')
+# Note: .lex/prompts/ can be tracked if users want to commit customizations
+.lex/
+prompts/
+.smartergpt/**
+.smartergpt.local/**
 
 # Generated TypeScript compilation outputs (source is .ts)
 # Keep only source .ts files, not compiled .js/.d.ts
@@ -69,11 +76,6 @@ yarn-error.log*
 .smartergpt.local/**
 
 # SQLite database files
-*.db
-*.db-shm
-*.db-wal
-
-# local-ci
 .local-ci/
 **/.docker-cache/
 docker-compose.override.yml
@@ -86,4 +88,3 @@ docker-compose.override.yml
 # Lint artifacts (optional dev tools)
 current-lint.json
 lint-baseline.json
-/prompts/
