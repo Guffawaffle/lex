@@ -3,7 +3,7 @@
  *
  * Loads schema files with precedence chain support:
  * 1. LEX_SCHEMAS_DIR (explicit environment override)
- * 2. .smartergpt.local/schemas/ (local overlay)
+ * 2. .smartergpt/schemas/ (local overlay)
  * 3. Package canon (resolved from package installation)
  */
 
@@ -49,7 +49,7 @@ function resolvePackageAsset(type: "prompts" | "schemas", name: string): string 
  *
  * Precedence chain:
  * 1. LEX_SCHEMAS_DIR (explicit environment override)
- * 2. .smartergpt.local/schemas/ (local overlay - untracked)
+ * 2. .smartergpt/schemas/ (local overlay - untracked)
  * 3. Package canon (resolve from package installation)
  *
  * @example
@@ -64,9 +64,9 @@ function resolvePackageAsset(type: "prompts" | "schemas", name: string): string 
  * const schema = loadSchema('cli-output.v1.schema.json');
  * ```
  *
- * @example Local overlay (create .smartergpt.local/schemas/my-schema.json to override)
+ * @example Local overlay (create .smartergpt/schemas/my-schema.json to override)
  * ```typescript
- * // If .smartergpt.local/schemas/my-schema.json exists, it takes precedence
+ * // If .smartergpt/schemas/my-schema.json exists, it takes precedence
  * const schema = loadSchema('my-schema.json');
  * ```
  */
@@ -83,8 +83,8 @@ export function loadSchema(schemaName: string): object {
     }
   }
 
-  // Priority 2: .smartergpt.local/schemas/ (local overlay)
-  const localPath = join(process.cwd(), ".smartergpt.local", "schemas", schemaName);
+  // Priority 2: .smartergpt/schemas/ (local overlay)
+  const localPath = join(process.cwd(), ".smartergpt", "schemas", schemaName);
   attemptedPaths.push(localPath);
   if (existsSync(localPath)) {
     return JSON.parse(readFileSync(localPath, "utf-8")) as object;
@@ -126,7 +126,7 @@ export function getSchemaPath(schemaName: string): string | null {
   }
 
   // Priority 2: Local overlay
-  const localPath = join(process.cwd(), ".smartergpt.local", "schemas", schemaName);
+  const localPath = join(process.cwd(), ".smartergpt", "schemas", schemaName);
   if (existsSync(localPath)) {
     return localPath;
   }
@@ -170,7 +170,7 @@ export function listSchemas(): string[] {
   }
 
   // Collect from local (overlay)
-  const localPath = join(process.cwd(), ".smartergpt.local", "schemas");
+  const localPath = join(process.cwd(), ".smartergpt", "schemas");
   if (existsSync(localPath)) {
     try {
       const files = readdirSync(localPath);

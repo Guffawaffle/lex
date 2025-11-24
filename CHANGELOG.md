@@ -91,12 +91,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Example:** `export LEX_CANON_DIR=/custom/canon` loads prompts from `/custom/canon/prompts/`
 
 - **REMOVED:** Runtime reads of `.smartergpt/` directory for prompts
-  - **Use:** `.smartergpt.local/prompts/` for local overlay prompts
+  - **Use:** `.smartergpt/prompts/` for shared prompt overlays (organization-level)
   - **Note:** `.smartergpt/` schemas remain for build-time compilation only
 
 - **CHANGED:** Prompt loading precedence (3-level instead of 5-level)
-  - **Old:** `LEX_PROMPTS_DIR` → `.smartergpt.local/prompts` → `.smartergpt/prompts`
-  - **New:** `LEX_CANON_DIR/prompts` → `.smartergpt.local/prompts` → `prompts/` (package location)
+  - **Old:** `LEX_PROMPTS_DIR` → `.smartergpt/prompts/` → prompts/
+  - **New:** `LEX_PROMPTS_DIR` → `.smartergpt/prompts/` → `prompts/` → `canon/prompts/`
 
 - **CHANGED:** Zod schemas now use `.loose()` instead of `.passthrough()`
   - Affects: `GateConfigSchema`, `StackComponentConfigSchema` in infrastructure schemas
@@ -118,13 +118,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    ```bash
    # Only needed if you were reading from .smartergpt/prompts at runtime
    # (typically you weren't - this was mostly for internal development)
-   mkdir -p .smartergpt.local/prompts
-   # Add your custom prompt files to .smartergpt.local/prompts/
+   mkdir -p .smartergpt/prompts
+   # Add your custom prompt files to .smartergpt/prompts/
    ```
 
 3. **Update scripts/configs referencing old environment variables**
 
-4. **Re-test precedence:** `LEX_CANON_DIR` → `.smartergpt.local/` → package
+4. **Re-test precedence:** `LEX_PROMPTS_DIR` → `.smartergpt/prompts/` → `prompts/` → `canon/prompts/`
 
 ## [0.4.0] - 2025-11-09
 

@@ -71,7 +71,7 @@ const alsoWrong = join(__dirname, '../../canon/prompts/example.md');
 When the package is installed, prompts and schemas are loaded with this precedence:
 
 1. **Environment override:** `LEX_PROMPTS_DIR=/path/to/custom` and/or `LEX_SCHEMAS_DIR=/path/to/custom` (explicit user override)
-2. **Local overlay:** `.smartergpt.local/prompts/` and `.smartergpt.local/schemas/` (user customizations, not tracked)
+2. **Shared overlay:** `.smartergpt/prompts/` and `.smartergpt/schemas/` (organization-level, gitignored)
 3. **Package defaults:** `prompts/` and `schemas/` (packaged locations, copied from canon/ during build)
 4. **Development fallback:** `canon/prompts/` and `canon/schemas/` (source, only available in dev)
 

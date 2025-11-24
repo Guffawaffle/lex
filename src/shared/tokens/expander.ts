@@ -80,8 +80,8 @@ function formatNow(date: Date = new Date()): string {
  *
  * @example
  * ```ts
- * const path = expandTokens("{{repo_root}}/.smartergpt.local/deliverables/weave-{{today}}-{{now}}");
- * // => "/path/to/repo/.smartergpt.local/deliverables/weave-2025-11-09-20251109T123456"
+ * const path = expandTokens("{{repo_root}}/.smartergpt/deliverables/weave-{{today}}-{{now}}");
+ * // => "/path/to/repo/.smartergpt/deliverables/weave-2025-11-09-20251109T123456"
  *
  * const filename = expandTokens("umbrella-{{today}}-{{now}}.md");
  * // => "umbrella-2025-11-09-20251109T123456.md"
@@ -195,7 +195,7 @@ export function extractTokens(input: string): string[] {
  * @example
  * ```ts
  * const config = {
- *   deliverables: "{{repo_root}}/.smartergpt.local/deliverables/{{today}}",
+ *   deliverables: "{{repo_root}}/.smartergpt/deliverables/{{today}}",
  *   created: "{{today}}T12:00:00Z",
  *   metadata: {
  *     branch: "{{branch}}",

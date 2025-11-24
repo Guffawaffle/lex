@@ -142,7 +142,7 @@ Module 'servcies/auth-core' not found in policy. Did you mean 'services/auth-cor
 
 **Solution:**
 1. Use the suggested correction
-2. Check available modules: `cat .smartergpt.local/lex/lexmap.policy.json | jq '.modules | keys'`
+2. Check available modules: `cat .smartergpt/lex/lexmap.policy.json | jq '.modules | keys'`
 3. Add an alias to avoid future typos
 
 ### Missing Module ID
@@ -186,7 +186,7 @@ Run the setup script to initialize working files:
 npm run setup-local
 ```
 
-This creates `.smartergpt.local/lex/lexmap.policy.json` from the example template.
+This creates `.smartergpt/lex/lexmap.policy.json` from the example template.
 
 **Alternative:**
 Specify a custom policy path:

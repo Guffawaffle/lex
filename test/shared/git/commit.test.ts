@@ -16,6 +16,16 @@ import { mkdtempSync, rmSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
 
+// Helper to detect if we're in a working git repository
+const hasGitRepo = () => {
+  try {
+    execSync("git rev-parse --git-dir", { stdio: "ignore" });
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 describe("Git Commit Detection", () => {
   let originalDir: string;
 
@@ -39,6 +49,10 @@ describe("Git Commit Detection", () => {
   }
 
   test("detects current commit in normal git repository", () => {
+    if (!hasGitRepo()) {
+      // Skip this test in environments without .git (e.g., Docker CI)
+      return;
+    }
     try {
       // We're in the lex repo, so this should return the actual commit
       const commit = getCurrentCommit();

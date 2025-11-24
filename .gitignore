@@ -12,8 +12,14 @@ tsconfig.tsbuildinfo
 *.tgz
 
 # Generated directories (copied from canon/ during build)
-prompts/
 schemas/
+rules/
+
+# User workspace directories (created by 'lex init')
+# .smartergpt/ is the organization workspace root
+# prompts/ is legacy location
+.smartergpt/
+prompts/
 
 # Generated TypeScript compilation outputs (source is .ts)
 # Keep only source .ts files, not compiled .js/.d.ts
