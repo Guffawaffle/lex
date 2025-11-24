@@ -34,7 +34,21 @@ interface StateStore {
 }
 
 // In-memory state store for CSRF protection
-// TODO: Move to database or Redis for production multi-instance deployments
+// PRODUCTION WARNING: This implementation has limitations:
+// - Lost on server restart (valid OAuth flows will fail)
+// - Not shared across multiple server instances (load balancing issues)
+// - No persistence (single-instance deployments only)
+//
+// For production multi-instance deployments, implement database-backed state storage:
+// 1. Create oauth_states table with (state TEXT PRIMARY KEY, created_at INTEGER, redirect_url TEXT)
+// 2. Store state in database on /auth/github
+// 3. Validate and delete state from database on /auth/callback
+// 4. Clean up expired states with cron job or on-demand
+//
+// Current implementation is suitable for:
+// - Single-instance deployments
+// - Development/testing environments
+// - Internal use with low traffic
 const stateStore: StateStore = {};
 
 // Clean up expired states (older than 10 minutes)

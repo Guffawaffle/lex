@@ -223,7 +223,7 @@ export function createFramesRouter(
       
       // Extract user_id from JWT token if authenticated via JWT
       // For API key auth (legacy), use system-default user
-      const userId = (req as any).user?.sub || "system-default";
+      const userId = req.user?.sub || "system-default";
       
       const frame: Frame = {
         id: frameId,
