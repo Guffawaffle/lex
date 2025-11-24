@@ -50,8 +50,8 @@ describe("NDJSON Logger", () => {
     const logDir = getLogDirectory();
     assert.ok(existsSync(logDir), "Log directory should exist");
     assert.ok(
-      logDir.includes(".smartergpt.local/lex/logs"),
-      "Log directory should be in .smartergpt.local/lex/logs"
+      logDir.includes(".smartergpt/lex/logs"),
+      "Log directory should be in .smartergpt/lex/logs"
     );
   });
 

@@ -12,7 +12,7 @@ import {
   vacuumDatabase,
   rotateBackups,
   generateBackupFilename,
-  getBackupDirectory,
+  getBackupDir,
   getBackupRetention,
 } from "@app/memory/store/backup.js";
 import { createDatabase } from "@app/memory/store/db.js";
@@ -45,7 +45,7 @@ describe("Database Backup and Maintenance", () => {
       if (existsSync(testDbPath)) {
         unlinkSync(testDbPath);
       }
-      const backupDir = getBackupDirectory(testWorkspaceRoot);
+      const backupDir = getBackupDir(testWorkspaceRoot);
       if (existsSync(backupDir)) {
         const files = readdirSync(backupDir);
         files.forEach((file) => unlinkSync(join(backupDir, file)));
@@ -62,11 +62,11 @@ describe("Database Backup and Maintenance", () => {
   });
 
   test("should get backup directory", () => {
-    const backupDir = getBackupDirectory(testWorkspaceRoot);
+    const backupDir = getBackupDir(testWorkspaceRoot);
     assert.ok(existsSync(backupDir), "Backup directory should exist");
     assert.ok(
-      backupDir.includes(".smartergpt.local/lex/backups"),
-      "Backup directory should be in .smartergpt.local/lex/backups"
+      backupDir.includes(".smartergpt/lex/backups"),
+      "Backup directory should be in .smartergpt/lex/backups"
     );
   });
 
@@ -81,7 +81,7 @@ describe("Database Backup and Maintenance", () => {
   });
 
   test("should rotate backups keeping N most recent", () => {
-    const backupDir = getBackupDirectory(testWorkspaceRoot);
+    const backupDir = getBackupDir(testWorkspaceRoot);
 
     // Create 5 test backup files
     for (let i = 0; i < 5; i++) {
@@ -99,7 +99,7 @@ describe("Database Backup and Maintenance", () => {
   });
 
   test("should backup with rotation", () => {
-    const backupDir = getBackupDirectory(testWorkspaceRoot);
+    const backupDir = getBackupDir(testWorkspaceRoot);
 
     // Create multiple backups
     for (let i = 0; i < 3; i++) {

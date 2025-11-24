@@ -3,7 +3,7 @@
  *
  * Loads behavioral rule files with precedence chain support:
  * 1. LEX_RULES_DIR (explicit environment override)
- * 2. .smartergpt.local/canon/rules/ (local overlay)
+ * 2. .smartergpt/canon/rules/ (local overlay)
  * 3. Package canon/rules/ (resolved from package installation)
  */
 
@@ -12,7 +12,7 @@ import { resolve, dirname, join } from "path";
 import { fileURLToPath } from "url";
 import { z } from "zod";
 import { getLogger } from "../logger/index.js";
-import type { BehavioralRule, RuleContext, ResolvedRule, RuleScope } from "./types.js";
+import type { BehavioralRule, RuleContext, ResolvedRule } from "./types.js";
 
 const logger = getLogger("rules");
 
@@ -28,7 +28,7 @@ const RuleScopeSchema = z.object({
 
 /**
  * Zod schema for behavioral rule validation
- * 
+ *
  * Note on Bayesian priors:
  * - alpha (successes): minimum 2 (skeptical prior)
  * - beta (failures): minimum 5 (skeptical prior)
@@ -46,7 +46,7 @@ const BehavioralRuleSchema = z.object({
   reinforcements: z.number().int().min(0).optional(),
   counter_examples: z.number().int().min(0).optional(),
   confidence: z.number().min(0).max(1),
-  severity: z.enum(['zero-tolerance', 'should', 'style']),
+  severity: z.enum(["zero-tolerance", "should", "style"]),
   timing_requirement_seconds: z.number().positive().optional(),
   first_seen: z.string().datetime(),
   last_correction: z.string().datetime(),
@@ -87,14 +87,17 @@ function resolvePackageAsset(type: "prompts" | "schemas" | "rules", name: string
  * @param source - Source type for tracking
  * @returns Validated resolved rule or null if invalid
  */
-function loadRuleFile(filePath: string, source: 'env' | 'workspace' | 'package'): ResolvedRule | null {
+function loadRuleFile(
+  filePath: string,
+  source: "env" | "workspace" | "package"
+): ResolvedRule | null {
   try {
-    const content = readFileSync(filePath, 'utf-8');
-    const json = JSON.parse(content);
-    
+    const content = readFileSync(filePath, "utf-8");
+    const json: unknown = JSON.parse(content);
+
     // Validate against schema
     const validated = BehavioralRuleSchema.parse(json);
-    
+
     return {
       ...validated,
       source,
@@ -117,18 +120,21 @@ function loadRuleFile(filePath: string, source: 'env' | 'workspace' | 'package')
  * @param source - Source type for tracking
  * @returns Array of resolved rules
  */
-function loadRulesFromDirectory(dirPath: string, source: 'env' | 'workspace' | 'package'): ResolvedRule[] {
+function loadRulesFromDirectory(
+  dirPath: string,
+  source: "env" | "workspace" | "package"
+): ResolvedRule[] {
   if (!existsSync(dirPath)) {
     return [];
   }
 
   const rules: ResolvedRule[] = [];
-  
+
   try {
     const files = readdirSync(dirPath);
-    
+
     for (const file of files) {
-      if (file.endsWith('.json')) {
+      if (file.endsWith(".json")) {
         const filePath = join(dirPath, file);
         const rule = loadRuleFile(filePath, source);
         if (rule) {
@@ -179,8 +185,13 @@ function matchesContext(rule: BehavioralRule, context: RuleContext): boolean {
   }
 
   // Context tags matching (rule must have at least one matching tag)
-  if (context.context_tags && context.context_tags.length > 0 && scope.context_tags && scope.context_tags.length > 0) {
-    const hasMatchingTag = scope.context_tags.some(tag => context.context_tags!.includes(tag));
+  if (
+    context.context_tags &&
+    context.context_tags.length > 0 &&
+    scope.context_tags &&
+    scope.context_tags.length > 0
+  ) {
+    const hasMatchingTag = scope.context_tags.some((tag) => context.context_tags!.includes(tag));
     if (!hasMatchingTag) {
       return false;
     }
@@ -197,7 +208,7 @@ function matchesContext(rule: BehavioralRule, context: RuleContext): boolean {
  *
  * Precedence chain:
  * 1. LEX_RULES_DIR (explicit environment override)
- * 2. .smartergpt.local/canon/rules/ (local overlay - untracked)
+ * 2. .smartergpt/canon/rules/ (local overlay - untracked)
  * 3. Package canon/rules/ (package defaults)
  *
  * Rules are merged by rule_id with precedence (higher priority overrides lower).
@@ -226,14 +237,14 @@ export function resolveRules(context: RuleContext = {}): ResolvedRule[] {
 
   // Priority 3: Package canon (lowest priority)
   const canonPath = resolvePackageAsset("rules", "");
-  const canonRules = loadRulesFromDirectory(canonPath, 'package');
+  const canonRules = loadRulesFromDirectory(canonPath, "package");
   for (const rule of canonRules) {
     ruleMap.set(rule.rule_id, rule);
   }
 
-  // Priority 2: .smartergpt.local/canon/rules/ (local overlay)
-  const localPath = join(process.cwd(), ".smartergpt.local", "canon", "rules");
-  const localRules = loadRulesFromDirectory(localPath, 'workspace');
+  // Priority 2: .smartergpt/canon/rules/ (local overlay)
+  const localPath = join(process.cwd(), ".smartergpt", "canon", "rules");
+  const localRules = loadRulesFromDirectory(localPath, "workspace");
   for (const rule of localRules) {
     // Override package rules
     ruleMap.set(rule.rule_id, rule);
@@ -243,7 +254,7 @@ export function resolveRules(context: RuleContext = {}): ResolvedRule[] {
   const envDir = process.env.LEX_RULES_DIR;
   if (envDir) {
     const envPath = resolve(envDir);
-    const envRules = loadRulesFromDirectory(envPath, 'env');
+    const envRules = loadRulesFromDirectory(envPath, "env");
     for (const rule of envRules) {
       // Override all lower priority rules
       ruleMap.set(rule.rule_id, rule);
@@ -254,10 +265,10 @@ export function resolveRules(context: RuleContext = {}): ResolvedRule[] {
   let rules = Array.from(ruleMap.values());
 
   // Apply confidence filtering
-  rules = rules.filter(rule => rule.confidence >= confidenceThreshold);
+  rules = rules.filter((rule) => rule.confidence >= confidenceThreshold);
 
   // Apply scope matching
-  rules = rules.filter(rule => matchesContext(rule, context));
+  rules = rules.filter((rule) => matchesContext(rule, context));
 
   return rules;
 }
@@ -279,23 +290,23 @@ export function listRules(): string[] {
   // Collect from package canon
   try {
     const canonPath = resolvePackageAsset("rules", "");
-    const canonRules = loadRulesFromDirectory(canonPath, 'package');
-    canonRules.forEach(rule => ruleIds.add(rule.rule_id));
+    const canonRules = loadRulesFromDirectory(canonPath, "package");
+    canonRules.forEach((rule) => ruleIds.add(rule.rule_id));
   } catch {
     // Ignore errors
   }
 
   // Collect from local
-  const localPath = join(process.cwd(), ".smartergpt.local", "canon", "rules");
-  const localRules = loadRulesFromDirectory(localPath, 'workspace');
-  localRules.forEach(rule => ruleIds.add(rule.rule_id));
+  const localPath = join(process.cwd(), ".smartergpt", "canon", "rules");
+  const localRules = loadRulesFromDirectory(localPath, "workspace");
+  localRules.forEach((rule) => ruleIds.add(rule.rule_id));
 
   // Collect from LEX_RULES_DIR
   const envDir = process.env.LEX_RULES_DIR;
   if (envDir) {
     const envPath = resolve(envDir);
-    const envRules = loadRulesFromDirectory(envPath, 'env');
-    envRules.forEach(rule => ruleIds.add(rule.rule_id));
+    const envRules = loadRulesFromDirectory(envPath, "env");
+    envRules.forEach((rule) => ruleIds.add(rule.rule_id));
   }
 
   return Array.from(ruleIds).sort();
@@ -320,19 +331,19 @@ export function getRule(ruleId: string): ResolvedRule | null {
   const envDir = process.env.LEX_RULES_DIR;
   if (envDir) {
     const envPath = resolve(envDir);
-    const envRules = loadRulesFromDirectory(envPath, 'env');
-    const found = envRules.find(r => r.rule_id === ruleId);
+    const envRules = loadRulesFromDirectory(envPath, "env");
+    const found = envRules.find((r) => r.rule_id === ruleId);
     if (found) return found;
   }
 
   // Check local
-  const localPath = join(process.cwd(), ".smartergpt.local", "canon", "rules");
-  const localRules = loadRulesFromDirectory(localPath, 'workspace');
-  const found = localRules.find(r => r.rule_id === ruleId);
+  const localPath = join(process.cwd(), ".smartergpt", "canon", "rules");
+  const localRules = loadRulesFromDirectory(localPath, "workspace");
+  const found = localRules.find((r) => r.rule_id === ruleId);
   if (found) return found;
 
   // Check package
   const canonPath = resolvePackageAsset("rules", "");
-  const canonRules = loadRulesFromDirectory(canonPath, 'package');
-  return canonRules.find(r => r.rule_id === ruleId) || null;
+  const canonRules = loadRulesFromDirectory(canonPath, "package");
+  return canonRules.find((r) => r.rule_id === ruleId) || null;
 }

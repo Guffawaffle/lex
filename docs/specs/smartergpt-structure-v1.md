@@ -1,83 +1,105 @@
 # .smartergpt Structure Specification v1
 
-**Status:** Accepted  
-**Version:** 1.0.0  
-**Last Updated:** 2025-11-13
+**Status:** Accepted
+**Version:** 1.1.0
+**Last Updated:** 2025-11-23
 
 ## Overview
 
-The `.smartergpt.local/` structure provides a standardized, portable workspace for Lex and lex-pr-runner tooling. This specification defines the directory layout, precedence chains, and environment variable expansion rules.
+The `.smartergpt/` structure provides a standardized, portable workspace for Lex and lex-pr-runner tooling. This specification defines the directory layout, precedence chains, and environment variable expansion rules.
+
+**Key Change (v1.1.0):** Consolidated from `.smartergpt.local/` to `.smartergpt/` as the single canonical workspace directory (organization-level).
 
 ## Directory Structure
 
-### Tracked (`.smartergpt/`)
-Repository-tracked canonical resources:
+### Organization Workspace (`.smartergpt/`)
+User workspace for local development, overrides, and runtime state:
 
 ```
 .smartergpt/
-├── schemas/          # JSON Schemas for configuration files
-│   ├── profile.schema.json
-│   ├── policy.schema.json
-│   └── ...
-└── prompts/          # Canonical prompt templates (tracked)
-    ├── remember.md
-    ├── recall.md
-    └── ...
-```
-
-**Purpose:** Version-controlled defaults and schemas  
-**Git:** Tracked  
-**Precedence:** Lowest (fallback when no local override exists)
-
-### Local (`.smartergpt.local/`)
-User workspace for local development and overrides:
-
-```
-.smartergpt.local/
-├── profile.yml       # Workspace profile metadata
+├── prompts/          # Shared prompt overlays (organization-level)
+│   └── custom-prompt.md
+├── schemas/          # Optional shared schemas
+│   └── custom.schema.json
+├── rules/            # Optional shared rules
+│   └── custom-rule.js
 ├── lex/              # Lex-specific working files
 │   ├── lexmap.policy.json  # Module dependency policy
-│   └── memory.db           # Episodic memory database
-├── runner/           # lex-pr-runner artifacts
-│   ├── plan.json
-│   ├── cache/
-│   └── deliverables/
-└── prompts/          # Local prompt overlays
-    └── custom-prompt.md
+│   ├── memory.db           # Episodic memory database
+│   ├── logs/               # NDJSON logs
+│   ├── backups/            # Database backups
+│   └── frames.export/      # Exported frames
+└── runner/           # lex-pr-runner artifacts (if using lex-pr-runner)
+    ├── plan.json
+    ├── cache/
+    └── deliverables/
 ```
 
-**Purpose:** Local development, working state, user customizations  
-**Git:** Ignored (`.gitignore`)  
-**Precedence:** Highest (overrides canonical)
+**Purpose:** Local development, working state, user customizations, tool-specific files
+**Git:** Ignored (`.gitignore`)
+**Scope:** Organization-level (shared between lex and lex-pr-runner in same workspace)
+**Precedence:** High (overrides package defaults)
+
+### Package Defaults (`canon/`, `prompts/`, `schemas/`, `rules/`)
+Package-shipped resources:
+
+```
+canon/                # Source of truth (development only)
+├── prompts/          # Prompt template sources
+├── schemas/          # Schema sources
+└── rules/            # Rule sources
+
+prompts/              # Built artifacts (shipped with package)
+schemas/              # Built artifacts (shipped with package)
+rules/                # Built artifacts (shipped with package)
+```
+
+**Purpose:** Package defaults and templates
+**Git:** `canon/` tracked; `prompts/`, `schemas/`, `rules/` gitignored (build artifacts)
+**Precedence:** Lowest (fallback when no workspace override exists)
 
 ## Precedence Chains
 
 ### Prompts
 ```
-1. LEX_CANON_DIR/prompts/        (if LEX_CANON_DIR set)
-2. .smartergpt.local/prompts/    (local overlays)
-3. prompts/                      (package canonical)
+1. LEX_PROMPTS_DIR (if set)           # Explicit environment override
+2. .smartergpt/prompts/               # Shared overlay (organization-level)
+3. prompts/                           # Package default (shipped)
+4. canon/prompts/                     # Development source (fallback)
 ```
 
 ### Schemas
 ```
-1. .smartergpt/schemas/          (repo tracked)
-2. node_modules/@guffawaffle/lex/schemas/  (package)
+1. LEX_SCHEMAS_DIR (if set)           # Explicit environment override
+2. .smartergpt/schemas/               # Shared overlay (organization-level)
+3. schemas/                           # Package default (shipped)
+4. canon/schemas/                     # Development source (fallback)
 ```
 
-### Configuration
+### Rules
 ```
-1. .smartergpt.local/profile.yml (local)
-2. .smartergpt/profile.yml       (repo default, if exists)
+1. LEX_RULES_DIR (if set)             # Explicit environment override
+2. .smartergpt/rules/                 # Shared overlay (organization-level)
+3. rules/                             # Package default (shipped)
+4. canon/rules/                       # Development source (fallback)
+```
+
+### Policy
+```
+1. LEX_POLICY_PATH (if set)           # Explicit environment override
+2. .smartergpt/lex/lexmap.policy.json # Workspace policy (default)
+3. examples/lexmap.policy.json        # Example fallback
 ```
 
 ## Environment Variables
 
 | Variable | Purpose | Example |
 |----------|---------|---------|
-| `LEX_CANON_DIR` | Override canonical resource root | `/path/to/custom/canon` |
-| `SMARTERGPT_PROFILE` | Specify profile path | `.smartergpt.local/profile.yml` |
-| `LEX_DB_PATH` | Override database location | `.smartergpt.local/lex/memory.db` |
+| `LEX_PROMPTS_DIR` | Override prompts directory | `/path/to/custom/prompts` |
+| `LEX_SCHEMAS_DIR` | Override schemas directory | `/path/to/custom/schemas` |
+| `LEX_RULES_DIR` | Override rules directory | `/path/to/custom/rules` |
+| `LEX_POLICY_PATH` | Override policy file | `.smartergpt/lex/lexmap.policy.json` |
+| `LEX_DB_PATH` | Override database location | `.smartergpt/lex/memory.db` |
 
 ## Token Expansion
 
@@ -87,21 +109,23 @@ Configuration files support token expansion:
 |-------|------------|---------|
 | `$HOME` | User home directory | `/home/user` |
 | `$PWD` | Current working directory | `/srv/lex-mcp/lex` |
-| `${VAR}` | Environment variable | `${LEX_CANON_DIR}/prompts` |
+| `${VAR}` | Environment variable | `${LEX_PROMPTS_DIR}/custom.md` |
 
-**Example `profile.yml`:**
-```yaml
-role: local
-name: Local Dev
-paths:
-  canon: ${LEX_CANON_DIR:-$PWD/.smartergpt}
-  database: .smartergpt.local/lex/memory.db
+**Example usage:**
+```bash
+# Use custom prompts directory
+export LEX_PROMPTS_DIR=/custom/prompts
+lex remember ...
+
+# Use custom database path
+export LEX_DB_PATH=/custom/memory.db
+lex remember ...
 ```
 
 ## Platform-Specific Considerations
 
 ### Windows
-- Use forward slashes in YAML: `path: .smartergpt.local/lex/memory.db`
+- Use forward slashes in paths: `.smartergpt/lex/memory.db`
 - Environment variables: `%USERPROFILE%` becomes `$HOME`
 
 ### WSL
@@ -113,62 +137,102 @@ paths:
 
 ## Migration Guide
 
-### From Legacy Structure
+### From `.smartergpt.local/` (Legacy)
 
-**Before:**
-```
-.smartergpt/
-├── runner/
-│   ├── intent.md
-│   ├── plan.json
-│   └── cache/
-└── lex-brain.db
-```
-
-**After:**
+**Before (v1.0.0):**
 ```
 .smartergpt.local/
 ├── profile.yml
 ├── lex/
 │   ├── lexmap.policy.json
 │   └── memory.db
+├── runner/
+│   └── plan.json
+└── prompts/
+    └── custom.md
+```
+
+**After (v1.1.0):**
+```
+.smartergpt/
+├── prompts/          # Shared prompts (organization-level)
+│   └── custom.md
+├── lex/              # Lex-specific files
+│   ├── lexmap.policy.json
+│   ├── memory.db
+│   ├── logs/
+│   ├── backups/
+│   └── frames.export/
+└── runner/           # lex-pr-runner artifacts
+    └── plan.json
+```
+
+**Migration Steps:**
+1. Run `lex migrate-workspace` (when available) OR manually rename
+2. `mv .smartergpt.local .smartergpt`
+3. Verify `.gitignore` includes `.smartergpt/`
+4. Update any hardcoded paths in scripts/configs
+
+### From Legacy Structure (Pre-v1.0.0)
+
+**Before:**
+```
+.smartergpt/          # Tracked in repo (old design)
+├── runner/
+│   ├── intent.md
+│   └── plan.json
+└── lex-brain.db
+```
+
+**After:**
+```
+.smartergpt/          # Gitignored (new design)
+├── lex/
+│   ├── lexmap.policy.json
+│   └── memory.db
 └── runner/
-    ├── plan.json
-    └── cache/
+    └── plan.json
 ```
 
 **Migration Steps:**
 1. Run `npx lex init` to create new structure
-2. Copy `lex-brain.db` → `.smartergpt.local/lex/memory.db`
-3. Move runner artifacts to `.smartergpt.local/runner/`
-4. Update `.gitignore` to exclude `.smartergpt.local/`
+2. Copy `lex-brain.db` → `.smartergpt/lex/memory.db`
+3. Move runner artifacts to `.smartergpt/runner/`
+4. Update `.gitignore` to exclude `.smartergpt/`
 
 ## Usage Examples
 
 ### Initialize Workspace
 ```bash
 npx lex init
+# Creates .smartergpt/ with:
+#   .smartergpt/prompts/ - Shared prompts
+#   .smartergpt/lex/ - Lex-specific files
 ```
 
 ### Create Local Prompt Override
 ```bash
-cp prompts/remember.md .smartergpt.local/prompts/
-vim .smartergpt.local/prompts/remember.md
+cp prompts/remember.md .smartergpt/prompts/
+vim .smartergpt/prompts/remember.md
 ```
 
-### Validate Configuration
+### Use Custom Policy Path
 ```bash
-npx lex validate-profile .smartergpt.local/profile.yml
+export LEX_POLICY_PATH=.smartergpt/lex/lexmap.policy.json
+lex check merged-facts.json
 ```
 
 ## Schema Validation
 
-All configuration files SHOULD include a `$schema` reference:
+Configuration files MAY include a `$schema` reference for IDE support:
 
-```yaml
-# .smartergpt.local/profile.yml
-$schema: ../.smartergpt/schemas/profile.schema.json
-role: local
+```json
+{
+  "$schema": "../schemas/policy.schema.json",
+  "modules": {
+    ...
+  }
+}
 ```
 
 This enables:
@@ -178,6 +242,6 @@ This enables:
 
 ## References
 
+- **ADR:** [ADR-00X: Consolidate Workspace Layout into `.smartergpt/`](../../.github/ADR-00X-smartergpt-workspace-rename.md)
 - **Implementation:** [Issue #183](https://github.com/Guffawaffle/lex/issues/183)
 - **Init Command:** [Issue #230](https://github.com/Guffawaffle/lex/issues/230)
-- **Related:** `DIRECTORY_ALIGNMENT.md`

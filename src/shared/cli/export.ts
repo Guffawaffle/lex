@@ -58,9 +58,9 @@ function parseDurationToTimestamp(duration: string): string {
 /**
  * Get default export directory path
  */
-function getDefaultExportDir(): string {
+function getDefaultOutputDir(): string {
   const workspaceRoot = process.env.LEX_WORKSPACE_ROOT || process.cwd();
-  return join(workspaceRoot, ".smartergpt.local", "lex", "frames.export");
+  return join(workspaceRoot, ".smartergpt", "lex", "frames.export");
 }
 
 /**
@@ -109,7 +109,7 @@ export async function exportFrames(options: ExportCommandOptions = {}): Promise<
     }
 
     // Determine output directory
-    const outputDir = options.out || getDefaultExportDir();
+    const outputDir = options.out || getDefaultOutputDir();
     const dateDir = join(outputDir, new Date().toISOString().split("T")[0]);
 
     // Create output directory

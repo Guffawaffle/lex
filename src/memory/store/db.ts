@@ -30,8 +30,8 @@ export interface FrameRow {
 }
 
 /**
- * Get default database path: .smartergpt.local/lex/memory.db (relative to workspace root)
- * Falls back to ~/.lex/frames.db if not in a lex repository
+ * Get default database path: .smartergpt/lex/memory.db (relative to workspace root)
+ * Falls back to ~/.smartergpt/lex/memory.db if not in a lex repository
  * Can be overridden with LEX_DB_PATH or LEX_WORKSPACE_ROOT environment variables
  */
 export function getDefaultDbPath(): string {
@@ -45,10 +45,10 @@ export function getDefaultDbPath(): string {
     const repoRoot = process.env.LEX_WORKSPACE_ROOT
       ? process.env.LEX_WORKSPACE_ROOT
       : findRepoRoot(process.cwd());
-    const localPath = join(repoRoot, ".smartergpt.local", "lex", "memory.db");
+    const localPath = join(repoRoot, ".smartergpt", "lex", "memory.db");
 
     // Ensure directory exists
-    const localDir = join(repoRoot, ".smartergpt.local", "lex");
+    const localDir = join(repoRoot, ".smartergpt", "lex");
     if (!existsSync(localDir)) {
       mkdirSync(localDir, { recursive: true });
     }
@@ -56,11 +56,11 @@ export function getDefaultDbPath(): string {
     return localPath;
   } catch {
     // Fallback to home directory if not in repo
-    const lexDir = join(homedir(), ".lex");
+    const lexDir = join(homedir(), ".smartergpt", "lex");
     if (!existsSync(lexDir)) {
       mkdirSync(lexDir, { recursive: true });
     }
-    return join(lexDir, "frames.db");
+    return join(lexDir, "memory.db");
   }
 }
 

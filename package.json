@@ -1,6 +1,6 @@
 {
   "name": "@smartergpt/lex",
-  "version": "0.4.5-alpha",
+  "version": "0.4.6-alpha",
   "description": "MIT-licensed memory, policy, and atlas framework with MCP server. For local dev and private automation.",
   "type": "module",
   "main": "dist/index.js",
@@ -48,7 +48,9 @@
     "src/policy/policy_spec/lexmap.policy.json.example",
     "src/policy/README.md",
     "examples/",
-    "prompts/",
+    "canon/prompts/",
+    "canon/schemas/",
+    "canon/rules/",
     "schemas/",
     "rules/",
     "README.md",

@@ -239,7 +239,7 @@ Configure the API using environment variables:
 # API Key for authentication
 export LEX_API_KEY="your-secure-api-key"
 
-# Database path (optional, defaults to .smartergpt.local/lex/memory.db)
+# Database path (optional, defaults to .smartergpt/lex/memory.db)
 export LEX_DB_PATH="/path/to/custom/frames.db"
 
 # Server port (optional, defaults to 3000)

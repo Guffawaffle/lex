@@ -3,8 +3,9 @@
  *
  * Loads prompt templates with precedence chain support:
  * 1. LEX_PROMPTS_DIR (explicit environment override)
- * 2. .smartergpt.local/prompts/ (local overlay)
- * 3. Package canon (resolved from package installation)
+ * 2. ./.smartergpt/prompts/ (organization workspace, preferred)
+ * 3. ./prompts/ (legacy location)
+ * 4. Package canon/prompts/ (built-in fallback, read-only)
  */
 
 import { readFileSync, existsSync, readdirSync, statSync } from "fs";
@@ -16,28 +17,26 @@ import { computeContentHash } from "./renderer.js";
 /**
  * Resolve package asset path for both dev and installed contexts
  *
- * @param type - Asset type ('prompts' or 'schemas')
+ * @param type - Asset type ('prompts', 'schemas', or 'rules')
  * @param name - Asset name/filename
- * @returns Resolved absolute path to the asset
+ * @returns Resolved absolute path to the asset in canon/
  */
-function resolvePackageAsset(type: "prompts" | "schemas", name: string): string {
-  // When installed: node_modules/lex/prompts/ or node_modules/lex/schemas/
-  // When local dev: <repo>/prompts/ or <repo>/schemas/
+function resolvePackageAsset(type: "prompts" | "schemas" | "rules", name: string): string {
+  // When installed: node_modules/@smartergpt/lex/canon/prompts/
+  // When local dev: <repo>/canon/prompts/
   const currentFile = fileURLToPath(import.meta.url);
   let pkgRoot = dirname(currentFile);
-  
-  // Walk up until we find package.json or reach a dist/ or src/ boundary
-  // In dist: /home/runner/work/lex/lex/dist/shared/prompts/loader.js -> /home/runner/work/lex/lex
-  // In src:  /home/runner/work/lex/lex/src/shared/prompts/loader.ts -> /home/runner/work/lex/lex
+
+  // Walk up until we find package.json
   while (pkgRoot !== dirname(pkgRoot)) {
     const pkgJsonPath = join(pkgRoot, "package.json");
     if (existsSync(pkgJsonPath)) {
-      // Found package.json - this is the package root
-      return join(pkgRoot, type, name);
+      // Found package root - return canon path
+      return join(pkgRoot, "canon", type, name);
     }
     pkgRoot = dirname(pkgRoot);
   }
-  
+
   // Fallback: shouldn't reach here in normal use
   throw new Error(`Could not resolve package root from ${currentFile}`);
 }
@@ -51,8 +50,9 @@ function resolvePackageAsset(type: "prompts" | "schemas", name: string): string 
  *
  * Precedence chain:
  * 1. LEX_PROMPTS_DIR (explicit environment override)
- * 2. .smartergpt.local/prompts/ (local overlay - untracked)
- * 3. Package canon (resolve from package installation)
+ * 2. ./.smartergpt/prompts/ (organization workspace, preferred)
+ * 3. ./prompts/ (legacy location)
+ * 4. canon/prompts/ (package built-in, read-only fallback)
  *
  * @example
  * ```typescript
@@ -66,9 +66,9 @@ function resolvePackageAsset(type: "prompts" | "schemas", name: string): string 
  * const prompt = loadPrompt('idea.md'); // Loads from /custom/prompts/idea.md
  * ```
  *
- * @example Local overlay (create .smartergpt.local/prompts/idea.md to override)
+ * @example Workspace override (create .smartergpt/prompts/idea.md to override canon)
  * ```typescript
- * // If .smartergpt.local/prompts/idea.md exists, it takes precedence
+ * // If .smartergpt/prompts/idea.md exists, it takes precedence over canon
  * const prompt = loadPrompt('idea.md');
  * ```
  */
@@ -85,14 +85,21 @@ export function loadPrompt(promptName: string): string {
     }
   }
 
-  // Priority 2: .smartergpt.local/prompts/ (local overlay)
-  const localPath = join(process.cwd(), ".smartergpt.local", "prompts", promptName);
-  attemptedPaths.push(localPath);
-  if (existsSync(localPath)) {
-    return readFileSync(localPath, "utf-8");
+  // Priority 2: ./.smartergpt/prompts/ (organization workspace, preferred)
+  const smartergptPath = join(process.cwd(), ".smartergpt", "prompts", promptName);
+  attemptedPaths.push(smartergptPath);
+  if (existsSync(smartergptPath)) {
+    return readFileSync(smartergptPath, "utf-8");
   }
 
-  // Priority 3: Package canon (resolve from package installation)
+  // Priority 3: ./prompts/ (legacy location)
+  const legacyPath = join(process.cwd(), "prompts", promptName);
+  attemptedPaths.push(legacyPath);
+  if (existsSync(legacyPath)) {
+    return readFileSync(legacyPath, "utf-8");
+  }
+
+  // Priority 4: canon/prompts/ (package built-in, read-only)
   const canonPath = resolvePackageAsset("prompts", promptName);
   attemptedPaths.push(canonPath);
   if (existsSync(canonPath)) {
@@ -114,7 +121,7 @@ export function loadPrompt(promptName: string): string {
  * @example
  * ```typescript
  * const path = getPromptPath('idea.md');
- * console.log(path); // '/repo/prompts/idea.md'
+ * console.log(path); // '/workspace/.smartergpt/prompts/idea.md'
  * ```
  */
 export function getPromptPath(promptName: string): string | null {
@@ -127,13 +134,19 @@ export function getPromptPath(promptName: string): string | null {
     }
   }
 
-  // Priority 2: Local overlay
-  const localPath = join(process.cwd(), ".smartergpt.local", "prompts", promptName);
-  if (existsSync(localPath)) {
-    return localPath;
+  // Priority 2: ./.smartergpt/prompts/
+  const smartergptPath = join(process.cwd(), ".smartergpt", "prompts", promptName);
+  if (existsSync(smartergptPath)) {
+    return smartergptPath;
   }
 
-  // Priority 3: Package canon
+  // Priority 3: ./prompts/ (legacy)
+  const legacyPath = join(process.cwd(), "prompts", promptName);
+  if (existsSync(legacyPath)) {
+    return legacyPath;
+  }
+
+  // Priority 4: canon/prompts/
   const canonPath = resolvePackageAsset("prompts", promptName);
   if (existsSync(canonPath)) {
     return canonPath;
@@ -171,18 +184,33 @@ export function listPrompts(): string[] {
     // Ignore errors when reading package canon
   }
 
-  // Collect from local (overlay)
-  const localPath = join(process.cwd(), ".smartergpt.local", "prompts");
-  if (existsSync(localPath)) {
+  // Collect from .smartergpt/prompts/ (organization workspace prompts)
+  const smartergptPath = join(process.cwd(), ".smartergpt", "prompts");
+  if (existsSync(smartergptPath)) {
     try {
-      const files = readdirSync(localPath);
+      const files = readdirSync(smartergptPath);
       files.forEach((file: string) => {
         if (file.endsWith(".md")) {
           prompts.add(file);
         }
       });
     } catch {
-      // Ignore errors when reading local overlay
+      // Ignore errors when reading workspace prompts
+    }
+  }
+
+  // Collect from prompts/ (legacy location)
+  const legacyPath = join(process.cwd(), "prompts");
+  if (existsSync(legacyPath)) {
+    try {
+      const files = readdirSync(legacyPath);
+      files.forEach((file: string) => {
+        if (file.endsWith(".md")) {
+          prompts.add(file);
+        }
+      });
+    } catch {
+      // Ignore errors when reading legacy prompts
     }
   }
 
@@ -215,20 +243,16 @@ const MAX_PROMPT_SIZE = 100 * 1024;
 function validatePromptPath(promptName: string, resolvedPath: string): void {
   // Reject absolute paths
   if (promptName.startsWith("/") || /^[a-zA-Z]:[/\\]/.test(promptName)) {
-    throw new RenderError(
-      `Absolute paths not allowed: ${promptName}`,
-      "INVALID_PATH",
-      { path: promptName }
-    );
+    throw new RenderError(`Absolute paths not allowed: ${promptName}`, "INVALID_PATH", {
+      path: promptName,
+    });
   }
 
   // Reject parent directory references
   if (promptName.includes("..")) {
-    throw new RenderError(
-      `Path traversal not allowed: ${promptName}`,
-      "INVALID_PATH",
-      { path: promptName }
-    );
+    throw new RenderError(`Path traversal not allowed: ${promptName}`, "INVALID_PATH", {
+      path: promptName,
+    });
   }
 
   // Validate that resolved path is within allowed directories
@@ -249,11 +273,10 @@ function validatePromptPath(promptName: string, resolvedPath: string): void {
   });
 
   if (!isAllowed) {
-    throw new RenderError(
-      `Path outside allowed directories: ${promptName}`,
-      "INVALID_PATH",
-      { path: promptName, resolved: normalizedPath }
-    );
+    throw new RenderError(`Path outside allowed directories: ${promptName}`, "INVALID_PATH", {
+      path: promptName,
+      resolved: normalizedPath,
+    });
   }
 }
 
@@ -277,19 +300,19 @@ function validatePromptSize(filePath: string): void {
 function isBinaryFile(filePath: string): boolean {
   const buffer = readFileSync(filePath);
   const checkLength = Math.min(8192, buffer.length);
-  
+
   for (let i = 0; i < checkLength; i++) {
     if (buffer[i] === 0) {
       return true;
     }
   }
-  
+
   return false;
 }
 
 /**
  * Parse YAML frontmatter from prompt content
- * 
+ *
  * @param content - Full prompt content with optional frontmatter
  * @returns Tuple of [metadata, contentWithoutFrontmatter]
  */
@@ -302,7 +325,7 @@ function parseFrontmatter(content: string): [PromptMetadata | null, string] {
   // Find closing delimiter
   const lines = content.split("\n");
   let endIndex = -1;
-  
+
   for (let i = 1; i < lines.length; i++) {
     if (lines[i].trim() === "---") {
       endIndex = i;
@@ -317,38 +340,40 @@ function parseFrontmatter(content: string): [PromptMetadata | null, string] {
   // Extract frontmatter
   const frontmatterLines = lines.slice(1, endIndex);
   const contentLines = lines.slice(endIndex + 1);
-  
+
   // Parse YAML (simple key-value parser)
   const metadata: Partial<PromptMetadata> = {};
-  
+
   for (const line of frontmatterLines) {
     const trimmed = line.trim();
     if (!trimmed || trimmed.startsWith("#")) continue;
-    
+
     const colonIndex = trimmed.indexOf(":");
     if (colonIndex === -1) continue;
-    
+
     const key = trimmed.substring(0, colonIndex).trim();
     let value = trimmed.substring(colonIndex + 1).trim();
-    
+
     // Remove quotes
-    if ((value.startsWith('"') && value.endsWith('"')) || 
-        (value.startsWith("'") && value.endsWith("'"))) {
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
       value = value.substring(1, value.length - 1);
     }
-    
+
     // Parse arrays [item1, item2]
     if (value.startsWith("[") && value.endsWith("]")) {
       const arrayContent = value.substring(1, value.length - 1);
-      const items = arrayContent.split(",").map(item => item.trim().replace(/^["']|["']$/g, ""));
-      (metadata as Record<string, unknown>)[key] = items.filter(item => item.length > 0);
+      const items = arrayContent.split(",").map((item) => item.trim().replace(/^["']|["']$/g, ""));
+      (metadata as Record<string, unknown>)[key] = items.filter((item) => item.length > 0);
     } else if (key === "schemaVersion") {
       (metadata as Record<string, unknown>)[key] = parseInt(value, 10);
     } else {
       (metadata as Record<string, unknown>)[key] = value;
     }
   }
-  
+
   // Validate required fields
   if (!metadata.id || !metadata.title) {
     throw new RenderError(
@@ -363,11 +388,11 @@ function parseFrontmatter(content: string): [PromptMetadata | null, string] {
 
 /**
  * Load a prompt template with metadata
- * 
+ *
  * @param promptName - Name of the prompt file (e.g., "conflict-resolution.md")
  * @returns PromptTemplate with content, metadata, and content hash
  * @throws RenderError if prompt file is invalid or not found
- * 
+ *
  * @example
  * ```typescript
  * const template = await loadPromptTemplate('conflict-resolution.md');
@@ -385,18 +410,16 @@ export function loadPromptTemplate(promptName: string): PromptTemplate {
     if (existsSync(envPath)) {
       validatePromptPath(promptName, envPath);
       validatePromptSize(envPath);
-      
+
       if (isBinaryFile(envPath)) {
-        throw new RenderError(
-          `Binary files not allowed: ${promptName}`,
-          "BINARY_FILE",
-          { path: envPath }
-        );
+        throw new RenderError(`Binary files not allowed: ${promptName}`, "BINARY_FILE", {
+          path: envPath,
+        });
       }
-      
+
       const content = readFileSync(envPath, "utf-8");
       const [metadata, templateContent] = parseFrontmatter(content);
-      
+
       if (!metadata) {
         throw new RenderError(
           `Prompt template must include frontmatter with id and title: ${promptName}`,
@@ -404,7 +427,7 @@ export function loadPromptTemplate(promptName: string): PromptTemplate {
           { path: envPath }
         );
       }
-      
+
       return {
         id: metadata.id,
         content: templateContent,
@@ -420,18 +443,16 @@ export function loadPromptTemplate(promptName: string): PromptTemplate {
   if (existsSync(localPath)) {
     validatePromptPath(promptName, localPath);
     validatePromptSize(localPath);
-    
+
     if (isBinaryFile(localPath)) {
-      throw new RenderError(
-        `Binary files not allowed: ${promptName}`,
-        "BINARY_FILE",
-        { path: localPath }
-      );
+      throw new RenderError(`Binary files not allowed: ${promptName}`, "BINARY_FILE", {
+        path: localPath,
+      });
     }
-    
+
     const content = readFileSync(localPath, "utf-8");
     const [metadata, templateContent] = parseFrontmatter(content);
-    
+
     if (!metadata) {
       throw new RenderError(
         `Prompt template must include frontmatter with id and title: ${promptName}`,
@@ -439,7 +460,7 @@ export function loadPromptTemplate(promptName: string): PromptTemplate {
         { path: localPath }
       );
     }
-    
+
     return {
       id: metadata.id,
       content: templateContent,
@@ -454,18 +475,16 @@ export function loadPromptTemplate(promptName: string): PromptTemplate {
   if (existsSync(canonPath)) {
     validatePromptPath(promptName, canonPath);
     validatePromptSize(canonPath);
-    
+
     if (isBinaryFile(canonPath)) {
-      throw new RenderError(
-        `Binary files not allowed: ${promptName}`,
-        "BINARY_FILE",
-        { path: canonPath }
-      );
+      throw new RenderError(`Binary files not allowed: ${promptName}`, "BINARY_FILE", {
+        path: canonPath,
+      });
     }
-    
+
     const content = readFileSync(canonPath, "utf-8");
     const [metadata, templateContent] = parseFrontmatter(content);
-    
+
     if (!metadata) {
       throw new RenderError(
         `Prompt template must include frontmatter with id and title: ${promptName}`,
@@ -473,7 +492,7 @@ export function loadPromptTemplate(promptName: string): PromptTemplate {
         { path: canonPath }
       );
     }
-    
+
     return {
       id: metadata.id,
       content: templateContent,
@@ -490,9 +509,9 @@ export function loadPromptTemplate(promptName: string): PromptTemplate {
 
 /**
  * List all available prompt templates with metadata
- * 
+ *
  * @returns Array of prompt metadata (deduplicated by id)
- * 
+ *
  * @example
  * ```typescript
  * const templates = listPromptTemplates();

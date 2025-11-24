@@ -117,7 +117,7 @@ export class MCPServer {
       } else if (this.repoRoot) {
         // Try standard locations within provided repoRoot
         // Check working file first, then example
-        const workingPath = join(this.repoRoot, ".smartergpt.local/lex/lexmap.policy.json");
+        const workingPath = join(this.repoRoot, ".smartergpt/lex/lexmap.policy.json");
         const examplePath = join(this.repoRoot, "policy/policy_spec/lexmap.policy.json");
 
         if (existsSync(workingPath)) {

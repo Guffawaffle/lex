@@ -335,7 +335,7 @@ You know **exactly** what was failing, without re-running anything.
 All receipts (Frames) are stored in a **local SQLite database** by default:
 
 ```
-.smartergpt.local/lex/memory.db
+.smartergpt/lex/memory.db
 ```
 
 **No cloud upload.** **No telemetry.** **You control the data.**

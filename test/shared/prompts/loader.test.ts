@@ -89,31 +89,31 @@ describe("Prompt Loader Precedence", () => {
     }
   });
 
-  test("falls back to .smartergpt.local/ when LEX_PROMPTS_DIR not set", async () => {
+  test("falls back to .smartergpt/prompts/ when LEX_PROMPTS_DIR not set", async () => {
     const repo = createTestRepo();
 
-    mkdirSync(join(repo, ".smartergpt.local", "prompts"), { recursive: true });
-    writeFileSync(join(repo, ".smartergpt.local", "prompts", "test.md"), "# Local Overlay");
+    mkdirSync(join(repo, ".smartergpt", "prompts"), { recursive: true });
+    writeFileSync(join(repo, ".smartergpt", "prompts", "test.md"), "# Workspace Prompts");
 
     process.env.REPO_ROOT = repo;
     process.chdir(repo);
 
     const result = loadPrompt("test.md");
-    assert.strictEqual(result, "# Local Overlay");
+    assert.strictEqual(result, "# Workspace Prompts");
   });
 
-  test("falls back to package prompts/ when no overrides exist", async () => {
+  test("falls back to package canon/prompts/ when no overrides exist", async () => {
     const repo = createTestRepo();
 
     process.env.REPO_ROOT = repo;
     process.chdir(repo);
 
-    // Should load from actual package's prompts/ (test.md exists there)
+    // Should load from actual package's canon/prompts/ (test.md exists there)
     const result = loadPrompt("test.md");
     assert.ok(result.includes("# Test Prompt"));
   });
 
-  test("LEX_PROMPTS_DIR overrides .smartergpt.local/", async () => {
+  test("LEX_PROMPTS_DIR overrides .smartergpt/prompts/", async () => {
     const customCanon = mkdtempSync(join(tmpdir(), "lex-canon-"));
     const repo = createTestRepo();
 
@@ -121,8 +121,8 @@ describe("Prompt Loader Precedence", () => {
       mkdirSync(join(customCanon, "prompts"), { recursive: true });
       writeFileSync(join(customCanon, "prompts", "test.md"), "# ENV");
 
-      mkdirSync(join(repo, ".smartergpt.local", "prompts"), { recursive: true });
-      writeFileSync(join(repo, ".smartergpt.local", "prompts", "test.md"), "# LOCAL");
+      mkdirSync(join(repo, ".smartergpt", "prompts"), { recursive: true });
+      writeFileSync(join(repo, ".smartergpt", "prompts", "test.md"), "# WORKSPACE");
 
       process.env.LEX_PROMPTS_DIR = join(customCanon, "prompts");
       process.env.REPO_ROOT = repo;
@@ -135,20 +135,20 @@ describe("Prompt Loader Precedence", () => {
     }
   });
 
-  test(".smartergpt.local/ overrides package prompts/", async () => {
+  test(".smartergpt/prompts/ overrides package prompts/", async () => {
     const repo = createTestRepo();
 
-    mkdirSync(join(repo, ".smartergpt.local", "prompts"), { recursive: true });
-    writeFileSync(join(repo, ".smartergpt.local", "prompts", "test.md"), "# Local Override");
+    mkdirSync(join(repo, ".smartergpt", "prompts"), { recursive: true });
+    writeFileSync(join(repo, ".smartergpt", "prompts", "test.md"), "# Workspace Override");
 
     mkdirSync(join(repo, "prompts"), { recursive: true });
-    writeFileSync(join(repo, "prompts", "test.md"), "# Package");
+    writeFileSync(join(repo, "prompts", "test.md"), "# Legacy");
 
     process.env.REPO_ROOT = repo;
     process.chdir(repo);
 
     const result = loadPrompt("test.md");
-    assert.strictEqual(result, "# Local Override");
+    assert.strictEqual(result, "# Workspace Override");
   });
 
   test("throws when prompt not found anywhere", async () => {
@@ -172,9 +172,9 @@ describe("Prompt Loader Precedence", () => {
       writeFileSync(join(customCanon, "prompts", "shared.md"), "# ENV");
       writeFileSync(join(customCanon, "prompts", "env-only.md"), "# ENV");
 
-      mkdirSync(join(repo, ".smartergpt.local", "prompts"), { recursive: true });
-      writeFileSync(join(repo, ".smartergpt.local", "prompts", "shared.md"), "# LOCAL");
-      writeFileSync(join(repo, ".smartergpt.local", "prompts", "local-only.md"), "# LOCAL");
+      mkdirSync(join(repo, ".smartergpt", "prompts"), { recursive: true });
+      writeFileSync(join(repo, ".smartergpt", "prompts", "shared.md"), "# WORKSPACE");
+      writeFileSync(join(repo, ".smartergpt", "prompts", "workspace-only.md"), "# WORKSPACE");
 
       process.env.LEX_PROMPTS_DIR = join(customCanon, "prompts");
       process.env.REPO_ROOT = repo;
@@ -185,7 +185,7 @@ describe("Prompt Loader Precedence", () => {
       // Deduplicated: should have unique prompts
       assert.ok(prompts.includes("shared.md"));
       assert.ok(prompts.includes("env-only.md"));
-      assert.ok(prompts.includes("local-only.md"));
+      assert.ok(prompts.includes("workspace-only.md"));
       // Package prompts come from real lex package
       assert.ok(prompts.includes("test.md")); // From real package
       assert.ok(prompts.includes("example.md")); // From real package
@@ -209,8 +209,8 @@ describe("Prompt Loader Precedence", () => {
       mkdirSync(join(customCanon, "prompts"), { recursive: true });
       writeFileSync(join(customCanon, "prompts", "env.md"), "# ENV");
 
-      mkdirSync(join(repo, ".smartergpt.local", "prompts"), { recursive: true });
-      writeFileSync(join(repo, ".smartergpt.local", "prompts", "local.md"), "# LOCAL");
+      mkdirSync(join(repo, ".smartergpt", "prompts"), { recursive: true });
+      writeFileSync(join(repo, ".smartergpt", "prompts", "workspace.md"), "# WORKSPACE");
 
       process.env.LEX_PROMPTS_DIR = join(customCanon, "prompts");
       process.env.REPO_ROOT = repo;
@@ -220,8 +220,8 @@ describe("Prompt Loader Precedence", () => {
       const envPath = getPromptPath("env.md");
       assert.ok(envPath?.includes(join(customCanon, "prompts", "env.md")));
 
-      const localPath = getPromptPath("local.md");
-      assert.ok(localPath?.includes(join(repo, ".smartergpt.local", "prompts", "local.md")));
+      const workspacePath = getPromptPath("workspace.md");
+      assert.ok(workspacePath?.includes(join(repo, ".smartergpt", "prompts", "workspace.md")));
 
       // Package path - should resolve to real package's test.md
       const packagePath = getPromptPath("test.md");
@@ -300,7 +300,7 @@ describe("Prompt Loader Edge Cases", () => {
     assert.strictEqual(result, "# Relative Canon");
   });
 
-  test("handles symlinks in .smartergpt.local/", async () => {
+  test("handles symlinks in .smartergpt/prompts/", async () => {
     const repo = createTestRepo();
     const targetDir = mkdtempSync(join(tmpdir(), "lex-symlink-target-"));
 
@@ -310,8 +310,8 @@ describe("Prompt Loader Edge Cases", () => {
       writeFileSync(join(targetDir, "prompts", "test.md"), "# Symlinked");
 
       // Create symlink
-      mkdirSync(join(repo, ".smartergpt.local"), { recursive: true });
-      symlinkSync(join(targetDir, "prompts"), join(repo, ".smartergpt.local", "prompts"));
+      mkdirSync(join(repo, ".smartergpt"), { recursive: true });
+      symlinkSync(join(targetDir, "prompts"), join(repo, ".smartergpt", "prompts"));
 
       process.env.REPO_ROOT = repo;
       process.chdir(repo);
@@ -323,13 +323,13 @@ describe("Prompt Loader Edge Cases", () => {
     }
   });
 
-  test("handles missing .smartergpt.local/ directory gracefully", async () => {
+  test("handles missing .lex/ directory gracefully", async () => {
     const repo = createTestRepo();
 
     process.env.REPO_ROOT = repo;
     process.chdir(repo);
 
-    // Should not throw, should fall back to package prompts
+    // Should not throw, should fall back to package canon/prompts
     const result = loadPrompt("test.md");
     assert.ok(result.includes("# Test Prompt")); // From real package
   });
@@ -337,11 +337,11 @@ describe("Prompt Loader Edge Cases", () => {
   test("handles large prompt files", async () => {
     const repo = createTestRepo();
 
-    mkdirSync(join(repo, ".smartergpt.local", "prompts"), { recursive: true });
+    mkdirSync(join(repo, ".smartergpt", "prompts"), { recursive: true });
 
-    // Create a large file (1MB) in local overlay
+    // Create a large file (1MB) in workspace prompts
     const largeContent = "# Large Prompt\n" + "x".repeat(1024 * 1024);
-    writeFileSync(join(repo, ".smartergpt.local", "prompts", "large.md"), largeContent);
+    writeFileSync(join(repo, ".smartergpt", "prompts", "large.md"), largeContent);
 
     process.env.REPO_ROOT = repo;
     process.chdir(repo);
@@ -354,10 +354,10 @@ describe("Prompt Loader Edge Cases", () => {
   test("handles concurrent loadPrompt() calls", async () => {
     const repo = createTestRepo();
 
-    mkdirSync(join(repo, ".smartergpt.local", "prompts"), { recursive: true });
-    writeFileSync(join(repo, ".smartergpt.local", "prompts", "concurrent1.md"), "# Concurrent 1");
-    writeFileSync(join(repo, ".smartergpt.local", "prompts", "concurrent2.md"), "# Concurrent 2");
-    writeFileSync(join(repo, ".smartergpt.local", "prompts", "concurrent3.md"), "# Concurrent 3");
+    mkdirSync(join(repo, ".smartergpt", "prompts"), { recursive: true });
+    writeFileSync(join(repo, ".smartergpt", "prompts", "concurrent1.md"), "# Concurrent 1");
+    writeFileSync(join(repo, ".smartergpt", "prompts", "concurrent2.md"), "# Concurrent 2");
+    writeFileSync(join(repo, ".smartergpt", "prompts", "concurrent3.md"), "# Concurrent 3");
 
     process.env.REPO_ROOT = repo;
     process.chdir(repo);
@@ -377,8 +377,8 @@ describe("Prompt Loader Edge Cases", () => {
   test("handles empty prompt file", async () => {
     const repo = createTestRepo();
 
-    mkdirSync(join(repo, ".smartergpt.local", "prompts"), { recursive: true });
-    writeFileSync(join(repo, ".smartergpt.local", "prompts", "empty.md"), "");
+    mkdirSync(join(repo, ".smartergpt", "prompts"), { recursive: true });
+    writeFileSync(join(repo, ".smartergpt", "prompts", "empty.md"), "");
 
     process.env.REPO_ROOT = repo;
     process.chdir(repo);
@@ -390,9 +390,9 @@ describe("Prompt Loader Edge Cases", () => {
   test("handles prompt file with special characters", async () => {
     const repo = createTestRepo();
 
-    mkdirSync(join(repo, ".smartergpt.local", "prompts"), { recursive: true });
+    mkdirSync(join(repo, ".smartergpt", "prompts"), { recursive: true });
     writeFileSync(
-      join(repo, ".smartergpt.local", "prompts", "special.md"),
+      join(repo, ".smartergpt", "prompts", "special.md"),
       "# Special: émojis 🚀, symbols €£¥, newlines\n\nand tabs\t\there"
     );
 
@@ -406,32 +406,32 @@ describe("Prompt Loader Edge Cases", () => {
 
   test("listPrompts() includes package prompts when no overrides exist", async () => {
     const repo = createTestRepo();
-    
+
     process.env.REPO_ROOT = repo;
     process.chdir(repo);
-    delete process.env.LEX_PROMPTS_DIR;  // Ensure no env override
+    delete process.env.LEX_PROMPTS_DIR; // Ensure no env override
 
     const prompts = listPrompts();
     assert.ok(Array.isArray(prompts));
     // Should include prompts from the real package
     assert.ok(prompts.length > 0);
-    assert.ok(prompts.includes("test.md"));  // From package
+    assert.ok(prompts.includes("test.md")); // From package
     assert.ok(prompts.includes("example.md")); // From package
   });
 
   test("listPrompts() filters out non-.md files", async () => {
     const repo = createTestRepo();
 
-    mkdirSync(join(repo, ".smartergpt.local", "prompts"), { recursive: true });
-    writeFileSync(join(repo, ".smartergpt.local", "prompts", "valid.md"), "# Valid");
-    writeFileSync(join(repo, ".smartergpt.local", "prompts", "invalid.txt"), "Not a markdown");
-    writeFileSync(join(repo, ".smartergpt.local", "prompts", "README"), "No extension");
+    mkdirSync(join(repo, ".smartergpt", "prompts"), { recursive: true });
+    writeFileSync(join(repo, ".smartergpt", "prompts", "valid.md"), "# Valid");
+    writeFileSync(join(repo, ".smartergpt", "prompts", "invalid.txt"), "Not a markdown");
+    writeFileSync(join(repo, ".smartergpt", "prompts", "README"), "No extension");
 
     process.env.REPO_ROOT = repo;
     process.chdir(repo);
 
     const prompts = listPrompts();
-    // Should include valid.md from local and test.md/example.md from package
+    // Should include valid.md from workspace and test.md/example.md from package
     assert.ok(prompts.includes("valid.md"));
     assert.ok(!prompts.includes("invalid.txt"));
     assert.ok(!prompts.includes("README"));
@@ -451,7 +451,7 @@ describe("Prompt Loader Edge Cases", () => {
 
       // Should fall back to package prompts
       const result = loadPrompt("test.md");
-      assert.ok(result.includes("# Test Prompt"));  // From real package
+      assert.ok(result.includes("# Test Prompt")); // From real package
     } finally {
       rmSync(customCanon, { recursive: true, force: true });
     }

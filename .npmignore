@@ -1,5 +1,10 @@
-# Source directories (tracked, but not published)
+# Source directories
+# Note: canon/prompts, canon/schemas, canon/rules ARE published (see package.json "files")
+# canon/ is listed here to exclude other canon/ subdirectories (like canon/README.md)
 canon/
+!canon/prompts/
+!canon/schemas/
+!canon/rules/
 .smartergpt/
 
 # Test files
@@ -54,6 +59,6 @@ servers.json
 lint-baseline.json
 .changeset/
 
-# Generated directories ARE published (explicitly included in package.json "files")
-# prompts/
-# schemas/
+# Generated directories
+# schemas/ and rules/ ARE published (copied from canon/ during build)
+# prompts/ is NOT published (user workspace, initialized via 'lex init')
