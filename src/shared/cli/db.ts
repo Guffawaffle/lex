@@ -4,12 +4,17 @@
  * Commands:
  * - lex db vacuum: Optimize database
  * - lex db backup [--rotate N]: Create timestamped backup with rotation
+ * - lex db encrypt: Encrypt existing database with SQLCipher
  */
 
 import { getDb, getDefaultDbPath } from "../../memory/store/index.js";
 import { backupDatabase, vacuumDatabase, getBackupRetention } from "../../memory/store/backup.js";
+import { createDatabase, deriveEncryptionKey } from "../../memory/store/db.js";
 import * as output from "./output.js";
 import { getNDJSONLogger } from "../logger/index.js";
+import Database from "better-sqlite3-multiple-ciphers";
+import { existsSync, copyFileSync, unlinkSync } from "fs";
+import { createHash } from "crypto";
 
 const logger = getNDJSONLogger("cli/db");
 
@@ -19,6 +24,14 @@ export interface DbVacuumOptions {
 
 export interface DbBackupOptions {
   rotate?: number;
+  json?: boolean;
+}
+
+export interface DbEncryptOptions {
+  input?: string;
+  output?: string;
+  passphrase?: string;
+  verify?: boolean;
   json?: boolean;
 }
 
@@ -140,4 +153,193 @@ export async function dbBackup(options: DbBackupOptions = {}): Promise<void> {
     }
     process.exit(1);
   }
+}
+
+/**
+ * Encrypt an existing database with SQLCipher
+ * 
+ * Migrates an unencrypted database to an encrypted one, with data integrity verification.
+ */
+export async function dbEncrypt(options: DbEncryptOptions = {}): Promise<void> {
+  const startTime = Date.now();
+  
+  try {
+    // Determine input and output paths
+    const inputPath = options.input || getDefaultDbPath();
+    const outputPath = options.output || inputPath.replace(/\.db$/, "-encrypted.db");
+    
+    // Get passphrase from options or environment
+    const passphrase = options.passphrase || process.env.LEX_DB_KEY;
+    if (!passphrase) {
+      throw new Error(
+        "Encryption passphrase is required. Provide --passphrase or set LEX_DB_KEY environment variable."
+      );
+    }
+    
+    // Verify input database exists
+    if (!existsSync(inputPath)) {
+      throw new Error(`Input database not found: ${inputPath}`);
+    }
+    
+    // Warn if output exists
+    if (existsSync(outputPath)) {
+      throw new Error(
+        `Output database already exists: ${outputPath}. ` +
+        `Please remove it first or choose a different output path.`
+      );
+    }
+    
+    logger.info("Starting database encryption", {
+      operation: "dbEncrypt",
+      metadata: { inputPath, outputPath, verify: options.verify }
+    });
+    
+    if (!options.json) {
+      output.info(`Encrypting database...`);
+      output.info(`Input:  ${inputPath}`);
+      output.info(`Output: ${outputPath}`);
+    }
+    
+    // Calculate checksum of source database if verification requested
+    let sourceChecksum: string | undefined;
+    if (options.verify) {
+      sourceChecksum = calculateDatabaseChecksum(inputPath);
+      if (!options.json) {
+        output.info(`Source checksum: ${sourceChecksum}`);
+      }
+    }
+    
+    // Open source database (unencrypted)
+    const sourceDb = new Database(inputPath, { readonly: true });
+    
+    // Get row count for progress reporting
+    const rowCountResult = sourceDb.prepare("SELECT COUNT(*) as count FROM frames").get() as { count: number };
+    const totalRows = rowCountResult.count;
+    
+    if (!options.json) {
+      output.info(`Found ${totalRows} frames to migrate`);
+    }
+    
+    // Derive encryption key
+    const encryptionKey = deriveEncryptionKey(passphrase);
+    
+    // Create encrypted output database using createDatabase to get proper schema
+    const tempEnvKey = process.env.LEX_DB_KEY;
+    process.env.LEX_DB_KEY = passphrase;
+    const destDb = createDatabase(outputPath);
+    if (tempEnvKey !== undefined) {
+      process.env.LEX_DB_KEY = tempEnvKey;
+    } else {
+      delete process.env.LEX_DB_KEY;
+    }
+    
+    // Copy data from all regular tables (exclude FTS virtual tables)
+    const tableNames = sourceDb.prepare(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '%_fts%'"
+    ).all() as Array<{ name: string }>;
+    
+    for (const { name } of tableNames) {
+      const rows = sourceDb.prepare(`SELECT * FROM ${name}`).all();
+      if (rows.length > 0) {
+        const columns = Object.keys(rows[0] as Record<string, unknown>);
+        const placeholders = columns.map(() => "?").join(", ");
+        const stmt = destDb.prepare(
+          `INSERT OR REPLACE INTO ${name} (${columns.join(", ")}) VALUES (${placeholders})`
+        );
+        
+        for (const row of rows) {
+          const values = columns.map((col) => (row as Record<string, unknown>)[col]);
+          stmt.run(...values);
+        }
+      }
+    }
+    
+    sourceDb.close();
+    destDb.close();
+    
+    // Verify encrypted database if requested
+    if (options.verify) {
+      if (!options.json) {
+        output.info("Verifying encrypted database...");
+      }
+      
+      // Open encrypted database and verify data
+      const verifyDb = new Database(outputPath);
+      verifyDb.pragma(`cipher='sqlcipher'`);
+      verifyDb.pragma(`key="x'${encryptionKey}'"`);
+      
+      const verifyCountResult = verifyDb.prepare("SELECT COUNT(*) as count FROM frames").get() as { count: number };
+      const verifiedRows = verifyCountResult.count;
+      
+      verifyDb.close();
+      
+      if (verifiedRows !== totalRows) {
+        throw new Error(
+          `Data verification failed: source has ${totalRows} rows, ` +
+          `encrypted database has ${verifiedRows} rows`
+        );
+      }
+      
+      if (!options.json) {
+        output.success(`✓ Verified: ${verifiedRows} frames migrated successfully`);
+      }
+    }
+    
+    const duration = Date.now() - startTime;
+    
+    logger.info("Database encryption completed", {
+      operation: "dbEncrypt",
+      duration_ms: duration,
+      metadata: { inputPath, outputPath, rowCount: totalRows }
+    });
+    
+    if (options.json) {
+      output.json({
+        success: true,
+        operation: "encrypt",
+        input: inputPath,
+        output: outputPath,
+        rows_migrated: totalRows,
+        source_checksum: sourceChecksum,
+        duration_ms: duration
+      });
+    } else {
+      output.success(`Database encrypted successfully in ${duration}ms`);
+      output.info(`Encrypted database: ${outputPath}`);
+      output.info(`Rows migrated: ${totalRows}`);
+      output.warn(`\nIMPORTANT: Set LEX_DB_KEY="${passphrase}" to use the encrypted database`);
+      output.warn(`Keep your passphrase secure - there is no way to recover it if lost!`);
+    }
+  } catch (error) {
+    logger.error("Database encryption failed", {
+      operation: "dbEncrypt",
+      error: error instanceof Error ? error : new Error(String(error))
+    });
+    
+    if (options.json) {
+      output.json({
+        success: false,
+        operation: "encrypt",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    } else {
+      output.error(`Failed to encrypt database: ${error instanceof Error ? error.message : String(error)}`);
+    }
+    process.exit(1);
+  }
+}
+
+/**
+ * Calculate SHA-256 checksum of database data (for verification)
+ */
+function calculateDatabaseChecksum(dbPath: string): string {
+  const db = new Database(dbPath, { readonly: true });
+  
+  // Get all frame data ordered by ID for consistent checksum
+  const frames = db.prepare("SELECT * FROM frames ORDER BY id").all();
+  const dataString = JSON.stringify(frames);
+  
+  db.close();
+  
+  return createHash("sha256").update(dataString).digest("hex");
 }
