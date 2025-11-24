@@ -44,7 +44,7 @@ lex remember --modules "api/user-access"
 
 #### Option 2: Add Explicit Alias (Permanent Fix)
 
-Edit `.smartergpt.local/lex/aliases.json`:
+Edit `.smartergpt/lex/aliases.json`:
 
 ```json
 {
@@ -124,7 +124,7 @@ Check your policy file:
 
 ```bash
 # List all modules in policy
-cat .smartergpt.local/lex/lexmap.policy.json | jq '.modules | keys'
+cat .smartergpt/lex/lexmap.policy.json | jq '.modules | keys'
 ```
 
 Possibilities:
@@ -207,7 +207,7 @@ Module 'services/auth-core' not found in policy.
 
 1. Check if the module exists:
    ```bash
-   cat .smartergpt.local/lex/lexmap.policy.json | jq '.modules["services/auth-core"]'
+   cat .smartergpt/lex/lexmap.policy.json | jq '.modules["services/auth-core"]'
    ```
 
 2. If it doesn't exist, either:
@@ -256,7 +256,7 @@ Error: Failed to parse alias table: Unexpected token } in JSON
 
 1. Validate JSON:
    ```bash
-   cat .smartergpt.local/lex/aliases.json | jq .
+   cat .smartergpt/lex/aliases.json | jq .
    ```
 
 2. Fix syntax errors (trailing commas, missing quotes, etc.)

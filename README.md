@@ -128,7 +128,9 @@ Note: this repository's published release is version `0.4.5-alpha` and is publis
 
 ```bash
 lex init
-# Creates .smartergpt.local/ with policy files and memory database
+# Creates .smartergpt/ workspace with:
+#   .smartergpt/prompts/ - Shared prompts (organization-level)
+#   .smartergpt/lex/ - Lex-specific files (policy, memory.db, logs, backups)
 ```
 
 ### Capture Your First Frame
