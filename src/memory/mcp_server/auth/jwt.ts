@@ -5,7 +5,7 @@
  */
 
 import jwt from "jsonwebtoken";
-import { randomBytes } from "crypto";
+import { randomBytes, createHash } from "crypto";
 
 export interface JwtPayload {
   sub: string; // user_id
@@ -138,6 +138,5 @@ export function generateCodeVerifier(): string {
  * Generate PKCE code challenge from verifier
  */
 export function generateCodeChallenge(verifier: string): string {
-  const crypto = require("crypto");
-  return crypto.createHash("sha256").update(verifier).digest("base64url");
+  return createHash("sha256").update(verifier).digest("base64url");
 }
