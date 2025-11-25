@@ -196,8 +196,8 @@ echo 'export LEX_DB_KEY="new-passphrase"' >> ~/.bashrc
 - ❌ Files in `.smartergpt/` (git-ignored, but not encrypted)
 
 **Performance Impact:**
-- ~5-10% overhead for read operations
-- ~10-15% overhead for write operations
+- ~10-17% overhead for read operations
+- ~20% overhead for write operations
 - Negligible impact for typical workloads (<10K frames)
 - See `docs/PERFORMANCE.md` for detailed benchmarks
 

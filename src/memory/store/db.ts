@@ -3,7 +3,7 @@
  *
  * Creates SQLite database with FTS5 virtual table for full-text search
  * on reference_point, keywords, and summary_caption.
- * 
+ *
  * Supports encryption via SQLCipher when LEX_DB_KEY environment variable is set.
  */
 
@@ -11,7 +11,7 @@ import Database from "better-sqlite3-multiple-ciphers";
 import { homedir } from "os";
 import { join, dirname } from "path";
 import { mkdirSync, existsSync, readFileSync } from "fs";
-import { pbkdf2Sync, randomBytes } from "crypto";
+import { pbkdf2Sync } from "crypto";
 
 export interface FrameRow {
   id: string;
@@ -94,32 +94,43 @@ function findRepoRoot(startPath: string): string {
 /**
  * Derive encryption key from passphrase using PBKDF2
  * Uses 64K iterations as recommended by SQLCipher for security
- * 
+ *
  * NOTE: This implementation uses a fixed application salt to ensure deterministic
  * key derivation. This is necessary because:
  * 1. SQLCipher doesn't support storing salt metadata separately
  * 2. Users must derive the same key from their passphrase each session
  * 3. The passphrase itself must be high-entropy to compensate
- * 
+ *
  * Security considerations:
  * - Users MUST use strong, unique passphrases (32+ characters recommended)
  * - The fixed salt prevents per-database key uniqueness
  * - This is acceptable for single-user/small-team use cases
  * - Enterprise deployments should consider HSM integration (future work)
- * 
+ *
  * @param passphrase - User-provided passphrase from LEX_DB_KEY
  * @param salt - Optional salt (defaults to application-wide constant)
  * @returns Hex-encoded key suitable for SQLCipher
  */
 export function deriveEncryptionKey(passphrase: string, salt?: Buffer): string {
+  // Validate passphrase strength
+  if (!passphrase || passphrase.trim().length === 0) {
+    throw new Error("Passphrase cannot be empty or whitespace-only");
+  }
+  if (passphrase.length < 12) {
+    throw new Error(
+      "Passphrase is too weak. Use at least 12 characters (32+ recommended for production). " +
+        "Consider using a password manager to generate and store a strong passphrase."
+    );
+  }
+
   // Use application-wide constant salt for deterministic key derivation
   // This is necessary for password-based encryption without external metadata storage
   const APPLICATION_SALT = Buffer.from("lex-sqlcipher-v1-2025", "utf-8");
   const keySalt = salt || APPLICATION_SALT;
-  
+
   // Derive 256-bit key with 64K iterations (SQLCipher recommendation)
   const key = pbkdf2Sync(passphrase, keySalt, 64000, 32, "sha256");
-  
+
   return key.toString("hex");
 }
 
@@ -127,23 +138,23 @@ export function deriveEncryptionKey(passphrase: string, salt?: Buffer): string {
  * Get encryption key from environment variable
  * Required in production (NODE_ENV=production)
  * Optional in development/test environments
- * 
+ *
  * @returns Derived encryption key or undefined if not set
  * @throws Error if NODE_ENV=production and LEX_DB_KEY is not set
  */
 export function getEncryptionKey(): string | undefined {
   const passphrase = process.env.LEX_DB_KEY;
-  
-  // In production, encryption key is mandatory
-  if (process.env.NODE_ENV === "production" && !passphrase) {
+
+  // In production, encryption key is mandatory and must not be empty or whitespace-only
+  if (process.env.NODE_ENV === "production" && (!passphrase || !passphrase.trim())) {
     throw new Error(
-      "LEX_DB_KEY environment variable is required in production mode. " +
-      "Set LEX_DB_KEY to a strong passphrase (32+ characters) to enable database encryption."
+      "LEX_DB_KEY environment variable is required in production mode and must not be empty or whitespace-only. " +
+        "Set LEX_DB_KEY to a strong passphrase (32+ characters) to enable database encryption."
     );
   }
-  
-  // Return derived key if passphrase is provided
-  return passphrase ? deriveEncryptionKey(passphrase) : undefined;
+
+  // Return derived key if passphrase is provided and not empty/whitespace-only
+  return passphrase && passphrase.trim() ? deriveEncryptionKey(passphrase) : undefined;
 }
 
 /**
@@ -304,17 +315,17 @@ function applyMigrationV3(db: Database.Database): void {
 
 /**
  * Create and initialize a database connection
- * 
+ *
  * Automatically applies encryption if LEX_DB_KEY is set.
  * In production mode (NODE_ENV=production), encryption is mandatory.
- * 
+ *
  * @param dbPath - Optional database file path (defaults to getDefaultDbPath())
  * @returns Initialized database connection
  */
 export function createDatabase(dbPath?: string): Database.Database {
   const path = dbPath || getDefaultDbPath();
   const db = new Database(path);
-  
+
   // Apply encryption if key is available
   const encryptionKey = getEncryptionKey();
   if (encryptionKey) {
@@ -322,18 +333,18 @@ export function createDatabase(dbPath?: string): Database.Database {
     // Using sqlcipher defaults (PRAGMA cipher_page_size = 4096, etc.)
     db.pragma(`cipher='sqlcipher'`);
     db.pragma(`key="x'${encryptionKey}'"`);
-    
+
     // Verify encryption is working by testing database access
     try {
       db.prepare("SELECT 1").get();
     } catch (error) {
       throw new Error(
         `Failed to open encrypted database. The encryption key may be incorrect. ` +
-        `Error: ${error instanceof Error ? error.message : String(error)}`
+          `Error: ${error instanceof Error ? error.message : String(error)}`
       );
     }
   }
-  
+
   initializeDatabase(db);
   return db;
 }
