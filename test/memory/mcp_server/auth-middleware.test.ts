@@ -8,7 +8,7 @@ import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import request from "supertest";
 import { Express } from "express";
-import Database from "better-sqlite3";
+import Database from "better-sqlite3-multiple-ciphers";
 import { createHttpServer } from "../../../src/memory/mcp_server/http-server.js";
 import { initializeDatabase } from "../../../src/memory/store/db.js";
 import { generateKeyPair } from "../../../src/memory/mcp_server/auth/keys.js";
@@ -46,10 +46,12 @@ describe("JWT Authentication Middleware", () => {
     it("should accept valid JWT token", async () => {
       // Create a test user
       const userId = "github-123";
-      db.prepare(`
+      db.prepare(
+        `
         INSERT INTO users (user_id, email, name, provider, provider_user_id)
         VALUES (?, ?, ?, ?, ?)
-      `).run(userId, "test@example.com", "Test User", "github", "123");
+      `
+      ).run(userId, "test@example.com", "Test User", "github", "123");
 
       // Create JWT token
       const tokenPair = createTokenPair(
@@ -149,15 +151,19 @@ describe("JWT Authentication Middleware", () => {
       const userId1 = "github-123";
       const userId2 = "github-456";
 
-      db.prepare(`
+      db.prepare(
+        `
         INSERT INTO users (user_id, email, name, provider, provider_user_id)
         VALUES (?, ?, ?, ?, ?)
-      `).run(userId1, "user1@example.com", "User 1", "github", "123");
+      `
+      ).run(userId1, "user1@example.com", "User 1", "github", "123");
 
-      db.prepare(`
+      db.prepare(
+        `
         INSERT INTO users (user_id, email, name, provider, provider_user_id)
         VALUES (?, ?, ?, ?, ?)
-      `).run(userId2, "user2@example.com", "User 2", "github", "456");
+      `
+      ).run(userId2, "user2@example.com", "User 2", "github", "456");
 
       // Create tokens for both users
       const token1 = createTokenPair(
@@ -237,7 +243,9 @@ describe("JWT Authentication Middleware", () => {
   describe("Database Migration", () => {
     it("should have created default system user", () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const defaultUser = db.prepare("SELECT * FROM users WHERE user_id = ?").get("system-default") as any;
+      const defaultUser = db
+        .prepare("SELECT * FROM users WHERE user_id = ?")
+        .get("system-default") as any;
 
       assert.ok(defaultUser);
       assert.equal(defaultUser.user_id, "system-default");
@@ -253,17 +261,25 @@ describe("JWT Authentication Middleware", () => {
     });
 
     it("should have created users table", () => {
-      const tableExists = db.prepare(`
+      const tableExists = db
+        .prepare(
+          `
         SELECT name FROM sqlite_master WHERE type='table' AND name='users'
-      `).get();
+      `
+        )
+        .get();
 
       assert.ok(tableExists);
     });
 
     it("should have created refresh_tokens table", () => {
-      const tableExists = db.prepare(`
+      const tableExists = db
+        .prepare(
+          `
         SELECT name FROM sqlite_master WHERE type='table' AND name='refresh_tokens'
-      `).get();
+      `
+        )
+        .get();
 
       assert.ok(tableExists);
     });

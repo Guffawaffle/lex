@@ -121,9 +121,31 @@ npm run type-check
 
 ### Testing
 
+> ⚠️ **CRITICAL: NO GIT COMMANDS IN TESTS** ⚠️
+>
+> **Tests MUST NOT execute git commands or any command chain that might invoke git commit.**
+>
+> This environment uses **mandatory interactive GPG signing** for all commits.
+> Any test that spawns `git commit` will hang indefinitely waiting for GPG input,
+> crashing the test runner and potentially the entire WSL2 environment.
+>
+> **Forbidden in test code:**
+> - `execSync("git commit ...")`
+> - `execSync("git init ...")` followed by commits
+> - Any shell command that might trigger a commit hook
+> - Spawning processes that interact with git commit signing
+>
+> **Tests that require git operations are quarantined:**
+> - Located in `test/shared/git/` directory
+> - Run separately via `npm run test:git` (NOT part of `npm test`)
+> - Must include warning comment at top of file
+
 ```bash
-# Run unit tests
+# Run unit tests (excludes git-related tests)
 npm test
+
+# Run git-related tests ONLY (requires non-interactive git signing)
+npm run test:git
 
 # Run integration tests
 npm run test:integration

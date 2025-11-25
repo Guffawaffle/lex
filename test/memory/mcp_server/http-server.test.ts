@@ -8,7 +8,7 @@ import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import request from "supertest";
 import { Express } from "express";
-import Database from "better-sqlite3";
+import Database from "better-sqlite3-multiple-ciphers";
 import { createHttpServer } from "../../../src/memory/mcp_server/http-server.js";
 import { initializeDatabase } from "../../../src/memory/store/db.js";
 
@@ -48,7 +48,7 @@ describe("HTTP Server Security", () => {
 
       assert.equal(response.status, 401);
       assert.equal(response.body.error, "UNAUTHORIZED");
-      assert.equal(response.body.message, "Invalid or missing API key");
+      assert.equal(response.body.message, "Missing Authorization header");
       assert.equal(response.body.code, 401);
     });
 

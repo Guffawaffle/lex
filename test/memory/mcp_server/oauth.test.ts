@@ -8,7 +8,7 @@ import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import request from "supertest";
 import { Express } from "express";
-import Database from "better-sqlite3";
+import Database from "better-sqlite3-multiple-ciphers";
 import { createHttpServer } from "../../../src/memory/mcp_server/http-server.js";
 import { initializeDatabase } from "../../../src/memory/store/db.js";
 import { generateKeyPair } from "../../../src/memory/mcp_server/auth/keys.js";
@@ -49,9 +49,7 @@ describe("OAuth2 Routes", () => {
 
   describe("GET /auth/github", () => {
     it("should redirect to GitHub authorization URL", async () => {
-      const response = await request(app)
-        .get("/auth/github")
-        .expect(302);
+      const response = await request(app).get("/auth/github").expect(302);
 
       assert.ok(response.headers.location);
       assert.ok(response.headers.location.includes("github.com/login/oauth/authorize"));
@@ -60,9 +58,7 @@ describe("OAuth2 Routes", () => {
     });
 
     it("should include redirect parameter in state", async () => {
-      const response = await request(app)
-        .get("/auth/github?redirect=/dashboard")
-        .expect(302);
+      const response = await request(app).get("/auth/github?redirect=/dashboard").expect(302);
 
       assert.ok(response.headers.location);
       assert.ok(response.headers.location.includes("state="));
@@ -71,9 +67,7 @@ describe("OAuth2 Routes", () => {
 
   describe("GET /auth/callback", () => {
     it("should reject callback without state parameter", async () => {
-      const response = await request(app)
-        .get("/auth/callback?code=test-code")
-        .expect(400);
+      const response = await request(app).get("/auth/callback?code=test-code").expect(400);
 
       assert.equal(response.body.error, "INVALID_STATE");
     });
@@ -82,9 +76,7 @@ describe("OAuth2 Routes", () => {
       // Note: State is validated first for CSRF protection
       // So this test will fail on state validation, not code validation
       // This is intentional security behavior
-      const response = await request(app)
-        .get("/auth/callback?state=test-state")
-        .expect(400);
+      const response = await request(app).get("/auth/callback?state=test-state").expect(400);
 
       assert.equal(response.body.error, "INVALID_STATE");
     });
@@ -103,10 +95,7 @@ describe("OAuth2 Routes", () => {
 
   describe("POST /auth/refresh", () => {
     it("should reject refresh without token", async () => {
-      const response = await request(app)
-        .post("/auth/refresh")
-        .send({})
-        .expect(400);
+      const response = await request(app).post("/auth/refresh").send({}).expect(400);
 
       assert.equal(response.body.error, "MISSING_TOKEN");
     });
@@ -114,10 +103,12 @@ describe("OAuth2 Routes", () => {
     it("should refresh a valid token", async () => {
       // Create a test user
       const userId = "github-123";
-      db.prepare(`
+      db.prepare(
+        `
         INSERT INTO users (user_id, email, name, provider, provider_user_id)
         VALUES (?, ?, ?, ?, ?)
-      `).run(userId, "test@example.com", "Test User", "github", "123");
+      `
+      ).run(userId, "test@example.com", "Test User", "github", "123");
 
       // Create a token pair
       const tokenPair = createTokenPair(
@@ -134,10 +125,12 @@ describe("OAuth2 Routes", () => {
       const tokenHash = createHash("sha256").update(tokenPair.refreshToken).digest("hex");
       const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
 
-      db.prepare(`
+      db.prepare(
+        `
         INSERT INTO refresh_tokens (token_id, user_id, token_hash, expires_at)
         VALUES (?, ?, ?, ?)
-      `).run("test-token-id", userId, tokenHash, expiresAt);
+      `
+      ).run("test-token-id", userId, tokenHash, expiresAt);
 
       // Refresh the token
       const response = await request(app)
@@ -152,10 +145,12 @@ describe("OAuth2 Routes", () => {
 
     it("should reject revoked refresh token", async () => {
       const userId = "github-123";
-      db.prepare(`
+      db.prepare(
+        `
         INSERT INTO users (user_id, email, name, provider, provider_user_id)
         VALUES (?, ?, ?, ?, ?)
-      `).run(userId, "test@example.com", "Test User", "github", "123");
+      `
+      ).run(userId, "test@example.com", "Test User", "github", "123");
 
       const tokenPair = createTokenPair(
         {
@@ -170,10 +165,12 @@ describe("OAuth2 Routes", () => {
       const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
 
       // Insert and immediately revoke the token
-      db.prepare(`
+      db.prepare(
+        `
         INSERT INTO refresh_tokens (token_id, user_id, token_hash, expires_at, revoked_at)
         VALUES (?, ?, ?, ?, datetime('now'))
-      `).run("test-token-id", userId, tokenHash, expiresAt);
+      `
+      ).run("test-token-id", userId, tokenHash, expiresAt);
 
       const response = await request(app)
         .post("/auth/refresh")
@@ -186,20 +183,19 @@ describe("OAuth2 Routes", () => {
 
   describe("POST /auth/revoke", () => {
     it("should reject revocation without token", async () => {
-      const response = await request(app)
-        .post("/auth/revoke")
-        .send({})
-        .expect(400);
+      const response = await request(app).post("/auth/revoke").send({}).expect(400);
 
       assert.equal(response.body.error, "MISSING_TOKEN");
     });
 
     it("should revoke a valid refresh token", async () => {
       const userId = "github-123";
-      db.prepare(`
+      db.prepare(
+        `
         INSERT INTO users (user_id, email, name, provider, provider_user_id)
         VALUES (?, ?, ?, ?, ?)
-      `).run(userId, "test@example.com", "Test User", "github", "123");
+      `
+      ).run(userId, "test@example.com", "Test User", "github", "123");
 
       const tokenPair = createTokenPair(
         {
@@ -213,10 +209,12 @@ describe("OAuth2 Routes", () => {
       const tokenHash = createHash("sha256").update(tokenPair.refreshToken).digest("hex");
       const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
 
-      db.prepare(`
+      db.prepare(
+        `
         INSERT INTO refresh_tokens (token_id, user_id, token_hash, expires_at)
         VALUES (?, ?, ?, ?)
-      `).run("test-token-id", userId, tokenHash, expiresAt);
+      `
+      ).run("test-token-id", userId, tokenHash, expiresAt);
 
       const response = await request(app)
         .post("/auth/revoke")
@@ -227,7 +225,9 @@ describe("OAuth2 Routes", () => {
 
       // Verify token is revoked in database
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const revokedToken = db.prepare("SELECT * FROM refresh_tokens WHERE token_hash = ?").get(tokenHash) as any;
+      const revokedToken = db
+        .prepare("SELECT * FROM refresh_tokens WHERE token_hash = ?")
+        .get(tokenHash) as any;
       assert.ok(revokedToken.revoked_at);
     });
 

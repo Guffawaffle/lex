@@ -11,7 +11,7 @@
  */
 
 import { Router, Request, Response, RequestHandler } from "express";
-import type Database from "better-sqlite3";
+import type Database from "better-sqlite3-multiple-ciphers";
 import { createHash, randomUUID } from "crypto";
 import rateLimit from "express-rate-limit";
 import {

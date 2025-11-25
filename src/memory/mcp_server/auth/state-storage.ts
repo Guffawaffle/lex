@@ -5,7 +5,7 @@
  * Provides persistent, shared state storage across server instances.
  */
 
-import type Database from "better-sqlite3";
+import type Database from "better-sqlite3-multiple-ciphers";
 
 /**
  * Initialize OAuth state storage table
@@ -39,10 +39,12 @@ export function saveOAuthState(
   const now = Date.now();
   const expiresAt = now + expirationMs;
 
-  db.prepare(`
+  db.prepare(
+    `
     INSERT INTO oauth_states (state, created_at, redirect_url, expires_at)
     VALUES (?, ?, ?, ?)
-  `).run(state, now, redirectUrl || null, expiresAt);
+  `
+  ).run(state, now, redirectUrl || null, expiresAt);
 }
 
 /**
@@ -57,10 +59,14 @@ export function validateOAuthState(
   // Find and delete state in a transaction
   const result = db.transaction(() => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const row = db.prepare(`
+    const row = db
+      .prepare(
+        `
       SELECT redirect_url FROM oauth_states
       WHERE state = ? AND expires_at > ?
-    `).get(state, now) as any;
+    `
+      )
+      .get(state, now) as any;
 
     if (!row) {
       return { valid: false };
@@ -84,9 +90,13 @@ export function validateOAuthState(
  */
 export function cleanupExpiredOAuthStates(db: Database.Database): number {
   const now = Date.now();
-  const result = db.prepare(`
+  const result = db
+    .prepare(
+      `
     DELETE FROM oauth_states WHERE expires_at <= ?
-  `).run(now);
+  `
+    )
+    .run(now);
 
   return result.changes;
 }
