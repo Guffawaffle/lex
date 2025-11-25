@@ -376,6 +376,16 @@ export function createOAuthRouter(db: Database.Database, config: OAuthConfig): R
         });
       }
 
+      // Extract user_id from token for audit logging (before revocation)
+      let userId: string | undefined;
+      try {
+        const decoded = verifyToken(refresh_token, config.jwtPublicKey);
+        userId = decoded.sub;
+      } catch {
+        // Token may be invalid/expired, but we still want to revoke it from DB
+        // userId will remain undefined in audit log
+      }
+
       // Revoke token in database
       const tokenHash = createHash("sha256").update(refresh_token).digest("hex");
       const stmt = db.prepare(`
@@ -396,6 +406,7 @@ export function createOAuthRouter(db: Database.Database, config: OAuthConfig): R
 
       auditLogger.info({
         event: "token_revoked",
+        user_id: userId,
         token_hash: tokenHash.slice(0, 8),
       });
 
