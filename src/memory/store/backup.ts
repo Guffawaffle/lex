@@ -6,7 +6,7 @@
 
 import { copyFileSync, mkdirSync, existsSync, readdirSync, statSync, unlinkSync } from "fs";
 import { join } from "path";
-import type Database from "better-sqlite3";
+import type Database from "better-sqlite3-multiple-ciphers";
 
 /**
  * Get the backup directory path

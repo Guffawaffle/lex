@@ -3,7 +3,7 @@
  *
  * CRUD operations and search functions for Frames.
  */
-import Database from "better-sqlite3";
+import Database from "better-sqlite3-multiple-ciphers";
 import type { Frame } from "../frames/types.js";
 /**
  * Save a Frame to the database (insert or update)

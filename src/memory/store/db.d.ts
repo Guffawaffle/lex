@@ -4,7 +4,7 @@
  * Creates SQLite database with FTS5 virtual table for full-text search
  * on reference_point, keywords, and summary_caption.
  */
-import Database from "better-sqlite3";
+import Database from "better-sqlite3-multiple-ciphers";
 export interface FrameRow {
   id: string;
   timestamp: string;

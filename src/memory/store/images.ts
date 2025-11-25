@@ -5,7 +5,7 @@
  * Supports multiple image formats with validation and efficient retrieval.
  */
 
-import Database from "better-sqlite3";
+import Database from "better-sqlite3-multiple-ciphers";
 import { randomUUID } from "crypto";
 
 /**

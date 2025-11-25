@@ -12,7 +12,7 @@
  *   const results = await searchFrames(db, 'auth deadlock');
  */
 
-import Database from "better-sqlite3";
+import Database from "better-sqlite3-multiple-ciphers";
 import { createDatabase, getDefaultDbPath } from "./db.js";
 
 export type { FrameRow } from "./db.js";

@@ -494,10 +494,36 @@ LEX_CANON_DIR=/my/custom/canon lex remember ...
 | `LEX_LOG_PRETTY` | Pretty-print logs (`1` = enabled) | Auto-detect TTY |
 | `LEX_POLICY_PATH` | Custom policy file location | `.smartergpt.local/lex/lexmap.policy.json` |
 | `LEX_DB_PATH` | Database location | `.smartergpt.local/lex/memory.db` |
+| `LEX_DB_KEY` | **NEW:** Database encryption passphrase (required in production) | None (unencrypted) |
 | `LEX_DEFAULT_BRANCH` | Override default branch detection | Auto-detect from git |
 | `LEX_CANON_DIR` | Override canonical resources root | Package defaults |
 | `SMARTERGPT_PROFILE` | Profile configuration path | `.smartergpt.local/profile.yml` |
 | `LEX_CLI_OUTPUT_MODE` | CLI output format (`plain` or `jsonl`) | `plain` |
+
+### 🔐 Database Encryption (New in 0.5.0-alpha)
+
+Protect your Frame data with SQLCipher encryption:
+
+```bash
+# Enable encryption for new databases
+export LEX_DB_KEY="your-strong-passphrase-here"
+lex remember --reference-point "work" --summary "Encrypted!"
+
+# Migrate existing database
+lex db encrypt --verify
+
+# Production mode requires encryption
+export NODE_ENV="production"
+export LEX_DB_KEY="production-passphrase"
+```
+
+**Key Features:**
+- ✅ AES-256 encryption at rest
+- ✅ PBKDF2 key derivation (64K iterations)
+- ✅ Mandatory in production (`NODE_ENV=production`)
+- ✅ Migration tool with integrity verification
+
+[Security Guide →](./SECURITY.md#database-encryption-new-in-050-alpha)
 
 [Environment Configuration →](./docs/ADOPTION_GUIDE.md)
 
