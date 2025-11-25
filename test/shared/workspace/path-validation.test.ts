@@ -67,8 +67,9 @@ describe("Workspace Path Validation", () => {
   });
 
   test("no hardcoded .smartergpt.local paths in test files", () => {
-    const testFiles = findSourceFiles(join(process.cwd(), "test"))
-      .filter((f) => !f.includes("path-validation.test.ts")); // Skip this validation test itself
+    const testFiles = findSourceFiles(join(process.cwd(), "test")).filter(
+      (f) => !f.includes("path-validation.test.ts")
+    ); // Skip this validation test itself
     const violations: Array<{ file: string; line: number; content: string }> = [];
 
     for (const file of testFiles) {

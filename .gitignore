@@ -19,6 +19,7 @@ rules/
 # .smartergpt/ is the organization workspace root
 # prompts/ is legacy location
 .smartergpt/
+.smartergpt-local/
 prompts/
 
 # Internal Project folder
@@ -75,7 +76,8 @@ yarn-debug.log*
 yarn-error.log*
 
 .smartergpt/**
-.smartergpt.local/**  # Legacy - remove after v0.5.0
+.smartergpt.local/**
+.smartergpt.local/
 
 # SQLite database files
 *.db
