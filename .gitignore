@@ -21,9 +21,8 @@ rules/
 .smartergpt/
 prompts/
 
-# Local user workspace examples (do not rely on per-user ~/.gitignore.local)
-# Ensure workspace/example directories like eager-pm/ are ignored for everyone
-eager-pm/
+# Internal Project folder
+project/**
 
 # Generated TypeScript compilation outputs (source is .ts)
 # Keep only source .ts files, not compiled .js/.d.ts
