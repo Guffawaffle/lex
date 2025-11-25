@@ -75,7 +75,7 @@ yarn-debug.log*
 yarn-error.log*
 
 .smartergpt/**
-.smartergpt.local/**
+.smartergpt.local/**  # Legacy - remove after v0.5.0
 
 # SQLite database files
 *.db
