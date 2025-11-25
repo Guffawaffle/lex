@@ -259,7 +259,7 @@ function validatePromptPath(promptName: string, resolvedPath: string): void {
   const normalizedPath = normalize(resolvedPath);
   const allowedDirs = [
     normalize(resolvePackageAsset("prompts", "")),
-    normalize(join(process.cwd(), ".smartergpt.local", "prompts")),
+    normalize(join(process.cwd(), ".smartergpt", "prompts")),
   ];
 
   const envDir = process.env.LEX_PROMPTS_DIR;
@@ -437,8 +437,8 @@ export function loadPromptTemplate(promptName: string): PromptTemplate {
     }
   }
 
-  // Priority 2: .smartergpt.local/prompts/ (local overlay)
-  const localPath = join(process.cwd(), ".smartergpt.local", "prompts", promptName);
+  // Priority 2: .smartergpt/prompts/ (local overlay)
+  const localPath = join(process.cwd(), ".smartergpt", "prompts", promptName);
   attemptedPaths.push(localPath);
   if (existsSync(localPath)) {
     validatePromptPath(promptName, localPath);
