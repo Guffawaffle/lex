@@ -11,6 +11,9 @@ build/
 tsconfig.tsbuildinfo
 *.tgz
 
+# Internal project directory
+project/
+
 # Generated directories (copied from canon/ during build)
 schemas/
 rules/
@@ -77,6 +80,7 @@ yarn-error.log*
 
 .smartergpt/**
 .smartergpt.local/**
+.smartergpt-local
 .smartergpt.local/
 
 # SQLite database files
