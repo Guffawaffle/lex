@@ -2,11 +2,18 @@
  * OAuth2 Authentication Routes
  *
  * Handles OAuth2 code flow, token exchange, and user authentication
+ *
+ * SECURITY: All routes are rate-limited to prevent brute-force attacks.
+ * - /auth/github: Standard rate limit (initiates OAuth flow)
+ * - /auth/callback: Strict rate limit (performs DB operations)
+ * - /auth/refresh: Strict rate limit (token validation + DB operations)
+ * - /auth/revoke: Strict rate limit (DB operations)
  */
 
-import { Router, Request, Response } from "express";
+import { Router, Request, Response, RequestHandler } from "express";
 import type Database from "better-sqlite3";
 import { createHash, randomUUID } from "crypto";
+import rateLimit from "express-rate-limit";
 import {
   getGitHubAuthorizationUrl,
   exchangeGitHubCode,
@@ -64,15 +71,46 @@ setInterval(() => {
 }, 60 * 1000); // Run every minute
 
 /**
- * Create OAuth2 router
+ * Create OAuth2 router with rate limiting
+ *
+ * SECURITY: All routes are rate-limited to prevent abuse:
+ * - Standard limit: 20 requests per 15 minutes for OAuth initiation
+ * - Strict limit: 10 requests per 15 minutes for token operations
  */
 export function createOAuthRouter(db: Database.Database, config: OAuthConfig): Router {
   const router = Router();
 
+  // Standard rate limiter for OAuth initiation (less strict)
+  const oauthInitLimiter: RequestHandler = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 20, // 20 OAuth initiations per window
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: {
+      error: "RATE_LIMIT_EXCEEDED",
+      message: "Too many OAuth requests, please try again later",
+      code: 429,
+    },
+  });
+
+  // Strict rate limiter for token operations (authorization, refresh, revoke)
+  const tokenOpLimiter: RequestHandler = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 10, // 10 token operations per window
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: {
+      error: "RATE_LIMIT_EXCEEDED",
+      message: "Too many token operations, please try again later",
+      code: 429,
+    },
+  });
+
   /**
    * GET /auth/github - Initiate GitHub OAuth2 flow
+   * Rate limited: 20 requests per 15 minutes
    */
-  router.get("/github", (req: Request, res: Response) => {
+  router.get("/github", oauthInitLimiter, (req: Request, res: Response) => {
     if (!config.github) {
       return res.status(501).json({
         error: "NOT_IMPLEMENTED",
@@ -100,8 +138,9 @@ export function createOAuthRouter(db: Database.Database, config: OAuthConfig): R
 
   /**
    * GET /auth/callback - Handle OAuth2 callback
+   * Rate limited: 10 requests per 15 minutes (strict - performs DB operations)
    */
-  router.get("/callback", async (req: Request, res: Response) => {
+  router.get("/callback", tokenOpLimiter, async (req: Request, res: Response) => {
     try {
       const { code, state } = req.query;
 
@@ -220,8 +259,9 @@ export function createOAuthRouter(db: Database.Database, config: OAuthConfig): R
 
   /**
    * POST /auth/refresh - Refresh access token
+   * Rate limited: 10 requests per 15 minutes (strict - performs DB operations)
    */
-  router.post("/refresh", async (req: Request, res: Response) => {
+  router.post("/refresh", tokenOpLimiter, async (req: Request, res: Response) => {
     try {
       const { refresh_token } = req.body;
 
@@ -322,8 +362,9 @@ export function createOAuthRouter(db: Database.Database, config: OAuthConfig): R
 
   /**
    * POST /auth/revoke - Revoke refresh token (logout)
+   * Rate limited: 10 requests per 15 minutes (strict - performs DB operations)
    */
-  router.post("/revoke", async (req: Request, res: Response) => {
+  router.post("/revoke", tokenOpLimiter, async (req: Request, res: Response) => {
     try {
       const { refresh_token } = req.body;
 
