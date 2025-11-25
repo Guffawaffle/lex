@@ -11,7 +11,7 @@
  */
 
 import express, { Express, Request, Response, NextFunction } from "express";
-import type Database from "better-sqlite3";
+import type Database from "better-sqlite3-multiple-ciphers";
 import rateLimit from "express-rate-limit";
 import helmet from "helmet";
 import { createHash } from "crypto";

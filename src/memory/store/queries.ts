@@ -4,7 +4,7 @@
  * CRUD operations and search functions for Frames.
  */
 
-import Database from "better-sqlite3";
+import Database from "better-sqlite3-multiple-ciphers";
 import type { FrameRow } from "./db.js";
 import type { Frame, FrameStatusSnapshot, FrameSpendMetadata } from "../frames/types.js";
 import { getNDJSONLogger } from "../../shared/logger/index.js";
