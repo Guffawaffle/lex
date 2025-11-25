@@ -11,7 +11,7 @@
  *   const frame = await getFrameById(db, 'frame-001');
  *   const results = await searchFrames(db, 'auth deadlock');
  */
-import Database from "better-sqlite3";
+import Database from "better-sqlite3-multiple-ciphers";
 export type { FrameRow } from "./db.js";
 export type { Frame, FrameStatusSnapshot } from "../frames/types.js";
 export type { SearchResult } from "./queries.js";

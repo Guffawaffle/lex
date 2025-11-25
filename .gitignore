@@ -11,6 +11,9 @@ build/
 tsconfig.tsbuildinfo
 *.tgz
 
+# Internal project directory
+project/
+
 # Generated directories (copied from canon/ during build)
 schemas/
 rules/
@@ -19,7 +22,11 @@ rules/
 # .smartergpt/ is the organization workspace root
 # prompts/ is legacy location
 .smartergpt/
+.smartergpt-local/
 prompts/
+
+# Internal Project folder
+project/**
 
 # Generated TypeScript compilation outputs (source is .ts)
 # Keep only source .ts files, not compiled .js/.d.ts
@@ -73,6 +80,8 @@ yarn-error.log*
 
 .smartergpt/**
 .smartergpt.local/**
+.smartergpt-local
+.smartergpt.local/
 
 # SQLite database files
 *.db

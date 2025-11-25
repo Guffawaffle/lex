@@ -27,7 +27,7 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 # Default database path (can be overridden by LEX_MEMORY_DB env var)
-DEFAULT_DB_PATH="$SCRIPT_DIR/.smartergpt.local/lex/memory.db"
+DEFAULT_DB_PATH="$SCRIPT_DIR/.smartergpt/lex/memory.db"
 LEX_MEMORY_DB="${LEX_MEMORY_DB:-$DEFAULT_DB_PATH}"
 export LEX_MEMORY_DB
 

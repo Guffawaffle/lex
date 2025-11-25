@@ -11,7 +11,14 @@ import { check, type CheckOptions } from "./check.js";
 import { timeline, type TimelineCommandOptions } from "./timeline.js";
 import { init, type InitOptions } from "./init.js";
 import { exportFrames, type ExportCommandOptions } from "./export.js";
-import { dbVacuum, dbBackup, type DbVacuumOptions, type DbBackupOptions } from "./db.js";
+import {
+  dbVacuum,
+  dbBackup,
+  dbEncrypt,
+  type DbVacuumOptions,
+  type DbBackupOptions,
+  type DbEncryptOptions,
+} from "./db.js";
 import * as output from "./output.js";
 import { readFileSync } from "fs";
 import { join, dirname } from "path";
@@ -220,6 +227,26 @@ export function createProgram(): Command {
         json: globalOptions.json || false,
       };
       await dbBackup(options);
+    });
+
+  // lex db encrypt
+  dbCommand
+    .command("encrypt")
+    .description(
+      "Encrypt existing database with SQLCipher (passphrase must be provided via LEX_DB_KEY environment variable)"
+    )
+    .option("--input <path>", "Input database file (default: current database)")
+    .option("--output <path>", "Output encrypted database file (default: input-encrypted.db)")
+    .option("--verify", "Verify data integrity after encryption")
+    .action(async (cmdOptions) => {
+      const globalOptions = program.opts();
+      const options: DbEncryptOptions = {
+        input: cmdOptions.input,
+        output: cmdOptions.output,
+        verify: cmdOptions.verify || false,
+        json: globalOptions.json || false,
+      };
+      await dbEncrypt(options);
     });
 
   return program;

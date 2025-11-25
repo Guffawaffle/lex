@@ -296,7 +296,7 @@ jobs:
         if: >-
           matrix.node-version == '20' &&
           (github.event_name == 'workflow_dispatch' && inputs.run_coverage || github.event_name == 'push')
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: coverage-node-${{ matrix.node-version }}
           path: |

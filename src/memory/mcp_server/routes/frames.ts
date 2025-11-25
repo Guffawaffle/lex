@@ -5,7 +5,7 @@
  */
 
 import { Router, Request, Response, NextFunction } from "express";
-import type Database from "better-sqlite3";
+import type Database from "better-sqlite3-multiple-ciphers";
 import { Frame } from "../../frames/types.js";
 import { saveFrame } from "../../store/queries.js";
 import { createHash } from "crypto";
