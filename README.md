@@ -246,6 +246,7 @@ Lex is built on three pillars:
 
 ### Guides
 - [Mind Palace Guide](./docs/MIND_PALACE.md) — Using Frames for episodic memory
+- [Code Atlas Guide](./docs/atlas/README.md) — Spatial memory and architectural context
 - [Policy Enforcement](./docs/API_USAGE.md) — Setting up architectural boundaries
 - [CLI Reference](./docs/CLI_OUTPUT.md) — Command-line usage and output modes
 - [MCP Integration](./memory/mcp_server/README.md) — Using Lex with Model Context Protocol
