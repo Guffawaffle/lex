@@ -476,5 +476,3 @@ describe("code_units Migration (V5) Tests", () => {
     });
   });
 });
-
-console.log("\n✅ code_units Migration (V5) Tests - covering schema, indexes, constraints, and CRUD\n");

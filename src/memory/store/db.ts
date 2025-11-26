@@ -391,9 +391,14 @@ function applyMigrationV4(db: Database.Database): void {
  *
  * Stores CodeUnit records for code discovery and indexing.
  * Schema aligned with src/atlas/schemas/code-unit.ts (CA-001).
+ *
+ * Note: Database uses snake_case column names, which will be mapped to
+ * camelCase TypeScript properties in the queries module (matching Frame pattern).
+ * The span.startLine/endLine from CodeUnit schema is flattened to start_line/end_line.
  */
 function applyMigrationV5(db: Database.Database): void {
   // Create code_units table with schema aligned to CodeUnit type
+  // Kind values must match CodeUnitKindSchema enum in src/atlas/schemas/code-unit.ts
   db.exec(`
     CREATE TABLE IF NOT EXISTS code_units (
       id TEXT PRIMARY KEY,
