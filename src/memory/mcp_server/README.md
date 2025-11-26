@@ -110,6 +110,72 @@ List recent Frames with optional filtering.
 }
 ```
 
+## Error Codes (1.0.0 Contract)
+
+MCP tool responses use structured error codes for machine-readable error handling.
+Orchestrators can branch on these codes without parsing error messages.
+
+### Error Response Format
+
+```json
+{
+  "error": {
+    "code": "VALIDATION_INVALID_MODULE_ID",
+    "message": "Invalid module IDs: auth/typo. Did you mean: auth/core?",
+    "metadata": {
+      "invalidIds": ["auth/typo"],
+      "suggestions": ["auth/core"],
+      "availableModules": ["auth/core", "auth/password", "ui/dashboard"]
+    }
+  }
+}
+```
+
+### Error Code Reference
+
+| Code | Category | Description |
+|------|----------|-------------|
+| `VALIDATION_REQUIRED_FIELD` | Validation | Required field is missing |
+| `VALIDATION_INVALID_FORMAT` | Validation | Field has invalid format or type |
+| `VALIDATION_INVALID_MODULE_ID` | Validation | Module ID not in policy |
+| `VALIDATION_EMPTY_MODULE_SCOPE` | Validation | module_scope array is empty |
+| `VALIDATION_INVALID_STATUS` | Validation | status_snapshot structure is invalid |
+| `VALIDATION_INVALID_IMAGE` | Validation | Image data is malformed |
+| `STORAGE_WRITE_FAILED` | Storage | Failed to save frame |
+| `STORAGE_READ_FAILED` | Storage | Failed to read from database |
+| `STORAGE_DELETE_FAILED` | Storage | Failed to delete from database |
+| `STORAGE_IMAGE_FAILED` | Storage | Failed to store image attachment |
+| `POLICY_NOT_FOUND` | Policy | Policy file not found |
+| `POLICY_INVALID` | Policy | Policy file has invalid structure |
+| `INTERNAL_UNKNOWN_TOOL` | Internal | Unknown tool name requested |
+| `INTERNAL_UNKNOWN_METHOD` | Internal | Unknown MCP method requested |
+| `INTERNAL_ERROR` | Internal | Unexpected internal error |
+
+### Handling Errors in Code
+
+```typescript
+import { MCPErrorCode } from '@smartergpt/lex/mcp'; // Future export
+
+const response = await mcpClient.call('lex.remember', args);
+
+if (response.error) {
+  switch (response.error.code) {
+    case 'VALIDATION_INVALID_MODULE_ID':
+      // Show user the suggestions from metadata
+      const { suggestions } = response.error.metadata;
+      console.log(`Did you mean: ${suggestions.join(', ')}?`);
+      break;
+    case 'VALIDATION_REQUIRED_FIELD':
+      // Highlight missing fields
+      const { missingFields } = response.error.metadata;
+      console.log(`Missing: ${missingFields.join(', ')}`);
+      break;
+    default:
+      console.error(response.error.message);
+  }
+}
+```
+
 ## Running the MCP Server
 
 ### Via npm script (from root):

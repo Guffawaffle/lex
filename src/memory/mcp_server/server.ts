@@ -14,6 +14,7 @@ import { ImageManager } from "../store/images.js";
 // @ts-ignore - importing from compiled dist directories
 import type { Frame } from "../frames/types.js";
 import { MCP_TOOLS } from "./tools.js";
+import { MCPError, MCPErrorCode, createModuleIdError } from "./errors.js";
 // @ts-ignore - importing from compiled dist directories
 import { generateAtlasFrame, formatAtlasFrame } from "../../shared/atlas/atlas-frame.js";
 // @ts-ignore - importing from compiled dist directories
@@ -157,16 +158,20 @@ export class MCPServer {
           return await this.handleToolsCall(params as ToolCallParams);
 
         default:
-          throw new Error(`Unknown method: ${method}`);
+          throw new MCPError(MCPErrorCode.INTERNAL_UNKNOWN_METHOD, `Unknown method: ${method}`);
       }
     } catch (error: unknown) {
+      // Handle MCPError with structured response
+      if (error instanceof MCPError) {
+        return error.toResponse();
+      }
+
+      // Handle generic errors
       const errorMessage = error instanceof Error ? error.message : String(error);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const errorCode = (error as any).code || "INTERNAL_ERROR";
       return {
         error: {
           message: errorMessage,
-          code: errorCode,
+          code: MCPErrorCode.INTERNAL_ERROR,
         },
       };
     }
@@ -216,7 +221,10 @@ export class MCPServer {
         return this.handleListFrames(args);
 
       default:
-        throw new Error(`Unknown tool: ${name}`);
+        throw new MCPError(MCPErrorCode.INTERNAL_UNKNOWN_TOOL, `Unknown tool: ${name}`, {
+          requestedTool: name,
+          availableTools: ["lex.remember", "lex.recall", "lex.list_frames"],
+        });
     }
   }
 
@@ -240,18 +248,32 @@ export class MCPServer {
 
     // Validate required fields
     if (!reference_point || !summary_caption || !status_snapshot || !module_scope) {
-      throw new Error(
-        "Missing required fields: reference_point, summary_caption, status_snapshot, module_scope"
+      const missing: string[] = [];
+      if (!reference_point) missing.push("reference_point");
+      if (!summary_caption) missing.push("summary_caption");
+      if (!status_snapshot) missing.push("status_snapshot");
+      if (!module_scope) missing.push("module_scope");
+
+      throw new MCPError(
+        MCPErrorCode.VALIDATION_REQUIRED_FIELD,
+        `Missing required fields: ${missing.join(", ")}`,
+        { missingFields: missing }
       );
     }
 
     if (!Array.isArray(module_scope) || module_scope.length === 0) {
-      throw new Error("module_scope must be a non-empty array of module IDs");
+      throw new MCPError(
+        MCPErrorCode.VALIDATION_EMPTY_MODULE_SCOPE,
+        "module_scope must be a non-empty array of module IDs"
+      );
     }
 
     // Validate status_snapshot structure
     if (!status_snapshot.next_action) {
-      throw new Error("status_snapshot.next_action is required");
+      throw new MCPError(
+        MCPErrorCode.VALIDATION_INVALID_STATUS,
+        "status_snapshot.next_action is required"
+      );
     }
 
     // THE CRITICAL RULE: Resolve aliases and validate module IDs against policy (if available)
@@ -260,20 +282,13 @@ export class MCPServer {
       const validationResult = await validateModuleIds(module_scope, this.policy);
 
       if (!validationResult.valid && validationResult.errors) {
-        // Format error message with suggestions
-        const errorMessages = validationResult.errors.map((error: ModuleIdError) => {
-          const suggestions =
-            error.suggestions.length > 0
-              ? `\n  Did you mean: ${error.suggestions.join(", ")}?`
-              : "";
-          return `  • ${error.message}${suggestions}`;
-        });
+        // Collect invalid IDs and suggestions
+        const invalidIds = validationResult.errors.map((e: ModuleIdError) => e.module);
+        const suggestions = validationResult.errors
+          .flatMap((e: ModuleIdError) => e.suggestions)
+          .filter((s, i, arr) => arr.indexOf(s) === i); // dedupe
 
-        throw new Error(
-          `Invalid module IDs in module_scope:\n${errorMessages.join("\n")}\n\n` +
-            `Module IDs must match those defined in lexmap.policy.json.\n` +
-            `Available modules: ${Object.keys(this.policy.modules).join(", ")}`
-        );
+        throw createModuleIdError(invalidIds, suggestions, Object.keys(this.policy.modules));
       }
 
       // Use canonical IDs for storage (never store aliases)
@@ -333,7 +348,11 @@ export class MCPServer {
           // If image storage fails, clean up the Frame and rethrow
           deleteFrame(this.db, frameId);
           const errorMessage = error instanceof Error ? error.message : String(error);
-          throw new Error(`Failed to store image: ${errorMessage}`);
+          throw new MCPError(
+            MCPErrorCode.STORAGE_IMAGE_FAILED,
+            `Failed to store image: ${errorMessage}`,
+            { frameId, mimeType: img.mime_type }
+          );
         }
       }
 
