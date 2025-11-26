@@ -18,7 +18,6 @@
     { "path": "src/shared/tokens" },
     { "path": "src/policy/check" },
     { "path": "src/policy/merge" },
-    { "path": "src/merge-weave" },
     { "path": "src/memory/renderer" },
     { "path": "src/memory/store" },
     { "path": "src/memory/mcp_server" }
