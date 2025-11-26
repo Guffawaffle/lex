@@ -23,6 +23,7 @@ export type {
   FrameSearchCriteria,
   FrameListOptions,
 } from "./frame-store.js";
+export type { CodeAtlasStore } from "./code-atlas-store.js";
 
 export {
   saveFrame,
