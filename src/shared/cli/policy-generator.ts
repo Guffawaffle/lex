@@ -102,7 +102,7 @@ function scanDirectory(
       // Recursively scan subdirectories
       scanDirectory(fullPath, srcDir, modules);
     }
-  } catch (error) {
+  } catch {
     // Skip directories we can't read
   }
 }

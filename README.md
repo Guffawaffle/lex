@@ -127,10 +127,17 @@ Note: this repository's published release is version `0.4.5-alpha` and is publis
 ### Initialize
 
 ```bash
+# Basic initialization
 lex init
 # Creates .smartergpt/ workspace with:
 #   .smartergpt/prompts/ - Shared prompts (organization-level)
 #   .smartergpt/lex/ - Lex-specific files (policy, memory.db, logs, backups)
+
+# Generate seed policy from directory structure
+lex init --policy
+# Scans src/ for TypeScript/JavaScript modules
+# Generates .smartergpt/lex/lexmap.policy.json with discovered modules
+# Example: src/memory/store/ → memory/store module with src/memory/store/** match pattern
 ```
 
 ### Capture Your First Frame

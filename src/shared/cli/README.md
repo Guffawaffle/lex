@@ -6,6 +6,38 @@ This directory will contain the entry point for the `lex` command-line tool, whi
 
 ## Intended commands
 
+### `lex init`
+Initialize a Lex workspace with prompts and optionally generate seed policy.
+
+```bash
+# Basic initialization
+lex init
+# Creates .smartergpt/ workspace with prompts and minimal policy
+
+# Generate seed policy from directory structure
+lex init --policy
+# Scans src/ for TypeScript/JavaScript modules
+# Generates .smartergpt/lex/lexmap.policy.json with discovered modules
+
+# Force overwrite existing workspace
+lex init --force --policy
+```
+
+**Implementation:**
+1. Create `.smartergpt/` workspace directory
+2. Copy canon prompts to `.smartergpt/prompts/`
+3. If `--policy` flag is set:
+   - Scan `src/` directory for TypeScript/JavaScript files
+   - Generate module IDs from directory paths (e.g., `src/memory/store/` → `memory/store`)
+   - Create policy file with discovered modules and match patterns
+4. Otherwise, copy example policy or create minimal policy
+5. Non-destructive: skip if workspace exists unless `--force`
+
+**Options:**
+- `--force` — Overwrite existing files
+- `--policy` — Generate seed policy from src/ directory structure
+- `--prompts-dir <path>` — Custom prompts directory (default: .smartergpt/prompts)
+
 ### `lex remember`
 Capture a work session Frame.
 
@@ -192,6 +224,7 @@ This is what makes Lex one product instead of two separate tools.
 **Status:** ✅ Implemented
 
 **Commands available:**
+- ✅ `lex init` — Initialize workspace with prompts and policy (with `--policy` for auto-generation)
 - ✅ `lex remember` — Capture work session frames
 - ✅ `lex recall` — Retrieve frames by reference or ticket
 - ✅ `lex check` — Enforce policy in CI
