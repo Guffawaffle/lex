@@ -55,7 +55,7 @@ export function runGit(args: string[], opts: GitRunOptions = {}): string {
   const { cwd, disableGpg = true } = opts;
 
   // Prepend GPG config to disable signing if requested
-  const gpgArgs = disableGpg ? ["-c", "commit.gpgSign=false"] : [];
+  const gpgArgs = disableGpg ? ["-c", "commit.gpgsign=false"] : [];
 
   const result = spawnSync("git", [...gpgArgs, ...args], {
     cwd,
