@@ -219,6 +219,47 @@ The CLI is the **unified surface** for Lex. Users don't need to know about `memo
 
 This is what makes Lex one product instead of two separate tools.
 
+### `lex policy check`
+Validate policy file syntax and optionally verify modules match the codebase.
+
+```bash
+# Validate policy syntax
+lex policy check
+# ✅ Policy valid: 23 modules defined
+
+# Validate policy against codebase structure
+lex policy check --match
+# ⚠️ Module 'shared/cli' has no matching files in src/
+# ⚠️ Directory 'src/utils/' has no corresponding module
+
+# Output validation results as JSON
+lex policy check --json
+
+# Use custom policy file
+lex policy check --policy /path/to/policy.json
+
+# Custom source directory for --match
+lex policy check --match --src-dir lib
+```
+
+**Implementation:**
+1. Load policy file from standard locations (or custom path)
+2. Validate schema using Zod
+3. Check for semantic issues (warnings)
+4. If `--match` flag is set:
+   - Scan source directory for code files
+   - Compare module `owns_paths` against actual directories
+   - Report orphan modules (no matching files) and unmapped directories
+5. Exit codes:
+   - `0` — Policy valid
+   - `1` — Policy invalid or has errors
+
+**Options:**
+- `--match` — Verify modules match codebase structure
+- `--policy <path>` — Custom policy file path
+- `--src-dir <dir>` — Source directory for `--match` (default: src)
+- `--json` — Output results as JSON
+
 ---
 
 **Status:** ✅ Implemented
@@ -229,6 +270,7 @@ This is what makes Lex one product instead of two separate tools.
 - ✅ `lex recall` — Retrieve frames by reference or ticket
 - ✅ `lex check` — Enforce policy in CI
 - ✅ `lex timeline` — Visualize frame evolution
+- ✅ `lex policy check` — Validate policy file syntax and module-codebase mapping
 
 **Depends on:**
 - ✅ `memory/frames/`, `memory/store/`, `memory/recall` implementations

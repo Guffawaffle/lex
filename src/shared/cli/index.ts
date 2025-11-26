@@ -19,6 +19,7 @@ import {
   type DbBackupOptions,
   type DbEncryptOptions,
 } from "./db.js";
+import { policyCheck, type PolicyCheckOptions } from "./policy-check.js";
 import * as output from "./output.js";
 import { readFileSync } from "fs";
 import { join, dirname } from "path";
@@ -251,6 +252,27 @@ export function createProgram(): Command {
         json: globalOptions.json || false,
       };
       await dbEncrypt(options);
+    });
+
+  // lex policy command group
+  const policyCommand = program.command("policy").description("Policy file operations");
+
+  // lex policy check
+  policyCommand
+    .command("check")
+    .description("Validate policy file syntax and optionally verify module-codebase mapping")
+    .option("--match", "Verify modules match codebase structure")
+    .option("--policy <path>", "Custom policy file path")
+    .option("--src-dir <dir>", "Source directory for --match (default: src)")
+    .action(async (cmdOptions) => {
+      const globalOptions = program.opts();
+      const options: PolicyCheckOptions = {
+        json: globalOptions.json || false,
+        match: cmdOptions.match || false,
+        policyPath: cmdOptions.policy,
+        srcDir: cmdOptions.srcDir,
+      };
+      await policyCheck(options);
     });
 
   return program;
