@@ -244,17 +244,23 @@ export async function dbEncrypt(options: DbEncryptOptions = {}): Promise<void> {
       )
       .all() as Array<{ name: string }>;
 
-    // Validate table names to prevent SQL injection (even though they come from schema)
-    const validTableNamePattern = /^[a-zA-Z0-9_]+$/;
+    // Validate identifiers to prevent SQL injection (even though they come from schema)
+    const validIdentifierPattern = /^[a-zA-Z0-9_]+$/;
 
     for (const { name } of tableNames) {
       // Validate table name matches expected pattern
-      if (!validTableNamePattern.test(name)) {
+      if (!validIdentifierPattern.test(name)) {
         throw new Error(`Invalid table name detected: ${name}`);
       }
       const rows = sourceDb.prepare(`SELECT * FROM ${name}`).all();
       if (rows.length > 0) {
         const columns = Object.keys(rows[0] as Record<string, unknown>);
+        // Validate column names to prevent SQL injection
+        for (const col of columns) {
+          if (!validIdentifierPattern.test(col)) {
+            throw new Error(`Invalid column name detected in table "${name}": ${col}`);
+          }
+        }
         const placeholders = columns.map(() => "?").join(", ");
         const stmt = destDb.prepare(
           `INSERT OR REPLACE INTO ${name} (${columns.join(", ")}) VALUES (${placeholders})`
@@ -361,13 +367,13 @@ function calculateDatabaseChecksum(dbPath: string): string {
     )
     .all() as Array<{ name: string }>;
 
-  // Validate table names
-  const validTableNamePattern = /^[a-zA-Z0-9_]+$/;
+  // Validate identifiers to prevent SQL injection
+  const validIdentifierPattern = /^[a-zA-Z0-9_]+$/;
 
   // For each table, get all rows ordered deterministically
   const tableData: Record<string, unknown[]> = {};
   for (const { name } of tables) {
-    if (!validTableNamePattern.test(name)) {
+    if (!validIdentifierPattern.test(name)) {
       throw new Error(`Invalid table name detected during checksum: ${name}`);
     }
 
@@ -377,6 +383,13 @@ function calculateDatabaseChecksum(dbPath: string): string {
       name: string;
     }>;
     const pkCols = pragma.filter((col) => col.pk > 0).map((col) => col.name);
+
+    // Validate column names from pragma to prevent SQL injection
+    for (const col of pkCols) {
+      if (!validIdentifierPattern.test(col)) {
+        throw new Error(`Invalid column name detected in table "${name}": ${col}`);
+      }
+    }
 
     // Build ORDER BY clause
     let orderBy = "";
