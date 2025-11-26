@@ -334,36 +334,6 @@ The CLI is available as a binary via `npx lex` or direct invocation after instal
 import * as cli from 'lex/cli';
 ```
 
-### Merge-Weave Integration
-
-Lex integrates with merge-weave workflows through `plan.json`, which defines:
-
-- **Required gates**: lint, typecheck, test (all PRs must pass)
-- **Merge policy**: strict-required (all gates must succeed)
-- **PR dependencies**: Ordered merge sequences via `deps` field
-- **Scope**: Single-package validation (no workspace references)
-
-Example from `plan.json`:
-
-```json
-{
-  "schemaVersion": "1.0.0",
-  "policy": {
-    "requiredGates": ["lint", "typecheck", "test"],
-    "mergeRule": { "type": "strict-required" }
-  },
-  "items": [
-    {
-      "name": "PR-123",
-      "deps": [],
-      "gates": [...]
-    }
-  ]
-}
-```
-
-The merge-weave orchestration (handled by the separate LexRunner CLI) validates PRs against this policy before merging.
-
 ---
 
 ## Status

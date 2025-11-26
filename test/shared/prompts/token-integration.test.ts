@@ -152,7 +152,7 @@ describe("Prompt Renderer - Token Expansion Integration", () => {
   test("real-world example: kickoff prompt with tokens", () => {
     const testDate = new Date("2025-11-09T10:00:00Z");
     const template = `UMBRELLA_NAME: umbrella-{{today}}-{{now}}
-PROMPT_FILE: {{repo_root}}/.smartergpt/prompts/merge-weave-main.md
+PROMPT_FILE: {{repo_root}}/.smartergpt/prompts/umbrella-main.md
 BRANCH: {{branch}}
 COMMIT: {{commit}}`;
 
@@ -174,7 +174,7 @@ COMMIT: {{commit}}`;
     assert.strictEqual(
       result,
       `UMBRELLA_NAME: umbrella-2025-11-09-20251109T100000
-PROMPT_FILE: /project/.smartergpt/prompts/merge-weave-main.md
+PROMPT_FILE: /project/.smartergpt/prompts/umbrella-main.md
 BRANCH: feature
 COMMIT: abc1234`
     );
