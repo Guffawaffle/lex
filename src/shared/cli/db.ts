@@ -175,7 +175,7 @@ export async function dbBackup(options: DbBackupOptions = {}): Promise<void> {
  */
 export async function dbEncrypt(options: DbEncryptOptions = {}): Promise<void> {
   const startTime = Date.now();
-  const shouldBackup = options.backup !== false; // Default to true
+  const shouldBackup = options.backup ?? true; // Default to true unless explicitly disabled
   let tempPath: string | undefined;
   let backupPath: string | undefined;
 
@@ -416,7 +416,9 @@ function createEncryptionBackup(inputPath: string): string {
   const timestamp = `${year}${month}${day}-${hours}${minutes}${seconds}`;
   
   const inputDir = dirname(inputPath);
-  const inputBasename = basename(inputPath, ".db");
+  const fullBasename = basename(inputPath);
+  // Remove .db or .sqlite extension if present, otherwise use full basename
+  const inputBasename = fullBasename.replace(/\.(db|sqlite)$/, "");
   const backupFilename = `${inputBasename}.pre-encrypt.${timestamp}.db`;
   const backupPath = join(inputDir, backupFilename);
   
