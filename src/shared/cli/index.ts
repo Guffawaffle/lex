@@ -56,11 +56,13 @@ export function createProgram(): Command {
     .command("init")
     .description("Initialize .smartergpt/ workspace with prompts and policy")
     .option("--force", "Overwrite existing files")
+    .option("--policy", "Generate seed policy from src/ directory structure")
     .option("--prompts-dir <path>", "Custom prompts directory (default: .smartergpt/prompts)")
     .action(async (cmdOptions) => {
       const globalOptions = program.opts();
       const options: InitOptions = {
         force: cmdOptions.force || false,
+        policy: cmdOptions.policy || false,
         json: globalOptions.json || false,
         promptsDir: cmdOptions.promptsDir,
       };

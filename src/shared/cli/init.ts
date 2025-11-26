@@ -6,6 +6,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url";
 import * as output from "./output.js";
+import { discoverModules, generatePolicyFile } from "./policy-generator.js";
 
 // ESM compatibility: create __dirname equivalent
 const __filename = fileURLToPath(import.meta.url);
@@ -15,6 +16,7 @@ export interface InitOptions {
   force?: boolean;
   json?: boolean;
   promptsDir?: string; // Optional: custom prompts directory
+  policy?: boolean; // Generate seed policy from directory structure
 }
 
 export interface InitResult {
@@ -22,6 +24,7 @@ export interface InitResult {
   workspaceDir: string;
   message: string;
   filesCreated: string[];
+  modulesDiscovered?: number;
 }
 
 /**
@@ -109,24 +112,47 @@ export async function init(options: InitOptions = {}): Promise<InitResult> {
     const lexDir = path.join(workspaceDir, "lex");
     fs.mkdirSync(lexDir, { recursive: true });
     const policyPath = path.join(lexDir, "lexmap.policy.json");
+    let modulesDiscovered = 0;
+    
     if (!fs.existsSync(policyPath) || options.force) {
-      const packageRoot = resolveCanonDir().replace("/canon", "");
-      const examplePath = path.join(
-        packageRoot,
-        "src/policy/policy_spec/lexmap.policy.json.example"
-      );
-
-      if (fs.existsSync(examplePath)) {
-        fs.copyFileSync(examplePath, policyPath);
-        filesCreated.push(path.relative(baseDir, policyPath));
+      if (options.policy) {
+        // Generate seed policy from directory structure
+        const modules = discoverModules({ rootDir: baseDir });
+        modulesDiscovered = modules.length;
+        
+        if (modules.length > 0) {
+          const policy = generatePolicyFile(modules);
+          fs.writeFileSync(policyPath, JSON.stringify(policy, null, 2) + "\n");
+          filesCreated.push(path.relative(baseDir, policyPath));
+        } else {
+          // No modules found, create minimal policy
+          const minimalPolicy = {
+            schemaVersion: "1.0.0",
+            modules: {},
+          };
+          fs.writeFileSync(policyPath, JSON.stringify(minimalPolicy, null, 2) + "\n");
+          filesCreated.push(path.relative(baseDir, policyPath) + " (minimal)");
+        }
       } else {
-        // Create minimal policy if no template found
-        const minimalPolicy = {
-          version: "1.0.0",
-          modules: {},
-        };
-        fs.writeFileSync(policyPath, JSON.stringify(minimalPolicy, null, 2));
-        filesCreated.push(path.relative(baseDir, policyPath) + " (minimal)");
+        // Use example policy or create minimal policy
+        const packageRoot = resolveCanonDir().replace("/canon", "");
+        const examplePath = path.join(
+          packageRoot,
+          "src/policy/policy_spec/lexmap.policy.json.example"
+        );
+
+        if (fs.existsSync(examplePath)) {
+          fs.copyFileSync(examplePath, policyPath);
+          filesCreated.push(path.relative(baseDir, policyPath));
+        } else {
+          // Create minimal policy if no template found
+          const minimalPolicy = {
+            schemaVersion: "1.0.0",
+            modules: {},
+          };
+          fs.writeFileSync(policyPath, JSON.stringify(minimalPolicy, null, 2) + "\n");
+          filesCreated.push(path.relative(baseDir, policyPath) + " (minimal)");
+        }
       }
     }
 
@@ -135,6 +161,7 @@ export async function init(options: InitOptions = {}): Promise<InitResult> {
       workspaceDir,
       message: "Workspace initialized successfully",
       filesCreated,
+      modulesDiscovered: options.policy ? modulesDiscovered : undefined,
     };
 
     if (options.json) {
@@ -147,8 +174,21 @@ export async function init(options: InitOptions = {}): Promise<InitResult> {
       output.info(
         `  ├── prompts/ (${filesCreated.filter((f) => f.includes("prompts/")).length} files from canon)`
       );
-      output.info(`  └── lex/lexmap.policy.json (optional module policy)`);
+      if (options.policy && modulesDiscovered > 0) {
+        output.info(`  └── lex/lexmap.policy.json (${modulesDiscovered} modules discovered)`);
+      } else {
+        output.info(`  └── lex/lexmap.policy.json (optional module policy)`);
+      }
       output.info("");
+      
+      if (options.policy && modulesDiscovered > 0) {
+        output.info("Policy generation:");
+        output.info(`  ✓ Scanned src/ directory structure`);
+        output.info(`  ✓ Discovered ${modulesDiscovered} modules`);
+        output.info(`  ✓ Generated .smartergpt/lex/lexmap.policy.json`);
+        output.info("");
+      }
+      
       output.info("Prompts resolution order:");
       output.info("  1. LEX_PROMPTS_DIR (env var override)");
       output.info("  2. .smartergpt/prompts/ (workspace - just created)");
