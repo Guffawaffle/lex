@@ -260,10 +260,17 @@ export async function dbEncrypt(options: DbEncryptOptions = {}): Promise<void> {
           `INSERT OR REPLACE INTO ${name} (${columns.join(", ")}) VALUES (${placeholders})`
         );
 
-        for (const row of rows) {
-          const values = columns.map((col) => (row as Record<string, unknown>)[col]);
-          stmt.run(...values);
-        }
+        // Wrap per-table inserts in a transaction for atomicity and performance.
+        // This batches all writes into a single transaction, significantly reducing
+        // I/O overhead and ensuring table-level rollback on failure.
+        const insertAllRows = destDb.transaction((rowsToInsert: Record<string, unknown>[]) => {
+          for (const row of rowsToInsert) {
+            const values = columns.map((col) => row[col]);
+            stmt.run(...values);
+          }
+        });
+
+        insertAllRows(rows as Record<string, unknown>[]);
       }
     }
 
