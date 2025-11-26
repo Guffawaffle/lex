@@ -9,3 +9,4 @@ export type { RememberOptions } from "../shared/cli/remember.js";
 export type { RecallOptions } from "../shared/cli/recall.js";
 export type { CheckOptions } from "../shared/cli/check.js";
 export type { TimelineCommandOptions } from "../shared/cli/timeline.js";
+export type { CodeAtlasOptions, CodeAtlasOutput, CodeAtlasResult } from "../shared/cli/code-atlas.js";

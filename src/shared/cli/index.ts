@@ -20,6 +20,7 @@ import {
   type DbEncryptOptions,
 } from "./db.js";
 import { policyCheck, type PolicyCheckOptions } from "./policy-check.js";
+import { codeAtlas, type CodeAtlasOptions } from "./code-atlas.js";
 import * as output from "./output.js";
 import { readFileSync } from "fs";
 import { join, dirname } from "path";
@@ -273,6 +274,35 @@ export function createProgram(): Command {
         srcDir: cmdOptions.srcDir,
       };
       await policyCheck(options);
+    });
+
+  // lex code-atlas command
+  program
+    .command("code-atlas")
+    .description("Extract code units from repository using static analysis")
+    .option("--repo <path>", "Repository root (default: current directory)")
+    .option("--include <pattern>", "Glob pattern for files (default: **/*.{ts,tsx,js,jsx,py})")
+    .option("--exclude <pattern>", "Exclude pattern (default: **/node_modules/**)")
+    .option("--max-files <n>", "Limit files scanned (default: 500)", parseInt)
+    .option("--out <path>", "Output file path (default: stdout)")
+    .option(
+      "--strategy <type>",
+      "Extraction strategy: static (default)",
+      /^(static|llm-assisted|mixed)$/,
+      "static"
+    )
+    .action(async (cmdOptions) => {
+      const globalOptions = program.opts();
+      const options: CodeAtlasOptions = {
+        repo: cmdOptions.repo,
+        include: cmdOptions.include,
+        exclude: cmdOptions.exclude,
+        maxFiles: cmdOptions.maxFiles,
+        out: cmdOptions.out,
+        strategy: cmdOptions.strategy,
+        json: globalOptions.json || false,
+      };
+      await codeAtlas(options);
     });
 
   return program;
