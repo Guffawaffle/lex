@@ -3,6 +3,7 @@
   "references": [
     { "path": ".smartergpt/schemas" },
     { "path": "src" },
+    { "path": "src/atlas" },
     { "path": "src/shared/types" },
     { "path": "src/shared/aliases" },
     { "path": "src/shared/module_ids" },
