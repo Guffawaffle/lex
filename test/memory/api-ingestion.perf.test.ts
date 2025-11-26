@@ -14,7 +14,7 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { createDatabase } from "@app/memory/store/db.js";
 import { createFramesRouter } from "@app/memory/mcp_server/routes/frames.js";
-import type Database from "better-sqlite3";
+import type Database from "better-sqlite3-multiple-ciphers";
 
 const TEST_DB_PATH = join(tmpdir(), `test-frames-perf-${Date.now()}.db`);
 const TEST_API_KEY = "test-api-key-perf";

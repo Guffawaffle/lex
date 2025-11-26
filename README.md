@@ -242,6 +242,11 @@ Lex is built on three pillars:
 - [Policy Enforcement](./docs/API_USAGE.md) — Setting up architectural boundaries
 - [CLI Reference](./docs/CLI_OUTPUT.md) — Command-line usage and output modes
 - [MCP Integration](./memory/mcp_server/README.md) — Using Lex with Model Context Protocol
+- [OAuth2/JWT Authentication](./docs/AUTH.md) — Multi-user authentication setup
+
+### Security
+- [Security Policy](./SECURITY.md) — Security posture and best practices
+- [OAuth2/JWT Guide](./docs/AUTH.md) — Authentication and user isolation
 
 ### Advanced
 - [Architecture Loop](./docs/ARCHITECTURE_LOOP.md) — How Frames, Atlas, and Policy interact

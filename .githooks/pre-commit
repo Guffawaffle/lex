@@ -1,0 +1,35 @@
+#!/bin/bash
+# Pre-commit hook: Ownership checks and basic validation
+# Install: git config core.hooksPath .githooks
+set -e
+
+REPO_NAME=$(basename "$(git rev-parse --show-toplevel)")
+
+# Prevent runner schemas in Lex repo
+if [ "$REPO_NAME" == "lex" ]; then
+  if git diff --cached --name-only | grep -E "runner\.|execution-plan|merge-weave|autopilot"; then
+    echo "❌ Error: Runner-owned files cannot be committed to Lex repo"
+    echo ""
+    echo "Detected files:"
+    git diff --cached --name-only | grep -E "runner\.|execution-plan|merge-weave|autopilot"
+    echo ""
+    echo "Solution: Import from @guffawaffle/lex-pr-runner/schemas/..."
+    exit 1
+  fi
+fi
+
+# Prevent Lex schemas in lex-pr-runner repo
+if [ "$REPO_NAME" == "lex-pr-runner" ]; then
+  if git diff --cached --name-only | grep -E "feature-spec|infrastructure" | grep -v node_modules; then
+    echo "⚠️  Warning: Lex-owned files detected in lex-pr-runner"
+    echo ""
+    echo "Detected files:"
+    git diff --cached --name-only | grep -E "feature-spec|infrastructure" | grep -v node_modules
+    echo ""
+    read -p "These should be imported from @guffawaffle/lex. Continue anyway? (y/N) " -n 1 -r
+    echo
+    [[ $REPLY =~ ^[Yy]$ ]] || exit 1
+  fi
+fi
+
+echo "✓ Ownership check passed"

@@ -22,27 +22,36 @@ We provide security updates for the following versions:
 
 ---
 
-## Known Limitations (0.4.2-alpha)
+## Known Limitations (0.4.6-alpha)
 
 **This alpha release is NOT production-hardened.** Known security limitations:
 
 1. **No authentication on MCP stdio mode** (MCP server runs as local process)
-2. **HTTP mode requires API key** (mandatory as of 0.4.2) - See HTTP Server Security below
+2. **HTTP mode supports OAuth2/JWT** (recommended) and API keys (deprecated) - See Authentication below
 3. **Database encryption available** (SQLCipher support added in 0.5.0-alpha) - See Database Encryption below
 4. **Limited audit trail** (HTTP requests logged, database ops not tracked)
-5. **SQLite limitations** (not suitable for high-concurrency)
+5. **SQLite limitations** (not suitable for high-concurrency multi-tenant deployments)
 6. **Example scanners not audited** (Python/PHP in `examples/scanners/`)
+
+**New in 0.5.0-alpha:**
+- ✅ OAuth2/JWT authentication for multi-user deployments
+- ✅ User isolation (frames scoped to user_id)
+- ✅ Token refresh and revocation
+- ✅ CSRF protection via state parameter
+- ✅ Database encryption at rest (SQLCipher/AES-256)
+- ✅ PBKDF2 key derivation (64,000 iterations)
 
 **Acceptable for:**
 - ✅ Local development by single developer
 - ✅ Private automation scripts
 - ✅ Small trusted teams on secure networks
+- ✅ Internal production use with OAuth2/JWT enabled
 
 **NOT acceptable for:**
-- ❌ Public internet-facing services
-- ❌ Multi-tenant SaaS applications
-- ❌ Environments with compliance requirements
-- ❌ High-security production environments
+- ❌ Public internet-facing services without TLS
+- ❌ Multi-tenant SaaS applications at scale
+- ❌ Environments with strict compliance requirements (HIPAA, PCI-DSS)
+- ❌ High-security production environments without encryption at rest
 
 See `docs/SECURITY_POSTURE.md` for detailed guidance and production roadmap
 
@@ -304,6 +313,113 @@ server {
 limit_req_zone $binary_remote_addr zone=api_limit:10m rate=10r/s;
 ```
 
+---
+
+## OAuth2/JWT Security (New in 0.4.6)
+
+**OAuth2/JWT authentication is RECOMMENDED for multi-user and production deployments.**
+
+### Security Features
+
+✅ **Token-based authentication**
+- RS256 asymmetric cryptography (2048-bit RSA keys)
+- Access tokens expire after 1 hour (short-lived, minimize blast radius)
+- Refresh tokens expire after 30 days (long-lived, stored hashed in database)
+- Tokens are stateless (no session storage required)
+
+✅ **User isolation**
+- All frames are scoped to `user_id`
+- Users can only access their own data
+- System default user for legacy API key frames
+
+✅ **CSRF protection**
+- State parameter in OAuth2 flow (32-byte random)
+- State is single-use and expires after 10 minutes
+- Prevents cross-site request forgery attacks
+
+✅ **Audit logging**
+- All authentication events logged
+- Token hashes logged (never actual tokens)
+- Failed auth attempts logged separately
+
+### Deployment Best Practices
+
+**DO:**
+- ✅ Use HTTPS/TLS for all OAuth2 flows
+- ✅ Store JWT private keys securely (secrets manager, environment variables)
+- ✅ Never commit private keys to version control
+- ✅ Set restrictive file permissions: `chmod 600 jwt-private.pem`
+- ✅ Rotate keys periodically (regenerate and update clients)
+- ✅ Monitor audit logs for suspicious activity
+- ✅ Use strong GitHub OAuth client secrets
+
+**DON'T:**
+- ❌ Use HTTP for OAuth2 (always use HTTPS in production)
+- ❌ Share JWT private keys across environments
+- ❌ Log access tokens or refresh tokens
+- ❌ Use same keys for dev/staging/production
+- ❌ Ignore token expiration errors (refresh tokens properly)
+
+### JWT Token Security
+
+**Access Token Lifecycle:**
+```
+1. User authenticates via OAuth2 → Access token issued (1 hour TTL)
+2. Client uses access token for API requests
+3. Token expires after 1 hour
+4. Client refreshes token using refresh token → New access token issued
+5. Repeat until refresh token expires (30 days)
+```
+
+**Token Storage:**
+- **Access tokens:** Client-side (localStorage, memory) - short-lived so lower risk
+- **Refresh tokens:** Database, hashed with SHA-256 - cannot be recovered if DB compromised
+- **JWT private key:** File system (`.smartergpt/lex/keys/jwt-private.pem`) with 0600 permissions
+
+**Token Revocation:**
+- Call `/auth/revoke` to revoke refresh token immediately
+- Access token remains valid until expiration (max 1 hour)
+- For immediate revocation, implement token blacklist (not included)
+
+### Starting HTTP Server with OAuth2
+
+```typescript
+import { startHttpServer } from "lex/memory/mcp_server";
+import { createDatabase } from "lex/memory/store";
+
+const db = createDatabase();
+
+await startHttpServer(db, {
+  port: 3000,
+  enableOAuth: true,  // Enable OAuth2/JWT authentication
+  github: {
+    clientId: process.env.LEX_GITHUB_CLIENT_ID!,
+    clientSecret: process.env.LEX_GITHUB_CLIENT_SECRET!,
+    redirectUri: "https://api.example.com/auth/callback",
+  },
+  // Optional: Legacy API key for backward compatibility
+  apiKey: process.env.LEX_HTTP_API_KEY,
+});
+```
+
+### Environment Variables
+
+```bash
+# OAuth2 Configuration (Recommended)
+export LEX_OAUTH_ENABLED=true
+export LEX_GITHUB_CLIENT_ID="your_github_oauth_client_id"
+export LEX_GITHUB_CLIENT_SECRET="your_github_oauth_client_secret"
+export LEX_GITHUB_REDIRECT_URI="https://api.example.com/auth/callback"
+
+# Optional: Legacy API key (deprecated)
+export LEX_HTTP_API_KEY="your-secure-random-api-key-here"
+
+# Optional: Server configuration
+export LEX_HTTP_PORT="3000"
+export LEX_HTTP_RATE_LIMIT_WINDOW="900000"  # 15min in ms
+export LEX_HTTP_RATE_LIMIT_MAX="100"
+```
+
 ### Starting HTTP Server
 
 ```typescript
@@ -312,19 +428,34 @@ import { openDatabase } from "lex/memory/store";
 
 const db = openDatabase();
 
-// API key MUST be provided (will throw error if missing)
+// OAuth2/JWT (Recommended for production)
 await startHttpServer(db, {
-  apiKey: process.env.LEX_HTTP_API_KEY!, // Required
+  enableOAuth: true,
+  github: {
+    clientId: process.env.LEX_GITHUB_CLIENT_ID!,
+    clientSecret: process.env.LEX_GITHUB_CLIENT_SECRET!,
+    redirectUri: process.env.LEX_GITHUB_REDIRECT_URI!,
+  },
   port: 3000,
-  rateLimitWindowMs: 15 * 60 * 1000, // Optional: 15min (default)
-  rateLimitMaxRequests: 100, // Optional: 100 req/window (default)
+});
+
+// OR: API key only (Deprecated, for backward compatibility)
+await startHttpServer(db, {
+  apiKey: process.env.LEX_HTTP_API_KEY!, // Will show deprecation warning
+  port: 3000,
 });
 ```
 
 ### Environment Variables
 
 ```bash
-# Required for HTTP mode
+# OAuth2 Configuration (Recommended)
+export LEX_OAUTH_ENABLED=true
+export LEX_GITHUB_CLIENT_ID="your_github_client_id"
+export LEX_GITHUB_CLIENT_SECRET="your_github_client_secret"
+export LEX_GITHUB_REDIRECT_URI="https://api.example.com/auth/callback"
+
+# OR: Legacy API key (Deprecated)
 export LEX_HTTP_API_KEY="your-secure-random-api-key-here"
 
 # Optional configuration

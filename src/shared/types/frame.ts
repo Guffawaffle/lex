@@ -33,6 +33,8 @@ export interface Frame {
   runId?: string;
   planHash?: string;
   spend?: SpendMetadata;
+  // OAuth2/JWT user isolation (v3)
+  userId?: string;
 }
 
 /**

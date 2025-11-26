@@ -16,6 +16,9 @@ import rateLimit from "express-rate-limit";
 import helmet from "helmet";
 import { createHash } from "crypto";
 import { createFramesRouter } from "./routes/frames.js";
+import { createOAuthRouter } from "./routes/oauth.js";
+import { createAuthMiddleware } from "./auth/middleware.js";
+import { initializeKeys } from "./auth/keys.js";
 import { getLogger } from "@smartergpt/lex/logger";
 
 const logger = getLogger("memory:mcp_server:http-server");
@@ -23,9 +26,18 @@ const auditLogger = getLogger("memory:mcp_server:audit");
 
 export interface HttpServerOptions {
   port?: number;
-  apiKey: string; // MANDATORY: API key for authentication (changed from optional)
+  apiKey?: string; // OPTIONAL: API key for legacy authentication (deprecated)
   rateLimitWindowMs?: number; // Rate limit window in milliseconds (default: 15min)
   rateLimitMaxRequests?: number; // Max requests per window (default: 100)
+  // OAuth2/JWT configuration
+  enableOAuth?: boolean; // Enable OAuth2 authentication
+  github?: {
+    clientId: string;
+    clientSecret: string;
+    redirectUri: string;
+  };
+  jwtPublicKey?: string;
+  jwtPrivateKey?: string;
 }
 
 /**
@@ -119,27 +131,54 @@ export function createHttpServer(db: Database.Database, options: HttpServerOptio
     res.json({ status: "ok", timestamp: new Date().toISOString() });
   });
 
-  // Mount frames router with auth failure rate limiting
-  const framesRouter = createFramesRouter(db, options.apiKey, authFailureLimiter);
-  app.use("/api/frames", framesRouter);
+  // Initialize JWT keys if OAuth is enabled
+  let jwtKeys;
+  if (options.enableOAuth) {
+    jwtKeys = initializeKeys();
+    logger.info("JWT keys initialized for OAuth2 authentication");
+  }
+
+  // Mount OAuth2 routes if enabled
+  if (options.enableOAuth && options.github) {
+    const oauthRouter = createOAuthRouter(db, {
+      github: options.github,
+      jwtPrivateKey: options.jwtPrivateKey || jwtKeys?.privateKey || "",
+      jwtPublicKey: options.jwtPublicKey || jwtKeys?.publicKey || "",
+    });
+    app.use("/auth", oauthRouter);
+    logger.info("OAuth2 routes mounted at /auth");
+  }
+
+  // Create authentication middleware
+  const authMiddleware = createAuthMiddleware({
+    apiKey: options.apiKey,
+    jwtPublicKey: options.jwtPublicKey || jwtKeys?.publicKey || "",
+    requireAuth: true,
+  });
+
+  // Mount frames router with new auth middleware
+  const framesRouter = createFramesRouter(db, options.apiKey || "", authFailureLimiter);
+  
+  // Apply authentication middleware to frames routes
+  app.use("/api/frames", authMiddleware, framesRouter);
 
   return app;
 }
 
 /**
- * Start the HTTP server with mandatory authentication
+ * Start the HTTP server with authentication
  *
- * @throws Error if apiKey is not provided or is empty
+ * @throws Error if neither OAuth nor API key is configured
  */
 export async function startHttpServer(
   db: Database.Database,
   options: HttpServerOptions
 ): Promise<void> {
-  // SECURITY: Enforce mandatory API key
-  if (!options.apiKey || options.apiKey.trim() === "") {
+  // SECURITY: Require at least one authentication method
+  if (!options.enableOAuth && (!options.apiKey || options.apiKey.trim() === "")) {
     throw new Error(
-      "HTTP server requires API key for security. " +
-        "Set LEX_HTTP_API_KEY environment variable or pass apiKey in options. " +
+      "HTTP server requires authentication. " +
+        "Either enable OAuth2 (enableOAuth: true) or provide an API key. " +
         "For local development, use MCP stdio mode instead (safer, no network exposure). " +
         "See SECURITY.md for more information."
     );
@@ -151,12 +190,22 @@ export async function startHttpServer(
   return new Promise((resolve) => {
     app.listen(port, () => {
       logger.info(`Frame ingestion API listening on port ${port}`);
+      if (options.enableOAuth) {
+        logger.info("OAuth2 authentication enabled");
+      }
+      if (options.apiKey) {
+        logger.warn(
+          "API key authentication is deprecated. Please migrate to OAuth2/JWT for production use."
+        );
+      }
       logger.warn(
         "HTTP server is running. Ensure you are behind a TLS-terminating reverse proxy for production use."
       );
       auditLogger.info({
         event: "http_server_started",
         port,
+        oauth_enabled: !!options.enableOAuth,
+        api_key_enabled: !!options.apiKey,
         timestamp: new Date().toISOString(),
       });
       resolve();

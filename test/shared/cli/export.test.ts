@@ -1,4 +1,12 @@
 /**
+ * ⚠️  WARNING: THIS FILE IS EXCLUDED FROM `npm test` ⚠️
+ *
+ * This file executes git commands and is NOT acceptable in the main test path.
+ * Reason: This environment uses mandatory interactive GPG signing for commits,
+ * which causes these tests to hang indefinitely.
+ *
+ * To run these tests explicitly: npm run test:git
+ *
  * Tests for lex frames export command
  */
 
@@ -365,10 +373,14 @@ test("CLI: lex frames export with no frames exports 0", () => {
   setupTest();
   try {
     // Export with no frames in database
-    const output = execFileSync(process.execPath, [lexBin, "frames", "export", "--out", exportDir], {
-      encoding: "utf-8",
-      env: getTestEnv(),
-    });
+    const output = execFileSync(
+      process.execPath,
+      [lexBin, "frames", "export", "--out", exportDir],
+      {
+        encoding: "utf-8",
+        env: getTestEnv(),
+      }
+    );
 
     assert.match(output, /Exported 0 frames/, "Should export 0 frames");
   } finally {
@@ -388,10 +400,14 @@ test("CLI: lex frames export shows progress for large exports", () => {
     }
 
     // Export frames
-    const output = execFileSync(process.execPath, [lexBin, "frames", "export", "--out", exportDir], {
-      encoding: "utf-8",
-      env: getTestEnv(),
-    });
+    const output = execFileSync(
+      process.execPath,
+      [lexBin, "frames", "export", "--out", exportDir],
+      {
+        encoding: "utf-8",
+        env: getTestEnv(),
+      }
+    );
 
     assert.match(output, /Exported 100 frames\.\.\./, "Should show progress at 100 frames");
     assert.match(output, /Exported 150 frames/, "Should show final count");

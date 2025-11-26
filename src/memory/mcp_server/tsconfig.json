@@ -12,7 +12,7 @@
       "lex/types/*": ["../../shared/types/*"]
     }
   },
-  "include": ["*.ts", "routes/*.ts"],
+  "include": ["*.ts", "routes/*.ts", "auth/*.ts"],
   "exclude": ["node_modules", "dist", "*.test.ts"]
   ,
   "references": [

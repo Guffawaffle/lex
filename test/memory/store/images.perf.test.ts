@@ -6,7 +6,7 @@ import { ImageManager } from "@app/memory/store/images.js";
 import { mkdtempSync, rmSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
-import type Database from "better-sqlite3";
+import type Database from "better-sqlite3-multiple-ciphers";
 
 describe("Image Manager - Performance", () => {
   let db: Database.Database;

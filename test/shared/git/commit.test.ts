@@ -1,4 +1,12 @@
 /**
+ * ⚠️  WARNING: THIS FILE IS EXCLUDED FROM `npm test` ⚠️
+ *
+ * Git-related tests are NOT acceptable in the main test path.
+ * Reason: Many environments use interactive GPG signing for git commits,
+ * which causes these tests to hang indefinitely.
+ *
+ * To run these tests explicitly: npm run test:git
+ *
  * Tests for git commit detection utilities
  *
  * Tests cover:
