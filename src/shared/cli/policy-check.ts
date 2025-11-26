@@ -13,6 +13,7 @@ import { existsSync, readdirSync } from "fs";
 import { join, relative } from "path";
 import { loadPolicy } from "../policy/loader.js";
 import { validatePolicySchema, type PolicyValidationResult } from "../policy/schema.js";
+import type { Policy, PolicyModule } from "../types/policy.js";
 import * as output from "./output.js";
 
 export interface PolicyCheckOptions {
@@ -131,16 +132,21 @@ function matchesGlob(path: string, pattern: string): boolean {
 }
 
 /**
+ * Module interface for codebase matching
+ */
+interface MatchableModule extends PolicyModule {
+  match?: string[];
+}
+
+/**
  * Verify modules match the codebase structure
  */
 function verifyCodebaseMatch(
-  policy: Record<string, unknown>,
+  modules: Record<string, MatchableModule>,
   srcDir: string
 ): { orphanModules: string[]; unmappedDirs: string[] } {
   const orphanModules: string[] = [];
   const unmappedDirs: string[] = [];
-
-  const modules = policy.modules as Record<string, { owns_paths?: string[]; owns_namespaces?: string[]; match?: string[] }>;
 
   // Get all code directories
   const codeDirs: string[] = [];
@@ -183,7 +189,10 @@ function verifyCodebaseMatch(
       }
     }
 
-    if (paths.length > 0 && !hasMatch) {
+    // Modules with owns_namespaces but no owns_paths are valid (e.g., PHP modules)
+    // Only flag as orphan if paths are specified but don't match
+    const hasNamespaces = (module.owns_namespaces || []).length > 0;
+    if (paths.length > 0 && !hasMatch && !hasNamespaces) {
       orphanModules.push(moduleId);
     }
   }
@@ -216,7 +225,7 @@ function verifyCodebaseMatch(
 export async function policyCheck(options: PolicyCheckOptions = {}): Promise<PolicyCheckResult> {
   try {
     // Load policy file
-    const policy = loadPolicy(options.policyPath);
+    const policy: Policy = loadPolicy(options.policyPath);
 
     // Validate schema
     const validation: PolicyValidationResult = validatePolicySchema(policy);
@@ -232,7 +241,11 @@ export async function policyCheck(options: PolicyCheckOptions = {}): Promise<Pol
     // Optionally verify codebase match
     if (options.match && validation.valid) {
       const srcDir = options.srcDir || "src";
-      const matchResults = verifyCodebaseMatch(policy as unknown as Record<string, unknown>, srcDir);
+      // Cast is safe here because PolicyModule is compatible with MatchableModule
+      const matchResults = verifyCodebaseMatch(
+        policy.modules as Record<string, MatchableModule>,
+        srcDir
+      );
       result.matchResults = matchResults;
 
       // Add warnings for orphan modules
@@ -261,12 +274,8 @@ export async function policyCheck(options: PolicyCheckOptions = {}): Promise<Pol
       displayResults(result, options.match || false);
     }
 
-    // Exit with appropriate code
-    if (!result.valid) {
-      process.exit(1);
-    } else {
-      process.exit(0);
-    }
+    // Exit with appropriate code - this function never returns normally
+    process.exit(result.valid ? 0 : 1);
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
 
@@ -285,14 +294,6 @@ export async function policyCheck(options: PolicyCheckOptions = {}): Promise<Pol
 
     process.exit(1);
   }
-
-  // This is for TypeScript, the function always exits before reaching here
-  return {
-    valid: false,
-    moduleCount: 0,
-    errors: [],
-    warnings: [],
-  };
 }
 
 /**
