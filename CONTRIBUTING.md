@@ -47,7 +47,12 @@ npm test
 
 # Run full local CI (includes lint, type-check, test)
 npm run local-ci
+
+# Run slow CLI tests (opt-in, takes ~30s)
+npm run test:cli:slow
 ```
+
+**Note on slow tests:** The `test:cli:slow` script runs slow CLI tests that are excluded from the default test suite. These tests validate progress reporting for large exports and take approximately 30 seconds to complete.
 
 ### Node Version Management
 

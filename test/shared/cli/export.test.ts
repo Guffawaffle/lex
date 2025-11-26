@@ -13,6 +13,10 @@
  * - LEX_CLI_EXPORT_TEST_MODE=fast  : Reduced workload (~10 frames, completes in seconds)
  * - LEX_CLI_EXPORT_TEST_MODE=full  : Full workload (150 frames, takes ~30s)
  * - Default: full
+ *
+ * Slow Test Configuration:
+ * - LEX_ENABLE_SLOW_CLI_TESTS=1 : Enable slow CLI tests (large export progress test)
+ * - Default: disabled
  */
 
 import { test } from "node:test";
@@ -21,6 +25,9 @@ import { execFileSync, execSync } from "node:child_process";
 import { writeFileSync, mkdirSync, existsSync, rmSync, readdirSync, readFileSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
+
+// Gate slow tests behind environment variable
+const slowTest = process.env.LEX_ENABLE_SLOW_CLI_TESTS ? test : test.skip;
 
 const testDir = join(tmpdir(), "lex-export-test-" + Date.now());
 const testDbPath = join(testDir, "frames.db");
@@ -432,7 +439,7 @@ test("CLI: lex frames export with no frames exports 0", () => {
   }
 });
 
-test("CLI: lex frames export shows progress for large exports", () => {
+slowTest("CLI: lex frames export shows progress for large exports", () => {
   setupTest();
   try {
     const workload = getTestWorkload();
