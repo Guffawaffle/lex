@@ -167,7 +167,7 @@
     "@types/inquirer": "^9.0.9",
     "@types/node": "^24.9.2",
     "@types/supertest": "^6.0.3",
-    "@types/uuid": "^10.0.0",
+    "@types/uuid": "^11.0.0",
     "@typescript-eslint/eslint-plugin": "^8.46.3",
     "@typescript-eslint/parser": "^8.46.3",
     "ajv": "^8.17.1",
