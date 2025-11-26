@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.7-alpha] - 2025-06-13
+
+### Added
+
+- **Tracked policy file:** Added `canon/policy/lexmap.policy.json` providing an out-of-the-box policy configuration for Lex dogfooding with 23 defined modules
+
+### Changed
+
+- **Dependencies updated:**
+  - `zod`: 4.1.12 → 4.1.13
+  - `glob`: 11.1.0 → 13.0.0
+  - `inquirer`: 12.11.1 → 13.0.1
+  - `@typescript-eslint/parser`: 8.47.0 → 8.48.0
+  - `@types/uuid`: 10.0.0 → 11.0.0
+
 ## [0.4.2-alpha] - 2025-01-21
 
 ### Security
