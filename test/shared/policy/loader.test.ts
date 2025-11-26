@@ -17,7 +17,7 @@
 
 import { strict as assert } from "assert";
 import { test, describe, beforeEach, afterEach } from "node:test";
-import { loadPolicy, clearPolicyCache } from "@app/shared/policy/loader.js";
+import { loadPolicy, loadPolicyIfAvailable, clearPolicyCache } from "@app/shared/policy/loader.js";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
 import { tmpdir } from "os";
@@ -455,5 +455,44 @@ describe("Policy Loader Edge Cases", () => {
       assert.ok(message.includes("Policy file not found"));
       assert.ok(message.includes("npm run setup-local"));
     }
+  });
+
+  test("loadPolicyIfAvailable returns null when no policy file exists", () => {
+    const repo = createTestRepo();
+    process.env.LEX_WORKSPACE_ROOT = repo;
+
+    const policy = loadPolicyIfAvailable();
+    assert.strictEqual(policy, null, "Should return null when no policy file exists");
+  });
+
+  test("loadPolicyIfAvailable returns policy when file exists", () => {
+    const repo = createTestRepo();
+
+    const workingDir = join(repo, ".smartergpt", "lex");
+    mkdirSync(workingDir, { recursive: true });
+    writeFileSync(
+      join(workingDir, "lexmap.policy.json"),
+      JSON.stringify(createTestPolicy("test"))
+    );
+
+    process.env.LEX_WORKSPACE_ROOT = repo;
+
+    const policy = loadPolicyIfAvailable();
+    assert.ok(policy !== null, "Should return policy when file exists");
+    assert.ok(policy.modules["test"], "Should have the test module");
+  });
+
+  test("loadPolicyIfAvailable throws on invalid JSON", () => {
+    const repo = createTestRepo();
+
+    const workingDir = join(repo, ".smartergpt", "lex");
+    mkdirSync(workingDir, { recursive: true });
+    writeFileSync(join(workingDir, "lexmap.policy.json"), "{ invalid json }");
+
+    process.env.LEX_WORKSPACE_ROOT = repo;
+
+    assert.throws(() => {
+      loadPolicyIfAvailable();
+    }, /Failed to load policy/);
   });
 });

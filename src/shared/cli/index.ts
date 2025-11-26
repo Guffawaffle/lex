@@ -85,6 +85,7 @@ export function createProgram(): Command {
     .option("-i, --interactive", "Interactive mode (prompt for all fields)")
     .option("--strict", "Disable auto-correction for typos (for CI)")
     .option("--no-substring", "Disable substring matching for module IDs (for CI)")
+    .option("--skip-policy", "Skip policy validation (allow any module ID)")
     .action(async (cmdOptions) => {
       const globalOptions = program.opts();
       const options: RememberOptions = {
@@ -103,6 +104,7 @@ export function createProgram(): Command {
         json: globalOptions.json || false,
         strict: cmdOptions.strict || false,
         noSubstring: cmdOptions.noSubstring || false,
+        noPolicy: cmdOptions.skipPolicy || false,
       };
       await remember(options);
     });

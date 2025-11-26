@@ -2,4 +2,4 @@
  * Policy loader module exports
  */
 
-export { loadPolicy, clearPolicyCache } from "./loader.js";
+export { loadPolicy, loadPolicyIfAvailable, clearPolicyCache } from "./loader.js";

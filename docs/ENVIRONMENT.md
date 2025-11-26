@@ -51,10 +51,21 @@ export LEX_DB_PATH=/custom/path/frames.db
 1. `.smartergpt/lex/lexmap.policy.json`
 2. `src/policy/policy_spec/lexmap.policy.json.example`
 
+**Behavior when policy file not found:**
+- CLI commands that use policy (e.g., `lex remember`) will emit a warning but continue execution
+- Module validation will be skipped, allowing any module ID
+- To explicitly skip policy validation even when a file exists, use the `--skip-policy` flag
+
 **Used by:** Policy loading, module ID validation, Atlas Frame generation.
 
 ```bash
 export LEX_POLICY_PATH=/custom/path/my-policy.json
+```
+
+**Note:** You can also use the `--skip-policy` flag with `lex remember` to bypass policy validation:
+
+```bash
+lex remember --skip-policy --modules "any-module-id" --reference-point "test" --summary "test" --next "test"
 ```
 
 ---

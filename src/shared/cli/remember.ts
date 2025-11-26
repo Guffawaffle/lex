@@ -8,7 +8,7 @@ import inquirer from "inquirer";
 import { v4 as uuidv4 } from "uuid";
 import type { Frame } from "../types/frame.js";
 import { validateModuleIds } from "../module_ids/index.js";
-import { loadPolicy } from "../policy/loader.js";
+import { loadPolicyIfAvailable } from "../policy/loader.js";
 import { getDb, saveFrame } from "../../memory/store/index.js";
 import { getCurrentBranch } from "../git/branch.js";
 import * as output from "./output.js";
@@ -29,6 +29,7 @@ export interface RememberOptions {
   json?: boolean;
   strict?: boolean;
   noSubstring?: boolean;
+  noPolicy?: boolean;
 }
 
 /**
@@ -47,21 +48,43 @@ export async function remember(options: RememberOptions = {}): Promise<void> {
         : options;
 
     // Resolve and validate module_scope against policy (THE CRITICAL RULE + auto-correction)
-    const policy = loadPolicy();
+    // Load policy if available, or skip validation if --no-policy or no policy file exists
+    const policy = options.noPolicy ? null : loadPolicyIfAvailable();
 
-    const validationResult = await validateModuleIds(answers.modules || [], policy);
+    let resolvedModules: string[];
 
-    if (!validationResult.valid) {
-      output.error(`\n❌ Module validation failed:\n`);
-      for (const error of validationResult.errors || []) {
-        output.error(`  - ${error.message}`);
+    if (!policy) {
+      // No policy available - emit warning and use modules as-is
+      if (!options.json) {
+        const reason = options.noPolicy
+          ? "Policy validation disabled (--skip-policy flag)"
+          : "No policy file found";
+        output.warn(
+          `\n⚠️  ${reason}. Module validation skipped.\n` +
+            (options.noPolicy
+              ? ""
+              : "   To enable validation, create a policy file or set LEX_POLICY_PATH.\n")
+        );
       }
-      output.error("");
-      process.exit(1);
+      resolvedModules = answers.modules || [];
+    } else {
+      // Policy exists - validate modules
+      const validationResult = await validateModuleIds(answers.modules || [], policy);
+
+      if (!validationResult.valid) {
+        output.error(`\n❌ Module validation failed:\n`);
+        for (const error of validationResult.errors || []) {
+          output.error(`  - ${error.message}`);
+        }
+        output.error("");
+        process.exit(1);
+      }
+
+      // Use canonical (resolved) module IDs from validation
+      resolvedModules = validationResult.canonical || [];
     }
 
-    // Use canonical (resolved) module IDs from validation
-    const resolvedModules = validationResult.canonical || []; // Build Frame object
+    // Build Frame object
     const frame: Frame = {
       id: uuidv4(),
       timestamp: new Date().toISOString(),
