@@ -43,8 +43,12 @@ export const Frame = z.object({
   runId: z.string().optional(),
   planHash: z.string().optional(),
   spend: FrameSpendMetadata.optional(),
-  // OAuth2/JWT user isolation (v3)
+  // OAuth2/JWT user isolation
   userId: z.string().optional(),
+  // LexRunner structured metadata (v3)
+  executorRole: z.string().optional(),
+  toolCalls: z.array(z.string()).optional(),
+  guardrailProfile: z.string().optional(),
 });
 
 export type Frame = z.infer<typeof Frame>;
@@ -53,8 +57,9 @@ export type Frame = z.infer<typeof Frame>;
  * Frame schema version constant
  * v1: Initial schema (pre-0.4.0)
  * v2: Added runId, planHash, spend fields for execution provenance (0.4.0)
+ * v3: Added executorRole, toolCalls, guardrailProfile for LexRunner (0.5.0)
  */
-export const FRAME_SCHEMA_VERSION = 2;
+export const FRAME_SCHEMA_VERSION = 3;
 
 /**
  * Frame search query interface

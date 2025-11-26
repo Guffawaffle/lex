@@ -33,16 +33,21 @@ export interface Frame {
   runId?: string;
   planHash?: string;
   spend?: SpendMetadata;
-  // OAuth2/JWT user isolation (v3)
+  // OAuth2/JWT user isolation
   userId?: string;
+  // LexRunner structured metadata (v3)
+  executorRole?: string;
+  toolCalls?: string[];
+  guardrailProfile?: string;
 }
 
 /**
  * Frame schema version constant
  * v1: Initial schema (pre-0.4.0)
  * v2: Added runId, planHash, spend fields for execution provenance (0.4.0)
+ * v3: Added executorRole, toolCalls, guardrailProfile for LexRunner (0.5.0)
  */
-export const FRAME_SCHEMA_VERSION = 2;
+export const FRAME_SCHEMA_VERSION = 3;
 
 export function validateFrameMetadata(frame: unknown): frame is Frame {
   if (typeof frame !== "object" || frame === null) return false;
@@ -93,5 +98,12 @@ export function validateFrameMetadata(frame: unknown): frame is Frame {
     if (spend.tokens_estimated !== undefined && typeof spend.tokens_estimated !== "number")
       return false;
   }
+  // Validate v3 fields (optional, backward compatible)
+  if (f.executorRole !== undefined && typeof f.executorRole !== "string") return false;
+  if (f.toolCalls !== undefined) {
+    if (!Array.isArray(f.toolCalls)) return false;
+    if (!f.toolCalls.every((t: unknown) => typeof t === "string")) return false;
+  }
+  if (f.guardrailProfile !== undefined && typeof f.guardrailProfile !== "string") return false;
   return true;
 }
