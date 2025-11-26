@@ -147,6 +147,9 @@ npm test
 # Run git-related tests ONLY (requires non-interactive git signing)
 npm run test:git
 
+# Run git tests in fast mode (reduced workload for iteration)
+LEX_CLI_EXPORT_TEST_MODE=fast npm run test:git
+
 # Run integration tests
 npm run test:integration
 
