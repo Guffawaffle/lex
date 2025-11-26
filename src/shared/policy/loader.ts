@@ -19,6 +19,12 @@ const logger = getNDJSONLogger("policy/loader");
 const DEFAULT_POLICY_PATH = ".smartergpt/lex/lexmap.policy.json";
 
 /**
+ * Canonical policy path (from repository root)
+ * Used as fallback when working file doesn't exist (after fresh clone + npm install)
+ */
+const CANON_POLICY_PATH = "canon/policy/lexmap.policy.json";
+
+/**
  * Fallback example policy path (from repository root)
  */
 const EXAMPLE_POLICY_PATH = "src/policy/policy_spec/lexmap.policy.json.example";
@@ -73,7 +79,8 @@ function findRepoRoot(startPath: string): string {
  * 1. LEX_POLICY_PATH environment variable (explicit override)
  * 2. Custom path parameter (if provided)
  * 3. .smartergpt/lex/lexmap.policy.json (working file)
- * 4. src/policy/policy_spec/lexmap.policy.json.example (example template)
+ * 4. canon/policy/lexmap.policy.json (canonical policy - checked in git)
+ * 5. src/policy/policy_spec/lexmap.policy.json.example (example template)
  *
  * @example
  * ```typescript
@@ -111,7 +118,7 @@ export function loadPolicy(path?: string): Policy {
       // Priority 2: Custom path parameter
       resolvedPath = resolve(path);
     } else {
-      // Priority 3-4: Try working file, then example
+      // Priority 3-5: Try working file, then canon, then example
       // Check for workspace root override from environment
       const repoRoot = process.env[WORKSPACE_ROOT_ENV]
         ? process.env[WORKSPACE_ROOT_ENV]
@@ -122,21 +129,32 @@ export function loadPolicy(path?: string): Policy {
       if (existsSync(workingPath)) {
         resolvedPath = workingPath;
       } else {
-        // Fallback to example file
-        const examplePath = join(repoRoot, EXAMPLE_POLICY_PATH);
-        if (existsSync(examplePath)) {
-          resolvedPath = examplePath;
-          logger.warn("Using fallback policy path", {
+        // Fallback to canonical policy file
+        const canonPath = join(repoRoot, CANON_POLICY_PATH);
+        if (existsSync(canonPath)) {
+          resolvedPath = canonPath;
+          logger.warn("Using canonical policy path", {
             operation: "loadPolicy",
-            metadata: { path: examplePath },
+            metadata: { path: canonPath },
           });
         } else {
-          throw new Error(
-            `Policy file not found. Tried:\n` +
-              `  1. ${workingPath}\n` +
-              `  2. ${examplePath}\n\n` +
-              `Run 'npm run setup-local' to initialize working files.`
-          );
+          // Fallback to example file
+          const examplePath = join(repoRoot, EXAMPLE_POLICY_PATH);
+          if (existsSync(examplePath)) {
+            resolvedPath = examplePath;
+            logger.warn("Using fallback policy path", {
+              operation: "loadPolicy",
+              metadata: { path: examplePath },
+            });
+          } else {
+            throw new Error(
+              `Policy file not found. Tried:\n` +
+                `  1. ${workingPath}\n` +
+                `  2. ${canonPath}\n` +
+                `  3. ${examplePath}\n\n` +
+                `Run 'npm run setup-local' to initialize working files.`
+            );
+          }
         }
       }
     }

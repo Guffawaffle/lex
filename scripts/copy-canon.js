@@ -47,6 +47,16 @@ async function copyCanon() {
       } catch {
         console.log("⚠ No canon/rules/ found");
       }
+
+      // Copy policy/ directory to .smartergpt/lex/ (create if needed)
+      try {
+        await fs.access("canon/policy");
+        await fs.mkdir(".smartergpt/lex", { recursive: true });
+        await fs.cp("canon/policy", ".smartergpt/lex", { recursive: true });
+        console.log("✓ Copied canon/policy → .smartergpt/lex/");
+      } catch {
+        console.log("⚠ No canon/policy/ found");
+      }
     }
 
     console.log("✓ Canon copy complete");
