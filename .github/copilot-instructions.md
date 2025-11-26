@@ -40,8 +40,11 @@ npm ci           # Install deps
 npm run build    # Build
 npm test         # Run tests (excludes git tests)
 npm run lint     # Lint
-npm run local-ci # Full CI
+npm run local-ci # Full CI (excludes git tests)
+npm run test:git # Git tests ONLY (requires non-interactive git signing)
 ```
+
+**Important:** `npm run local-ci` executes the full CI pipeline but **excludes git tests**. Git tests are quarantined and should NEVER run in CI or via `npm test`.
 
 ## Code Style
 
