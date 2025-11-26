@@ -173,5 +173,3 @@ describe("Database Column Name Validation", () => {
     });
   });
 });
-
-console.log("\n✅ Database Column Name Validation Tests - covering SQL injection prevention\n");
