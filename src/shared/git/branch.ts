@@ -3,9 +3,12 @@
  *
  * Provides auto-detection of current git branch with fallback handling
  * for edge cases like detached HEAD and non-git repositories.
+ *
+ * IMPORTANT: Uses spawnSync instead of execSync to avoid WSL2 TTY/GPG hangs.
+ * execSync spawns a shell which can get into weird states on WSL2.
  */
 
-import { execSync } from "child_process";
+import { spawnSync } from "child_process";
 
 /**
  * Cache for the current branch to avoid repeated git calls
@@ -22,6 +25,7 @@ let branchCache: string | null = null;
  * - Returns "detached" when HEAD is detached
  * - Returns "unknown" when not in a git repository
  * - Respects LEX_DEFAULT_BRANCH environment variable as override
+ * - Respects LEX_GIT_MODE=off to skip git calls entirely
  * - Caches result for performance
  *
  * @example
@@ -36,26 +40,38 @@ export function getCurrentBranch(): string {
     return process.env.LEX_DEFAULT_BRANCH;
   }
 
+  // Skip git calls entirely if LEX_GIT_MODE=off
+  if (process.env.LEX_GIT_MODE === "off") {
+    return "unknown";
+  }
+
   // Return cached value if available
   if (branchCache !== null) {
     return branchCache;
   }
 
   try {
-    // Execute git command to get current branch
-    const result = execSync("git rev-parse --abbrev-ref HEAD", {
+    // Use spawnSync to avoid shell - prevents WSL2 TTY/GPG hangs
+    const result = spawnSync("git", ["rev-parse", "--abbrev-ref", "HEAD"], {
       encoding: "utf-8",
-      stdio: ["pipe", "pipe", "pipe"],
-    }).trim();
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+
+    if (result.error || result.status !== 0) {
+      branchCache = "unknown";
+      return branchCache;
+    }
+
+    const branch = (result.stdout || "").trim();
 
     // Check for detached HEAD state
-    if (result === "HEAD") {
+    if (branch === "HEAD") {
       branchCache = "detached";
       return branchCache;
     }
 
     // Cache and return the branch name
-    branchCache = result;
+    branchCache = branch;
     return branchCache;
   } catch {
     // Not a git repository or git command failed

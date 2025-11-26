@@ -246,7 +246,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Integration Notes
 
-All changes were integrated via umbrella PR [#121](https://github.com/Guffawaffle/lex/pull/121) (merge-weave batch, 2025-11-07).
+All changes were integrated via umbrella PR [#121](https://github.com/Guffawaffle/lex/pull/121) (batch integration, 2025-11-07).
 
 The 5 PRs were merged locally in dependency order:
 1. PR #112 - Documentation updates (independent)

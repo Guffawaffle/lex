@@ -18,9 +18,30 @@
       "types": "./dist/shared/cli/output.d.ts",
       "import": "./dist/shared/cli/output.js"
     },
-    "./schemas/cli-output.v1.schema.json": "./schemas/cli-output.v1.schema.json",
-    "./schemas/feature-spec-v0.json": "./schemas/feature-spec-v0.json",
-    "./schemas/profile.schema.json": "./schemas/profile.schema.json",
+    "./types": {
+      "types": "./dist/shared/types/index.d.ts",
+      "import": "./dist/shared/types/index.js"
+    },
+    "./policy": {
+      "types": "./dist/shared/policy/index.d.ts",
+      "import": "./dist/shared/policy/index.js"
+    },
+    "./atlas": {
+      "types": "./dist/shared/atlas/index.d.ts",
+      "import": "./dist/shared/atlas/index.js"
+    },
+    "./module-ids": {
+      "types": "./dist/shared/module_ids/index.d.ts",
+      "import": "./dist/shared/module_ids/index.js"
+    },
+    "./aliases": {
+      "types": "./dist/shared/aliases/index.d.ts",
+      "import": "./dist/shared/aliases/index.js"
+    },
+    "./store": {
+      "types": "./dist/memory/store/index.d.ts",
+      "import": "./dist/memory/store/index.js"
+    },
     "./logger": {
       "types": "./dist/shared/logger/index.d.ts",
       "import": "./dist/shared/logger/index.js"
@@ -29,13 +50,9 @@
       "types": "./dist/shared/prompts/index.d.ts",
       "import": "./dist/shared/prompts/index.js"
     },
-    "./rules": {
-      "types": "./dist/shared/rules/index.d.ts",
-      "import": "./dist/shared/rules/index.js"
-    },
-    "./policy/*": "./dist/policy/*",
-    "./memory/*": "./dist/memory/*",
-    "./shared/*": "./dist/shared/*"
+    "./schemas/cli-output.v1.schema.json": "./schemas/cli-output.v1.schema.json",
+    "./schemas/feature-spec-v0.json": "./schemas/feature-spec-v0.json",
+    "./schemas/profile.schema.json": "./schemas/profile.schema.json"
   },
   "bin": {
     "lex": "dist/shared/cli/lex.js"
@@ -71,11 +88,11 @@
     "lint:fix": "eslint . --fix",
     "lint:baseline:check": "npx eslint . --format=json 2>&1 | grep -v '^>' > current-lint.json && node scripts/lint-budget.mjs current-lint.json lint-baseline.json && rm current-lint.json",
     "lint:baseline:update": "npx eslint . --format=json 2>&1 | grep -v '^>' > lint-baseline.json && echo 'Baseline updated. Please commit lint-baseline.json.'",
-    "test": "NODE_ENV=test LEX_LOG_LEVEL=silent LEX_WORKSPACE_ROOT=$(pwd) npx tsx --test --test-force-exit 'test/**/*.test.{ts,mts}' --test-skip-pattern='test/shared/git' --test-skip-pattern='normalizer\\.test' --test-skip-pattern='export\\.test' --test-skip-pattern='expander\\.test' && NODE_ENV=test LEX_LOG_LEVEL=silent LEX_WORKSPACE_ROOT=$(pwd) node --test --test-force-exit 'test/**/*.test.mjs'",
-    "test:git": "echo 'WARNING: Git tests require non-interactive git signing. Skipped by default.' && NODE_ENV=test LEX_LOG_LEVEL=silent LEX_WORKSPACE_ROOT=$(pwd) npx tsx --test 'test/shared/git/**/*.test.ts' 'test/shared/paths/normalizer.test.ts' 'test/shared/cli/export.test.ts' 'test/shared/tokens/expander.test.ts'",
-    "test:aliases": "NODE_ENV=test LEX_LOG_LEVEL=silent LEX_WORKSPACE_ROOT=$(pwd) node --test test/shared/aliases/substring.spec.mjs test/shared/aliases/collision.spec.mjs test/shared/aliases/case-sensitivity.spec.mjs test/shared/aliases/resolution.spec.mjs",
-    "test:integration": "NODE_ENV=test LEX_LOG_LEVEL=silent LEX_WORKSPACE_ROOT=$(pwd) npx tsx --test test/memory/integration.test.ts && NODE_ENV=test LEX_LOG_LEVEL=silent LEX_WORKSPACE_ROOT=$(pwd) node test/policy/integration.test.mjs",
-    "test:benchmarks": "NODE_ENV=test LEX_LOG_LEVEL=silent LEX_WORKSPACE_ROOT=$(pwd) npx tsx --test test/memory/benchmarks.test.ts",
+    "test": "npx tsx --import ./test/helpers/setup.ts --test --test-force-exit $(find test -name '*.test.ts' -o -name '*.test.mts' | grep -v 'test/shared/git/' | grep -v 'normalizer.test' | grep -v 'export.test' | grep -v 'expander.test' | tr '\\n' ' ') && node --import ./test/helpers/setup.ts --test --test-force-exit 'test/**/*.test.mjs'",
+    "test:git": "echo 'WARNING: Git tests require LEX_GIT_MODE=live and non-interactive git signing. Skipped by default.' && LEX_GIT_MODE=live npx tsx --test 'test/shared/git/**/*.test.ts' 'test/shared/paths/normalizer.test.ts' 'test/shared/cli/export.test.ts' 'test/shared/tokens/expander.test.ts'",
+    "test:aliases": "npx tsx --import ./test/helpers/setup.ts --test test/shared/aliases/substring.spec.mjs test/shared/aliases/collision.spec.mjs test/shared/aliases/case-sensitivity.spec.mjs test/shared/aliases/resolution.spec.mjs",
+    "test:integration": "npx tsx --import ./test/helpers/setup.ts --test test/memory/integration.test.ts && node --import ./test/helpers/setup.ts --test test/policy/integration.test.mjs",
+    "test:benchmarks": "npx tsx --import ./test/helpers/setup.ts --test test/memory/benchmarks.test.ts",
     "test:all": "npm test && npm run test:integration",
     "test:coverage": "npm run test",
     "test:smoke": "./scripts/consumer-smoke-test.sh",
@@ -144,7 +161,7 @@
     "commander": "^12.0.0",
     "express": "^5.1.0",
     "express-rate-limit": "^8.2.1",
-    "glob": "^11.1.0",
+    "glob": "^13.0.0",
     "helmet": "^8.1.0",
     "inquirer": "^13.0.1",
     "jsonwebtoken": "^9.0.2",
@@ -167,7 +184,7 @@
     "@types/inquirer": "^9.0.9",
     "@types/node": "^24.9.2",
     "@types/supertest": "^6.0.3",
-    "@types/uuid": "^10.0.0",
+    "@types/uuid": "^11.0.0",
     "@typescript-eslint/eslint-plugin": "^8.46.3",
     "@typescript-eslint/parser": "^8.46.3",
     "ajv": "^8.17.1",
