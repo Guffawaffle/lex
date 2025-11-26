@@ -41,6 +41,18 @@ export {
   getCodeAtlasRunCount,
 } from "./code-atlas-runs.js";
 
+export {
+  saveCodeUnit,
+  saveCodeUnitsBatch,
+  getCodeUnitById,
+  getCodeUnitsByRepo,
+  getCodeUnitsByFile,
+  getCodeUnitsByKind,
+  deleteCodeUnit,
+  deleteCodeUnitsByRepo,
+  getCodeUnitCount,
+} from "./code-units.js";
+
 // Singleton database instance
 let dbInstance: Database.Database | null = null;
 let dbPath: string | null = null;

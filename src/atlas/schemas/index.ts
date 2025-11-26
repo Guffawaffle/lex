@@ -14,3 +14,12 @@ export {
   type CodeUnitKind,
   type CodeUnitSpan,
 } from "./code-unit.js";
+
+export {
+  CodeAtlasRunSchema,
+  LimitsSchema,
+  parseCodeAtlasRun,
+  validateCodeAtlasRun,
+  type CodeAtlasRun,
+  type Limits,
+} from "./code-atlas-run.js";
