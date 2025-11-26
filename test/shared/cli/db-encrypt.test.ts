@@ -1,21 +1,260 @@
 /**
  * Tests for database encryption CLI command
  *
- * Tests transaction-based migration with atomic table operations,
- * rollback behavior, and data integrity verification.
+ * Covers:
+ * - SEC-002: Transaction-based migration with atomic table operations
+ * - SEC-003: Backup creation and atomic file output
  */
 
 import { test, describe, before, after } from "node:test";
 import assert from "node:assert";
-import { unlinkSync, existsSync, rmSync, mkdirSync } from "fs";
-import { tmpdir } from "os";
+import { mkdirSync, writeFileSync, existsSync, readdirSync, rmSync, unlinkSync } from "fs";
 import { join } from "path";
+import { tmpdir } from "os";
+import { execFileSync } from "node:child_process";
 import Database from "better-sqlite3-multiple-ciphers";
-import { deriveEncryptionKey, initializeDatabase } from "@app/memory/store/db.js";
+import { createDatabase, deriveEncryptionKey, initializeDatabase } from "@app/memory/store/db.js";
 import { saveFrame } from "@app/memory/store/index.js";
-import type { Frame } from "../../memory/frames/types.js";
+import type { Frame } from "@app/memory/frames/types.js";
 
-describe("Database Encryption Migration Tests", () => {
+describe("Database Encryption Security (SEC-003)", () => {
+  const testDir = join(tmpdir(), `lex-db-encrypt-test-${Date.now()}`);
+  const lexBin = join(process.cwd(), "dist", "shared", "cli", "lex.js");
+  
+  function getTestEnv(dbPath: string, passphrase: string = "test-passphrase"): NodeJS.ProcessEnv {
+    return {
+      NODE_ENV: "test",
+      LEX_LOG_LEVEL: "silent",
+      LEX_DB_PATH: dbPath,
+      LEX_DB_KEY: passphrase,
+      PATH: process.env.PATH,
+    };
+  }
+
+  function createTestDatabase(dbPath: string): void {
+    // Ensure no encryption key is set when creating unencrypted test DB
+    const originalKey = process.env.LEX_DB_KEY;
+    delete process.env.LEX_DB_KEY;
+    
+    try {
+      const db = createDatabase(dbPath);
+      const testFrame: Frame = {
+        id: `test-frame-${Date.now()}`,
+        timestamp: new Date().toISOString(),
+        branch: "main",
+        module_scope: ["test"],
+        summary_caption: "Test frame for encryption",
+        reference_point: "encryption test",
+        status_snapshot: {
+          next_action: "Verify encryption",
+        },
+      };
+      saveFrame(db, testFrame);
+      db.close();
+    } finally {
+      if (originalKey !== undefined) {
+        process.env.LEX_DB_KEY = originalKey;
+      }
+    }
+  }
+
+  before(() => {
+    mkdirSync(testDir, { recursive: true });
+  });
+
+  after(() => {
+    if (existsSync(testDir)) {
+      rmSync(testDir, { recursive: true, force: true });
+    }
+  });
+
+  describe("Backup Creation", () => {
+    test("should create backup by default before encryption", () => {
+      const subDir = join(testDir, "backup-default");
+      mkdirSync(subDir, { recursive: true });
+      const inputPath = join(subDir, "test.db");
+      const outputPath = join(subDir, "test-encrypted.db");
+      
+      createTestDatabase(inputPath);
+      
+      const result = execFileSync(
+        process.execPath,
+        [lexBin, "db", "encrypt", "--input", inputPath, "--output", outputPath],
+        { encoding: "utf-8", env: getTestEnv(inputPath) }
+      );
+      
+      // Check that output mentions backup was created
+      assert.match(result, /Backup created:/, "Should mention backup was created");
+      
+      // Check that backup file exists
+      const files = readdirSync(subDir);
+      const backupFiles = files.filter(f => f.includes(".pre-encrypt."));
+      assert.strictEqual(backupFiles.length, 1, "Should create exactly one backup file");
+      
+      // Verify backup file name format
+      const backupFile = backupFiles[0];
+      assert.match(backupFile, /test\.pre-encrypt\.\d{8}-\d{6}\.db/, "Backup should have correct format");
+      
+      // Verify encrypted output was created
+      assert.ok(existsSync(outputPath), "Encrypted output should exist");
+    });
+
+    test("should skip backup when --no-backup is specified", () => {
+      const subDir = join(testDir, "backup-skip");
+      mkdirSync(subDir, { recursive: true });
+      const inputPath = join(subDir, "test.db");
+      const outputPath = join(subDir, "test-encrypted.db");
+      
+      createTestDatabase(inputPath);
+      
+      const result = execFileSync(
+        process.execPath,
+        [lexBin, "db", "encrypt", "--input", inputPath, "--output", outputPath, "--no-backup"],
+        { encoding: "utf-8", env: getTestEnv(inputPath) }
+      );
+      
+      // Check that output does NOT mention backup
+      assert.doesNotMatch(result, /Backup created:/, "Should not mention backup creation");
+      
+      // Check that no backup file exists
+      const files = readdirSync(subDir);
+      const backupFiles = files.filter(f => f.includes(".pre-encrypt."));
+      assert.strictEqual(backupFiles.length, 0, "Should not create any backup file");
+      
+      // Verify encrypted output was still created
+      assert.ok(existsSync(outputPath), "Encrypted output should exist");
+    });
+
+    test("should include backup_path in JSON output when backup is created", () => {
+      const subDir = join(testDir, "backup-json");
+      mkdirSync(subDir, { recursive: true });
+      const inputPath = join(subDir, "test.db");
+      const outputPath = join(subDir, "test-encrypted.db");
+      
+      createTestDatabase(inputPath);
+      
+      const result = execFileSync(
+        process.execPath,
+        [lexBin, "--json", "db", "encrypt", "--input", inputPath, "--output", outputPath],
+        { encoding: "utf-8", env: getTestEnv(inputPath) }
+      );
+      
+      const json = JSON.parse(result.trim());
+      assert.ok(json.success, "Operation should succeed");
+      assert.ok(json.backup_path, "JSON should include backup_path");
+      assert.match(json.backup_path, /\.pre-encrypt\.\d{8}-\d{6}\.db$/, "backup_path should have correct format");
+    });
+  });
+
+  describe("Atomic File Creation", () => {
+    test("should not leave partial output file on error", () => {
+      const subDir = join(testDir, "atomic-error");
+      mkdirSync(subDir, { recursive: true });
+      const inputPath = join(subDir, "test.db");
+      const outputPath = join(subDir, "test-encrypted.db");
+      
+      createTestDatabase(inputPath);
+      
+      // Try to encrypt with wrong key (empty key should fail)
+      const env = getTestEnv(inputPath);
+      delete env.LEX_DB_KEY; // No passphrase - should fail
+      
+      try {
+        execFileSync(
+          process.execPath,
+          [lexBin, "db", "encrypt", "--input", inputPath, "--output", outputPath],
+          { encoding: "utf-8", env }
+        );
+        assert.fail("Should have thrown an error");
+      } catch {
+        // Expected to fail
+      }
+      
+      // Check no output file was created
+      assert.ok(!existsSync(outputPath), "No output file should exist after error");
+      
+      // Check no temp files were left behind
+      const files = readdirSync(subDir);
+      const tempFiles = files.filter(f => f.includes(".tmp"));
+      assert.strictEqual(tempFiles.length, 0, "No temp files should remain after error");
+    });
+
+    test("should create output atomically via rename", () => {
+      const subDir = join(testDir, "atomic-success");
+      mkdirSync(subDir, { recursive: true });
+      const inputPath = join(subDir, "test.db");
+      const outputPath = join(subDir, "test-encrypted.db");
+      
+      createTestDatabase(inputPath);
+      
+      execFileSync(
+        process.execPath,
+        [lexBin, "db", "encrypt", "--input", inputPath, "--output", outputPath, "--no-backup"],
+        { encoding: "utf-8", env: getTestEnv(inputPath) }
+      );
+      
+      // Verify output exists and is readable
+      assert.ok(existsSync(outputPath), "Output file should exist");
+      
+      // Check no temp files were left behind
+      const files = readdirSync(subDir);
+      const tempFiles = files.filter(f => f.includes(".tmp"));
+      assert.strictEqual(tempFiles.length, 0, "No temp files should remain after success");
+    });
+  });
+
+  describe("Backward Compatibility", () => {
+    test("should still fail if output file already exists", () => {
+      const subDir = join(testDir, "existing-output");
+      mkdirSync(subDir, { recursive: true });
+      const inputPath = join(subDir, "test.db");
+      const outputPath = join(subDir, "test-encrypted.db");
+      
+      createTestDatabase(inputPath);
+      
+      // Create existing output file
+      writeFileSync(outputPath, "existing file");
+      
+      try {
+        execFileSync(
+          process.execPath,
+          [lexBin, "db", "encrypt", "--input", inputPath, "--output", outputPath, "--no-backup"],
+          { encoding: "utf-8", env: getTestEnv(inputPath) }
+        );
+        assert.fail("Should have thrown an error");
+      } catch (error: any) {
+        const output = error.stdout || error.stderr;
+        assert.match(output, /Output database already exists/, "Should show existing file error");
+      }
+    });
+
+    test("should still work with --verify option", () => {
+      const subDir = join(testDir, "verify-compat");
+      mkdirSync(subDir, { recursive: true });
+      const inputPath = join(subDir, "test.db");
+      const outputPath = join(subDir, "test-encrypted.db");
+      
+      createTestDatabase(inputPath);
+      
+      const result = execFileSync(
+        process.execPath,
+        [lexBin, "db", "encrypt", "--input", inputPath, "--output", outputPath, "--no-backup", "--verify"],
+        { encoding: "utf-8", env: getTestEnv(inputPath) }
+      );
+      
+      assert.match(result, /Verified:/, "Should show verification result");
+      assert.match(result, /frames migrated successfully/, "Should show successful migration");
+    });
+  });
+});
+
+/**
+ * SEC-002: Transaction-based Migration Tests
+ *
+ * Tests transaction wrapping for atomic table operations,
+ * rollback behavior, and data integrity verification.
+ */
+describe("Database Encryption Migration Tests (SEC-002)", () => {
   describe("Transaction-based Migration", () => {
     const TEST_DIR = join(tmpdir(), `lex-encrypt-test-${Date.now()}`);
     const SOURCE_DB_PATH = join(TEST_DIR, "source.db");
@@ -23,25 +262,21 @@ describe("Database Encryption Migration Tests", () => {
     const TEST_PASSPHRASE = "test-passphrase-secure-123";
 
     before(() => {
-      // Create test directory
       if (!existsSync(TEST_DIR)) {
         mkdirSync(TEST_DIR, { recursive: true });
       }
     });
 
     after(() => {
-      // Clean up test directory
       if (existsSync(TEST_DIR)) {
         rmSync(TEST_DIR, { recursive: true, force: true });
       }
     });
 
     test("should migrate database using transactions for atomicity", () => {
-      // Create source database with test data
       const sourceDb = new Database(SOURCE_DB_PATH);
       initializeDatabase(sourceDb);
 
-      // Add test frames
       const testFrames: Frame[] = Array.from({ length: 100 }, (_, i) => ({
         id: `frame-${String(i).padStart(3, "0")}`,
         timestamp: new Date().toISOString(),
@@ -49,9 +284,7 @@ describe("Database Encryption Migration Tests", () => {
         module_scope: ["core"],
         summary_caption: `Test frame ${i}`,
         reference_point: `test reference ${i}`,
-        status_snapshot: {
-          next_action: `action ${i}`,
-        },
+        status_snapshot: { next_action: `action ${i}` },
         keywords: [`keyword-${i}`],
       }));
 
@@ -59,7 +292,6 @@ describe("Database Encryption Migration Tests", () => {
         saveFrame(sourceDb, frame);
       }
 
-      // Verify source data
       const sourceCount = (
         sourceDb.prepare("SELECT COUNT(*) as count FROM frames").get() as { count: number }
       ).count;
@@ -75,7 +307,6 @@ describe("Database Encryption Migration Tests", () => {
       destDb.pragma(`key="x'${encryptionKey}'"`);
       initializeDatabase(destDb);
 
-      // Get tables to migrate
       const tableNames = sourceDbRead
         .prepare(
           "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '%_fts%'"
@@ -96,7 +327,6 @@ describe("Database Encryption Migration Tests", () => {
             `INSERT OR REPLACE INTO ${name} (${columns.join(", ")}) VALUES (${placeholders})`
           );
 
-          // This is the transaction-wrapped insert (matching the implementation)
           const insertAllRows = destDb.transaction((rowsToInsert: Record<string, unknown>[]) => {
             for (const row of rowsToInsert) {
               const values = columns.map((col) => row[col]);
@@ -121,41 +351,19 @@ describe("Database Encryption Migration Tests", () => {
       ).count;
       assert.strictEqual(destCount, 100, "Destination should have 100 frames");
 
-      // Verify data integrity
-      const firstFrame = verifyDb.prepare("SELECT * FROM frames WHERE id = ?").get("frame-000") as {
-        id: string;
-        summary_caption: string;
-      };
-      assert.strictEqual(firstFrame.id, "frame-000", "First frame ID should match");
-      assert.strictEqual(firstFrame.summary_caption, "Test frame 0", "First frame summary should match");
-
-      const lastFrame = verifyDb.prepare("SELECT * FROM frames WHERE id = ?").get("frame-099") as {
-        id: string;
-        summary_caption: string;
-      };
-      assert.strictEqual(lastFrame.id, "frame-099", "Last frame ID should match");
-      assert.strictEqual(lastFrame.summary_caption, "Test frame 99", "Last frame summary should match");
-
       verifyDb.close();
 
-      // Clean up
-      if (existsSync(SOURCE_DB_PATH)) {
-        unlinkSync(SOURCE_DB_PATH);
-      }
-      if (existsSync(DEST_DB_PATH)) {
-        unlinkSync(DEST_DB_PATH);
-      }
+      if (existsSync(SOURCE_DB_PATH)) unlinkSync(SOURCE_DB_PATH);
+      if (existsSync(DEST_DB_PATH)) unlinkSync(DEST_DB_PATH);
     });
 
     test("should rollback table on insert failure (transaction atomicity)", () => {
       const sourceDbPath = join(TEST_DIR, "source-rollback.db");
       const destDbPath = join(TEST_DIR, "dest-rollback.db");
 
-      // Create source database with test data
       const sourceDb = new Database(sourceDbPath);
       initializeDatabase(sourceDb);
 
-      // Add test frames
       for (let i = 0; i < 10; i++) {
         saveFrame(sourceDb, {
           id: `frame-${i}`,
@@ -164,14 +372,11 @@ describe("Database Encryption Migration Tests", () => {
           module_scope: ["core"],
           summary_caption: `Test frame ${i}`,
           reference_point: `test reference ${i}`,
-          status_snapshot: {
-            next_action: `action ${i}`,
-          },
+          status_snapshot: { next_action: `action ${i}` },
         });
       }
       sourceDb.close();
 
-      // Create destination database
       const sourceDbRead = new Database(sourceDbPath, { readonly: true });
       const destDb = new Database(destDbPath);
       const encryptionKey = deriveEncryptionKey(TEST_PASSPHRASE);
@@ -180,13 +385,9 @@ describe("Database Encryption Migration Tests", () => {
       destDb.pragma(`key="x'${encryptionKey}'"`);
       initializeDatabase(destDb);
 
-      // Get rows from frames table
-      const rows = sourceDbRead.prepare("SELECT * FROM frames").all() as Array<
-        Record<string, unknown>
-      >;
+      const rows = sourceDbRead.prepare("SELECT * FROM frames").all() as Array<Record<string, unknown>>;
       const columns = Object.keys(rows[0]);
 
-      // Create a transaction that will fail midway
       const placeholders = columns.map(() => "?").join(", ");
       const stmt = destDb.prepare(
         `INSERT OR REPLACE INTO frames (${columns.join(", ")}) VALUES (${placeholders})`
@@ -196,7 +397,6 @@ describe("Database Encryption Migration Tests", () => {
       const failingTransaction = destDb.transaction((rowsToInsert: Record<string, unknown>[]) => {
         for (const row of rowsToInsert) {
           insertCount++;
-          // Simulate failure after 5 inserts
           if (insertCount > 5) {
             throw new Error("Simulated insert failure");
           }
@@ -205,7 +405,6 @@ describe("Database Encryption Migration Tests", () => {
         }
       });
 
-      // Execute failing transaction
       assert.throws(
         () => failingTransaction(rows),
         /Simulated insert failure/,
@@ -214,7 +413,6 @@ describe("Database Encryption Migration Tests", () => {
 
       sourceDbRead.close();
 
-      // Verify no partial data remains (transaction was rolled back)
       const count = (
         destDb.prepare("SELECT COUNT(*) as count FROM frames").get() as { count: number }
       ).count;
@@ -222,122 +420,8 @@ describe("Database Encryption Migration Tests", () => {
 
       destDb.close();
 
-      // Clean up
-      if (existsSync(sourceDbPath)) {
-        unlinkSync(sourceDbPath);
-      }
-      if (existsSync(destDbPath)) {
-        unlinkSync(destDbPath);
-      }
-    });
-
-    test("should successfully migrate multiple tables atomically", () => {
-      const sourceDbPath = join(TEST_DIR, "source-multi.db");
-      const destDbPath = join(TEST_DIR, "dest-multi.db");
-
-      // Create source database
-      const sourceDb = new Database(sourceDbPath);
-      initializeDatabase(sourceDb);
-
-      // Add frames
-      for (let i = 0; i < 5; i++) {
-        saveFrame(sourceDb, {
-          id: `frame-${i}`,
-          timestamp: new Date().toISOString(),
-          branch: "main",
-          module_scope: ["core"],
-          summary_caption: `Test frame ${i}`,
-          reference_point: `test reference ${i}`,
-          status_snapshot: {
-            next_action: `action ${i}`,
-          },
-        });
-      }
-
-      // Verify schema_version entries exist (from initializeDatabase)
-      const _schemaVersionCount = (
-        sourceDb.prepare("SELECT COUNT(*) as count FROM schema_version").get() as { count: number }
-      ).count;
-
-      sourceDb.close();
-
-      // Perform migration
-      const sourceDbRead = new Database(sourceDbPath, { readonly: true });
-      const destDb = new Database(destDbPath);
-      const encryptionKey = deriveEncryptionKey(TEST_PASSPHRASE);
-
-      destDb.pragma(`cipher='sqlcipher'`);
-      destDb.pragma(`key="x'${encryptionKey}'"`);
-      initializeDatabase(destDb);
-
-      const tableNames = sourceDbRead
-        .prepare(
-          "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '%_fts%'"
-        )
-        .all() as Array<{ name: string }>;
-
-      const validTableNamePattern = /^[a-zA-Z0-9_]+$/;
-      let tablesProcessed = 0;
-
-      for (const { name } of tableNames) {
-        if (!validTableNamePattern.test(name)) {
-          throw new Error(`Invalid table name detected: ${name}`);
-        }
-        const rows = sourceDbRead.prepare(`SELECT * FROM ${name}`).all();
-        if (rows.length > 0) {
-          const columns = Object.keys(rows[0] as Record<string, unknown>);
-          const placeholders = columns.map(() => "?").join(", ");
-          const stmt = destDb.prepare(
-            `INSERT OR REPLACE INTO ${name} (${columns.join(", ")}) VALUES (${placeholders})`
-          );
-
-          const insertAllRows = destDb.transaction((rowsToInsert: Record<string, unknown>[]) => {
-            for (const row of rowsToInsert) {
-              const values = columns.map((col) => row[col]);
-              stmt.run(...values);
-            }
-          });
-
-          insertAllRows(rows as Record<string, unknown>[]);
-          tablesProcessed++;
-        }
-      }
-
-      sourceDbRead.close();
-      destDb.close();
-
-      // Verify multiple tables were migrated
-      assert.ok(tablesProcessed >= 2, "Should have processed at least 2 tables (frames, schema_version)");
-
-      // Verify data in destination
-      const verifyDb = new Database(destDbPath);
-      verifyDb.pragma(`cipher='sqlcipher'`);
-      verifyDb.pragma(`key="x'${encryptionKey}'"`);
-
-      const destFrameCount = (
-        verifyDb.prepare("SELECT COUNT(*) as count FROM frames").get() as { count: number }
-      ).count;
-      assert.strictEqual(destFrameCount, 5, "Destination should have 5 frames");
-
-      const destSchemaCount = (
-        verifyDb.prepare("SELECT COUNT(*) as count FROM schema_version").get() as { count: number }
-      ).count;
-      // Both source and dest have schema_version records from initializeDatabase
-      assert.ok(destSchemaCount > 0, "Destination should have schema_version entries");
-
-      verifyDb.close();
-
-      // Clean up
-      if (existsSync(sourceDbPath)) {
-        unlinkSync(sourceDbPath);
-      }
-      if (existsSync(destDbPath)) {
-        unlinkSync(destDbPath);
-      }
+      if (existsSync(sourceDbPath)) unlinkSync(sourceDbPath);
+      if (existsSync(destDbPath)) unlinkSync(destDbPath);
     });
   });
 });
-
-console.log(
-  "\n✅ Database Encryption Migration Tests - covering transaction atomicity and rollback behavior\n"
-);

@@ -244,6 +244,7 @@ export function createProgram(): Command {
     .option("--input <path>", "Input database file (default: current database)")
     .option("--output <path>", "Output encrypted database file (default: input-encrypted.db)")
     .option("--verify", "Verify data integrity after encryption")
+    .option("--no-backup", "Skip creating a backup before encryption")
     .action(async (cmdOptions) => {
       const globalOptions = program.opts();
       const options: DbEncryptOptions = {
@@ -251,6 +252,7 @@ export function createProgram(): Command {
         output: cmdOptions.output,
         verify: cmdOptions.verify || false,
         json: globalOptions.json || false,
+        backup: cmdOptions.backup,
       };
       await dbEncrypt(options);
     });
