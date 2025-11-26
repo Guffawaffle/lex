@@ -22,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `@typescript-eslint/parser`: 8.47.0 → 8.48.0
   - `@types/uuid`: 10.0.0 → 11.0.0
 
-## [0.4.2-alpha] - 2025-01-21
+## [0.4.2-alpha] - 2025-11-21
 
 ### Security
 
