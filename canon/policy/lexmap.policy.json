@@ -1,0 +1,74 @@
+{
+  "schemaVersion": "1.0.0",
+  "modules": {
+    "backlog-triage": {
+      "description": "Backlog prioritization and triage workflows"
+    },
+    "research-experiment": {
+      "description": "Academic research and experimental protocols"
+    },
+    "memory": {
+      "description": "Frame storage and recall system"
+    },
+    "memory/frames": {
+      "description": "Frame type definitions and interfaces"
+    },
+    "memory/mcp": {
+      "description": "MCP server for assistant integration"
+    },
+    "memory/mcp_server": {
+      "description": "MCP server implementation"
+    },
+    "memory/store": {
+      "description": "Database and storage layer"
+    },
+    "memory/renderer": {
+      "description": "Memory card and timeline visualization"
+    },
+    "policy": {
+      "description": "Policy loading and validation"
+    },
+    "policy/check": {
+      "description": "Policy enforcement checker"
+    },
+    "policy/merge": {
+      "description": "Scanner output merging"
+    },
+    "policy/scanners": {
+      "description": "Language-specific code scanners"
+    },
+    "shared/aliases": {
+      "description": "Module ID alias resolution"
+    },
+    "shared/atlas": {
+      "description": "Atlas Frame generation (spatial context)"
+    },
+    "shared/cli": {
+      "description": "Command-line interface utilities"
+    },
+    "shared/git": {
+      "description": "Git integration utilities"
+    },
+    "shared/logger": {
+      "description": "Logging infrastructure"
+    },
+    "shared/module_ids": {
+      "description": "Module ID validation"
+    },
+    "shared/policy": {
+      "description": "Policy types and loader"
+    },
+    "shared/types": {
+      "description": "Shared TypeScript types"
+    },
+    "cli": {
+      "description": "Unified CLI surface"
+    },
+    "dogfooding": {
+      "description": "Self-hosting and dogfooding Lex in Lex development"
+    },
+    "ci": {
+      "description": "Continuous integration and automation"
+    }
+  }
+}
