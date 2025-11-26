@@ -133,7 +133,7 @@ export function loadPolicy(path?: string): Policy {
         const canonPath = join(repoRoot, CANON_POLICY_PATH);
         if (existsSync(canonPath)) {
           resolvedPath = canonPath;
-          logger.warn("Using canonical policy path", {
+          logger.warn("Using canonical policy (working file not found)", {
             operation: "loadPolicy",
             metadata: { path: canonPath },
           });

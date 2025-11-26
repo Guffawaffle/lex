@@ -155,10 +155,10 @@ describe("Policy Loader Precedence", () => {
     assert.ok(policy.modules["example"]);
   });
 
-  test("falls back to canon file when working file missing", () => {
+  test("falls back to canonical file when working file missing", () => {
     const repo = createTestRepo();
 
-    // Create canon file
+    // Create canonical file
     const canonDir = join(repo, "canon", "policy");
     mkdirSync(canonDir, { recursive: true });
     writeFileSync(
@@ -172,7 +172,7 @@ describe("Policy Loader Precedence", () => {
     assert.ok(policy.modules["canon"]);
   });
 
-  test("working file overrides canon file", () => {
+  test("working file overrides canonical file", () => {
     const repo = createTestRepo();
 
     const workingDir = join(repo, ".smartergpt", "lex");
@@ -196,7 +196,7 @@ describe("Policy Loader Precedence", () => {
     assert.ok(!policy.modules["canon"]);
   });
 
-  test("canon file overrides example file", () => {
+  test("canonical file overrides example file", () => {
     const repo = createTestRepo();
 
     const canonDir = join(repo, "canon", "policy");
