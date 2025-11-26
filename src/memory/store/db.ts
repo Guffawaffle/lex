@@ -35,6 +35,23 @@ export interface FrameRow {
 }
 
 /**
+ * Database row type for code_atlas_runs table
+ */
+export interface CodeAtlasRunRow {
+  run_id: string;
+  repo_id: string;
+  files_requested: string; // JSON stringified array
+  files_scanned: string; // JSON stringified array
+  units_emitted: number;
+  max_files: number | null;
+  max_bytes: number | null;
+  truncated: number; // SQLite boolean (0 or 1)
+  strategy: string | null;
+  created_at: string;
+  schema_version: string;
+}
+
+/**
  * Get default database path: .smartergpt/lex/memory.db (relative to workspace root)
  * Falls back to ~/.smartergpt/lex/memory.db if not in a lex repository
  * Can be overridden with LEX_DB_PATH or LEX_WORKSPACE_ROOT environment variables
@@ -200,6 +217,10 @@ export function initializeDatabase(db: Database.Database): void {
   if (currentVersion < 4) {
     applyMigrationV4(db);
     db.prepare("INSERT INTO schema_version (version) VALUES (?)").run(4);
+  }
+  if (currentVersion < 5) {
+    applyMigrationV5(db);
+    db.prepare("INSERT INTO schema_version (version) VALUES (?)").run(5);
   }
 }
 
@@ -379,6 +400,40 @@ function applyMigrationV4(db: Database.Database): void {
   // Assign all existing frames (with NULL user_id) to the default user
   db.exec(`
     UPDATE frames SET user_id = '${defaultUserId}' WHERE user_id IS NULL;
+  `);
+}
+
+/**
+ * Migration V5: Add code_atlas_runs table for Code Atlas provenance records
+ *
+ * Schema aligned with CodeAtlasRun type from src/atlas/schemas/code-atlas-run.ts
+ */
+function applyMigrationV5(db: Database.Database): void {
+  // Create code_atlas_runs table for Code Atlas extraction provenance
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS code_atlas_runs (
+      run_id TEXT PRIMARY KEY,
+      repo_id TEXT NOT NULL,
+      files_requested TEXT NOT NULL,
+      files_scanned TEXT NOT NULL,
+      units_emitted INTEGER NOT NULL,
+      max_files INTEGER,
+      max_bytes INTEGER,
+      truncated INTEGER NOT NULL DEFAULT 0,
+      strategy TEXT CHECK (strategy IN ('static', 'llm-assisted', 'mixed')),
+      created_at TEXT NOT NULL,
+      schema_version TEXT NOT NULL DEFAULT 'code-atlas-run-v0'
+    );
+  `);
+
+  // Create index for repo_id lookups
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_code_atlas_runs_repo ON code_atlas_runs(repo_id);
+  `);
+
+  // Create index for created_at queries (temporal ordering)
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_code_atlas_runs_created ON code_atlas_runs(created_at);
   `);
 }
 

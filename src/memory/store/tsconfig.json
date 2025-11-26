@@ -12,6 +12,7 @@
   "include": ["./**/*.ts", "../frames/types.ts"],
   "exclude": ["node_modules", "dist", "**/*.test.ts"],
   "references": [
-    { "path": "../../shared/logger" }
+    { "path": "../../shared/logger" },
+    { "path": "../../atlas/schemas" }
   ]
 }
