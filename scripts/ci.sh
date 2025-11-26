@@ -30,6 +30,8 @@ if npm run | rg -q '^  lint';   then echo "==> npm run lint"; npm run lint; fi
 if npm run | rg -q '^  type-check'; then echo "==> npm run type-check"; npm run type-check; fi
 
 # Build + tests
+# NOTE: Git tests are EXCLUDED from npm test and test:integration
+# Git tests require interactive GPG signing and are run via npm run test:git only
 if [[ "$MONOREPO" -eq 1 ]] && rg -q '"workspaces"' package.json; then
   echo "==> Monorepo mode: build & test all workspaces (if present)"
   npm -ws run build --if-present

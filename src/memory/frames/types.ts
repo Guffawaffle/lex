@@ -43,6 +43,8 @@ export const Frame = z.object({
   runId: z.string().optional(),
   planHash: z.string().optional(),
   spend: FrameSpendMetadata.optional(),
+  // OAuth2/JWT user isolation (v3)
+  userId: z.string().optional(),
 });
 
 export type Frame = z.infer<typeof Frame>;

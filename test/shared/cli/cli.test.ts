@@ -16,12 +16,14 @@ const testDbPath = join(testDir, "frames.db");
 const lexBin = join(process.cwd(), "dist", "shared", "cli", "lex.js");
 
 // Create safe test environment (isolated from process.env to prevent shell injection)
+// LEX_DEFAULT_BRANCH prevents git commands from being called during tests
 function getTestEnv(): NodeJS.ProcessEnv {
   return {
     NODE_ENV: "test",
     LEX_LOG_LEVEL: "silent",
     LEX_POLICY_PATH: join(testDir, "lexmap.policy.json"),
     LEX_DB_PATH: testDbPath,
+    LEX_DEFAULT_BRANCH: "test-branch", // Prevents git calls
     PATH: process.env.PATH, // Only inherit PATH for node resolution
   };
 }

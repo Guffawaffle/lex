@@ -11,7 +11,7 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { createDatabase } from "@app/memory/store/db.js";
 import { createFramesRouter } from "@app/memory/mcp_server/routes/frames.js";
-import type Database from "better-sqlite3";
+import type Database from "better-sqlite3-multiple-ciphers";
 
 // Test database path
 const TEST_DB_PATH = join(tmpdir(), `test-frames-api-${Date.now()}.db`);
@@ -254,93 +254,8 @@ describe("Frame Ingestion API Tests", () => {
       assert.ok(response2.body.existing_frame_id);
     });
 
-    test("should return 401 for missing API key", async () => {
-      const frame = {
-        reference_point: "test",
-        summary_caption: "test",
-        module_scope: ["test"],
-        status_snapshot: {
-          next_action: "test",
-        },
-      };
-
-      const response = await new Promise<{ status: number; body: any }>((resolve) => {
-        const req = {
-          method: "POST",
-          url: "/",
-          body: frame,
-          headers: {
-            "content-type": "application/json",
-          },
-        } as any;
-
-        const res = {
-          statusCode: 200,
-          _body: null as any,
-          status(code: number) {
-            this.statusCode = code;
-            return this;
-          },
-          json(data: any) {
-            this._body = data;
-            resolve({
-              status: this.statusCode,
-              body: this._body,
-            });
-          },
-        } as any;
-
-        const router = createFramesRouter(db, TEST_API_KEY);
-        router(req, res, () => {});
-      });
-
-      assert.strictEqual(response.status, 401);
-      assert.strictEqual(response.body.error, "UNAUTHORIZED");
-    });
-
-    test("should return 401 for invalid API key", async () => {
-      const frame = {
-        reference_point: "test",
-        summary_caption: "test",
-        module_scope: ["test"],
-        status_snapshot: {
-          next_action: "test",
-        },
-      };
-
-      const response = await new Promise<{ status: number; body: any }>((resolve) => {
-        const req = {
-          method: "POST",
-          url: "/",
-          body: frame,
-          headers: {
-            authorization: "Bearer invalid-key",
-            "content-type": "application/json",
-          },
-        } as any;
-
-        const res = {
-          statusCode: 200,
-          _body: null as any,
-          status(code: number) {
-            this.statusCode = code;
-            return this;
-          },
-          json(data: any) {
-            this._body = data;
-            resolve({
-              status: this.statusCode,
-              body: this._body,
-            });
-          },
-        } as any;
-
-        const router = createFramesRouter(db, TEST_API_KEY);
-        router(req, res, () => {});
-      });
-
-      assert.strictEqual(response.status, 401);
-      assert.strictEqual(response.body.error, "UNAUTHORIZED");
-    });
+    // NOTE: Auth tests are in auth-middleware.test.ts and http-server.test.ts
+    // The frames router is mounted behind auth middleware in http-server
+    // Testing auth here would bypass the middleware layer
   });
 });
