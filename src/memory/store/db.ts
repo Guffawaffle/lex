@@ -301,10 +301,10 @@ function applyMigrationV2(db: Database.Database): void {
 }
 
 /**
- * Migration V3: Add merge-weave metadata fields (Frame schema v2)
+ * Migration V3: Add execution provenance fields (Frame schema v2)
  */
 function applyMigrationV3(db: Database.Database): void {
-  // Add new optional columns for merge-weave provenance
+  // Add new optional columns for execution provenance
   // Safe to add with NULL default, backward compatible
   db.exec(`
     ALTER TABLE frames ADD COLUMN run_id TEXT;

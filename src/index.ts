@@ -23,7 +23,6 @@
  * The following are internal or experimental and may change:
  * - `@smartergpt/lex/prompts` - Template system (API stabilizing)
  * - `@smartergpt/lex/logger` - NDJSON logging (internal)
- * - merge-weave module - Not exported (LexRunner-specific)
  * - rules/LexSona - Not exported (experimental)
  */
 

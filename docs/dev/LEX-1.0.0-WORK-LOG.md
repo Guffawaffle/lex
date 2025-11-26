@@ -29,7 +29,7 @@ This log tracks surprises, judgment calls, and observations during the LEX-100 t
    - `@smartergpt/lex/schemas/*` → JSON schemas
 3. Removed `./rules` from public exports (now experimental/internal)
 4. Updated `src/index.ts` with comprehensive 1.0.0 contract documentation
-5. Marked `merge-weave/` and `rules/` with `@experimental` JSDoc tags
+5. Marked `rules/` with `@experimental` JSDoc tags
 6. Added proper TypeScript references to `src/tsconfig.json`
 
 ### Observations
@@ -38,7 +38,6 @@ This log tracks surprises, judgment calls, and observations during the LEX-100 t
 
 ### Judgment Calls
 - Kept `prompts` and `logger` exports: They're useful utilities but marked as "API stabilizing" in docs
-- Did NOT remove merge-weave from the codebase: It stays internal, just not exported
 
 ---
 

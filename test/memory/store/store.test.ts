@@ -365,17 +365,17 @@ describe("Frame Storage Tests", () => {
     });
   });
 
-  describe("Frame Schema v2: Merge-Weave Metadata", () => {
-    test("should save and retrieve Frame with merge-weave metadata", async () => {
-      const frameWithMergeWeave: Frame = {
+  describe("Frame Schema v2: Execution Provenance Metadata", () => {
+    test("should save and retrieve Frame with execution provenance", async () => {
+      const frameWithProvenance: Frame = {
         id: "frame-mw-001",
         timestamp: "2025-11-09T12:00:00Z",
-        branch: "feat/merge-weave",
+        branch: "feat/provenance",
         module_scope: ["core"],
-        summary_caption: "Merge-weave test frame",
-        reference_point: "merge weave test",
+        summary_caption: "Execution provenance test frame",
+        reference_point: "provenance test",
         status_snapshot: {
-          next_action: "Complete merge-weave",
+          next_action: "Complete provenance test",
         },
         runId: "lexrunner-20251109-abc123",
         planHash: "sha256:7f8c9d1234567890abcdef",
@@ -385,7 +385,7 @@ describe("Frame Storage Tests", () => {
         },
       };
 
-      saveFrame(db, frameWithMergeWeave);
+      saveFrame(db, frameWithProvenance);
       const retrieved = getFrameById(db, "frame-mw-001");
 
       assert.ok(retrieved, "Frame should be retrieved");
@@ -406,13 +406,13 @@ describe("Frame Storage Tests", () => {
       deleteFrame(db, "frame-mw-001");
     });
 
-    test("should handle partial merge-weave metadata", async () => {
+    test("should handle partial execution provenance", async () => {
       const framePartial: Frame = {
         id: "frame-mw-002",
         timestamp: "2025-11-09T12:10:00Z",
-        branch: "feat/merge-weave",
+        branch: "feat/provenance",
         module_scope: ["core"],
-        summary_caption: "Partial merge-weave metadata",
+        summary_caption: "Partial execution provenance",
         reference_point: "partial test",
         status_snapshot: {
           next_action: "Test partial fields",
@@ -436,7 +436,7 @@ describe("Frame Storage Tests", () => {
       const framePartialSpend: Frame = {
         id: "frame-mw-003",
         timestamp: "2025-11-09T12:20:00Z",
-        branch: "feat/merge-weave",
+        branch: "feat/provenance",
         module_scope: ["core"],
         summary_caption: "Partial spend metadata",
         reference_point: "partial spend",
@@ -475,7 +475,7 @@ describe("Frame Storage Tests", () => {
         status_snapshot: {
           next_action: "Test backward compatibility",
         },
-        // No merge-weave fields
+        // No v2 provenance fields
       };
 
       saveFrame(db, legacyFrame);

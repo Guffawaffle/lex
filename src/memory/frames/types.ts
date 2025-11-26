@@ -52,7 +52,7 @@ export type Frame = z.infer<typeof Frame>;
 /**
  * Frame schema version constant
  * v1: Initial schema (pre-0.4.0)
- * v2: Added runId, planHash, spend fields for merge-weave provenance (0.4.0)
+ * v2: Added runId, planHash, spend fields for execution provenance (0.4.0)
  */
 export const FRAME_SCHEMA_VERSION = 2;
 

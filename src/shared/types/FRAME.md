@@ -26,9 +26,9 @@ A Frame is a timestamped record of what you were doing, stored locally with stru
 - **`permissions`** (array of strings): Permissions required for this work
 - **`tests_failing`** (array of strings): Test names that were failing
 - **`image_ids`** (array of strings): Image attachment IDs (references to stored images)
-- **`runId`** (string): LexRunner execution identifier for merge-weave provenance (v2)
-- **`planHash`** (string): Hash of the merge-weave plan used (v2)
-- **`spend`** (object): Cost tracking metadata for merge-weave execution (v2)
+- **`runId`** (string): Execution run identifier for provenance tracking (v2)
+- **`planHash`** (string): Hash of the execution plan used (v2)
+- **`spend`** (object): Cost tracking metadata for execution (v2)
   - **`prompts`** (number, optional): Number of prompts used
   - **`tokens_estimated`** (number, optional): Estimated token count
 
@@ -71,7 +71,7 @@ If vocabulary drifts (Frame uses "auth-core" but policy has "services/auth-core"
 ## Schema Version History
 
 - **v1** (pre-0.4.0): Initial schema with core fields and optional metadata
-- **v2** (0.4.0): Added merge-weave provenance fields: `runId`, `planHash`, `spend`
+- **v2** (0.4.0): Added execution provenance fields: `runId`, `planHash`, `spend`
 
 All v2 fields are optional and backward compatible. Legacy Frames without these fields will continue to work.
 
