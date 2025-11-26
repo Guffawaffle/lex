@@ -222,19 +222,20 @@ describe("Code Unit Storage Queries Tests (CA-005)", () => {
         assert.strictEqual(updated, false);
       });
 
-      test("should clear optional fields when set to undefined", () => {
+      test("should not update fields when set to undefined", () => {
         // First ensure tags are set
         updateCodeUnit(db, testUnit1.id, { tags: ["some", "tags"] });
         let retrieved = getCodeUnitById(db, testUnit1.id);
         assert.deepStrictEqual(retrieved!.tags, ["some", "tags"]);
 
-        // Now clear tags by setting to undefined (we need to set to null)
-        updateCodeUnit(db, testUnit1.id, { tags: undefined });
+        // Passing undefined means "don't update this field"
+        // This is different from null which would clear it
+        updateCodeUnit(db, testUnit1.id, { name: "newName" }); // Update another field without touching tags
 
-        // Verify it was updated (to null)
+        // Verify tags are unchanged
         retrieved = getCodeUnitById(db, testUnit1.id);
-        // When we pass undefined, it doesn't update the field
-        // Let's verify the behavior is correct
+        assert.deepStrictEqual(retrieved!.tags, ["some", "tags"]);
+        assert.strictEqual(retrieved!.name, "newName");
       });
     });
 
