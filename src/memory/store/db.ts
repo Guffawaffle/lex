@@ -201,6 +201,10 @@ export function initializeDatabase(db: Database.Database): void {
     applyMigrationV4(db);
     db.prepare("INSERT INTO schema_version (version) VALUES (?)").run(4);
   }
+  if (currentVersion < 5) {
+    applyMigrationV5(db);
+    db.prepare("INSERT INTO schema_version (version) VALUES (?)").run(5);
+  }
 }
 
 /**
@@ -379,6 +383,60 @@ function applyMigrationV4(db: Database.Database): void {
   // Assign all existing frames (with NULL user_id) to the default user
   db.exec(`
     UPDATE frames SET user_id = '${defaultUserId}' WHERE user_id IS NULL;
+  `);
+}
+
+/**
+ * Migration V5: Add code_units table for Code Atlas
+ *
+ * Stores CodeUnit records for code discovery and indexing.
+ * Schema aligned with src/atlas/schemas/code-unit.ts (CA-001).
+ */
+function applyMigrationV5(db: Database.Database): void {
+  // Create code_units table with schema aligned to CodeUnit type
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS code_units (
+      id TEXT PRIMARY KEY,
+      repo_id TEXT NOT NULL,
+      file_path TEXT NOT NULL,
+      language TEXT NOT NULL,
+
+      kind TEXT NOT NULL CHECK (kind IN ('module', 'class', 'function', 'method')),
+      symbol_path TEXT NOT NULL,
+      name TEXT NOT NULL,
+
+      start_line INTEGER NOT NULL,
+      end_line INTEGER NOT NULL,
+
+      tags TEXT,
+      doc_comment TEXT,
+
+      discovered_at TEXT NOT NULL,
+      schema_version TEXT NOT NULL DEFAULT 'code-unit-v0',
+
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
+
+  // Index for repo_id lookups (common query pattern)
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_code_units_repo ON code_units(repo_id);
+  `);
+
+  // Composite index for file path queries within a repo
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_code_units_file ON code_units(repo_id, file_path);
+  `);
+
+  // Composite index for kind queries within a repo
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_code_units_kind ON code_units(repo_id, kind);
+  `);
+
+  // Index for symbol path lookups
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_code_units_symbol ON code_units(symbol_path);
   `);
 }
 
