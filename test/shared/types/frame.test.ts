@@ -11,7 +11,7 @@ import { validateFrameMetadata, FRAME_SCHEMA_VERSION } from "@app/shared/types/f
 
 describe("Frame Type Validation", () => {
   test("should export FRAME_SCHEMA_VERSION", () => {
-    assert.strictEqual(FRAME_SCHEMA_VERSION, 2, "Schema version should be 2");
+    assert.strictEqual(FRAME_SCHEMA_VERSION, 3, "Schema version should be 3");
   });
 
   test("should validate a minimal Frame", () => {
@@ -231,6 +231,129 @@ describe("Frame Type Validation", () => {
     assert.strictEqual(validateFrameMetadata(123), false, "Number should be rejected");
     assert.strictEqual(validateFrameMetadata([]), false, "Array should be rejected");
   });
+
+  test("should validate Frame with LexRunner metadata (v3)", () => {
+    const v3Frame = {
+      id: "test-011",
+      timestamp: "2025-11-09T12:00:00Z",
+      branch: "main",
+      module_scope: ["core"],
+      summary_caption: "Test frame",
+      reference_point: "test",
+      status_snapshot: {
+        next_action: "test action",
+      },
+      executorRole: "code-reviewer",
+      toolCalls: ["read_file", "write_file", "run_tests"],
+      guardrailProfile: "standard-safety",
+    };
+
+    assert.ok(validateFrameMetadata(v3Frame), "Frame with v3 LexRunner metadata should be valid");
+  });
+
+  test("should validate Frame with partial v3 fields", () => {
+    const frameWithPartialV3 = {
+      id: "test-012",
+      timestamp: "2025-11-09T12:00:00Z",
+      branch: "main",
+      module_scope: ["core"],
+      summary_caption: "Test frame",
+      reference_point: "test",
+      status_snapshot: {
+        next_action: "test action",
+      },
+      executorRole: "agent",
+    };
+
+    assert.ok(
+      validateFrameMetadata(frameWithPartialV3),
+      "Frame with partial v3 fields should be valid"
+    );
+  });
+
+  test("should reject invalid executorRole type", () => {
+    const invalidFrame = {
+      id: "test-013",
+      timestamp: "2025-11-09T12:00:00Z",
+      branch: "main",
+      module_scope: ["core"],
+      summary_caption: "Test frame",
+      reference_point: "test",
+      status_snapshot: {
+        next_action: "test action",
+      },
+      executorRole: 123, // Should be string
+    };
+
+    assert.strictEqual(
+      validateFrameMetadata(invalidFrame),
+      false,
+      "Frame with invalid executorRole should be rejected"
+    );
+  });
+
+  test("should reject invalid toolCalls type", () => {
+    const invalidFrame = {
+      id: "test-014",
+      timestamp: "2025-11-09T12:00:00Z",
+      branch: "main",
+      module_scope: ["core"],
+      summary_caption: "Test frame",
+      reference_point: "test",
+      status_snapshot: {
+        next_action: "test action",
+      },
+      toolCalls: "read_file", // Should be array
+    };
+
+    assert.strictEqual(
+      validateFrameMetadata(invalidFrame),
+      false,
+      "Frame with invalid toolCalls should be rejected"
+    );
+  });
+
+  test("should reject invalid toolCalls array elements", () => {
+    const invalidFrame = {
+      id: "test-015",
+      timestamp: "2025-11-09T12:00:00Z",
+      branch: "main",
+      module_scope: ["core"],
+      summary_caption: "Test frame",
+      reference_point: "test",
+      status_snapshot: {
+        next_action: "test action",
+      },
+      toolCalls: ["read_file", 123, "write_file"], // Should all be strings
+    };
+
+    assert.strictEqual(
+      validateFrameMetadata(invalidFrame),
+      false,
+      "Frame with invalid toolCalls elements should be rejected"
+    );
+  });
+
+  test("should reject invalid guardrailProfile type", () => {
+    const invalidFrame = {
+      id: "test-016",
+      timestamp: "2025-11-09T12:00:00Z",
+      branch: "main",
+      module_scope: ["core"],
+      summary_caption: "Test frame",
+      reference_point: "test",
+      status_snapshot: {
+        next_action: "test action",
+      },
+      guardrailProfile: ["standard-safety"], // Should be string
+    };
+
+    assert.strictEqual(
+      validateFrameMetadata(invalidFrame),
+      false,
+      "Frame with invalid guardrailProfile should be rejected"
+    );
+  });
 });
 
-console.log("\n✅ Frame Type Validation Tests - covering v1 and v2 schema validation\n");
+console.log("\n✅ Frame Type Validation Tests - covering v1, v2, and v3 schema validation\n");
