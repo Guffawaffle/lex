@@ -102,6 +102,13 @@ function detectLanguage(filePath: string): string {
 /**
  * Parse .gitignore patterns from a directory
  */
+/**
+ * Parse .gitignore patterns from a directory
+ * 
+ * NOTE: This is a simplified implementation for v0. It handles common patterns
+ * but may not cover all gitignore edge cases (negation, escaping, etc.).
+ * Consider using a dedicated gitignore parsing library for more robust handling.
+ */
 function parseGitignore(repoDir: string): string[] {
   const gitignorePath = path.join(repoDir, ".gitignore");
   if (!fs.existsSync(gitignorePath)) {
@@ -113,9 +120,9 @@ function parseGitignore(repoDir: string): string[] {
     return content
       .split("\n")
       .map((line) => line.trim())
-      .filter((line) => line && !line.startsWith("#"))
+      .filter((line) => line && !line.startsWith("#") && !line.startsWith("!"))
       .map((pattern) => {
-        // Convert gitignore patterns to glob patterns
+        // Convert gitignore patterns to glob patterns (simplified)
         if (pattern.startsWith("/")) {
           return pattern.substring(1) + "/**";
         }
@@ -131,24 +138,31 @@ function parseGitignore(repoDir: string): string[] {
 
 /**
  * Extract JSDoc comment from a node
+ * 
+ * NOTE: This uses TypeScript's getJSDocTags API for type-safe extraction.
+ * May return undefined if no JSDoc is present or if the structure is unexpected.
  */
 function extractJSDocComment(node: ts.Node, _sourceFile: ts.SourceFile): string | undefined {
-  // Use getJSDocTags for type-safe JSDoc extraction
-  const jsDocTags = ts.getJSDocTags(node);
-  if (jsDocTags && jsDocTags.length > 0) {
-    // Get the parent JSDoc node
-    const jsDoc = jsDocTags[0].parent;
-    if (jsDoc && ts.isJSDoc(jsDoc) && jsDoc.comment) {
-      if (typeof jsDoc.comment === "string") {
-        return jsDoc.comment;
+  try {
+    // Use getJSDocTags for type-safe JSDoc extraction
+    const jsDocTags = ts.getJSDocTags(node);
+    if (jsDocTags && jsDocTags.length > 0) {
+      // Get the parent JSDoc node
+      const jsDoc = jsDocTags[0].parent;
+      if (jsDoc && ts.isJSDoc(jsDoc) && jsDoc.comment) {
+        if (typeof jsDoc.comment === "string") {
+          return jsDoc.comment;
+        }
+        // Handle NodeArray<JSDocComment>
+        return (jsDoc.comment as readonly ts.JSDocText[])
+          .filter((part): part is ts.JSDocText => "text" in part && typeof part.text === "string")
+          .map((part) => part.text)
+          .join("")
+          .trim();
       }
-      // Handle NodeArray<JSDocComment>
-      return (jsDoc.comment as readonly ts.JSDocText[])
-        .filter((part): part is ts.JSDocText => "text" in part && typeof part.text === "string")
-        .map((part) => part.text)
-        .join("")
-        .trim();
     }
+  } catch {
+    // If JSDoc extraction fails, return undefined
   }
   return undefined;
 }
@@ -299,7 +313,12 @@ function extractTypeScriptUnits(
 
 /**
  * Extract code units from a Python file using regex patterns
- * (Simple implementation for v0 - AST parsing would be more robust)
+ * 
+ * NOTE: This is a simplified v0 implementation using regex patterns.
+ * Limitations:
+ * - Assumes 4-space indentation for method detection
+ * - May not handle all edge cases (nested classes, decorators, etc.)
+ * - For more robust extraction, consider using Python AST via subprocess
  */
 function extractPythonUnits(
   filePath: string,
@@ -314,9 +333,9 @@ function extractPythonUnits(
 
   // Pattern for class definitions
   const classPattern = /^class\s+(\w+)(?:\s*\([^)]*\))?\s*:/;
-  // Pattern for function definitions
+  // Pattern for function definitions (top-level, no indentation)
   const functionPattern = /^def\s+(\w+)\s*\([^)]*\)\s*(?:->.*)?:/;
-  // Pattern for method definitions (indented)
+  // Pattern for method definitions (assumes 4-space indentation)
   const methodPattern = /^\s{4}def\s+(\w+)\s*\([^)]*\)\s*(?:->.*)?:/;
 
   let currentClass: { name: string; startLine: number } | null = null;
@@ -542,10 +561,15 @@ export async function codeAtlas(options: CodeAtlasOptions = {}): Promise<CodeAtl
   }
 
   try {
+    // Preprocess ignore patterns for efficiency
+    const resolvedIgnorePatterns = ignorePatterns.map((p) => 
+      p.startsWith("**/") ? p : path.join(repoDir, p)
+    );
+
     // Discover files
     const pattern = path.join(repoDir, includePattern);
     const allFiles = await glob(pattern, {
-      ignore: ignorePatterns.map((p) => (p.startsWith("**/") ? p : path.join(repoDir, p))),
+      ignore: resolvedIgnorePatterns,
       nodir: true,
     });
 
