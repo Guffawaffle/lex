@@ -38,6 +38,24 @@ export interface PolicyFile {
 }
 
 /**
+ * Directories to exclude from module scanning
+ */
+const EXCLUDED_DIRECTORIES = [
+  'node_modules',
+  'dist',
+  'build',
+  '.git',
+  'vendor',
+];
+
+/**
+ * Check if a directory should be excluded from scanning
+ */
+function isExcludedDirectory(name: string): boolean {
+  return EXCLUDED_DIRECTORIES.includes(name) || name.startsWith('.');
+}
+
+/**
  * Check if a directory contains TypeScript or JavaScript files
  */
 function hasCodeFiles(dirPath: string): boolean {
@@ -61,6 +79,7 @@ function hasCodeFiles(dirPath: string): boolean {
 function scanDirectory(
   dirPath: string,
   srcDir: string,
+  rootDir: string,
   modules: DiscoveredModule[]
 ): void {
   try {
@@ -73,15 +92,8 @@ function scanDirectory(
 
       const fullPath = path.join(dirPath, entry.name);
 
-      // Skip common non-module directories
-      if (
-        entry.name === "node_modules" ||
-        entry.name === "dist" ||
-        entry.name === "build" ||
-        entry.name === ".git" ||
-        entry.name === "vendor" ||
-        entry.name.startsWith(".")
-      ) {
+      // Skip excluded directories
+      if (isExcludedDirectory(entry.name)) {
         continue;
       }
 
@@ -93,14 +105,14 @@ function scanDirectory(
 
         modules.push({
           id: moduleId,
-          description: `Auto-detected from ${path.relative(process.cwd(), fullPath)}/`,
-          match: [`${path.relative(process.cwd(), fullPath)}/**`],
+          description: `Auto-detected from ${path.relative(rootDir, fullPath)}/`,
+          match: [`${path.relative(rootDir, fullPath)}/**`],
           sourcePath: fullPath,
         });
       }
 
       // Recursively scan subdirectories
-      scanDirectory(fullPath, srcDir, modules);
+      scanDirectory(fullPath, srcDir, rootDir, modules);
     }
   } catch {
     // Skip directories we can't read
@@ -120,7 +132,7 @@ export function discoverModules(options: PolicyGeneratorOptions = {}): Discovere
   }
 
   const modules: DiscoveredModule[] = [];
-  scanDirectory(srcDir, srcDir, modules);
+  scanDirectory(srcDir, srcDir, rootDir, modules);
 
   // Sort modules by ID for consistent output
   modules.sort((a, b) => a.id.localeCompare(b.id));
