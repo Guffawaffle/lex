@@ -3,9 +3,12 @@
  *
  * Provides auto-detection of current git commit SHA with fallback handling
  * for edge cases like non-git repositories.
+ *
+ * IMPORTANT: Uses spawnSync instead of execSync to avoid WSL2 TTY/GPG hangs.
+ * execSync spawns a shell which can get into weird states on WSL2.
  */
 
-import { execSync } from "child_process";
+import { spawnSync } from "child_process";
 
 /**
  * Cache for the current commit to avoid repeated git calls
@@ -20,6 +23,8 @@ let commitCache: string | null = null;
  * Behavior:
  * - Returns short commit SHA (7 chars) in normal git repository
  * - Returns "unknown" when not in a git repository
+ * - Respects LEX_DEFAULT_COMMIT environment variable as override
+ * - Respects LEX_GIT_MODE=off to skip git calls entirely
  * - Caches result for performance
  *
  * @example
@@ -29,20 +34,35 @@ let commitCache: string | null = null;
  * ```
  */
 export function getCurrentCommit(): string {
+  // Check for environment variable override first
+  if (process.env.LEX_DEFAULT_COMMIT) {
+    return process.env.LEX_DEFAULT_COMMIT;
+  }
+
+  // Skip git calls entirely if LEX_GIT_MODE=off
+  if (process.env.LEX_GIT_MODE === "off") {
+    return "unknown";
+  }
+
   // Return cached value if available
   if (commitCache !== null) {
     return commitCache;
   }
 
   try {
-    // Execute git command to get short commit hash
-    const result = execSync("git rev-parse --short HEAD", {
+    // Use spawnSync to avoid shell - prevents WSL2 TTY/GPG hangs
+    const result = spawnSync("git", ["rev-parse", "--short", "HEAD"], {
       encoding: "utf-8",
-      stdio: ["pipe", "pipe", "pipe"],
-    }).trim();
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+
+    if (result.error || result.status !== 0) {
+      commitCache = "unknown";
+      return commitCache;
+    }
 
     // Cache and return the commit SHA
-    commitCache = result;
+    commitCache = (result.stdout || "").trim();
     return commitCache;
   } catch {
     // Not a git repository or git command failed
