@@ -6,12 +6,12 @@ import { readFileSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 
-import { ProfileSchema } from "../../.smartergpt/schemas/profile.schema.js";
+import { ProfileSchema } from "../../canon/schemas/profile.schema.js";
 // NOTE: These schemas migrated to lex-pr-runner in PR #219
 // import { GatesSchema } from "lex-pr-runner/schemas/gates";
 // import { RunnerStackSchema } from "lex-pr-runner/schemas/runner-stack";
 // import { RunnerScopeSchema } from "lex-pr-runner/schemas/runner-scope";
-import { FeatureSpecV0Schema } from "../../.smartergpt/schemas/feature-spec-v0.js";
+import { FeatureSpecV0Schema } from "../../canon/schemas/feature-spec-v0.js";
 // import { ExecutionPlanV1Schema } from "lex-pr-runner/schemas/execution-plan-v1";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -26,7 +26,7 @@ describe("Zod ↔ JSON Schema Round-Trip", () => {
   addFormats(ajv);
 
   describe("ProfileSchema round-trip", () => {
-    const jsonSchemaPath = join(__dirname, "../../.smartergpt/schemas/profile.schema.json");
+    const jsonSchemaPath = join(__dirname, "../../canon/schemas/profile.schema.json");
     const jsonSchema = JSON.parse(readFileSync(jsonSchemaPath, "utf-8"));
     const validateJson = ajv.compile(jsonSchema);
 
@@ -251,7 +251,7 @@ describe("Zod ↔ JSON Schema Round-Trip", () => {
   */
 
   describe("FeatureSpecV0Schema round-trip", () => {
-    const jsonSchemaPath = join(__dirname, "../../.smartergpt/schemas/feature-spec-v0.json");
+    const jsonSchemaPath = join(__dirname, "../../canon/schemas/feature-spec-v0.json");
     const jsonSchema = JSON.parse(readFileSync(jsonSchemaPath, "utf-8"));
     const validateJson = ajv.compile(jsonSchema);
 

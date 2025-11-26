@@ -18,7 +18,7 @@ describe("JSON Schema Validation", () => {
   addFormats(ajv);
 
   describe("profile.schema.json", () => {
-    const schemaPath = join(__dirname, "../../.smartergpt/schemas/profile.schema.json");
+    const schemaPath = join(__dirname, "../../canon/schemas/profile.schema.json");
     const schema = JSON.parse(readFileSync(schemaPath, "utf-8"));
     const validate = ajv.compile(schema);
 
@@ -366,7 +366,7 @@ describe("JSON Schema Validation", () => {
   */
 
   describe("feature-spec-v0.json", () => {
-    const schemaPath = join(__dirname, "../../.smartergpt/schemas/feature-spec-v0.json");
+    const schemaPath = join(__dirname, "../../canon/schemas/feature-spec-v0.json");
     const schema = JSON.parse(readFileSync(schemaPath, "utf-8"));
     const validate = ajv.compile(schema);
 

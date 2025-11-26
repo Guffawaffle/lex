@@ -511,6 +511,9 @@ test("CLI: lex remember without policy file succeeds with warning", () => {
 
   try {
     mkdirSync(noPolicyDir, { recursive: true });
+    // Create a package.json to make this a valid "repo root" so the loader
+    // doesn't fall back to finding the real lex repo's canon/policy file
+    writeFileSync(join(noPolicyDir, "package.json"), '{"name": "test-no-policy"}');
 
     const noPolicyEnv = {
       NODE_ENV: "test",
@@ -541,11 +544,7 @@ test("CLI: lex remember without policy file succeeds with warning", () => {
 
     const output = result.stdout + result.stderr;
     assert.match(output, /No policy file found/, "Should warn about no policy file");
-    assert.match(
-      output,
-      /Module validation skipped/,
-      "Should indicate validation was skipped"
-    );
+    assert.match(output, /Module validation skipped/, "Should indicate validation was skipped");
     assert.match(output, /Frame created successfully/, "Should create frame successfully");
     assert.match(output, /any-module-id/, "Should use the provided module ID as-is");
   } finally {
@@ -577,16 +576,8 @@ test("CLI: lex remember with --skip-policy flag succeeds with any module", () =>
     );
 
     const output = result.stdout + result.stderr;
-    assert.match(
-      output,
-      /Policy validation disabled/,
-      "Should indicate policy was skipped"
-    );
-    assert.match(
-      output,
-      /Module validation skipped/,
-      "Should indicate validation was skipped"
-    );
+    assert.match(output, /Policy validation disabled/, "Should indicate policy was skipped");
+    assert.match(output, /Module validation skipped/, "Should indicate validation was skipped");
     assert.match(output, /Frame created successfully/, "Should create frame successfully");
     assert.match(output, /invalid-module-id/, "Should use the provided module ID as-is");
   } finally {
