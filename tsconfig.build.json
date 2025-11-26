@@ -11,6 +11,7 @@
     { "path": "src/shared/schemas" },
     { "path": "src/shared/rules" },
     { "path": "src/shared/atlas" },
+    { "path": "src/atlas/schemas" },
     { "path": "src/shared/git" },
     { "path": "src/shared/config" },
     { "path": "src/shared/cli" },

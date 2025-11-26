@@ -36,3 +36,15 @@ export {
 
 // Export auto-tuning utilities
 export { estimateTokens, autoTuneRadius, estimateTokensBeforeGeneration } from "./auto-tune.js";
+
+// Export Code Atlas schemas (Layer 0)
+export {
+  CodeUnitSchema,
+  CodeUnitKindSchema,
+  CodeUnitSpanSchema,
+  parseCodeUnit,
+  validateCodeUnit,
+  type CodeUnit,
+  type CodeUnitKind,
+  type CodeUnitSpan,
+} from "../../atlas/schemas/index.js";
