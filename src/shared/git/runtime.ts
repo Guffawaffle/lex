@@ -91,7 +91,7 @@ export function gitIsEnabled(): boolean {
  * ```
  */
 export function getEnvBranch(): string | undefined {
-  return process.env.LEX_DEFAULT_BRANCH || process.env.LEX_BRANCH || undefined;
+  return process.env.LEX_DEFAULT_BRANCH || process.env.LEX_BRANCH;
 }
 
 /**
@@ -111,5 +111,5 @@ export function getEnvBranch(): string | undefined {
  * ```
  */
 export function getEnvCommit(): string | undefined {
-  return process.env.LEX_DEFAULT_COMMIT || process.env.LEX_COMMIT || undefined;
+  return process.env.LEX_DEFAULT_COMMIT || process.env.LEX_COMMIT;
 }
