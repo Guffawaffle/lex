@@ -196,6 +196,40 @@ export function loadPolicy(path?: string): Policy {
 }
 
 /**
+ * Load policy if available, return null if not found (graceful mode)
+ *
+ * @param path - Optional custom policy path
+ * @returns Policy object or null if not found
+ *
+ * This is used by CLI commands that should work without a policy file,
+ * emitting a warning instead of failing.
+ *
+ * @example
+ * ```typescript
+ * const policy = loadPolicyIfAvailable();
+ * if (!policy) {
+ *   console.warn('No policy file found, skipping validation');
+ * }
+ * ```
+ */
+export function loadPolicyIfAvailable(path?: string): Policy | null {
+  try {
+    return loadPolicy(path);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    // Only return null for "not found" errors, re-throw other errors
+    if (
+      errorMessage.includes("Policy file not found") ||
+      errorMessage.includes("Could not find repository root")
+    ) {
+      return null;
+    }
+    // Re-throw other errors (e.g., invalid JSON, invalid structure)
+    throw error;
+  }
+}
+
+/**
  * Clear cached policy (useful for testing)
  */
 export function clearPolicyCache(): void {

@@ -6,7 +6,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { writeFileSync, mkdirSync, existsSync, rmSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
@@ -500,6 +500,95 @@ test("CLI: lex timeline shows blocker evolution", () => {
 
     assert.match(output, /CORS issue/, "Should show blocker");
     assert.match(output, /Blocker Tracking/, "Should show blocker tracking section");
+  } finally {
+    cleanup();
+  }
+});
+
+test("CLI: lex remember without policy file succeeds with warning", () => {
+  const noPolicyDir = join(tmpdir(), "lex-no-policy-test-" + Date.now());
+  const noPolicyDbPath = join(noPolicyDir, "frames.db");
+
+  try {
+    mkdirSync(noPolicyDir, { recursive: true });
+
+    const noPolicyEnv = {
+      NODE_ENV: "test",
+      LEX_LOG_LEVEL: "silent",
+      LEX_DB_PATH: noPolicyDbPath,
+      LEX_DEFAULT_BRANCH: "test-branch",
+      PATH: process.env.PATH,
+      LEX_WORKSPACE_ROOT: noPolicyDir, // Point to dir without policy
+    };
+
+    // Use spawnSync to capture both stdout and stderr
+    const result = spawnSync(
+      process.execPath,
+      [
+        lexBin,
+        "remember",
+        "--reference-point",
+        "no policy test",
+        "--summary",
+        "Test without policy",
+        "--next",
+        "Test action",
+        "--modules",
+        "any-module-id",
+      ],
+      { encoding: "utf-8", env: noPolicyEnv }
+    );
+
+    const output = result.stdout + result.stderr;
+    assert.match(output, /No policy file found/, "Should warn about no policy file");
+    assert.match(
+      output,
+      /Module validation skipped/,
+      "Should indicate validation was skipped"
+    );
+    assert.match(output, /Frame created successfully/, "Should create frame successfully");
+    assert.match(output, /any-module-id/, "Should use the provided module ID as-is");
+  } finally {
+    if (existsSync(noPolicyDir)) {
+      rmSync(noPolicyDir, { recursive: true, force: true });
+    }
+  }
+});
+
+test("CLI: lex remember with --skip-policy flag succeeds with any module", () => {
+  setupTest();
+  try {
+    const result = spawnSync(
+      process.execPath,
+      [
+        lexBin,
+        "remember",
+        "--skip-policy",
+        "--reference-point",
+        "skip policy test",
+        "--summary",
+        "Test with skip-policy flag",
+        "--next",
+        "Test action",
+        "--modules",
+        "invalid-module-id",
+      ],
+      { encoding: "utf-8", env: getTestEnv() }
+    );
+
+    const output = result.stdout + result.stderr;
+    assert.match(
+      output,
+      /Policy validation disabled/,
+      "Should indicate policy was skipped"
+    );
+    assert.match(
+      output,
+      /Module validation skipped/,
+      "Should indicate validation was skipped"
+    );
+    assert.match(output, /Frame created successfully/, "Should create frame successfully");
+    assert.match(output, /invalid-module-id/, "Should use the provided module ID as-is");
   } finally {
     cleanup();
   }
