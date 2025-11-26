@@ -81,3 +81,15 @@ export { resolveModuleId } from "./shared/aliases/resolver.js";
 // Atlas Frame generation for token-efficient context
 export { generateAtlasFrame } from "./shared/atlas/atlas-frame.js";
 export { autoTuneRadius, estimateTokens } from "./shared/atlas/auto-tune.js";
+
+// Atlas rebuild trigger API (LEX-108: Batch Operations)
+export {
+  triggerAtlasRebuild,
+  onRebuildComplete,
+  removeRebuildCallback,
+  initAtlasRebuildManager,
+  getAtlasRebuildManager,
+  resetAtlasRebuildManager,
+  AtlasRebuildManager,
+} from "./shared/atlas/trigger.js";
+export type { RebuildResult, RebuildCallback, AtlasRebuildManagerConfig } from "./shared/atlas/trigger.js";
