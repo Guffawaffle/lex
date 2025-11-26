@@ -224,10 +224,9 @@ describe("OAuth2 Routes", () => {
       assert.ok(response.body.message);
 
       // Verify token is revoked in database
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const revokedToken = db
         .prepare("SELECT * FROM refresh_tokens WHERE token_hash = ?")
-        .get(tokenHash) as any;
+        .get(tokenHash) as { revoked_at: number | null };
       assert.ok(revokedToken.revoked_at);
     });
 

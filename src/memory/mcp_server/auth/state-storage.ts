@@ -58,7 +58,6 @@ export function validateOAuthState(
 
   // Find and delete state in a transaction
   const result = db.transaction(() => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const row = db
       .prepare(
         `
@@ -66,7 +65,7 @@ export function validateOAuthState(
       WHERE state = ? AND expires_at > ?
     `
       )
-      .get(state, now) as any;
+      .get(state, now) as { redirect_url: string } | undefined;
 
     if (!row) {
       return { valid: false };

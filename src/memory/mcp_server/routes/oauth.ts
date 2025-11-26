@@ -158,7 +158,7 @@ export function createOAuthRouter(db: Database.Database, config: OAuthConfig): R
         });
       }
 
-      const stateData = stateStore[state];
+      const _stateData = stateStore[state];
       delete stateStore[state]; // Use state only once
 
       // Validate authorization code

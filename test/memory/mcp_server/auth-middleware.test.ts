@@ -80,8 +80,7 @@ describe("JWT Authentication Middleware", () => {
       assert.equal(response.body.status, "created");
 
       // Verify frame was created with correct user_id
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const frame = db.prepare("SELECT * FROM frames WHERE id = ?").get(response.body.id) as any;
+      const frame = db.prepare("SELECT * FROM frames WHERE id = ?").get(response.body.id) as { user_id: string };
       assert.equal(frame.user_id, userId);
     });
 
@@ -124,8 +123,7 @@ describe("JWT Authentication Middleware", () => {
       assert.ok(response.body.id);
 
       // Verify frame was created with system-default user_id
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const frame = db.prepare("SELECT * FROM frames WHERE id = ?").get(response.body.id) as any;
+      const frame = db.prepare("SELECT * FROM frames WHERE id = ?").get(response.body.id) as { user_id: string };
       assert.equal(frame.user_id, "system-default");
     });
 
@@ -211,10 +209,8 @@ describe("JWT Authentication Middleware", () => {
         .expect(201);
 
       // Verify frames have correct user_id
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const frame1 = db.prepare("SELECT * FROM frames WHERE id = ?").get(response1.body.id) as any;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const frame2 = db.prepare("SELECT * FROM frames WHERE id = ?").get(response2.body.id) as any;
+      const frame1 = db.prepare("SELECT * FROM frames WHERE id = ?").get(response1.body.id) as { user_id: string };
+      const frame2 = db.prepare("SELECT * FROM frames WHERE id = ?").get(response2.body.id) as { user_id: string };
 
       assert.equal(frame1.user_id, userId1);
       assert.equal(frame2.user_id, userId2);
@@ -234,18 +230,16 @@ describe("JWT Authentication Middleware", () => {
         })
         .expect(201);
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const frame = db.prepare("SELECT * FROM frames WHERE id = ?").get(response.body.id) as any;
+      const frame = db.prepare("SELECT * FROM frames WHERE id = ?").get(response.body.id) as { user_id: string };
       assert.equal(frame.user_id, "system-default");
     });
   });
 
   describe("Database Migration", () => {
     it("should have created default system user", () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const defaultUser = db
         .prepare("SELECT * FROM users WHERE user_id = ?")
-        .get("system-default") as any;
+        .get("system-default") as { user_id: string; provider: string };
 
       assert.ok(defaultUser);
       assert.equal(defaultUser.user_id, "system-default");
@@ -253,9 +247,8 @@ describe("JWT Authentication Middleware", () => {
     });
 
     it("should have user_id column in frames table", () => {
-      const tableInfo = db.prepare("PRAGMA table_info(frames)").all();
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const userIdColumn = tableInfo.find((col: any) => col.name === "user_id");
+      const tableInfo = db.prepare("PRAGMA table_info(frames)").all() as { name: string }[];
+      const userIdColumn = tableInfo.find((col) => col.name === "user_id");
 
       assert.ok(userIdColumn);
     });

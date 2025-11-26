@@ -13,7 +13,6 @@ const auditLogger = getLogger("memory:mcp_server:audit");
 
 // Extend Express Request to include user info
 declare global {
-  // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Express {
     interface Request {
       user?: JwtPayload;

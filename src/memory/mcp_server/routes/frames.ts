@@ -4,7 +4,7 @@
  * POST /api/frames - Ingest a new Frame with deduplication
  */
 
-import { Router, Request, Response, NextFunction } from "express";
+import { Router, Request, Response } from "express";
 import type Database from "better-sqlite3-multiple-ciphers";
 import { Frame } from "../../frames/types.js";
 import { saveFrame } from "../../store/queries.js";
@@ -175,9 +175,8 @@ function validateFrameRequest(body: any): { valid: boolean; error?: ApiErrorResp
  */
 export function createFramesRouter(
   db: Database.Database,
-  apiKey: string,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  authFailureLimiter?: any
+  _apiKey?: string,
+  _authFailureLimiter?: unknown
 ): Router {
   const router = Router();
 
