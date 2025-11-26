@@ -28,6 +28,7 @@ function createTestRun(overrides: Partial<CodeAtlasRun> = {}): CodeAtlasRun {
     unitsEmitted: 1,
     limits: { maxFiles: 100 },
     truncated: false,
+    strategy: "static",
     createdAt: new Date().toISOString(),
     schemaVersion: "code-atlas-run-v0",
     ...overrides,
@@ -65,11 +66,12 @@ describe("Atlas HTTP Server Integration", () => {
     initializeDatabase(db);
 
     // Create HTTP server with test API key
+    // Use a low rate limit for testing (10 requests)
     app = createHttpServer(db, {
       apiKey: testApiKey,
       port: 3000,
       rateLimitWindowMs: 60000,
-      rateLimitMaxRequests: 100,
+      rateLimitMaxRequests: 10,
     });
   });
 
@@ -190,12 +192,10 @@ describe("Atlas HTTP Server Integration", () => {
 
   describe("Rate Limiting", () => {
     it("should enforce rate limits on atlas endpoint", async () => {
-      const run = createTestRun();
-
-      // Make requests up to near the limit
-      const promises = [];
-      for (let i = 0; i < 100; i++) {
-        promises.push(
+      // Make requests up to the limit (10 requests in our test config)
+      const requests = [];
+      for (let i = 0; i < 10; i++) {
+        requests.push(
           request(app)
             .post("/api/atlas/ingest")
             .set("Authorization", `Bearer ${testApiKey}`)
@@ -203,18 +203,18 @@ describe("Atlas HTTP Server Integration", () => {
         );
       }
 
-      const responses = await Promise.all(promises);
+      const responses = await Promise.all(requests);
 
-      // All should succeed
+      // All 10 should succeed
       responses.forEach((response) => {
         assert.equal(response.status, 201);
       });
 
-      // 101st request should be rate limited
+      // 11th request should be rate limited
       const rateLimitedResponse = await request(app)
         .post("/api/atlas/ingest")
         .set("Authorization", `Bearer ${testApiKey}`)
-        .send({ run, units: [] });
+        .send({ run: createTestRun(), units: [] });
 
       assert.equal(rateLimitedResponse.status, 429);
       assert.equal(rateLimitedResponse.body.error, "RATE_LIMIT_EXCEEDED");

@@ -10,6 +10,8 @@ import { unlinkSync, existsSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import Database from "better-sqlite3-multiple-ciphers";
+import request from "supertest";
+import express from "express";
 import { initializeDatabase } from "@app/memory/store/db.js";
 import { createAtlasRouter } from "@app/memory/mcp_server/routes/atlas.js";
 import { getCodeAtlasRunById } from "@app/memory/store/code-atlas-runs.js";
@@ -59,63 +61,19 @@ function createTestCodeUnit(overrides: Partial<CodeUnit> = {}): CodeUnit {
   };
 }
 
-/**
- * Helper to simulate HTTP request
- */
-async function simulateRequest(
-  router: ReturnType<typeof createAtlasRouter>,
-  path: string,
-  body: unknown
-): Promise<{ status: number; body: Record<string, unknown> }> {
-  return new Promise((resolve) => {
-    const req = {
-      method: "POST",
-      url: path,
-      body,
-      headers: {
-        "content-type": "application/json",
-      },
-    } as unknown as import("express").Request;
-
-    const res = {
-      statusCode: 200,
-      _body: null as unknown,
-      status(code: number) {
-        this.statusCode = code;
-        return this;
-      },
-      json(data: unknown) {
-        this._body = data;
-        resolve({
-          status: this.statusCode,
-          body: this._body as Record<string, unknown>,
-        });
-      },
-    } as unknown as import("express").Response;
-
-    // Call the router handler
-    // We need to call the actual route handler
-    const handlers = (router as unknown as { stack: Array<{ route: { path: string; methods: { post: boolean } }; handle: Function }> }).stack;
-    const ingestRoute = handlers.find(
-      (h) => h.route && h.route.path === "/ingest" && h.route.methods.post
-    );
-    if (ingestRoute) {
-      ingestRoute.handle(req, res, () => {});
-    } else {
-      resolve({ status: 404, body: { error: "Route not found" } });
-    }
-  });
-}
-
 describe("Atlas Ingestion API Tests", () => {
   let db: Database.Database;
-  let router: ReturnType<typeof createAtlasRouter>;
+  let app: ReturnType<typeof express>;
 
   before(() => {
     // Create test database
     db = new Database(TEST_DB_PATH);
     initializeDatabase(db);
-    router = createAtlasRouter(db);
+
+    // Create a mini Express app with the atlas router for testing
+    app = express();
+    app.use(express.json());
+    app.use("/", createAtlasRouter(db));
   });
 
   after(() => {
@@ -138,7 +96,7 @@ describe("Atlas Ingestion API Tests", () => {
         }),
       ];
 
-      const response = await simulateRequest(router, "/ingest", { run, units });
+      const response = await request(app).post("/ingest").send({ run, units });
 
       assert.strictEqual(response.status, 201);
       assert.strictEqual(response.body.runId, run.runId);
@@ -161,7 +119,7 @@ describe("Atlas Ingestion API Tests", () => {
         unitsEmitted: 0,
       });
 
-      const response = await simulateRequest(router, "/ingest", { run, units: [] });
+      const response = await request(app).post("/ingest").send({ run, units: [] });
 
       assert.strictEqual(response.status, 201);
       assert.strictEqual(response.body.runId, run.runId);
@@ -180,7 +138,7 @@ describe("Atlas Ingestion API Tests", () => {
         createTestCodeUnit({ repoId: "repo-A", id: `unit-c-${Date.now()}` }),
       ];
 
-      const response = await simulateRequest(router, "/ingest", { run, units });
+      const response = await request(app).post("/ingest").send({ run, units });
 
       assert.strictEqual(response.status, 201);
       assert.strictEqual(response.body.unitsIngested, 2);
@@ -188,9 +146,9 @@ describe("Atlas Ingestion API Tests", () => {
     });
 
     test("should return 400 for missing run field", async () => {
-      const response = await simulateRequest(router, "/ingest", {
-        units: [createTestCodeUnit()],
-      });
+      const response = await request(app)
+        .post("/ingest")
+        .send({ units: [createTestCodeUnit()] });
 
       assert.strictEqual(response.status, 400);
       assert.strictEqual(response.body.error, "VALIDATION_FAILED");
@@ -198,9 +156,7 @@ describe("Atlas Ingestion API Tests", () => {
     });
 
     test("should return 400 for missing units field", async () => {
-      const response = await simulateRequest(router, "/ingest", {
-        run: createTestRun(),
-      });
+      const response = await request(app).post("/ingest").send({ run: createTestRun() });
 
       assert.strictEqual(response.status, 400);
       assert.strictEqual(response.body.error, "VALIDATION_FAILED");
@@ -212,10 +168,7 @@ describe("Atlas Ingestion API Tests", () => {
         schemaVersion: "invalid-version",
       };
 
-      const response = await simulateRequest(router, "/ingest", {
-        run: invalidRun,
-        units: [],
-      });
+      const response = await request(app).post("/ingest").send({ run: invalidRun, units: [] });
 
       assert.strictEqual(response.status, 400);
       assert.strictEqual(response.body.error, "VALIDATION_FAILED");
@@ -228,10 +181,7 @@ describe("Atlas Ingestion API Tests", () => {
         kind: "invalid-kind",
       };
 
-      const response = await simulateRequest(router, "/ingest", {
-        run,
-        units: [invalidUnit],
-      });
+      const response = await request(app).post("/ingest").send({ run, units: [invalidUnit] });
 
       assert.strictEqual(response.status, 400);
       assert.strictEqual(response.body.error, "VALIDATION_FAILED");
@@ -244,10 +194,7 @@ describe("Atlas Ingestion API Tests", () => {
         span: { startLine: 0, endLine: 10 },
       };
 
-      const response = await simulateRequest(router, "/ingest", {
-        run,
-        units: [invalidUnit],
-      });
+      const response = await request(app).post("/ingest").send({ run, units: [invalidUnit] });
 
       assert.strictEqual(response.status, 400);
       assert.strictEqual(response.body.error, "VALIDATION_FAILED");
@@ -264,10 +211,7 @@ describe("Atlas Ingestion API Tests", () => {
         docComment: "This is a test function",
       };
 
-      const response = await simulateRequest(router, "/ingest", {
-        run,
-        units: [unitWithOptionals],
-      });
+      const response = await request(app).post("/ingest").send({ run, units: [unitWithOptionals] });
 
       assert.strictEqual(response.status, 201);
       assert.strictEqual(response.body.unitsIngested, 1);
@@ -285,7 +229,7 @@ describe("Atlas Ingestion API Tests", () => {
         })
       );
 
-      const response = await simulateRequest(router, "/ingest", { run, units });
+      const response = await request(app).post("/ingest").send({ run, units });
 
       assert.strictEqual(response.status, 201);
       assert.strictEqual(response.body.unitsIngested, 4);
@@ -300,10 +244,7 @@ describe("Atlas Ingestion API Tests", () => {
           strategy,
         });
 
-        const response = await simulateRequest(router, "/ingest", {
-          run,
-          units: [],
-        });
+        const response = await request(app).post("/ingest").send({ run, units: [] });
 
         assert.strictEqual(response.status, 201, `Strategy ${strategy} should be valid`);
       }
