@@ -7,7 +7,12 @@
   },
   "references": [
     { "path": "./memory/store" },
-    { "path": "./shared/types" }
+    { "path": "./shared/types" },
+    { "path": "./shared/policy" },
+    { "path": "./shared/atlas" },
+    { "path": "./shared/module_ids" },
+    { "path": "./shared/aliases" }
   ],
   "include": ["index.ts"]
 }
+

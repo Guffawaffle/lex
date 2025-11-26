@@ -55,7 +55,7 @@ describe("Frame Type Validation", () => {
     assert.ok(validateFrameMetadata(v1Frame), "Frame with all v1 fields should be valid");
   });
 
-  test("should validate Frame with merge-weave metadata (v2)", () => {
+  test("should validate Frame with execution provenance (v2)", () => {
     const v2Frame = {
       id: "test-003",
       timestamp: "2025-11-09T12:00:00Z",

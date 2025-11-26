@@ -1,7 +1,7 @@
 # Type and Lint Status — Lex Repository
 
 **Date:** 2025-11-22
-**Branch:** `merge-weave/umbrella-20251122-2155`
+**Branch:** `main`
 **Author:** Claude (via GitHub Copilot)
 **Last Updated:** 2025-11-22 (Phase 1a completed)
 
