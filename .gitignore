@@ -15,8 +15,8 @@ tsconfig.tsbuildinfo
 project/
 
 # Generated directories (copied from canon/ during build)
-schemas/
-rules/
+/schemas/
+/rules/
 
 # User workspace directories (created by 'lex init')
 # .smartergpt/ is the organization workspace root
