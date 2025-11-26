@@ -31,3 +31,12 @@ fi
 
 # Note about database - will be created automatically by the application
 echo "ℹ️  Database will be created at .smartergpt/lex/memory.db on first use"
+
+# Set up git hooks
+if [ -d "$REPO_ROOT/.githooks" ]; then
+  git config core.hooksPath .githooks
+  chmod +x "$REPO_ROOT/.githooks/"* 2>/dev/null || true
+  echo "✅ Git hooks enabled (pre-commit, pre-push)"
+else
+  echo "⚠️  Warning: .githooks directory not found, skipping hooks setup"
+fi

@@ -1,0 +1,20 @@
+#!/bin/bash
+# Pre-push hook: Run faux CI before allowing push
+# Install: git config core.hooksPath .githooks
+set -e
+
+echo "🔍 Running pre-push checks (faux CI)..."
+echo ""
+
+# Quick checks first (fail fast)
+echo "==> Checking TypeScript..."
+npm run type-check
+
+echo "==> Checking lint..."
+npm run lint
+
+echo "==> Running tests..."
+npm test
+
+echo ""
+echo "✅ Pre-push checks passed!"
