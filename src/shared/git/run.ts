@@ -32,6 +32,11 @@ export interface GitRunOptions {
  * @returns Trimmed stdout from the git command
  * @throws Error if the git command fails or returns non-zero exit code
  *
+ * @security This function uses spawnSync with an array of arguments, which is safer
+ * than shell execution. However, callers must validate any user-provided inputs
+ * before passing them as arguments to prevent command injection via git subcommands.
+ * Never pass unsanitized user input directly to this function.
+ *
  * @example
  * ```ts
  * // Get git version

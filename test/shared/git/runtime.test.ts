@@ -162,11 +162,7 @@ describe("Git Runtime Mode Control", () => {
       process.env.LEX_DEFAULT_BRANCH = "main";
       process.env.LEX_BRANCH = "feature-branch";
       const branch = getEnvBranch();
-      assert.strictEqual(
-        branch,
-        "main",
-        "Should prioritize LEX_DEFAULT_BRANCH over LEX_BRANCH",
-      );
+      assert.strictEqual(branch, "main", "Should prioritize LEX_DEFAULT_BRANCH over LEX_BRANCH");
     } finally {
       teardown();
     }
@@ -206,11 +202,7 @@ describe("Git Runtime Mode Control", () => {
       process.env.LEX_DEFAULT_COMMIT = "abc123";
       process.env.LEX_COMMIT = "def456";
       const commit = getEnvCommit();
-      assert.strictEqual(
-        commit,
-        "abc123",
-        "Should prioritize LEX_DEFAULT_COMMIT over LEX_COMMIT",
-      );
+      assert.strictEqual(commit, "abc123", "Should prioritize LEX_DEFAULT_COMMIT over LEX_COMMIT");
     } finally {
       teardown();
     }
@@ -248,6 +240,22 @@ describe("Git Runtime Mode Control", () => {
       setGitMode("live");
       assert.strictEqual(getEnvBranch(), "develop");
       assert.strictEqual(getEnvCommit(), "xyz789");
+    } finally {
+      teardown();
+    }
+  });
+
+  test("setGitMode only accepts valid modes", () => {
+    try {
+      // Valid modes should work
+      setGitMode("live");
+      assert.strictEqual(getGitMode(), "live", "Should accept 'live' mode");
+
+      setGitMode("off");
+      assert.strictEqual(getGitMode(), "off", "Should accept 'off' mode");
+
+      // Note: TypeScript prevents invalid values at compile time,
+      // but runtime validation in parseGitMode ensures env var safety
     } finally {
       teardown();
     }

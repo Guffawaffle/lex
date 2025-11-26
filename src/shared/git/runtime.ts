@@ -14,10 +14,29 @@
 export type GitMode = "off" | "live";
 
 /**
+ * Valid git mode values for validation
+ */
+const VALID_GIT_MODES: readonly GitMode[] = ["off", "live"] as const;
+
+/**
+ * Validate and parse a GitMode value
+ *
+ * @param value - The value to validate
+ * @returns A valid GitMode, or 'off' if the value is invalid
+ */
+function parseGitMode(value: string | undefined): GitMode {
+  if (value && VALID_GIT_MODES.includes(value as GitMode)) {
+    return value as GitMode;
+  }
+  return "off";
+}
+
+/**
  * Current git execution mode
  * Initialized from LEX_GIT_MODE environment variable, defaults to 'off'
+ * Invalid values are treated as 'off' for safety
  */
-let currentMode: GitMode = (process.env.LEX_GIT_MODE as GitMode) || "off";
+let currentMode: GitMode = parseGitMode(process.env.LEX_GIT_MODE);
 
 /**
  * Get the current git execution mode
@@ -61,9 +80,12 @@ export function setGitMode(mode: GitMode): void {
  *
  * @example
  * ```ts
+ * import { runGit } from './run.js';
+ *
  * if (gitIsEnabled()) {
- *   // Execute git commands
- *   execSync('git status');
+ *   // Execute git commands using the safe wrapper
+ *   const status = runGit(['status', '--short']);
+ *   console.log(status);
  * } else {
  *   // Skip git operations
  *   console.log('Git is disabled');
