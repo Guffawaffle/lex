@@ -110,7 +110,7 @@ describe("Atlas Ingestion API Tests", () => {
       assert.strictEqual(savedRun.runId, run.runId);
 
       const savedUnits = listCodeUnitsByRepo(db, run.repoId);
-      assert.ok(savedUnits.length >= 2);
+      assert.ok(savedUnits.items.length >= 2);
     });
 
     test("should ingest run with empty units array", async () => {
@@ -151,7 +151,7 @@ describe("Atlas Ingestion API Tests", () => {
         .send({ units: [createTestCodeUnit()] });
 
       assert.strictEqual(response.status, 400);
-      assert.strictEqual(response.body.error, "VALIDATION_FAILED");
+      assert.strictEqual(response.body.error, "validation_error");
       assert.ok(Array.isArray(response.body.details));
     });
 
@@ -159,7 +159,7 @@ describe("Atlas Ingestion API Tests", () => {
       const response = await request(app).post("/ingest").send({ run: createTestRun() });
 
       assert.strictEqual(response.status, 400);
-      assert.strictEqual(response.body.error, "VALIDATION_FAILED");
+      assert.strictEqual(response.body.error, "validation_error");
     });
 
     test("should return 400 for invalid run schemaVersion", async () => {
@@ -171,7 +171,7 @@ describe("Atlas Ingestion API Tests", () => {
       const response = await request(app).post("/ingest").send({ run: invalidRun, units: [] });
 
       assert.strictEqual(response.status, 400);
-      assert.strictEqual(response.body.error, "VALIDATION_FAILED");
+      assert.strictEqual(response.body.error, "validation_error");
     });
 
     test("should return 400 for invalid unit kind", async () => {
@@ -186,7 +186,7 @@ describe("Atlas Ingestion API Tests", () => {
         .send({ run, units: [invalidUnit] });
 
       assert.strictEqual(response.status, 400);
-      assert.strictEqual(response.body.error, "VALIDATION_FAILED");
+      assert.strictEqual(response.body.error, "validation_error");
     });
 
     test("should return 400 for invalid unit span (non-positive line)", async () => {
@@ -201,7 +201,7 @@ describe("Atlas Ingestion API Tests", () => {
         .send({ run, units: [invalidUnit] });
 
       assert.strictEqual(response.status, 400);
-      assert.strictEqual(response.body.error, "VALIDATION_FAILED");
+      assert.strictEqual(response.body.error, "validation_error");
     });
 
     test("should handle optional fields in units", async () => {

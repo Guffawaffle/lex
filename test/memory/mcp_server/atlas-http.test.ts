@@ -139,7 +139,7 @@ describe("Atlas HTTP Server Integration", () => {
       assert.equal(savedRun.runId, run.runId);
 
       const savedUnits = listCodeUnitsByRepo(db, run.repoId);
-      assert.equal(savedUnits.length, 2);
+      assert.equal(savedUnits.items.length, 2);
     });
 
     it("should skip units with mismatched repoId", async () => {
@@ -169,8 +169,8 @@ describe("Atlas HTTP Server Integration", () => {
         });
 
       assert.equal(response.status, 400);
-      assert.equal(response.body.error, "VALIDATION_FAILED");
-      assert.ok(Array.isArray(response.body.details));
+      assert.equal(response.body.error, "validation_error");
+      assert.ok(response.body.details);
     });
 
     it("should return 400 for invalid unit data", async () => {
@@ -184,7 +184,7 @@ describe("Atlas HTTP Server Integration", () => {
         });
 
       assert.equal(response.status, 400);
-      assert.equal(response.body.error, "VALIDATION_FAILED");
+      assert.equal(response.body.error, "validation_error");
     });
   });
 

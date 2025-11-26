@@ -194,7 +194,8 @@ export function createAtlasRouter(db: Database.Database): Router {
         const skippedCount = unitData.length - validUnits.length;
 
         // Save the units in batch
-        const batchResult = validUnits.length > 0 ? insertCodeUnitBatch(db, validUnits) : { inserted: 0 };
+        const batchResult =
+          validUnits.length > 0 ? insertCodeUnitBatch(db, validUnits) : { inserted: 0 };
 
         return { unitsIngested: batchResult.inserted, unitsSkipped: skippedCount };
       });
