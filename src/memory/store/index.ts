@@ -15,7 +15,7 @@
 import Database from "better-sqlite3-multiple-ciphers";
 import { createDatabase, getDefaultDbPath } from "./db.js";
 
-export type { FrameRow } from "./db.js";
+export type { FrameRow, CodeAtlasRunRow } from "./db.js";
 export type { Frame, FrameStatusSnapshot } from "../frames/types.js";
 export type { SearchResult, ExportFramesOptions } from "./queries.js";
 
@@ -31,6 +31,15 @@ export {
   deleteFrame,
   getFrameCount,
 } from "./queries.js";
+
+export {
+  saveCodeAtlasRun,
+  getCodeAtlasRunById,
+  getCodeAtlasRunsByRepo,
+  getAllCodeAtlasRuns,
+  deleteCodeAtlasRun,
+  getCodeAtlasRunCount,
+} from "./code-atlas-runs.js";
 
 // Singleton database instance
 let dbInstance: Database.Database | null = null;
