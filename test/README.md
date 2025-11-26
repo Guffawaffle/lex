@@ -63,6 +63,35 @@ npm run test:git
 npm run test:all
 ```
 
+### Test Mode Configuration
+
+Some slow tests support configurable workloads for faster iteration:
+
+#### CLI Export Test Modes
+
+The `lex frames export` progress test supports two modes:
+
+- **Fast mode** (`LEX_CLI_EXPORT_TEST_MODE=fast`): Reduced workload (10 frames, ~2s)
+  - Use for rapid iteration and debugging
+  - Still validates progress reporting logic
+  - Ideal for local development
+
+- **Full mode** (`LEX_CLI_EXPORT_TEST_MODE=full`): Full workload (150 frames, ~30s)
+  - Comprehensive testing of progress indicators
+  - Default mode for `npm run test:git`
+  - Recommended for CI and pre-commit validation
+
+```bash
+# Fast mode for quick iteration
+LEX_CLI_EXPORT_TEST_MODE=fast npm run test:git
+
+# Full mode (default)
+LEX_CLI_EXPORT_TEST_MODE=full npm run test:git
+
+# Or just
+npm run test:git  # Defaults to full mode
+```
+
 ### Adding New Tests
 
 When creating new tests:

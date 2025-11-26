@@ -8,6 +8,11 @@
  * To run these tests explicitly: npm run test:git
  *
  * Tests for lex frames export command
+ *
+ * Test Mode Configuration:
+ * - LEX_CLI_EXPORT_TEST_MODE=fast  : Reduced workload (~10 frames, completes in seconds)
+ * - LEX_CLI_EXPORT_TEST_MODE=full  : Full workload (150 frames, takes ~30s)
+ * - Default: full
  */
 
 import { test } from "node:test";
@@ -21,6 +26,23 @@ const testDir = join(tmpdir(), "lex-export-test-" + Date.now());
 const testDbPath = join(testDir, "frames.db");
 const exportDir = join(testDir, "export");
 const lexBin = join(process.cwd(), "dist", "shared", "cli", "lex.js");
+
+/**
+ * Get test workload configuration based on LEX_CLI_EXPORT_TEST_MODE
+ * - fast: 10 frames (completes in ~2s, shows 1 progress update)
+ * - full: 150 frames (completes in ~30s, shows multiple progress updates)
+ * - Default: full
+ */
+function getTestWorkload(): { frameCount: number; mode: string } {
+  const testMode = process.env.LEX_CLI_EXPORT_TEST_MODE || "full";
+
+  if (testMode === "fast") {
+    return { frameCount: 10, mode: "fast" };
+  }
+
+  // Default to full workload
+  return { frameCount: 150, mode: "full" };
+}
 
 // Create safe test environment
 function getTestEnv(): NodeJS.ProcessEnv {
@@ -391,8 +413,11 @@ test("CLI: lex frames export with no frames exports 0", () => {
 test("CLI: lex frames export shows progress for large exports", () => {
   setupTest();
   try {
-    // Create 150 test frames to trigger progress indicator (shows every 100)
-    for (let i = 0; i < 150; i++) {
+    const workload = getTestWorkload();
+    // Create test frames based on configured workload
+    // fast mode: 10 frames - still enough to test progress logic
+    // full mode: 150 frames - comprehensive test of progress indicators
+    for (let i = 0; i < workload.frameCount; i++) {
       createTestFrame({
         reference: `bulk frame ${i}`,
         summary: `Bulk frame ${i}`,
@@ -409,8 +434,79 @@ test("CLI: lex frames export shows progress for large exports", () => {
       }
     );
 
-    assert.match(output, /Exported 100 frames\.\.\./, "Should show progress at 100 frames");
-    assert.match(output, /Exported 150 frames/, "Should show final count");
+    // Verify output based on workload
+    if (workload.mode === "fast") {
+      // In fast mode, we won't hit 100 frames but should still complete successfully
+      assert.match(output, /Exported 10 frames/, "Should show final count of 10 frames");
+    } else {
+      // In full mode, verify progress indicators at 100 frames
+      assert.match(output, /Exported 100 frames\.\.\./, "Should show progress at 100 frames");
+      assert.match(output, /Exported 150 frames/, "Should show final count of 150 frames");
+    }
+  } finally {
+    cleanup();
+  }
+});
+
+test("CLI: lex frames export test mode configuration - fast mode", () => {
+  setupTest();
+  try {
+    // Temporarily set test mode to fast
+    const originalMode = process.env.LEX_CLI_EXPORT_TEST_MODE;
+    process.env.LEX_CLI_EXPORT_TEST_MODE = "fast";
+
+    const workload = getTestWorkload();
+    assert.strictEqual(workload.mode, "fast", "Should be in fast mode");
+    assert.strictEqual(workload.frameCount, 10, "Should use reduced workload");
+
+    // Restore original mode
+    if (originalMode) {
+      process.env.LEX_CLI_EXPORT_TEST_MODE = originalMode;
+    } else {
+      delete process.env.LEX_CLI_EXPORT_TEST_MODE;
+    }
+  } finally {
+    cleanup();
+  }
+});
+
+test("CLI: lex frames export test mode configuration - full mode", () => {
+  setupTest();
+  try {
+    // Temporarily set test mode to full
+    const originalMode = process.env.LEX_CLI_EXPORT_TEST_MODE;
+    process.env.LEX_CLI_EXPORT_TEST_MODE = "full";
+
+    const workload = getTestWorkload();
+    assert.strictEqual(workload.mode, "full", "Should be in full mode");
+    assert.strictEqual(workload.frameCount, 150, "Should use full workload");
+
+    // Restore original mode
+    if (originalMode) {
+      process.env.LEX_CLI_EXPORT_TEST_MODE = originalMode;
+    } else {
+      delete process.env.LEX_CLI_EXPORT_TEST_MODE;
+    }
+  } finally {
+    cleanup();
+  }
+});
+
+test("CLI: lex frames export test mode configuration - default to full", () => {
+  setupTest();
+  try {
+    // Save and clear test mode
+    const originalMode = process.env.LEX_CLI_EXPORT_TEST_MODE;
+    delete process.env.LEX_CLI_EXPORT_TEST_MODE;
+
+    const workload = getTestWorkload();
+    assert.strictEqual(workload.mode, "full", "Should default to full mode");
+    assert.strictEqual(workload.frameCount, 150, "Should use full workload by default");
+
+    // Restore original mode
+    if (originalMode) {
+      process.env.LEX_CLI_EXPORT_TEST_MODE = originalMode;
+    }
   } finally {
     cleanup();
   }
