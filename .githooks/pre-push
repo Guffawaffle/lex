@@ -2,14 +2,13 @@
 # Pre-push hook: Run faux CI before allowing push
 # Install: git config core.hooksPath .githooks
 #
-# NOTE: Does NOT run tests - tests may include git commands that hang.
-# Use `npm run local-ci` for full CI including tests.
+# Runs type-check, lint, and tests (excluding git tests).
+# Git tests are excluded from `npm test` and only run via `npm run test:git`.
 set -e
 
 echo "🔍 Running pre-push checks..."
 echo ""
 
-# Quick checks only (no tests - they may invoke git commands)
 echo "==> Checking TypeScript..."
 npm run type-check || { echo "❌ TypeScript check failed"; exit 1; }
 
@@ -18,5 +17,8 @@ echo "==> Checking lint..."
 npm run lint || { echo "❌ Lint check failed"; exit 1; }
 
 echo ""
+echo "==> Running tests (git tests excluded)..."
+npm test || { echo "❌ Tests failed"; exit 1; }
+
+echo ""
 echo "✅ Pre-push checks passed!"
-echo "ℹ️  Run 'npm run local-ci' for full CI including tests."
