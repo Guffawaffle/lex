@@ -29,7 +29,7 @@ const lexBin = join(process.cwd(), "dist", "shared", "cli", "lex.js");
 
 /**
  * Get test workload configuration based on LEX_CLI_EXPORT_TEST_MODE
- * - fast: 10 frames (completes in ~2s, shows 1 progress update)
+ * - fast: 10 frames (completes in ~2s, validates completion)
  * - full: 150 frames (completes in ~30s, shows multiple progress updates)
  * - Default: full
  */
@@ -113,6 +113,28 @@ function createTestFrame(options: {
   }
 
   execFileSync(process.execPath, args, { encoding: "utf-8", env: getTestEnv() });
+}
+
+/**
+ * Helper to run a test with a specific test mode
+ */
+function withTestMode(mode: string | undefined, testFn: () => void): void {
+  const originalMode = process.env.LEX_CLI_EXPORT_TEST_MODE;
+  try {
+    if (mode === undefined) {
+      delete process.env.LEX_CLI_EXPORT_TEST_MODE;
+    } else {
+      process.env.LEX_CLI_EXPORT_TEST_MODE = mode;
+    }
+    testFn();
+  } finally {
+    // Restore original mode
+    if (originalMode) {
+      process.env.LEX_CLI_EXPORT_TEST_MODE = originalMode;
+    } else {
+      delete process.env.LEX_CLI_EXPORT_TEST_MODE;
+    }
+  }
 }
 
 test("CLI: lex frames export exports all frames as JSON by default", () => {
@@ -451,20 +473,11 @@ test("CLI: lex frames export shows progress for large exports", () => {
 test("CLI: lex frames export test mode configuration - fast mode", () => {
   setupTest();
   try {
-    // Temporarily set test mode to fast
-    const originalMode = process.env.LEX_CLI_EXPORT_TEST_MODE;
-    process.env.LEX_CLI_EXPORT_TEST_MODE = "fast";
-
-    const workload = getTestWorkload();
-    assert.strictEqual(workload.mode, "fast", "Should be in fast mode");
-    assert.strictEqual(workload.frameCount, 10, "Should use reduced workload");
-
-    // Restore original mode
-    if (originalMode) {
-      process.env.LEX_CLI_EXPORT_TEST_MODE = originalMode;
-    } else {
-      delete process.env.LEX_CLI_EXPORT_TEST_MODE;
-    }
+    withTestMode("fast", () => {
+      const workload = getTestWorkload();
+      assert.strictEqual(workload.mode, "fast", "Should be in fast mode");
+      assert.strictEqual(workload.frameCount, 10, "Should use reduced workload");
+    });
   } finally {
     cleanup();
   }
@@ -473,20 +486,11 @@ test("CLI: lex frames export test mode configuration - fast mode", () => {
 test("CLI: lex frames export test mode configuration - full mode", () => {
   setupTest();
   try {
-    // Temporarily set test mode to full
-    const originalMode = process.env.LEX_CLI_EXPORT_TEST_MODE;
-    process.env.LEX_CLI_EXPORT_TEST_MODE = "full";
-
-    const workload = getTestWorkload();
-    assert.strictEqual(workload.mode, "full", "Should be in full mode");
-    assert.strictEqual(workload.frameCount, 150, "Should use full workload");
-
-    // Restore original mode
-    if (originalMode) {
-      process.env.LEX_CLI_EXPORT_TEST_MODE = originalMode;
-    } else {
-      delete process.env.LEX_CLI_EXPORT_TEST_MODE;
-    }
+    withTestMode("full", () => {
+      const workload = getTestWorkload();
+      assert.strictEqual(workload.mode, "full", "Should be in full mode");
+      assert.strictEqual(workload.frameCount, 150, "Should use full workload");
+    });
   } finally {
     cleanup();
   }
@@ -495,18 +499,11 @@ test("CLI: lex frames export test mode configuration - full mode", () => {
 test("CLI: lex frames export test mode configuration - default to full", () => {
   setupTest();
   try {
-    // Save and clear test mode
-    const originalMode = process.env.LEX_CLI_EXPORT_TEST_MODE;
-    delete process.env.LEX_CLI_EXPORT_TEST_MODE;
-
-    const workload = getTestWorkload();
-    assert.strictEqual(workload.mode, "full", "Should default to full mode");
-    assert.strictEqual(workload.frameCount, 150, "Should use full workload by default");
-
-    // Restore original mode
-    if (originalMode) {
-      process.env.LEX_CLI_EXPORT_TEST_MODE = originalMode;
-    }
+    withTestMode(undefined, () => {
+      const workload = getTestWorkload();
+      assert.strictEqual(workload.mode, "full", "Should default to full mode");
+      assert.strictEqual(workload.frameCount, 150, "Should use full workload by default");
+    });
   } finally {
     cleanup();
   }
