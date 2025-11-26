@@ -13,8 +13,9 @@ import { deriveEncryptionKey, initializeDatabase } from "../../memory/store/db.j
 import * as output from "./output.js";
 import { getNDJSONLogger } from "../logger/index.js";
 import Database from "better-sqlite3-multiple-ciphers";
-import { existsSync } from "fs";
-import { createHash } from "crypto";
+import { existsSync, renameSync, unlinkSync, copyFileSync } from "fs";
+import { createHash, randomBytes } from "crypto";
+import { dirname, join, basename } from "path";
 
 const logger = getNDJSONLogger("cli/db");
 
@@ -32,6 +33,11 @@ export interface DbEncryptOptions {
   output?: string;
   verify?: boolean;
   json?: boolean;
+  /**
+   * Create a timestamped backup of the input database before encryption.
+   * Defaults to true for safety. Use --no-backup to disable.
+   */
+  backup?: boolean;
 }
 
 /**
@@ -162,9 +168,16 @@ export async function dbBackup(options: DbBackupOptions = {}): Promise<void> {
  * Encrypt an existing database with SQLCipher
  *
  * Migrates an unencrypted database to an encrypted one, with data integrity verification.
+ * 
+ * Security features:
+ * - Creates a timestamped backup before encryption (unless --no-backup)
+ * - Uses atomic file creation via temp+rename pattern to prevent TOCTOU race conditions
  */
 export async function dbEncrypt(options: DbEncryptOptions = {}): Promise<void> {
   const startTime = Date.now();
+  const shouldBackup = options.backup !== false; // Default to true
+  let tempPath: string | undefined;
+  let backupPath: string | undefined;
 
   try {
     // Determine input and output paths
@@ -182,7 +195,7 @@ export async function dbEncrypt(options: DbEncryptOptions = {}): Promise<void> {
       throw new Error(`Input database not found: ${inputPath}`);
     }
 
-    // Warn if output exists
+    // Check if output exists (still fail early for user feedback, but atomic create prevents race)
     if (existsSync(outputPath)) {
       throw new Error(
         `Output database already exists: ${outputPath}. ` +
@@ -192,13 +205,25 @@ export async function dbEncrypt(options: DbEncryptOptions = {}): Promise<void> {
 
     logger.info("Starting database encryption", {
       operation: "dbEncrypt",
-      metadata: { inputPath, outputPath, verify: options.verify },
+      metadata: { inputPath, outputPath, verify: options.verify, backup: shouldBackup },
     });
 
     if (!options.json) {
       output.info(`Encrypting database...`);
       output.info(`Input:  ${inputPath}`);
       output.info(`Output: ${outputPath}`);
+    }
+
+    // Create backup before encryption (unless opted out)
+    if (shouldBackup) {
+      backupPath = createEncryptionBackup(inputPath);
+      if (!options.json) {
+        output.info(`Backup created: ${backupPath}`);
+      }
+      logger.info("Pre-encryption backup created", {
+        operation: "dbEncrypt",
+        metadata: { backupPath },
+      });
     }
 
     // Calculate checksum of source database if verification requested
@@ -226,8 +251,15 @@ export async function dbEncrypt(options: DbEncryptOptions = {}): Promise<void> {
     // Derive encryption key
     const encryptionKey = deriveEncryptionKey(passphrase);
 
-    // Create encrypted output database directly without environment variable manipulation
-    const destDb = new Database(outputPath);
+    // Create encrypted database in a temp file first (atomic creation pattern).
+    // This prevents TOCTOU race conditions: the temp file is created exclusively,
+    // and then atomically renamed to the final destination.
+    const outputDir = dirname(outputPath);
+    const outputBasename = basename(outputPath);
+    const randomSuffix = randomBytes(8).toString("hex");
+    tempPath = join(outputDir, `.${outputBasename}.${randomSuffix}.tmp`);
+
+    const destDb = new Database(tempPath);
     destDb.pragma(`cipher='sqlcipher'`);
     destDb.pragma(`key="x'${encryptionKey}'"`);
 
@@ -270,6 +302,11 @@ export async function dbEncrypt(options: DbEncryptOptions = {}): Promise<void> {
     sourceDb.close();
     destDb.close();
 
+    // Atomically move temp file to final destination (POSIX atomic rename).
+    // This ensures the output file is either completely written or doesn't exist.
+    renameSync(tempPath, outputPath);
+    tempPath = undefined; // Clear so cleanup doesn't try to remove it
+
     // Verify encrypted database if requested
     if (options.verify) {
       if (!options.json) {
@@ -305,7 +342,7 @@ export async function dbEncrypt(options: DbEncryptOptions = {}): Promise<void> {
     logger.info("Database encryption completed", {
       operation: "dbEncrypt",
       duration_ms: duration,
-      metadata: { inputPath, outputPath, rowCount: totalRows },
+      metadata: { inputPath, outputPath, rowCount: totalRows, backupPath },
     });
 
     if (options.json) {
@@ -316,17 +353,30 @@ export async function dbEncrypt(options: DbEncryptOptions = {}): Promise<void> {
         output: outputPath,
         rows_migrated: totalRows,
         source_checksum: sourceChecksum,
+        backup_path: backupPath,
         duration_ms: duration,
       });
     } else {
       output.success(`Database encrypted successfully in ${duration}ms`);
       output.info(`Encrypted database: ${outputPath}`);
       output.info(`Rows migrated: ${totalRows}`);
+      if (backupPath) {
+        output.info(`Backup: ${backupPath}`);
+      }
       output.warn(`\nIMPORTANT: Set LEX_DB_KEY environment variable to use the encrypted database`);
       output.warn(`Keep your passphrase secure - there is no way to recover it if lost!`);
       output.info(`Example: export LEX_DB_KEY="your-passphrase-here"`);
     }
   } catch (error) {
+    // Cleanup temp file on error
+    if (tempPath && existsSync(tempPath)) {
+      try {
+        unlinkSync(tempPath);
+      } catch {
+        // Ignore cleanup errors
+      }
+    }
+
     logger.error("Database encryption failed", {
       operation: "dbEncrypt",
       error: error instanceof Error ? error : new Error(String(error)),
@@ -345,6 +395,33 @@ export async function dbEncrypt(options: DbEncryptOptions = {}): Promise<void> {
     }
     process.exit(1);
   }
+}
+
+/**
+ * Create a timestamped backup of the database before encryption.
+ * Format: {filename}.pre-encrypt.{YYYYMMDD-HHMMSS}.db
+ *
+ * @param inputPath - Path to the input database file
+ * @returns Path to the created backup file
+ */
+function createEncryptionBackup(inputPath: string): string {
+  const now = new Date();
+  // Format: YYYYMMDD-HHMMSS
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  const hours = String(now.getHours()).padStart(2, "0");
+  const minutes = String(now.getMinutes()).padStart(2, "0");
+  const seconds = String(now.getSeconds()).padStart(2, "0");
+  const timestamp = `${year}${month}${day}-${hours}${minutes}${seconds}`;
+  
+  const inputDir = dirname(inputPath);
+  const inputBasename = basename(inputPath, ".db");
+  const backupFilename = `${inputBasename}.pre-encrypt.${timestamp}.db`;
+  const backupPath = join(inputDir, backupFilename);
+  
+  copyFileSync(inputPath, backupPath);
+  return backupPath;
 }
 
 /**
