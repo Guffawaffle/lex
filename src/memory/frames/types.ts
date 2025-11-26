@@ -43,7 +43,7 @@ export const Frame = z.object({
   runId: z.string().optional(),
   planHash: z.string().optional(),
   spend: FrameSpendMetadata.optional(),
-  // OAuth2/JWT user isolation
+  // OAuth2/JWT user isolation (v3)
   userId: z.string().optional(),
   // LexRunner structured metadata (v3)
   executorRole: z.string().optional(),
