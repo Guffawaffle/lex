@@ -6,3 +6,4 @@
 
 export { getCurrentBranch, clearBranchCache } from "./branch.js";
 export { getCurrentCommit, clearCommitCache } from "./commit.js";
+export { runGit, type GitRunOptions } from "./run.js";
