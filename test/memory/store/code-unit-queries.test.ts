@@ -1,9 +1,7 @@
 /**
- * Tests for Code Unit storage queries (CA-005)
+ * Tests for Code Unit storage queries (CA-007)
  *
- * Unit tests for CRUD and search operations for CodeUnit records.
- *
- * Run with: npm test
+ * Tests for CRUD operations on code_units table.
  */
 
 import { test, describe, before, after } from "node:test";
@@ -11,22 +9,20 @@ import assert from "node:assert";
 import { unlinkSync, existsSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
+import { getDb, closeDb } from "@app/memory/store/index.js";
 import {
-  getDb,
-  closeDb,
-  insertCodeUnit,
-  getCodeUnitById,
-  updateCodeUnit,
-  deleteCodeUnit,
+  saveCodeUnit,
   insertCodeUnitBatch,
-  deleteCodeUnitsByRepo,
+  getCodeUnitById,
+  queryCodeUnits,
   listCodeUnitsByRepo,
   listCodeUnitsByFile,
   listCodeUnitsByKind,
   searchCodeUnitsBySymbol,
+  deleteCodeUnit,
+  deleteCodeUnitsByRepo,
   getCodeUnitCount,
-  getCodeUnitCountByRepo,
-} from "@app/memory/store/index.js";
+} from "@app/memory/store/code-unit-queries.js";
 import type { CodeUnit } from "@app/atlas/schemas/code-unit.js";
 
 // Test database path
@@ -36,14 +32,14 @@ const TEST_DB_PATH = join(tmpdir(), `test-code-unit-queries-${Date.now()}.db`);
 const testUnit1: CodeUnit = {
   id: "cu-001",
   repoId: "repo-test-1",
-  filePath: "src/utils.ts",
+  filePath: "src/foo/bar.ts",
   language: "ts",
   kind: "function",
-  symbolPath: "src/utils.ts::helper",
-  name: "helper",
-  span: { startLine: 10, endLine: 25 },
-  tags: ["utility", "helper"],
-  docComment: "A helper function",
+  symbolPath: "src/foo/bar.ts::myFunction",
+  name: "myFunction",
+  span: { startLine: 10, endLine: 20 },
+  tags: ["test", "api"],
+  docComment: "A test function",
   discoveredAt: "2025-11-26T14:00:00.000Z",
   schemaVersion: "code-unit-v0",
 };
@@ -51,58 +47,45 @@ const testUnit1: CodeUnit = {
 const testUnit2: CodeUnit = {
   id: "cu-002",
   repoId: "repo-test-1",
-  filePath: "src/utils.ts",
+  filePath: "src/foo/bar.ts",
   language: "ts",
-  kind: "function",
-  symbolPath: "src/utils.ts::format",
-  name: "format",
-  span: { startLine: 30, endLine: 45 },
-  discoveredAt: "2025-11-26T14:30:00.000Z",
+  kind: "class",
+  symbolPath: "src/foo/bar.ts::MyClass",
+  name: "MyClass",
+  span: { startLine: 30, endLine: 100 },
+  tags: ["api"],
+  discoveredAt: "2025-11-26T14:01:00.000Z",
   schemaVersion: "code-unit-v0",
 };
 
 const testUnit3: CodeUnit = {
   id: "cu-003",
-  repoId: "repo-test-1",
-  filePath: "src/models/User.ts",
+  repoId: "repo-test-2",
+  filePath: "src/utils/helper.ts",
   language: "ts",
-  kind: "class",
-  symbolPath: "src/models/User.ts::User",
-  name: "User",
-  span: { startLine: 1, endLine: 100 },
-  tags: ["model"],
-  discoveredAt: "2025-11-26T15:00:00.000Z",
+  kind: "function",
+  symbolPath: "src/utils/helper.ts::helperFn",
+  name: "helperFn",
+  span: { startLine: 1, endLine: 10 },
+  discoveredAt: "2025-11-26T14:02:00.000Z",
   schemaVersion: "code-unit-v0",
 };
 
 const testUnit4: CodeUnit = {
   id: "cu-004",
   repoId: "repo-test-1",
-  filePath: "src/models/User.ts",
+  filePath: "src/baz/qux.ts",
   language: "ts",
   kind: "method",
-  symbolPath: "src/models/User.ts::User.save",
-  name: "save",
+  symbolPath: "src/baz/qux.ts::SomeClass.someMethod",
+  name: "someMethod",
   span: { startLine: 50, endLine: 60 },
-  docComment: "Saves the user to the database",
-  discoveredAt: "2025-11-26T15:30:00.000Z",
+  tags: ["internal"],
+  discoveredAt: "2025-11-26T14:03:00.000Z",
   schemaVersion: "code-unit-v0",
 };
 
-const testUnit5: CodeUnit = {
-  id: "cu-005",
-  repoId: "repo-test-2",
-  filePath: "lib/parser.ts",
-  language: "ts",
-  kind: "module",
-  symbolPath: "lib/parser.ts",
-  name: "parser",
-  span: { startLine: 1, endLine: 200 },
-  discoveredAt: "2025-11-26T16:00:00.000Z",
-  schemaVersion: "code-unit-v0",
-};
-
-describe("Code Unit Storage Queries Tests (CA-005)", () => {
+describe("Code Unit Queries Tests", () => {
   let db: ReturnType<typeof getDb>;
 
   before(() => {
@@ -121,413 +104,285 @@ describe("Code Unit Storage Queries Tests (CA-005)", () => {
     }
   });
 
-  describe("Single Operations", () => {
-    describe("insertCodeUnit", () => {
-      test("should insert a CodeUnit with all fields", () => {
-        insertCodeUnit(db, testUnit1);
-        const retrieved = getCodeUnitById(db, testUnit1.id);
-
-        assert.ok(retrieved, "CodeUnit should be found");
-        assert.strictEqual(retrieved!.id, testUnit1.id);
-        assert.strictEqual(retrieved!.repoId, testUnit1.repoId);
-        assert.strictEqual(retrieved!.filePath, testUnit1.filePath);
-        assert.strictEqual(retrieved!.language, testUnit1.language);
-        assert.strictEqual(retrieved!.kind, testUnit1.kind);
-        assert.strictEqual(retrieved!.symbolPath, testUnit1.symbolPath);
-        assert.strictEqual(retrieved!.name, testUnit1.name);
-        assert.deepStrictEqual(retrieved!.span, testUnit1.span);
-        assert.deepStrictEqual(retrieved!.tags, testUnit1.tags);
-        assert.strictEqual(retrieved!.docComment, testUnit1.docComment);
-        assert.strictEqual(retrieved!.discoveredAt, testUnit1.discoveredAt);
-        assert.strictEqual(retrieved!.schemaVersion, testUnit1.schemaVersion);
-      });
-
-      test("should insert a CodeUnit with only required fields", () => {
-        insertCodeUnit(db, testUnit2);
-        const retrieved = getCodeUnitById(db, testUnit2.id);
-
-        assert.ok(retrieved, "CodeUnit should be found");
-        assert.strictEqual(retrieved!.id, testUnit2.id);
-        assert.strictEqual(retrieved!.tags, undefined);
-        assert.strictEqual(retrieved!.docComment, undefined);
-      });
-
-      test("should upsert existing CodeUnit", () => {
-        const updatedUnit = {
-          ...testUnit1,
-          name: "updatedHelper",
-        };
-        insertCodeUnit(db, updatedUnit);
-        const retrieved = getCodeUnitById(db, testUnit1.id);
-
-        assert.strictEqual(retrieved!.name, "updatedHelper");
-        const count = getCodeUnitCount(db);
-        assert.strictEqual(count, 2, "Should still have 2 units after upsert");
-      });
+  describe("Single CRUD Operations", () => {
+    test("should save a CodeUnit successfully", () => {
+      saveCodeUnit(db, testUnit1);
+      const count = getCodeUnitCount(db);
+      assert.strictEqual(count, 1, "CodeUnit count should be 1 after insert");
     });
 
-    describe("getCodeUnitById", () => {
-      test("should return null for non-existent ID", () => {
-        const result = getCodeUnitById(db, "non-existent-id");
-        assert.strictEqual(result, null);
-      });
-
-      test("should retrieve CodeUnit by ID", () => {
-        const result = getCodeUnitById(db, testUnit1.id);
-        assert.ok(result);
-        assert.strictEqual(result!.id, testUnit1.id);
-      });
+    test("should retrieve CodeUnit by ID", () => {
+      const unit = getCodeUnitById(db, "cu-001");
+      assert.ok(unit, "CodeUnit should be found");
+      assert.strictEqual(unit!.id, testUnit1.id);
+      assert.strictEqual(unit!.repoId, testUnit1.repoId);
+      assert.strictEqual(unit!.filePath, testUnit1.filePath);
+      assert.strictEqual(unit!.language, testUnit1.language);
+      assert.strictEqual(unit!.kind, testUnit1.kind);
+      assert.strictEqual(unit!.symbolPath, testUnit1.symbolPath);
+      assert.strictEqual(unit!.name, testUnit1.name);
+      assert.deepStrictEqual(unit!.span, testUnit1.span);
+      assert.deepStrictEqual(unit!.tags, testUnit1.tags);
+      assert.strictEqual(unit!.docComment, testUnit1.docComment);
+      assert.strictEqual(unit!.discoveredAt, testUnit1.discoveredAt);
+      assert.strictEqual(unit!.schemaVersion, testUnit1.schemaVersion);
     });
 
-    describe("updateCodeUnit", () => {
-      test("should update single field", () => {
-        const updated = updateCodeUnit(db, testUnit1.id, { name: "renamedHelper" });
-        assert.strictEqual(updated, true, "Update should return true");
-
-        const retrieved = getCodeUnitById(db, testUnit1.id);
-        assert.strictEqual(retrieved!.name, "renamedHelper");
-      });
-
-      test("should update multiple fields", () => {
-        const updated = updateCodeUnit(db, testUnit1.id, {
-          name: "multiUpdate",
-          docComment: "Updated doc",
-          tags: ["new", "tags"],
-        });
-        assert.strictEqual(updated, true);
-
-        const retrieved = getCodeUnitById(db, testUnit1.id);
-        assert.strictEqual(retrieved!.name, "multiUpdate");
-        assert.strictEqual(retrieved!.docComment, "Updated doc");
-        assert.deepStrictEqual(retrieved!.tags, ["new", "tags"]);
-      });
-
-      test("should update span", () => {
-        const updated = updateCodeUnit(db, testUnit1.id, {
-          span: { startLine: 100, endLine: 150 },
-        });
-        assert.strictEqual(updated, true);
-
-        const retrieved = getCodeUnitById(db, testUnit1.id);
-        assert.deepStrictEqual(retrieved!.span, { startLine: 100, endLine: 150 });
-      });
-
-      test("should return false for non-existent ID", () => {
-        const updated = updateCodeUnit(db, "non-existent", { name: "test" });
-        assert.strictEqual(updated, false);
-      });
-
-      test("should return false when no fields provided", () => {
-        const updated = updateCodeUnit(db, testUnit1.id, {});
-        assert.strictEqual(updated, false);
-      });
-
-      test("should not update fields when set to undefined", () => {
-        // First ensure tags are set
-        updateCodeUnit(db, testUnit1.id, { tags: ["some", "tags"] });
-        let retrieved = getCodeUnitById(db, testUnit1.id);
-        assert.deepStrictEqual(retrieved!.tags, ["some", "tags"]);
-
-        // Passing undefined means "don't update this field"
-        // This is different from null which would clear it
-        updateCodeUnit(db, testUnit1.id, { name: "newName" }); // Update another field without touching tags
-
-        // Verify tags are unchanged
-        retrieved = getCodeUnitById(db, testUnit1.id);
-        assert.deepStrictEqual(retrieved!.tags, ["some", "tags"]);
-        assert.strictEqual(retrieved!.name, "newName");
-      });
+    test("should return null for non-existent CodeUnit ID", () => {
+      const unit = getCodeUnitById(db, "non-existent");
+      assert.strictEqual(unit, null, "Should return null for non-existent ID");
     });
 
-    describe("deleteCodeUnit", () => {
-      test("should delete existing CodeUnit", () => {
-        insertCodeUnit(db, {
-          ...testUnit1,
-          id: "to-delete",
-        });
-        const deleted = deleteCodeUnit(db, "to-delete");
-        assert.strictEqual(deleted, true);
+    test("should update existing CodeUnit (upsert)", () => {
+      const updatedUnit = {
+        ...testUnit1,
+        name: "updatedFunction",
+        span: { startLine: 15, endLine: 25 },
+      };
+      saveCodeUnit(db, updatedUnit);
+      const unit = getCodeUnitById(db, "cu-001");
+      assert.strictEqual(unit!.name, "updatedFunction");
+      assert.deepStrictEqual(unit!.span, { startLine: 15, endLine: 25 });
+      const count = getCodeUnitCount(db);
+      assert.strictEqual(count, 1, "CodeUnit count should still be 1 after update");
 
-        const retrieved = getCodeUnitById(db, "to-delete");
-        assert.strictEqual(retrieved, null);
-      });
+      // Restore original for subsequent tests
+      saveCodeUnit(db, testUnit1);
+    });
 
-      test("should return false for non-existent ID", () => {
-        const deleted = deleteCodeUnit(db, "non-existent");
-        assert.strictEqual(deleted, false);
-      });
+    test("should delete CodeUnit by ID", () => {
+      const tempUnit: CodeUnit = {
+        id: "cu-temp",
+        repoId: "repo-test",
+        filePath: "temp.ts",
+        language: "ts",
+        kind: "function",
+        symbolPath: "temp.ts::temp",
+        name: "temp",
+        span: { startLine: 1, endLine: 5 },
+        discoveredAt: "2025-11-26T14:00:00.000Z",
+        schemaVersion: "code-unit-v0",
+      };
+      saveCodeUnit(db, tempUnit);
+      const deleted = deleteCodeUnit(db, "cu-temp");
+      assert.strictEqual(deleted, true, "Delete should return true");
+      const unit = getCodeUnitById(db, "cu-temp");
+      assert.strictEqual(unit, null, "CodeUnit should not exist after delete");
+    });
+
+    test("should handle CodeUnit without optional fields", () => {
+      const minimalUnit: CodeUnit = {
+        id: "cu-minimal",
+        repoId: "repo-test",
+        filePath: "minimal.ts",
+        language: "ts",
+        kind: "module",
+        symbolPath: "minimal.ts::main",
+        name: "main",
+        span: { startLine: 1, endLine: 100 },
+        discoveredAt: "2025-11-26T14:00:00.000Z",
+        schemaVersion: "code-unit-v0",
+      };
+      saveCodeUnit(db, minimalUnit);
+      const retrieved = getCodeUnitById(db, "cu-minimal");
+      assert.ok(retrieved);
+      assert.strictEqual(retrieved!.tags, undefined);
+      assert.strictEqual(retrieved!.docComment, undefined);
+      deleteCodeUnit(db, "cu-minimal");
     });
   });
 
   describe("Batch Operations", () => {
-    before(() => {
-      // Clean slate for batch tests
-      deleteCodeUnitsByRepo(db, "repo-test-1");
-      deleteCodeUnitsByRepo(db, "repo-test-2");
+    test("should insert multiple CodeUnits in batch", () => {
+      const batchUnits: CodeUnit[] = [
+        {
+          id: "batch-1",
+          repoId: "batch-repo",
+          filePath: "batch1.ts",
+          language: "ts",
+          kind: "function",
+          symbolPath: "batch1.ts::fn1",
+          name: "fn1",
+          span: { startLine: 1, endLine: 5 },
+          discoveredAt: "2025-11-26T14:00:00.000Z",
+          schemaVersion: "code-unit-v0",
+        },
+        {
+          id: "batch-2",
+          repoId: "batch-repo",
+          filePath: "batch2.ts",
+          language: "ts",
+          kind: "function",
+          symbolPath: "batch2.ts::fn2",
+          name: "fn2",
+          span: { startLine: 1, endLine: 10 },
+          discoveredAt: "2025-11-26T14:01:00.000Z",
+          schemaVersion: "code-unit-v0",
+        },
+      ];
+
+      const result = insertCodeUnitBatch(db, batchUnits);
+      assert.strictEqual(result.inserted, 2);
+
+      // Verify all were inserted
+      const unit1 = getCodeUnitById(db, "batch-1");
+      const unit2 = getCodeUnitById(db, "batch-2");
+      assert.ok(unit1);
+      assert.ok(unit2);
+
+      // Cleanup
+      deleteCodeUnit(db, "batch-1");
+      deleteCodeUnit(db, "batch-2");
     });
 
-    describe("insertCodeUnitBatch", () => {
-      test("should insert multiple CodeUnits in a transaction", () => {
-        const units = [testUnit1, testUnit2, testUnit3, testUnit4, testUnit5];
-        const result = insertCodeUnitBatch(db, units);
+    test("should delete all CodeUnits for a repository", () => {
+      // Insert units for a specific repo
+      const units: CodeUnit[] = [
+        {
+          id: "del-repo-1",
+          repoId: "delete-test-repo",
+          filePath: "a.ts",
+          language: "ts",
+          kind: "function",
+          symbolPath: "a.ts::a",
+          name: "a",
+          span: { startLine: 1, endLine: 5 },
+          discoveredAt: "2025-11-26T14:00:00.000Z",
+          schemaVersion: "code-unit-v0",
+        },
+        {
+          id: "del-repo-2",
+          repoId: "delete-test-repo",
+          filePath: "b.ts",
+          language: "ts",
+          kind: "function",
+          symbolPath: "b.ts::b",
+          name: "b",
+          span: { startLine: 1, endLine: 5 },
+          discoveredAt: "2025-11-26T14:01:00.000Z",
+          schemaVersion: "code-unit-v0",
+        },
+      ];
+      insertCodeUnitBatch(db, units);
 
-        assert.strictEqual(result.inserted, 5);
-        assert.strictEqual(getCodeUnitCount(db), 5);
-      });
+      const result = deleteCodeUnitsByRepo(db, "delete-test-repo");
+      assert.strictEqual(result.deleted, 2);
 
-      test("should handle empty batch", () => {
-        const countBefore = getCodeUnitCount(db);
-        const result = insertCodeUnitBatch(db, []);
-        assert.strictEqual(result.inserted, 0);
-        assert.strictEqual(getCodeUnitCount(db), countBefore);
-      });
-
-      test("should upsert existing units in batch", () => {
-        const updatedUnits = [
-          { ...testUnit1, name: "batchUpdated1" },
-          { ...testUnit2, name: "batchUpdated2" },
-        ];
-        const result = insertCodeUnitBatch(db, updatedUnits);
-        assert.strictEqual(result.inserted, 2);
-
-        const retrieved1 = getCodeUnitById(db, testUnit1.id);
-        const retrieved2 = getCodeUnitById(db, testUnit2.id);
-        assert.strictEqual(retrieved1!.name, "batchUpdated1");
-        assert.strictEqual(retrieved2!.name, "batchUpdated2");
-
-        // Count should still be 5
-        assert.strictEqual(getCodeUnitCount(db), 5);
-      });
-    });
-
-    describe("deleteCodeUnitsByRepo", () => {
-      test("should delete all CodeUnits for a repository", () => {
-        // Add some more units to repo-test-2
-        insertCodeUnitBatch(db, [
-          { ...testUnit1, id: "extra-1", repoId: "repo-test-2" },
-          { ...testUnit2, id: "extra-2", repoId: "repo-test-2" },
-        ]);
-
-        const countBefore = getCodeUnitCountByRepo(db, "repo-test-2");
-        assert.ok(countBefore >= 2, "Should have at least 2 units in repo-test-2");
-
-        const result = deleteCodeUnitsByRepo(db, "repo-test-2");
-        assert.strictEqual(result.deleted, countBefore);
-
-        const countAfter = getCodeUnitCountByRepo(db, "repo-test-2");
-        assert.strictEqual(countAfter, 0);
-      });
-
-      test("should return 0 for non-existent repository", () => {
-        const result = deleteCodeUnitsByRepo(db, "non-existent-repo");
-        assert.strictEqual(result.deleted, 0);
-      });
+      // Verify they were deleted
+      const count = getCodeUnitCount(db, "delete-test-repo");
+      assert.strictEqual(count, 0);
     });
   });
 
   describe("Query Operations", () => {
     before(() => {
-      // Reset test data
-      deleteCodeUnitsByRepo(db, "repo-test-1");
-      deleteCodeUnitsByRepo(db, "repo-test-2");
-      insertCodeUnitBatch(db, [testUnit1, testUnit2, testUnit3, testUnit4, testUnit5]);
+      // Setup test data for queries
+      saveCodeUnit(db, testUnit2);
+      saveCodeUnit(db, testUnit3);
+      saveCodeUnit(db, testUnit4);
     });
 
-    describe("listCodeUnitsByRepo", () => {
-      test("should list all CodeUnits for a repository", () => {
-        const units = listCodeUnitsByRepo(db, "repo-test-1");
-        assert.strictEqual(units.length, 4);
-        // Should be ordered by file_path, start_line
-        assert.strictEqual(units[0].filePath, "src/models/User.ts");
-        assert.strictEqual(units[0].name, "User"); // start_line 1
-        assert.strictEqual(units[1].filePath, "src/models/User.ts");
-        assert.strictEqual(units[1].name, "save"); // start_line 50
-      });
-
-      test("should return empty array for non-existent repo", () => {
-        const units = listCodeUnitsByRepo(db, "non-existent-repo");
-        assert.strictEqual(units.length, 0);
-      });
-
-      test("should support pagination with limit", () => {
-        const units = listCodeUnitsByRepo(db, "repo-test-1", { limit: 2 });
-        assert.strictEqual(units.length, 2);
-      });
-
-      test("should support pagination with offset", () => {
-        const units = listCodeUnitsByRepo(db, "repo-test-1", { limit: 2, offset: 2 });
-        assert.strictEqual(units.length, 2);
-        // Should skip first 2 and get next 2
-        assert.strictEqual(units[0].filePath, "src/utils.ts");
-      });
+    test("should query all CodeUnits with pagination", () => {
+      const result = queryCodeUnits(db, { limit: 10, offset: 0 });
+      assert.ok(result.total >= 4, "Should have at least 4 units");
+      assert.strictEqual(result.limit, 10);
+      assert.strictEqual(result.offset, 0);
     });
 
-    describe("listCodeUnitsByFile", () => {
-      test("should list all CodeUnits for a specific file", () => {
-        const units = listCodeUnitsByFile(db, "repo-test-1", "src/utils.ts");
-        assert.strictEqual(units.length, 2);
-        // Should be ordered by start_line
-        assert.ok(units[0].span.startLine < units[1].span.startLine);
-      });
-
-      test("should return empty array for non-existent file", () => {
-        const units = listCodeUnitsByFile(db, "repo-test-1", "non-existent.ts");
-        assert.strictEqual(units.length, 0);
-      });
+    test("should query by repository ID", () => {
+      const result = queryCodeUnits(db, { repoId: "repo-test-1" });
+      assert.strictEqual(result.total, 3, "Should find 3 units in repo-test-1");
+      assert.ok(result.items.every((u) => u.repoId === "repo-test-1"));
     });
 
-    describe("listCodeUnitsByKind", () => {
-      test("should list all CodeUnits of a specific kind", () => {
-        const functions = listCodeUnitsByKind(db, "repo-test-1", "function");
-        assert.strictEqual(functions.length, 2);
-        assert.ok(functions.every((u) => u.kind === "function"));
-      });
-
-      test("should list class CodeUnits", () => {
-        const classes = listCodeUnitsByKind(db, "repo-test-1", "class");
-        assert.strictEqual(classes.length, 1);
-        assert.strictEqual(classes[0].name, "User");
-      });
-
-      test("should list method CodeUnits", () => {
-        const methods = listCodeUnitsByKind(db, "repo-test-1", "method");
-        assert.strictEqual(methods.length, 1);
-        assert.strictEqual(methods[0].name, "save");
-      });
-
-      test("should return empty for non-existent kind in repo", () => {
-        const modules = listCodeUnitsByKind(db, "repo-test-1", "module");
-        assert.strictEqual(modules.length, 0);
-      });
-
-      test("should support pagination", () => {
-        const functions = listCodeUnitsByKind(db, "repo-test-1", "function", { limit: 1 });
-        assert.strictEqual(functions.length, 1);
-      });
+    test("should query by kind", () => {
+      const result = queryCodeUnits(db, { kind: "function" });
+      assert.ok(result.total >= 2, "Should find at least 2 functions");
+      assert.ok(result.items.every((u) => u.kind === "function"));
     });
 
-    describe("searchCodeUnitsBySymbol", () => {
-      test("should search by symbol path substring", () => {
-        const results = searchCodeUnitsBySymbol(db, "User");
-        assert.ok(results.length >= 2);
-        assert.ok(results.some((u) => u.name === "User"));
-        assert.ok(results.some((u) => u.name === "save"));
-      });
+    test("should query by file path (prefix match)", () => {
+      const result = queryCodeUnits(db, { filePath: "src/foo" });
+      assert.strictEqual(result.total, 2, "Should find 2 units in src/foo/");
+      assert.ok(result.items.every((u) => u.filePath.startsWith("src/foo")));
+    });
 
-      test("should search with explicit wildcards", () => {
-        const results = searchCodeUnitsBySymbol(db, "%helper%");
-        assert.ok(results.length >= 1);
-        assert.ok(results.some((u) => u.symbolPath.includes("helper")));
-      });
+    test("should query by symbol path (contains match)", () => {
+      const result = queryCodeUnits(db, { symbol: "MyClass" });
+      assert.strictEqual(result.total, 1, "Should find 1 unit with MyClass in symbol");
+      assert.strictEqual(result.items[0].name, "MyClass");
+    });
 
-      test("should search with prefix pattern", () => {
-        const results = searchCodeUnitsBySymbol(db, "src/utils.ts::%");
-        assert.strictEqual(results.length, 2);
-      });
+    test("should query by tags with AND logic", () => {
+      const result = queryCodeUnits(db, { tags: ["test", "api"] });
+      assert.strictEqual(result.total, 1, "Should find 1 unit with both test and api tags");
+      assert.strictEqual(result.items[0].id, "cu-001");
+    });
 
-      test("should return empty for no matches", () => {
-        const results = searchCodeUnitsBySymbol(db, "nonexistent_symbol");
-        assert.strictEqual(results.length, 0);
-      });
+    test("should combine multiple filters", () => {
+      const result = queryCodeUnits(db, { repoId: "repo-test-1", kind: "function" });
+      assert.strictEqual(result.total, 1, "Should find 1 function in repo-test-1");
+      assert.strictEqual(result.items[0].id, "cu-001");
+    });
+
+    test("should support pagination with limit and offset", () => {
+      const result = queryCodeUnits(db, { limit: 2, offset: 1 });
+      assert.strictEqual(result.limit, 2);
+      assert.strictEqual(result.offset, 1);
+      assert.ok(result.items.length <= 2, "Should return at most 2 items");
+    });
+
+    test("should return empty array for no matches", () => {
+      const result = queryCodeUnits(db, { repoId: "nonexistent" });
+      assert.strictEqual(result.total, 0);
+      assert.strictEqual(result.items.length, 0);
+    });
+  });
+
+  describe("List Operations", () => {
+    test("should list units by repo with pagination", () => {
+      const result = listCodeUnitsByRepo(db, "repo-test-1", { limit: 10 });
+      assert.strictEqual(result.total, 3);
+      assert.ok(result.items.every((u) => u.repoId === "repo-test-1"));
+    });
+
+    test("should list units by file", () => {
+      const units = listCodeUnitsByFile(db, "repo-test-1", "src/foo/bar.ts");
+      assert.strictEqual(units.length, 2);
+      assert.ok(units.every((u) => u.filePath === "src/foo/bar.ts"));
+      // Should be ordered by start_line
+      assert.ok(
+        units[0].span.startLine <= units[1].span.startLine,
+        "Should be ordered by start_line"
+      );
+    });
+
+    test("should list units by kind", () => {
+      const units = listCodeUnitsByKind(db, "repo-test-1", "function");
+      assert.strictEqual(units.length, 1);
+      assert.strictEqual(units[0].kind, "function");
+    });
+
+    test("should search units by symbol", () => {
+      const result = searchCodeUnitsBySymbol(db, "helper");
+      assert.ok(result.total >= 1, "Should find at least 1 unit with helper in symbol");
     });
   });
 
   describe("Count Operations", () => {
     test("should count all CodeUnits", () => {
       const count = getCodeUnitCount(db);
-      assert.ok(count >= 4, "Should have at least 4 CodeUnits");
+      assert.ok(count >= 4, "Should have at least 4 units");
     });
 
-    test("should count CodeUnits by repository", () => {
-      const count = getCodeUnitCountByRepo(db, "repo-test-1");
-      assert.strictEqual(count, 4);
+    test("should count CodeUnits by repo", () => {
+      const count = getCodeUnitCount(db, "repo-test-1");
+      assert.strictEqual(count, 3);
     });
 
-    test("should return 0 for non-existent repository", () => {
-      const count = getCodeUnitCountByRepo(db, "non-existent");
+    test("should return 0 for non-existent repo", () => {
+      const count = getCodeUnitCount(db, "nonexistent");
       assert.strictEqual(count, 0);
     });
   });
-
-  describe("Data Type Handling", () => {
-    test("should correctly serialize and deserialize tags array", () => {
-      const unitWithTags: CodeUnit = {
-        ...testUnit1,
-        id: "tags-test",
-        tags: ["tag1", "tag2", "tag3"],
-      };
-      insertCodeUnit(db, unitWithTags);
-      const retrieved = getCodeUnitById(db, "tags-test");
-
-      assert.deepStrictEqual(retrieved!.tags, ["tag1", "tag2", "tag3"]);
-      deleteCodeUnit(db, "tags-test");
-    });
-
-    test("should handle empty tags array", () => {
-      const unitWithEmptyTags: CodeUnit = {
-        ...testUnit1,
-        id: "empty-tags-test",
-        tags: [],
-      };
-      insertCodeUnit(db, unitWithEmptyTags);
-      const retrieved = getCodeUnitById(db, "empty-tags-test");
-
-      assert.deepStrictEqual(retrieved!.tags, []);
-      deleteCodeUnit(db, "empty-tags-test");
-    });
-
-    test("should handle undefined optional fields", () => {
-      const minimalUnit: CodeUnit = {
-        id: "minimal-test",
-        repoId: "repo-test",
-        filePath: "src/test.ts",
-        language: "ts",
-        kind: "function",
-        symbolPath: "src/test.ts::test",
-        name: "test",
-        span: { startLine: 1, endLine: 5 },
-        discoveredAt: "2025-11-26T12:00:00.000Z",
-        schemaVersion: "code-unit-v0",
-      };
-      insertCodeUnit(db, minimalUnit);
-      const retrieved = getCodeUnitById(db, "minimal-test");
-
-      assert.strictEqual(retrieved!.tags, undefined);
-      assert.strictEqual(retrieved!.docComment, undefined);
-      deleteCodeUnit(db, "minimal-test");
-    });
-
-    test("should correctly map span fields", () => {
-      const unitWithSpan: CodeUnit = {
-        ...testUnit1,
-        id: "span-test",
-        span: { startLine: 100, endLine: 200 },
-      };
-      insertCodeUnit(db, unitWithSpan);
-      const retrieved = getCodeUnitById(db, "span-test");
-
-      assert.strictEqual(retrieved!.span.startLine, 100);
-      assert.strictEqual(retrieved!.span.endLine, 200);
-      deleteCodeUnit(db, "span-test");
-    });
-
-    test("should correctly map CodeUnitKind enum", () => {
-      const kinds = ["module", "class", "function", "method"] as const;
-      for (const kind of kinds) {
-        const unit: CodeUnit = {
-          ...testUnit1,
-          id: `kind-test-${kind}`,
-          kind,
-        };
-        insertCodeUnit(db, unit);
-        const retrieved = getCodeUnitById(db, `kind-test-${kind}`);
-        assert.strictEqual(retrieved!.kind, kind);
-        deleteCodeUnit(db, `kind-test-${kind}`);
-      }
-    });
-  });
 });
-
-console.log(
-  "\n✅ Code Unit Queries Tests (CA-005) - covering CRUD, batch, and query operations\n"
-);

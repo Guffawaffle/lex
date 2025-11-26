@@ -1,7 +1,7 @@
 /**
  * Code Unit storage queries
  *
- * CRUD operations and search functions for CodeUnit records.
+ * CRUD operations and search functions for CodeUnits.
  * Part of Code Atlas Epic (CA-005) - Layer 1: Storage
  */
 
@@ -33,11 +33,32 @@ export interface CodeUnitRow {
 }
 
 /**
- * Options for list operations
+ * List options for paginated queries
  */
 export interface ListOptions {
   limit?: number;
   offset?: number;
+}
+
+/**
+ * Query options for filtering code units
+ */
+export interface CodeUnitQueryOptions extends ListOptions {
+  repoId?: string;
+  kind?: CodeUnitKind;
+  filePath?: string;
+  symbol?: string;
+  tags?: string[];
+}
+
+/**
+ * Paginated result with total count
+ */
+export interface PaginatedResult<T> {
+  items: T[];
+  total: number;
+  limit: number;
+  offset: number;
 }
 
 /**
@@ -99,17 +120,17 @@ function rowToCodeUnit(row: CodeUnitRow): CodeUnit {
 }
 
 /**
- * Insert a CodeUnit into the database (insert or update)
+ * Save a CodeUnit to the database (insert or update)
  */
-export function insertCodeUnit(db: Database.Database, unit: CodeUnit): void {
+export function saveCodeUnit(db: Database.Database, unit: CodeUnit): void {
   const startTime = Date.now();
   const row = codeUnitToRow(unit);
 
   const stmt = db.prepare(`
     INSERT OR REPLACE INTO code_units (
       id, repo_id, file_path, language, kind, symbol_path, name,
-      start_line, end_line, tags, doc_comment, discovered_at, schema_version,
-      created_at, updated_at
+      start_line, end_line, tags, doc_comment, discovered_at,
+      schema_version, created_at, updated_at
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
   `);
 
@@ -130,43 +151,15 @@ export function insertCodeUnit(db: Database.Database, unit: CodeUnit): void {
   );
 
   const duration = Date.now() - startTime;
-  logger.info("CodeUnit inserted", {
-    operation: "insertCodeUnit",
+  logger.debug("CodeUnit saved", {
+    operation: "saveCodeUnit",
     duration_ms: duration,
     metadata: { id: unit.id, repoId: unit.repoId, kind: unit.kind },
   });
 }
 
 /**
- * Get a CodeUnit by ID
- */
-export function getCodeUnitById(db: Database.Database, id: string): CodeUnit | null {
-  const startTime = Date.now();
-  const stmt = db.prepare("SELECT * FROM code_units WHERE id = ?");
-  const row = stmt.get(id) as CodeUnitRow | undefined;
-
-  if (!row) {
-    logger.debug("CodeUnit not found", {
-      operation: "getCodeUnitById",
-      duration_ms: Date.now() - startTime,
-      metadata: { id },
-    });
-    return null;
-  }
-
-  logger.debug("CodeUnit retrieved", {
-    operation: "getCodeUnitById",
-    duration_ms: Date.now() - startTime,
-    metadata: { id },
-  });
-  return rowToCodeUnit(row);
-}
-
-/**
- * Update a CodeUnit by ID
- *
- * Only updates specified fields. The `id` field cannot be updated.
- * Returns true if a row was updated, false if not found.
+ * Update an existing CodeUnit with partial updates
  */
 export function updateCodeUnit(
   db: Database.Database,
@@ -249,47 +242,21 @@ export function updateCodeUnit(
 }
 
 /**
- * Delete a CodeUnit by ID
- *
- * Returns true if a row was deleted, false if not found.
- */
-export function deleteCodeUnit(db: Database.Database, id: string): boolean {
-  const startTime = Date.now();
-  const stmt = db.prepare("DELETE FROM code_units WHERE id = ?");
-  const result = stmt.run(id);
-
-  const duration = Date.now() - startTime;
-  logger.info("CodeUnit deleted", {
-    operation: "deleteCodeUnit",
-    duration_ms: duration,
-    metadata: { id, deleted: result.changes > 0 },
-  });
-
-  return result.changes > 0;
-}
-
-/**
- * Insert multiple CodeUnits in a single transaction
- *
- * Uses a transaction for atomicity - all inserts succeed or none do.
+ * Insert multiple CodeUnits in a batch (transactional)
  */
 export function insertCodeUnitBatch(db: Database.Database, units: CodeUnit[]): BatchInsertResult {
   const startTime = Date.now();
 
-  if (units.length === 0) {
-    return { inserted: 0 };
-  }
-
   const stmt = db.prepare(`
     INSERT OR REPLACE INTO code_units (
       id, repo_id, file_path, language, kind, symbol_path, name,
-      start_line, end_line, tags, doc_comment, discovered_at, schema_version,
-      created_at, updated_at
+      start_line, end_line, tags, doc_comment, discovered_at,
+      schema_version, created_at, updated_at
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
   `);
 
   const insertMany = db.transaction((items: CodeUnit[]) => {
-    let inserted = 0;
+    let count = 0;
     for (const unit of items) {
       const row = codeUnitToRow(unit);
       stmt.run(
@@ -307,27 +274,227 @@ export function insertCodeUnitBatch(db: Database.Database, units: CodeUnit[]): B
         row.discovered_at,
         row.schema_version
       );
-      inserted++;
+      count++;
     }
-    return inserted;
+    return count;
   });
 
   const inserted = insertMany(units);
   const duration = Date.now() - startTime;
-
   logger.info("CodeUnit batch inserted", {
     operation: "insertCodeUnitBatch",
     duration_ms: duration,
-    metadata: { count: inserted },
+    metadata: { inserted, total: units.length },
   });
 
   return { inserted };
 }
 
 /**
- * Delete all CodeUnits for a specific repository
- *
- * Returns the number of deleted rows.
+ * Get a CodeUnit by ID
+ */
+export function getCodeUnitById(db: Database.Database, id: string): CodeUnit | null {
+  const startTime = Date.now();
+  const stmt = db.prepare("SELECT * FROM code_units WHERE id = ?");
+  const row = stmt.get(id) as CodeUnitRow | undefined;
+
+  if (!row) {
+    logger.debug("CodeUnit not found", {
+      operation: "getCodeUnitById",
+      duration_ms: Date.now() - startTime,
+      metadata: { id },
+    });
+    return null;
+  }
+
+  logger.debug("CodeUnit retrieved", {
+    operation: "getCodeUnitById",
+    duration_ms: Date.now() - startTime,
+    metadata: { id },
+  });
+  return rowToCodeUnit(row);
+}
+
+/**
+ * Query CodeUnits with filtering and pagination
+ */
+export function queryCodeUnits(
+  db: Database.Database,
+  options: CodeUnitQueryOptions = {}
+): PaginatedResult<CodeUnit> {
+  const startTime = Date.now();
+  const whereClauses: string[] = [];
+  const params: (string | number)[] = [];
+
+  // Build WHERE clauses based on options
+  if (options.repoId) {
+    whereClauses.push("repo_id = ?");
+    params.push(options.repoId);
+  }
+
+  if (options.kind) {
+    whereClauses.push("kind = ?");
+    params.push(options.kind);
+  }
+
+  if (options.filePath) {
+    // Use prefix match for file path
+    whereClauses.push("file_path LIKE ?");
+    params.push(`${options.filePath}%`);
+  }
+
+  if (options.symbol) {
+    // Use pattern match for symbol search
+    whereClauses.push("symbol_path LIKE ?");
+    params.push(`%${options.symbol}%`);
+  }
+
+  if (options.tags && options.tags.length > 0) {
+    // AND logic: all tags must be present
+    // Search for exact tag matches in JSON array
+    // Pattern matches: ["tag"], ["tag",... , ..., "tag"], or ..., "tag"]
+    for (const tag of options.tags) {
+      // Escape special characters in tag for LIKE pattern
+      const escapedTag = tag.replace(/[%_\\]/g, "\\$&");
+      // Match the exact tag as a JSON string element
+      // This handles: ["tag"], ["tag", ...], [..., "tag"], [..., "tag", ...]
+      whereClauses.push(`(tags LIKE ? OR tags LIKE ? OR tags LIKE ? OR tags LIKE ?)`);
+      params.push(`["${escapedTag}"]`); // Single element array: ["tag"]
+      params.push(`["${escapedTag}",%`); // First element: ["tag", ...]
+      params.push(`%,"${escapedTag}"]`); // Last element: [..., "tag"]
+      params.push(`%,"${escapedTag}",%`); // Middle element: [..., "tag", ...]
+    }
+  }
+
+  const whereClause = whereClauses.length > 0 ? `WHERE ${whereClauses.join(" AND ")}` : "";
+
+  // Get total count first
+  const countStmt = db.prepare(`SELECT COUNT(*) as count FROM code_units ${whereClause}`);
+  const countResult = countStmt.get(...params) as { count: number };
+  const total = countResult.count;
+
+  // Apply pagination
+  const limit = options.limit ?? 100;
+  const offset = options.offset ?? 0;
+
+  const dataStmt = db.prepare(`
+    SELECT * FROM code_units
+    ${whereClause}
+    ORDER BY discovered_at DESC, id ASC
+    LIMIT ? OFFSET ?
+  `);
+
+  const rows = dataStmt.all(...params, limit, offset) as CodeUnitRow[];
+  const items = rows.map(rowToCodeUnit);
+
+  const duration = Date.now() - startTime;
+  logger.debug("CodeUnits queried", {
+    operation: "queryCodeUnits",
+    duration_ms: duration,
+    metadata: { total, returned: items.length, limit, offset, options },
+  });
+
+  return { items, total, limit, offset };
+}
+
+/**
+ * List CodeUnits by repository with pagination
+ */
+export function listCodeUnitsByRepo(
+  db: Database.Database,
+  repoId: string,
+  options: ListOptions = {}
+): PaginatedResult<CodeUnit> {
+  return queryCodeUnits(db, { ...options, repoId });
+}
+
+/**
+ * List CodeUnits by file path within a repository
+ */
+export function listCodeUnitsByFile(
+  db: Database.Database,
+  repoId: string,
+  filePath: string
+): CodeUnit[] {
+  const startTime = Date.now();
+  const stmt = db.prepare(`
+    SELECT * FROM code_units
+    WHERE repo_id = ? AND file_path = ?
+    ORDER BY start_line ASC
+  `);
+
+  const rows = stmt.all(repoId, filePath) as CodeUnitRow[];
+  const items = rows.map(rowToCodeUnit);
+
+  const duration = Date.now() - startTime;
+  logger.debug("CodeUnits listed by file", {
+    operation: "listCodeUnitsByFile",
+    duration_ms: duration,
+    metadata: { repoId, filePath, count: items.length },
+  });
+
+  return items;
+}
+
+/**
+ * List CodeUnits by kind within a repository
+ */
+export function listCodeUnitsByKind(
+  db: Database.Database,
+  repoId: string,
+  kind: CodeUnitKind
+): CodeUnit[] {
+  const startTime = Date.now();
+  const stmt = db.prepare(`
+    SELECT * FROM code_units
+    WHERE repo_id = ? AND kind = ?
+    ORDER BY file_path ASC, start_line ASC
+  `);
+
+  const rows = stmt.all(repoId, kind) as CodeUnitRow[];
+  const items = rows.map(rowToCodeUnit);
+
+  const duration = Date.now() - startTime;
+  logger.debug("CodeUnits listed by kind", {
+    operation: "listCodeUnitsByKind",
+    duration_ms: duration,
+    metadata: { repoId, kind, count: items.length },
+  });
+
+  return items;
+}
+
+/**
+ * Search CodeUnits by symbol path pattern
+ */
+export function searchCodeUnitsBySymbol(
+  db: Database.Database,
+  pattern: string,
+  options: ListOptions = {}
+): PaginatedResult<CodeUnit> {
+  return queryCodeUnits(db, { ...options, symbol: pattern });
+}
+
+/**
+ * Delete a CodeUnit by ID
+ */
+export function deleteCodeUnit(db: Database.Database, id: string): boolean {
+  const startTime = Date.now();
+  const stmt = db.prepare("DELETE FROM code_units WHERE id = ?");
+  const result = stmt.run(id);
+
+  const duration = Date.now() - startTime;
+  logger.info("CodeUnit deleted", {
+    operation: "deleteCodeUnit",
+    duration_ms: duration,
+    metadata: { id, deleted: result.changes > 0 },
+  });
+
+  return result.changes > 0;
+}
+
+/**
+ * Delete all CodeUnits for a repository
  */
 export function deleteCodeUnitsByRepo(db: Database.Database, repoId: string): BatchDeleteResult {
   const startTime = Date.now();
@@ -345,154 +512,16 @@ export function deleteCodeUnitsByRepo(db: Database.Database, repoId: string): Ba
 }
 
 /**
- * List all CodeUnits for a specific repository
- *
- * Supports pagination via limit and offset options.
+ * Get total count of CodeUnits
  */
-export function listCodeUnitsByRepo(
-  db: Database.Database,
-  repoId: string,
-  opts?: ListOptions
-): CodeUnit[] {
-  const startTime = Date.now();
-  const limit = opts?.limit;
-  const offset = opts?.offset ?? 0;
-
-  let query = "SELECT * FROM code_units WHERE repo_id = ? ORDER BY file_path, start_line";
-
-  if (limit !== undefined) {
-    query += " LIMIT ? OFFSET ?";
+export function getCodeUnitCount(db: Database.Database, repoId?: string): number {
+  if (repoId) {
+    const stmt = db.prepare("SELECT COUNT(*) as count FROM code_units WHERE repo_id = ?");
+    const result = stmt.get(repoId) as { count: number };
+    return result.count;
   }
 
-  const stmt = db.prepare(query);
-  const rows =
-    limit !== undefined
-      ? (stmt.all(repoId, limit, offset) as CodeUnitRow[])
-      : (stmt.all(repoId) as CodeUnitRow[]);
-
-  const duration = Date.now() - startTime;
-  logger.debug("CodeUnits listed by repo", {
-    operation: "listCodeUnitsByRepo",
-    duration_ms: duration,
-    metadata: { repoId, count: rows.length, limit, offset },
-  });
-
-  return rows.map(rowToCodeUnit);
-}
-
-/**
- * List all CodeUnits for a specific file within a repository
- */
-export function listCodeUnitsByFile(
-  db: Database.Database,
-  repoId: string,
-  filePath: string
-): CodeUnit[] {
-  const startTime = Date.now();
-  const stmt = db.prepare(`
-    SELECT * FROM code_units
-    WHERE repo_id = ? AND file_path = ?
-    ORDER BY start_line
-  `);
-
-  const rows = stmt.all(repoId, filePath) as CodeUnitRow[];
-
-  const duration = Date.now() - startTime;
-  logger.debug("CodeUnits listed by file", {
-    operation: "listCodeUnitsByFile",
-    duration_ms: duration,
-    metadata: { repoId, filePath, count: rows.length },
-  });
-
-  return rows.map(rowToCodeUnit);
-}
-
-/**
- * List all CodeUnits of a specific kind within a repository
- *
- * Supports pagination via limit and offset options.
- */
-export function listCodeUnitsByKind(
-  db: Database.Database,
-  repoId: string,
-  kind: CodeUnitKind,
-  opts?: ListOptions
-): CodeUnit[] {
-  const startTime = Date.now();
-  const limit = opts?.limit;
-  const offset = opts?.offset ?? 0;
-
-  let query =
-    "SELECT * FROM code_units WHERE repo_id = ? AND kind = ? ORDER BY file_path, start_line";
-
-  if (limit !== undefined) {
-    query += " LIMIT ? OFFSET ?";
-  }
-
-  const stmt = db.prepare(query);
-  const rows =
-    limit !== undefined
-      ? (stmt.all(repoId, kind, limit, offset) as CodeUnitRow[])
-      : (stmt.all(repoId, kind) as CodeUnitRow[]);
-
-  const duration = Date.now() - startTime;
-  logger.debug("CodeUnits listed by kind", {
-    operation: "listCodeUnitsByKind",
-    duration_ms: duration,
-    metadata: { repoId, kind, count: rows.length, limit, offset },
-  });
-
-  return rows.map(rowToCodeUnit);
-}
-
-/**
- * Search CodeUnits by symbol path pattern
- *
- * Uses LIKE pattern matching. The pattern can contain:
- * - % for any sequence of characters
- * - _ for any single character
- *
- * If no wildcards are provided, adds % to both ends for substring matching.
- */
-export function searchCodeUnitsBySymbol(db: Database.Database, pattern: string): CodeUnit[] {
-  const startTime = Date.now();
-
-  // If no wildcards, make it a substring search
-  const searchPattern =
-    pattern.includes("%") || pattern.includes("_") ? pattern : `%${pattern}%`;
-
-  const stmt = db.prepare(`
-    SELECT * FROM code_units
-    WHERE symbol_path LIKE ?
-    ORDER BY symbol_path
-  `);
-
-  const rows = stmt.all(searchPattern) as CodeUnitRow[];
-
-  const duration = Date.now() - startTime;
-  logger.debug("CodeUnits searched by symbol", {
-    operation: "searchCodeUnitsBySymbol",
-    duration_ms: duration,
-    metadata: { pattern, searchPattern, count: rows.length },
-  });
-
-  return rows.map(rowToCodeUnit);
-}
-
-/**
- * Get count of all CodeUnits
- */
-export function getCodeUnitCount(db: Database.Database): number {
   const stmt = db.prepare("SELECT COUNT(*) as count FROM code_units");
   const result = stmt.get() as { count: number };
-  return result.count;
-}
-
-/**
- * Get count of CodeUnits for a specific repository
- */
-export function getCodeUnitCountByRepo(db: Database.Database, repoId: string): number {
-  const stmt = db.prepare("SELECT COUNT(*) as count FROM code_units WHERE repo_id = ?");
-  const result = stmt.get(repoId) as { count: number };
   return result.count;
 }

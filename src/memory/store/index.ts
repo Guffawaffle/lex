@@ -41,20 +41,28 @@ export {
   getCodeAtlasRunCount,
 } from "./code-atlas-runs.js";
 
-export type { CodeUnitRow, ListOptions, BatchInsertResult, BatchDeleteResult } from "./code-unit-queries.js";
+export type {
+  CodeUnitRow,
+  ListOptions,
+  CodeUnitQueryOptions,
+  PaginatedResult,
+  BatchInsertResult,
+  BatchDeleteResult,
+} from "./code-unit-queries.js";
+
 export {
-  insertCodeUnit,
-  getCodeUnitById,
+  saveCodeUnit,
   updateCodeUnit,
-  deleteCodeUnit,
   insertCodeUnitBatch,
-  deleteCodeUnitsByRepo,
+  getCodeUnitById,
+  queryCodeUnits,
   listCodeUnitsByRepo,
   listCodeUnitsByFile,
   listCodeUnitsByKind,
   searchCodeUnitsBySymbol,
+  deleteCodeUnit,
+  deleteCodeUnitsByRepo,
   getCodeUnitCount,
-  getCodeUnitCountByRepo,
 } from "./code-unit-queries.js";
 
 // Singleton database instance
