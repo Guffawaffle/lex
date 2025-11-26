@@ -18,11 +18,7 @@ import { createDatabase, getDefaultDbPath } from "./db.js";
 export type { FrameRow, CodeAtlasRunRow } from "./db.js";
 export type { Frame, FrameStatusSnapshot } from "../frames/types.js";
 export type { SearchResult, ExportFramesOptions } from "./queries.js";
-export type {
-  FrameStore,
-  FrameSearchCriteria,
-  FrameListOptions,
-} from "./frame-store.js";
+export type { FrameStore, FrameSearchCriteria, FrameListOptions } from "./frame-store.js";
 export type { CodeAtlasStore } from "./code-atlas-store.js";
 
 export {
