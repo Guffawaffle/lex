@@ -34,6 +34,10 @@
       "types": "./dist/atlas/schemas/code-unit.d.ts",
       "import": "./dist/atlas/schemas/code-unit.js"
     },
+    "./atlas/schemas": {
+      "types": "./dist/atlas/index.d.ts",
+      "import": "./dist/atlas/index.js"
+    },
     "./module-ids": {
       "types": "./dist/shared/module_ids/index.d.ts",
       "import": "./dist/shared/module_ids/index.js"
