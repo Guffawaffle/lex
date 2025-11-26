@@ -17,6 +17,7 @@ import helmet from "helmet";
 import { createHash } from "crypto";
 import { createFramesRouter } from "./routes/frames.js";
 import { createOAuthRouter } from "./routes/oauth.js";
+import { createAtlasRouter } from "./routes/atlas.js";
 import { createAuthMiddleware } from "./auth/middleware.js";
 import { initializeKeys } from "./auth/keys.js";
 import { getLogger } from "@smartergpt/lex/logger";
@@ -161,6 +162,10 @@ export function createHttpServer(db: Database.Database, options: HttpServerOptio
   
   // Apply authentication middleware to frames routes
   app.use("/api/frames", authMiddleware, framesRouter);
+
+  // Mount atlas router with auth middleware
+  const atlasRouter = createAtlasRouter(db);
+  app.use("/api/atlas", authMiddleware, atlasRouter);
 
   return app;
 }
