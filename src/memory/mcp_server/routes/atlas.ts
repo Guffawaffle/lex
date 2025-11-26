@@ -239,6 +239,9 @@ export function createAtlasRouter(db: Database.Database): Router {
       let runs;
       let total;
 
+      // TODO: Improve performance by adding LIMIT/OFFSET support to store layer
+      // Currently we fetch all runs and slice in memory, which is inefficient
+      // for large datasets. See: https://github.com/Guffawaffle/lex/issues/302
       if (repo) {
         // Filter by repository
         const allRepoRuns = getCodeAtlasRunsByRepo(db, repo);

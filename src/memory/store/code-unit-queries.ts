@@ -257,9 +257,20 @@ export function queryCodeUnits(
 
   if (options.tags && options.tags.length > 0) {
     // AND logic: all tags must be present
+    // Search for exact tag matches in JSON array
+    // Pattern matches: ["tag"], ["tag",... , ..., "tag"], or ..., "tag"]
     for (const tag of options.tags) {
-      whereClauses.push("tags LIKE ?");
-      params.push(`%"${tag}"%`);
+      // Escape special characters in tag for LIKE pattern
+      const escapedTag = tag.replace(/[%_\\]/g, "\\$&");
+      // Match the exact tag as a JSON string element
+      // This handles: ["tag"], ["tag", ...], [..., "tag"], [..., "tag", ...]
+      whereClauses.push(
+        `(tags LIKE ? OR tags LIKE ? OR tags LIKE ? OR tags LIKE ?)`
+      );
+      params.push(`["${escapedTag}"]`); // Single element array: ["tag"]
+      params.push(`["${escapedTag}",%`); // First element: ["tag", ...]
+      params.push(`%,"${escapedTag}"]`); // Last element: [..., "tag"]
+      params.push(`%,"${escapedTag}",%`); // Middle element: [..., "tag", ...]
     }
   }
 
