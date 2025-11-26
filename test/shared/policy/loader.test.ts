@@ -5,11 +5,12 @@
  * 1. LEX_POLICY_PATH (explicit environment override)
  * 2. Custom path parameter (if provided)
  * 3. .smartergpt/lex/lexmap.policy.json (working file)
- * 4. src/policy/policy_spec/lexmap.policy.json.example (example template)
+ * 4. canon/policy/lexmap.policy.json (canonical policy - checked in git)
+ * 5. src/policy/policy_spec/lexmap.policy.json.example (example template)
  *
  * Tests cover:
  * - Basic precedence at each level
- * - Override priority (ENV > custom > working > example)
+ * - Override priority (ENV > custom > working > canon > example)
  * - Caching behavior
  * - Error handling
  * - Edge cases (missing dirs, invalid JSON, concurrent access)
@@ -154,6 +155,71 @@ describe("Policy Loader Precedence", () => {
     assert.ok(policy.modules["example"]);
   });
 
+  test("falls back to canonical file when working file missing", () => {
+    const repo = createTestRepo();
+
+    // Create canonical file
+    const canonDir = join(repo, "canon", "policy");
+    mkdirSync(canonDir, { recursive: true });
+    writeFileSync(
+      join(canonDir, "lexmap.policy.json"),
+      JSON.stringify(createTestPolicy("canon"))
+    );
+
+    process.env.LEX_WORKSPACE_ROOT = repo;
+
+    const policy = loadPolicy();
+    assert.ok(policy.modules["canon"]);
+  });
+
+  test("working file overrides canonical file", () => {
+    const repo = createTestRepo();
+
+    const workingDir = join(repo, ".smartergpt", "lex");
+    mkdirSync(workingDir, { recursive: true });
+    writeFileSync(
+      join(workingDir, "lexmap.policy.json"),
+      JSON.stringify(createTestPolicy("working"))
+    );
+
+    const canonDir = join(repo, "canon", "policy");
+    mkdirSync(canonDir, { recursive: true });
+    writeFileSync(
+      join(canonDir, "lexmap.policy.json"),
+      JSON.stringify(createTestPolicy("canon"))
+    );
+
+    process.env.LEX_WORKSPACE_ROOT = repo;
+
+    const policy = loadPolicy();
+    assert.ok(policy.modules["working"]);
+    assert.ok(!policy.modules["canon"]);
+  });
+
+  test("canonical file overrides example file", () => {
+    const repo = createTestRepo();
+
+    const canonDir = join(repo, "canon", "policy");
+    mkdirSync(canonDir, { recursive: true });
+    writeFileSync(
+      join(canonDir, "lexmap.policy.json"),
+      JSON.stringify(createTestPolicy("canon"))
+    );
+
+    const exampleDir = join(repo, "src", "policy", "policy_spec");
+    mkdirSync(exampleDir, { recursive: true });
+    writeFileSync(
+      join(exampleDir, "lexmap.policy.json.example"),
+      JSON.stringify(createTestPolicy("example"))
+    );
+
+    process.env.LEX_WORKSPACE_ROOT = repo;
+
+    const policy = loadPolicy();
+    assert.ok(policy.modules["canon"]);
+    assert.ok(!policy.modules["example"]);
+  });
+
   test("LEX_POLICY_PATH overrides all other sources", () => {
     const repo = createTestRepo();
 
@@ -166,6 +232,13 @@ describe("Policy Loader Precedence", () => {
     writeFileSync(
       join(workingDir, "lexmap.policy.json"),
       JSON.stringify(createTestPolicy("working"))
+    );
+
+    const canonDir = join(repo, "canon", "policy");
+    mkdirSync(canonDir, { recursive: true });
+    writeFileSync(
+      join(canonDir, "lexmap.policy.json"),
+      JSON.stringify(createTestPolicy("canon"))
     );
 
     const exampleDir = join(repo, "src", "policy", "policy_spec");
@@ -181,6 +254,7 @@ describe("Policy Loader Precedence", () => {
     const policy = loadPolicy();
     assert.ok(policy.modules["env"]);
     assert.ok(!policy.modules["working"]);
+    assert.ok(!policy.modules["canon"]);
     assert.ok(!policy.modules["example"]);
   });
 

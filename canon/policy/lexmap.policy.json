@@ -1,74 +1,131 @@
 {
-  "schemaVersion": "1.0.0",
+  "$comment": "Canonical Lex policy file - copied to .smartergpt/lex/ during build (via copy-canon.js)",
   "modules": {
-    "backlog-triage": {
-      "description": "Backlog prioritization and triage workflows"
-    },
-    "research-experiment": {
-      "description": "Academic research and experimental protocols"
-    },
-    "memory": {
-      "description": "Frame storage and recall system"
+    "memory/store": {
+      "coords": [0, 0],
+      "owns_paths": ["src/memory/store/**"],
+      "exposes": ["getDb", "closeDb", "saveFrame", "getFrameById", "searchFrames"],
+      "allowed_callers": ["memory/mcp", "memory/renderer", "cli"],
+      "forbidden_callers": ["policy/check", "policy/merge", "policy/scanners"],
+      "notes": "Core Frame storage layer - SQLite database operations"
     },
     "memory/frames": {
-      "description": "Frame type definitions and interfaces"
+      "coords": [0, 1],
+      "owns_paths": ["src/memory/frames/**"],
+      "exposes": ["Frame", "StatusSnapshot"],
+      "allowed_callers": ["memory/store", "memory/mcp", "memory/renderer", "cli"],
+      "forbidden_callers": [],
+      "notes": "Frame type definitions and interfaces"
     },
     "memory/mcp": {
-      "description": "MCP server for assistant integration"
-    },
-    "memory/mcp_server": {
-      "description": "MCP server implementation"
-    },
-    "memory/store": {
-      "description": "Database and storage layer"
+      "coords": [0, 2],
+      "owns_paths": ["src/memory/mcp_server/**"],
+      "exposes": ["LexBrainServer"],
+      "allowed_callers": [],
+      "forbidden_callers": [],
+      "notes": "MCP server for assistant integration - stdio interface"
     },
     "memory/renderer": {
-      "description": "Memory card and timeline visualization"
-    },
-    "policy": {
-      "description": "Policy loading and validation"
+      "coords": [0, 3],
+      "owns_paths": ["src/memory/renderer/**"],
+      "exposes": ["renderMemoryCard", "renderTimeline"],
+      "allowed_callers": ["memory/mcp", "cli"],
+      "forbidden_callers": ["policy/check", "policy/merge"],
+      "notes": "Memory card and timeline visualization rendering"
     },
     "policy/check": {
-      "description": "Policy enforcement checker"
+      "coords": [2, 0],
+      "owns_paths": ["src/policy/check/**"],
+      "exposes": ["checkPolicy", "LexMapChecker"],
+      "allowed_callers": ["cli"],
+      "forbidden_callers": ["memory/store", "memory/mcp"],
+      "notes": "Policy enforcement - compares scanner output against lexmap.policy.json"
     },
     "policy/merge": {
-      "description": "Scanner output merging"
+      "coords": [2, 1],
+      "owns_paths": ["src/policy/merge/**"],
+      "exposes": ["mergeScannerOutputs"],
+      "allowed_callers": ["policy/check", "cli"],
+      "forbidden_callers": ["memory/store", "memory/mcp"],
+      "notes": "Merges multiple scanner outputs into unified JSON"
     },
     "policy/scanners": {
-      "description": "Language-specific code scanners"
-    },
-    "shared/aliases": {
-      "description": "Module ID alias resolution"
-    },
-    "shared/atlas": {
-      "description": "Atlas Frame generation (spatial context)"
-    },
-    "shared/cli": {
-      "description": "Command-line interface utilities"
-    },
-    "shared/git": {
-      "description": "Git integration utilities"
-    },
-    "shared/logger": {
-      "description": "Logging infrastructure"
-    },
-    "shared/module_ids": {
-      "description": "Module ID validation"
-    },
-    "shared/policy": {
-      "description": "Policy types and loader"
+      "coords": [2, 2],
+      "owns_paths": ["src/policy/scanners/**"],
+      "exposes": ["TypeScriptScanner", "PythonScanner", "PHPScanner"],
+      "allowed_callers": ["policy/merge"],
+      "forbidden_callers": ["memory/store", "memory/mcp"],
+      "notes": "Language-specific code scanners (dumb by design) - emit structural facts"
     },
     "shared/types": {
-      "description": "Shared TypeScript types"
+      "coords": [1, 0],
+      "owns_paths": ["src/shared/types/**"],
+      "exposes": ["Policy", "PolicyModule", "Frame", "AtlasFrame"],
+      "allowed_callers": ["memory/store", "memory/frames", "memory/mcp", "policy/check", "policy/merge", "shared/atlas", "shared/policy", "shared/module_ids", "cli"],
+      "forbidden_callers": [],
+      "notes": "Shared TypeScript type definitions - used across all modules"
+    },
+    "shared/policy": {
+      "coords": [1, 1],
+      "owns_paths": ["src/shared/policy/**"],
+      "exposes": ["loadPolicy", "clearPolicyCache"],
+      "allowed_callers": ["memory/mcp", "policy/check", "policy/merge", "shared/atlas", "shared/module_ids", "cli"],
+      "forbidden_callers": [],
+      "notes": "Policy loading and caching utility - reads lexmap.policy.json"
+    },
+    "shared/atlas": {
+      "coords": [1, 2],
+      "owns_paths": ["src/shared/atlas/**"],
+      "exposes": ["computeFoldRadius", "generateAtlasFrame"],
+      "allowed_callers": ["memory/mcp", "cli"],
+      "forbidden_callers": ["policy/scanners"],
+      "notes": "Atlas Frame generation - fold-radius spatial neighborhood extraction"
+    },
+    "shared/module_ids": {
+      "coords": [1, 3],
+      "owns_paths": ["src/shared/module_ids/**"],
+      "exposes": ["validateModuleIds", "suggestModuleIds"],
+      "allowed_callers": ["memory/store", "memory/mcp", "cli"],
+      "forbidden_callers": ["policy/scanners"],
+      "notes": "THE CRITICAL RULE enforcement - validates module IDs against policy"
+    },
+    "shared/aliases": {
+      "coords": [1, 4],
+      "owns_paths": ["src/shared/aliases/**"],
+      "exposes": ["resolveAlias", "loadAliasTable"],
+      "allowed_callers": ["shared/module_ids", "memory/mcp", "cli"],
+      "forbidden_callers": ["policy/scanners"],
+      "notes": "Module ID alias resolution - supports team shorthand conventions"
+    },
+    "shared/git": {
+      "coords": [1, 5],
+      "owns_paths": ["src/shared/git/**"],
+      "exposes": ["getCurrentBranch", "getGitStatus", "getDiff"],
+      "allowed_callers": ["memory/mcp", "memory/renderer", "cli"],
+      "forbidden_callers": ["policy/check", "policy/merge"],
+      "notes": "Git integration utilities for Frame context"
     },
     "cli": {
-      "description": "Unified CLI surface"
-    },
-    "dogfooding": {
-      "description": "Self-hosting and dogfooding Lex in Lex development"
-    },
-    "ci": {
-      "description": "Continuous integration and automation"
+      "coords": [3, 0],
+      "owns_paths": ["src/cli/**", "src/shared/cli/**"],
+      "exposes": ["remember", "recall", "check", "timeline"],
+      "allowed_callers": [],
+      "forbidden_callers": [],
+      "notes": "Unified CLI surface - orchestrates memory and policy subsystems"
     }
-  }
+  },
+  "global_kill_patterns": [
+    {
+      "pattern": "**/dist/**",
+      "description": "Generated build output - should not be in source control"
+    },
+    {
+      "pattern": "**/node_modules/**",
+      "description": "Vendor dependencies - managed by package manager"
+    },
+    {
+      "pattern": "**/vendor/**",
+      "description": "Vendor dependencies - managed by package manager"
+    }
+  ]
 }
