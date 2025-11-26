@@ -66,7 +66,8 @@ export function runGit(args: string[], opts: GitRunOptions = {}): string {
   // Handle non-zero exit codes
   if (result.status !== 0) {
     const stderr = String(result.stderr || "").trim();
-    const errorMessage = stderr || `git ${args[0]} failed with status ${result.status}`;
+    const commandName = args.length > 0 ? args[0] : "command";
+    const errorMessage = stderr || `git ${commandName} failed with status ${result.status}`;
     throw new Error(errorMessage);
   }
 

@@ -26,6 +26,16 @@ import { join } from "path";
 import { tmpdir } from "os";
 import { execSync } from "child_process";
 
+/**
+ * Helper to initialize a git repository in a directory
+ */
+function initGitRepo(dir: string): void {
+  execSync("git init", { cwd: dir, stdio: "pipe" });
+  execSync('git config user.email "test@example.com"', { cwd: dir, stdio: "pipe" });
+  execSync('git config user.name "Test User"', { cwd: dir, stdio: "pipe" });
+  execSync("git config commit.gpgsign false", { cwd: dir, stdio: "pipe" });
+}
+
 describe("Git Command Wrapper", () => {
   test("runGit returns trimmed stdout", () => {
     // Test with git --version which should always work
@@ -66,10 +76,7 @@ describe("Git Command Wrapper", () => {
 
     try {
       // Initialize a git repo in the temp directory
-      execSync("git init", { cwd: testDir, stdio: "pipe" });
-      execSync('git config user.email "test@example.com"', { cwd: testDir, stdio: "pipe" });
-      execSync('git config user.name "Test User"', { cwd: testDir, stdio: "pipe" });
-      execSync("git config commit.gpgsign false", { cwd: testDir, stdio: "pipe" });
+      initGitRepo(testDir);
 
       // Create and commit a file
       writeFileSync(join(testDir, "test.txt"), "test content");
@@ -98,9 +105,7 @@ describe("Git Command Wrapper", () => {
 
     try {
       // Initialize a git repo and enable GPG signing
-      execSync("git init", { cwd: testDir, stdio: "pipe" });
-      execSync('git config user.email "test@example.com"', { cwd: testDir, stdio: "pipe" });
-      execSync('git config user.name "Test User"', { cwd: testDir, stdio: "pipe" });
+      initGitRepo(testDir);
       execSync("git config commit.gpgsign true", { cwd: testDir, stdio: "pipe" });
       execSync("git config user.signingkey test-key", { cwd: testDir, stdio: "pipe" });
 
@@ -125,10 +130,7 @@ describe("Git Command Wrapper", () => {
 
     try {
       // Initialize a git repo WITHOUT GPG signing
-      execSync("git init", { cwd: testDir, stdio: "pipe" });
-      execSync('git config user.email "test@example.com"', { cwd: testDir, stdio: "pipe" });
-      execSync('git config user.name "Test User"', { cwd: testDir, stdio: "pipe" });
-      execSync("git config commit.gpgsign false", { cwd: testDir, stdio: "pipe" });
+      initGitRepo(testDir);
 
       // Create a file and add it
       writeFileSync(join(testDir, "test.txt"), "test content");
@@ -150,10 +152,7 @@ describe("Git Command Wrapper", () => {
 
     try {
       // Initialize a git repo
-      execSync("git init", { cwd: testDir, stdio: "pipe" });
-      execSync('git config user.email "test@example.com"', { cwd: testDir, stdio: "pipe" });
-      execSync('git config user.name "Test User"', { cwd: testDir, stdio: "pipe" });
-      execSync("git config commit.gpgsign false", { cwd: testDir, stdio: "pipe" });
+      initGitRepo(testDir);
 
       // Create and commit a file
       writeFileSync(join(testDir, "test.txt"), "test content");
@@ -175,9 +174,7 @@ describe("Git Command Wrapper", () => {
 
     try {
       // Initialize a git repo
-      execSync("git init", { cwd: testDir, stdio: "pipe" });
-      execSync('git config user.email "test@example.com"', { cwd: testDir, stdio: "pipe" });
-      execSync('git config user.name "Test User"', { cwd: testDir, stdio: "pipe" });
+      initGitRepo(testDir);
 
       // git status --short in a clean repo returns empty output
       const status = runGit(["status", "--short"], { cwd: testDir });
