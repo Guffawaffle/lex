@@ -294,25 +294,23 @@ As of 2025-11-27, there is drift between existing Git tags and GitHub releases:
 | v0.2.0 | ✅ | ✅ | Aligned |
 | v0.3.0 | ✅ | ❌ | Needs GH release |
 | v0.4.x-alpha | ✅ (8 tags) | ❌ | Skip (pre-release) |
-| v0.6.0 | ✅ | ❌ | Needs GH release |
+| v0.6.0 | ✅ | ✅ | Aligned |
+
+> **Note:** There is no v0.5.0 - the version progression skipped from v0.4.7-alpha to v0.6.0.
 
 ### Manual Catch-Up Procedure
 
 For each missing GitHub release, create it manually via GitHub UI or CLI:
 
 ```bash
-# Example: Create GitHub release for existing tag v0.6.0
-gh release create v0.6.0 \
-  --title "v0.6.0" \
-  --notes "See CHANGELOG.md for details." \
-  --verify-tag
-
-# For v0.3.0 (historical)
+# For v0.3.0 - use prepared release notes
 gh release create v0.3.0 \
   --title "v0.3.0" \
-  --notes "Historical release. See git log for changes." \
+  --notes-file docs/releases/v0.3.0-release-notes.md \
   --verify-tag
 ```
+
+See [`docs/releases/CATCH_UP_GUIDE.md`](docs/releases/CATCH_UP_GUIDE.md) for detailed instructions.
 
 **Notes:**
 - `--verify-tag` ensures the tag already exists (won't create new tags)
