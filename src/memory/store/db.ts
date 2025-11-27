@@ -262,6 +262,10 @@ function detectSequentialPattern(passphrase: string): boolean {
       if (nextCode !== currentCode - 1) {
         descending = false;
       }
+      // Early termination when neither pattern is possible
+      if (!ascending && !descending) {
+        break;
+      }
     }
 
     if (ascending || descending) {
