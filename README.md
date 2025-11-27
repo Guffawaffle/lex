@@ -115,14 +115,16 @@ lex check merged-facts.json
 ### Installation
 
 ```bash
-# Install globally (recommended) — install the alpha release explicitly
+# Install globally (recommended)
 npm install -g @smartergpt/lex@alpha
 
-# Or locally in your project (alpha)
+# Or locally in your project
 npm install @smartergpt/lex@alpha
 ```
 
-Note: this repository's published release is version `0.4.5-alpha` and is published under the `alpha` dist-tag. If/when we promote a release to `latest`, we'll update these instructions accordingly.
+**Requires Node.js 20+** (see `.nvmrc` for exact version)
+
+Note: This package is published under the `alpha` dist-tag. Current version is `0.6.0`.
 
 ### Initialize
 
@@ -297,12 +299,16 @@ closeDb(db);
 
 | Import | Purpose | Documentation |
 |--------|---------|---------------|
-| `@smartergpt/lex` | Core frame storage | [API Usage](./docs/API_USAGE.md) |
+| `@smartergpt/lex` | Core API + store operations | [API Usage](./docs/API_USAGE.md) |
 | `@smartergpt/lex/cli` | Programmatic CLI access | [CLI Output](./docs/CLI_OUTPUT.md) |
-| `@smartergpt/lex/memory/store` | Direct database operations | [API Usage](./docs/API_USAGE.md) |
-| `@smartergpt/lex/shared/policy` | Policy loading & validation | [API Usage](./docs/API_USAGE.md) |
-| `@smartergpt/lex/shared/atlas` | Atlas Frame generation | [Architecture](./docs/ARCHITECTURE.md) |
-| `@smartergpt/lex/shared/aliases` | Module alias resolution | [Aliases](./src/shared/aliases/README.md) |
+| `@smartergpt/lex/store` | Direct database operations | [API Usage](./docs/API_USAGE.md) |
+| `@smartergpt/lex/types` | All shared types | [API Usage](./docs/API_USAGE.md) |
+| `@smartergpt/lex/policy` | Policy loading & validation | [API Usage](./docs/API_USAGE.md) |
+| `@smartergpt/lex/atlas` | Atlas Frame generation | [Architecture](./docs/ARCHITECTURE.md) |
+| `@smartergpt/lex/aliases` | Module alias resolution | [Aliases](./src/shared/aliases/README.md) |
+| `@smartergpt/lex/module-ids` | Module ID validation | [API Usage](./docs/API_USAGE.md) |
+| `@smartergpt/lex/memory` | Frame payload validation | [API Usage](./docs/API_USAGE.md) |
+| `@smartergpt/lex/logger` | NDJSON logging (internal) | [API Usage](./docs/API_USAGE.md) |
 
 [Full API Documentation →](./docs/API_USAGE.md)
 
@@ -310,7 +316,7 @@ closeDb(db);
 
 ## 🎯 Project Status
 
-**Current Version:** `0.4.5-alpha` ([Changelog](./CHANGELOG.md))
+**Current Version:** `0.6.0` ([Changelog](./CHANGELOG.md))
 
 ### ⚠️ Alpha Status
 
@@ -546,7 +552,7 @@ export LEX_DB_KEY="production-passphrase"
 
 ### Prerequisites
 
-- **Node.js:** v20+ LTS
+- **Node.js:** v20+ LTS (tested up to v22, see `.nvmrc`)
 - **npm:** v10+
 - **Git:** For branch detection
 
