@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2025-11-27
+
+### Added
+
+- **SQL Safety Guardrails:** Curated query modules enforced via CI test
+  - `test/sql-safety.test.ts`: Fails if `db.prepare()` appears outside curated modules
+  - Curated modules: `queries.ts`, `code-unit-queries.ts`, `db.ts`, `backup.ts`, `images.ts`, `code-atlas-runs.ts`, `auth/`, `routes/`, `shared/cli/db.ts`
+  - Prevents dynamic SQL from models/prompts reaching the database layer
+  - See `.github/copilot-instructions.md` SQL Safety section for rules
+
+- **Migrations Directory:** Schema evolution infrastructure
+  - `migrations/README.md`: Rules for numbered migration files
+  - `migrations/000_reference_schema.sql`: Complete V6 schema documentation
+  - Schema-only changes; data migrations require explicit approval
+
 ### Security
 
 - **Database migration hardening (SEC-001):** Column names are now validated during `lex db encrypt` migration
@@ -14,6 +29,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Both `dbEncrypt` and `calculateDatabaseChecksum` functions now validate column names
   - Migration fails with explicit error if malformed column names are detected
   - Prevents potential SQL injection from maliciously crafted source databases
+
+### Documentation
+
+- **SQL Safety Section:** Added comprehensive SQL safety rules to `.github/copilot-instructions.md`
+  - Curated SQL modules whitelist
+  - Forbidden patterns with examples
+  - Migration workflow guidance
 
 ## [0.4.7-alpha] - 2025-11-26
 

@@ -66,3 +66,71 @@ npm run test:git # Git tests ONLY (requires non-interactive git signing)
 - Must be GPG-signed
 - Imperative mood: "Add...", "Fix...", "Update..."
 - Reference issues: "Fixes #123"
+
+---
+
+## ⚠️ SQL Safety (Curated Queries Only) ⚠️
+
+**This is a critical rule for database code.**
+
+All SQL must live in curated modules. No dynamic SQL from models, prompts, or application logic.
+
+### Curated SQL Modules
+
+Only these files may contain `db.prepare()` calls:
+
+```
+src/memory/store/queries.ts         # Frame CRUD
+src/memory/store/code-unit-queries.ts  # CodeUnit CRUD
+src/memory/store/db.ts              # Schema initialization
+src/memory/store/backup.ts          # Backup utilities
+src/memory/store/code-atlas-runs.ts # CodeAtlas run tracking
+src/memory/store/images.ts          # Image storage
+src/memory/mcp_server/auth/         # OAuth state storage
+src/memory/mcp_server/routes/       # MCP route handlers
+src/shared/cli/db.ts                # CLI database utilities
+```
+
+### What Is Forbidden
+
+```typescript
+// ❌ NEVER do this - dynamic SQL from user input
+const sql = `SELECT * FROM frames WHERE ${userInput}`;
+db.prepare(sql).all();
+
+// ❌ NEVER do this - SQL in application logic
+// (belongs in curated query module instead)
+function myFeature() {
+  db.prepare("SELECT * FROM frames").all();
+}
+
+// ❌ NEVER do this - dynamic table names
+const table = getTableName();
+db.prepare(`SELECT * FROM ${table}`).all();
+```
+
+### What Is Allowed
+
+```typescript
+// ✅ Use curated query modules
+import { getFrameById, searchFrames } from '../store/queries.js';
+const frame = getFrameById(db, frameId);
+
+// ✅ Parameterized queries in curated modules
+// (inside src/memory/store/queries.ts)
+const stmt = db.prepare("SELECT * FROM frames WHERE id = ?");
+return stmt.get(frameId);
+```
+
+### Migrations
+
+Schema changes go in `migrations/` with numbered SQL files:
+- Schema changes only (CREATE TABLE, ALTER TABLE, CREATE INDEX)
+- Data migrations require explicit review and approval
+- See `migrations/README.md` for rules
+
+### CI Enforcement
+
+The `test/sql-safety.test.ts` test enforces these rules:
+- Fails if `db.prepare()` appears outside curated modules
+- Runs as part of `npm test`
