@@ -5,7 +5,7 @@
  */
 
 import type { Frame } from "../types/frame.js";
-import { getDb, searchFrames, getFramesByJira, getFrameById } from "../../memory/store/index.js";
+import { createFrameStore, type FrameStore } from "../../memory/store/index.js";
 import { loadPolicy } from "../policy/loader.js";
 import {
   computeFoldRadius,
@@ -27,36 +27,36 @@ export interface RecallOptions {
 /**
  * Execute the 'lex recall' command
  * Searches for Frames and displays results with Atlas Frame context
+ *
+ * @param query - Search query string
+ * @param options - Command options
+ * @param frameStore - Optional FrameStore for dependency injection (defaults to SqliteFrameStore)
  */
-export async function recall(query: string, options: RecallOptions = {}): Promise<void> {
+export async function recall(
+  query: string,
+  options: RecallOptions = {},
+  frameStore?: FrameStore
+): Promise<void> {
+  // If no store is provided, create a default one (which we'll need to close)
+  const store = frameStore ?? createFrameStore();
+  const ownsStore = frameStore === undefined;
+
   try {
-    const db = getDb();
     let frames: Frame[] = [];
-    let searchHint: string | undefined;
 
     // Try different search strategies
     // 1. Try as Frame ID (exact match)
-    const frameById = getFrameById(db, query);
+    const frameById = await store.getFrameById(query);
     if (frameById) {
       frames = [frameById];
     } else {
-      // 2. Try as Jira ticket (exact match)
-      const framesByJira = getFramesByJira(db, query);
-      if (framesByJira.length > 0) {
-        frames = framesByJira;
-      } else {
-        // 3. Try as reference point (fuzzy search)
-        const searchResult = searchFrames(db, query);
-        frames = searchResult.frames;
-        searchHint = searchResult.hint;
-      }
+      // 2. Try as search query (FTS5 full-text search)
+      // This will match against reference_point, summary_caption, jira, and keywords
+      const searchResults = await store.searchFrames({ query });
+      frames = searchResults;
     }
 
     if (frames.length === 0) {
-      // Print hint to stderr if FTS5 syntax error occurred
-      if (searchHint) {
-        output.error(`\n⚠️  ${searchHint}\n`);
-      }
       output.info(`\n❌ No frames found matching: "${query}"\n`);
       process.exit(1);
     }
@@ -103,6 +103,11 @@ export async function recall(query: string, options: RecallOptions = {}): Promis
     const errorMessage = error instanceof Error ? error.message : String(error);
     output.error(`\n❌ Error: ${errorMessage}\n`);
     process.exit(2);
+  } finally {
+    // Close store if we own it
+    if (ownsStore) {
+      await store.close();
+    }
   }
 }
 

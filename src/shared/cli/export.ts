@@ -4,7 +4,7 @@
  * Export frames from database to JSON files for backup, sharing, and archival.
  */
 
-import { getDb, getFramesForExport, type ExportFramesOptions } from "../../memory/store/index.js";
+import { createFrameStore, type FrameStore, type FrameSearchCriteria } from "../../memory/store/index.js";
 import type { Frame } from "../types/frame.js";
 import { mkdirSync, writeFileSync } from "fs";
 import { join } from "path";
@@ -20,15 +20,15 @@ export interface ExportCommandOptions {
 }
 
 /**
- * Parse duration string (e.g., "7d", "30d", "1h") to ISO timestamp
+ * Parse duration string (e.g., "7d", "30d", "1h") to Date
  */
-function parseDurationToTimestamp(duration: string): string {
+function parseDurationToDate(duration: string): Date {
   const now = new Date();
   const match = duration.match(/^(\d+)([hdwmy])$/);
 
   if (!match) {
     // Not a duration, assume it's an ISO date
-    return duration;
+    return new Date(duration);
   }
 
   const value = parseInt(match[1], 10);
@@ -52,7 +52,7 @@ function parseDurationToTimestamp(duration: string): string {
       break;
   }
 
-  return now.toISOString();
+  return now;
 }
 
 /**
@@ -88,24 +88,44 @@ function prepareFrameForExport(frame: Frame): Frame {
 
 /**
  * Execute the 'lex frames export' command
+ *
+ * @param options - Command options
+ * @param frameStore - Optional FrameStore for dependency injection (defaults to SqliteFrameStore)
  */
-export async function exportFrames(options: ExportCommandOptions = {}): Promise<void> {
-  try {
-    const db = getDb();
+export async function exportFrames(
+  options: ExportCommandOptions = {},
+  frameStore?: FrameStore
+): Promise<void> {
+  // If no store is provided, create a default one (which we'll need to close)
+  const store = frameStore ?? createFrameStore();
+  const ownsStore = frameStore === undefined;
 
-    // Build query options
-    const queryOptions: ExportFramesOptions = {};
+  try {
+    // Build search criteria for filtering
+    const searchCriteria: FrameSearchCriteria = {};
 
     if (options.since) {
-      queryOptions.since = parseDurationToTimestamp(options.since);
+      searchCriteria.since = parseDurationToDate(options.since);
     }
 
+    // Get frames with optional time filtering via searchFrames or listFrames
+    let frames: Frame[];
+    
+    if (searchCriteria.since) {
+      // Use searchFrames for time-based filtering
+      frames = await store.searchFrames(searchCriteria);
+    } else {
+      // Get all frames
+      frames = await store.listFrames();
+    }
+
+    // Apply additional filters (jira, branch) in memory
     if (options.jira) {
-      queryOptions.jira = options.jira;
+      frames = frames.filter(f => f.jira === options.jira);
     }
 
     if (options.branch) {
-      queryOptions.branch = options.branch;
+      frames = frames.filter(f => f.branch === options.branch);
     }
 
     // Determine output directory
@@ -115,8 +135,6 @@ export async function exportFrames(options: ExportCommandOptions = {}): Promise<
     // Create output directory
     mkdirSync(dateDir, { recursive: true });
 
-    // Get frames iterator for streaming
-    const frames = getFramesForExport(db, queryOptions);
     const format = options.format || "json";
 
     let count = 0;
@@ -184,5 +202,10 @@ export async function exportFrames(options: ExportCommandOptions = {}): Promise<
       output.error(`\n❌ Export failed: ${String(error)}\n`);
     }
     process.exit(1);
+  } finally {
+    // Close store if we own it
+    if (ownsStore) {
+      await store.close();
+    }
   }
 }
