@@ -64,8 +64,9 @@ export class MemoryFrameStore implements FrameStore {
 
     // Filter by moduleScope (any match)
     if (criteria.moduleScope && criteria.moduleScope.length > 0) {
+      const moduleScope = criteria.moduleScope;
       results = results.filter((f) =>
-        f.module_scope.some((m) => criteria.moduleScope!.includes(m))
+        f.module_scope.some((m) => moduleScope.includes(m))
       );
     }
 
