@@ -13,6 +13,10 @@ import { createDatabase } from "../db.js";
 
 /**
  * Convert Frame object to database row
+ *
+ * Note: Frame v3 fields (executorRole, toolCalls, guardrailProfile) are not persisted
+ * as the database schema does not yet have columns for them. This matches the behavior
+ * of queries.ts. A future database migration will add support for these fields.
  */
 function frameToRow(frame: Frame): FrameRow {
   return {
@@ -39,6 +43,10 @@ function frameToRow(frame: Frame): FrameRow {
 
 /**
  * Convert database row to Frame object
+ *
+ * Note: Frame v3 fields (executorRole, toolCalls, guardrailProfile) are not retrieved
+ * as the database schema does not yet have columns for them. This matches the behavior
+ * of queries.ts. A future database migration will add support for these fields.
  */
 function rowToFrame(row: FrameRow): Frame {
   return {
