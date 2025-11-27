@@ -50,6 +50,10 @@
       "types": "./dist/memory/store/index.d.ts",
       "import": "./dist/memory/store/index.js"
     },
+    "./memory": {
+      "types": "./dist/memory/validation/index.d.ts",
+      "import": "./dist/memory/validation/index.js"
+    },
     "./logger": {
       "types": "./dist/shared/logger/index.d.ts",
       "import": "./dist/shared/logger/index.js"

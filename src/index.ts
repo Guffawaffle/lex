@@ -11,6 +11,7 @@
  * | `@smartergpt/lex` | Core types + store API (this file) |
  * | `@smartergpt/lex/types` | All shared types (Frame, Policy, AtlasFrame, etc.) |
  * | `@smartergpt/lex/store` | Direct database operations |
+ * | `@smartergpt/lex/memory` | Frame payload validation helpers |
  * | `@smartergpt/lex/policy` | Policy loading and validation |
  * | `@smartergpt/lex/atlas` | Atlas Frame generation |
  * | `@smartergpt/lex/module-ids` | Module ID validation |
@@ -66,6 +67,18 @@ export {
   deleteFrame,
   getFrameCount,
 } from "./memory/store/index.js";
+
+// =============================================================================
+// FRAME VALIDATION (1.0.0 Contract)
+// =============================================================================
+
+// Frame payload validation for external callers
+export { validateFramePayload } from "./memory/validation/index.js";
+export type {
+  FrameValidationResult,
+  FrameValidationError,
+  FrameValidationWarning,
+} from "./memory/validation/index.js";
 
 // =============================================================================
 // POLICY & ATLAS HELPERS (1.0.0 Contract)
