@@ -24,6 +24,9 @@ export type { CodeAtlasStore } from "./code-atlas-store.js";
 // SqliteFrameStore - production-ready FrameStore implementation
 export { SqliteFrameStore } from "./sqlite/index.js";
 
+// Memory-based store implementations for testing
+export { MemoryFrameStore } from "./memory/index.js";
+
 export {
   saveFrame,
   getFrameById,
