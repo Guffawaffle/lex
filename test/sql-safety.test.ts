@@ -27,6 +27,7 @@ import { join } from "path";
 const ALLOWED_PATTERNS = [
   "memory/store/queries.ts",
   "memory/store/code-unit-queries.ts",
+  "memory/store/lexsona-queries.ts",
   "memory/store/db.ts",
   "memory/store/backup.ts",
   "memory/store/code-atlas-runs.ts",

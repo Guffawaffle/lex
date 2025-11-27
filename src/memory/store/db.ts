@@ -226,6 +226,10 @@ export function initializeDatabase(db: Database.Database): void {
     applyMigrationV6(db);
     db.prepare("INSERT INTO schema_version (version) VALUES (?)").run(6);
   }
+  if (currentVersion < 7) {
+    applyMigrationV7(db);
+    db.prepare("INSERT INTO schema_version (version) VALUES (?)").run(7);
+  }
 }
 
 /**
@@ -497,6 +501,83 @@ function applyMigrationV6(db: Database.Database): void {
   // Create index for created_at queries (temporal ordering)
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_code_atlas_runs_created ON code_atlas_runs(created_at);
+  `);
+}
+
+/**
+ * Migration V7: Add lexsona_behavior_rules table for LexSona behavioral memory
+ *
+ * Schema aligned with LexSona Mathematical Framework v0.1
+ * and CptPlnt lexsona_behavior_rule.schema.json
+ *
+ * @see docs/research/LexSona/MATH_FRAMEWORK_v0.1.md
+ * @see docs/research/LexSona/CptPlnt/lexsona_behavior_rule.schema.json
+ */
+function applyMigrationV7(db: Database.Database): void {
+  // Create lexsona_behavior_rules table for behavioral rule storage
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS lexsona_behavior_rules (
+      rule_id TEXT PRIMARY KEY,
+      category TEXT NOT NULL,
+      text TEXT NOT NULL,
+
+      -- Scope (all nullable for partial matching)
+      -- Stored as JSON for flexibility
+      scope TEXT NOT NULL,
+
+      -- Bayesian Beta confidence model
+      -- Prior: Beta(alpha_0=2, beta_0=5) — skeptical, requires evidence
+      alpha INTEGER NOT NULL DEFAULT 2,
+      beta INTEGER NOT NULL DEFAULT 5,
+
+      -- Observation count (reinforcements + counterexamples)
+      observation_count INTEGER NOT NULL DEFAULT 0,
+
+      -- Severity level
+      severity TEXT NOT NULL CHECK(severity IN ('must', 'should', 'style')) DEFAULT 'should',
+
+      -- Decay time constant in days (default: 180 days)
+      decay_tau INTEGER NOT NULL DEFAULT 180,
+
+      -- Timestamps
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      last_observed TEXT NOT NULL DEFAULT (datetime('now')),
+
+      -- Optional: Link to Lex Frame for auditability
+      frame_id TEXT
+    );
+  `);
+
+  // Index for scope-based filtering (using JSON_EXTRACT for module_id)
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_lexsona_rules_module
+    ON lexsona_behavior_rules(json_extract(scope, '$.module_id'));
+  `);
+
+  // Index for category-based grouping
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_lexsona_rules_category
+    ON lexsona_behavior_rules(category);
+  `);
+
+  // Index for confidence + recency filtering (for active rule queries)
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_lexsona_rules_observation_last
+    ON lexsona_behavior_rules(observation_count, last_observed DESC);
+  `);
+
+  // Index for severity filtering
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_lexsona_rules_severity
+    ON lexsona_behavior_rules(severity);
+  `);
+
+  // Index for frame linkage
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_lexsona_rules_frame_id
+    ON lexsona_behavior_rules(frame_id)
+    WHERE frame_id IS NOT NULL;
   `);
 }
 
