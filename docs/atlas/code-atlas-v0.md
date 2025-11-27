@@ -151,6 +151,76 @@ interface Limits {
 }
 ```
 
+### PolicySeed Schema
+
+A `PolicySeed` is a **seed** for human refinement, not a final policy. It is generated from Code Atlas data to bootstrap policy module definitions.
+
+```typescript
+interface PolicySeed {
+  version: 0;                    // Schema version (literal 0)
+  generatedBy: "code-atlas-v0";  // Generator identifier
+  repoId: string;                // Repository identifier
+  generatedAt: string;           // ISO 8601 timestamp
+  
+  modules: PolicySeedModule[];   // Detected module definitions
+}
+
+interface PolicySeedModule {
+  id: string;                    // Module identifier (e.g., "core", "api")
+  match: string[];               // Glob patterns for this module
+  unitCount: number;             // Number of code units detected
+  kinds: string[];               // Types of code units (e.g., ["class", "function"])
+  notes?: string;                // Auto-generated notes about the module
+}
+```
+
+#### Field Semantics
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `version` | literal | ✅ | Must be `0` for this schema version |
+| `generatedBy` | literal | ✅ | Must be `"code-atlas-v0"` |
+| `repoId` | string | ✅ | Repository identifier |
+| `generatedAt` | string | ✅ | ISO 8601 timestamp of generation |
+| `modules` | array | ✅ | Array of detected module definitions |
+| `modules[].id` | string | ✅ | Module identifier (derived from directory) |
+| `modules[].match` | string[] | ✅ | Glob patterns matching this module |
+| `modules[].unitCount` | number | ✅ | Count of code units in this module |
+| `modules[].kinds` | string[] | ✅ | Types of code units found |
+| `modules[].notes` | string | ❌ | Auto-generated notes about the module |
+
+#### Example PolicySeed
+
+```yaml
+# lex-policy.seed.code-atlas.yml
+version: 0
+generatedBy: "code-atlas-v0"
+repoId: "@example/project"
+generatedAt: "2025-11-26T14:30:00Z"
+
+modules:
+  - id: "core"
+    match:
+      - "src/core/**"
+    unitCount: 42
+    kinds: ["class", "function"]
+    notes: "Core domain logic; Primarily classes (60%)"
+    
+  - id: "api"
+    match:
+      - "src/api/**"
+    unitCount: 28
+    kinds: ["function", "method"]
+    notes: "API layer"
+    
+  - id: "tests"
+    match:
+      - "tests/**"
+    unitCount: 156
+    kinds: ["function"]
+    notes: "Test files; safe for additions; Primarily functions (100%)"
+```
+
 ### Schema Versioning Policy
 
 Code Atlas uses **literal schema version fields** for explicit versioning:
@@ -179,6 +249,74 @@ lex recall "auth timeout" --auto-radius --max-tokens 5000
 # Show cache statistics
 lex recall "auth timeout" --cache-stats
 ```
+
+### Code Atlas Extraction
+
+```bash
+# Extract code units from repository
+lex code-atlas --repo .
+
+# Limit files scanned
+lex code-atlas --repo . --max-files 100
+
+# Output to file
+lex code-atlas --repo . --out atlas-output.json
+
+# Generate policy seed from detected modules
+lex code-atlas --repo . --policy-seed policy-seed.yml
+```
+
+### Policy Seed Generation
+
+Generate an initial policy module definition from code structure:
+
+```bash
+# Generate policy seed alongside code extraction
+npx lex code-atlas --repo . --policy-seed lex-policy.seed.code-atlas.yml
+```
+
+The generated file is a **seed** for human refinement, not a final policy:
+
+```yaml
+# lex-policy.seed.code-atlas.yml
+version: 0
+generatedBy: "code-atlas-v0"
+repoId: "..."
+generatedAt: "2025-11-25T..."
+
+modules:
+  - id: "core"
+    match:
+      - "src/core/**"
+    unitCount: 42
+    kinds: ["class", "function"]
+    notes: "Core domain logic; auto-detected from code density"
+    
+  - id: "api"
+    match:
+      - "src/api/**"
+    unitCount: 28
+    kinds: ["function", "method"]
+    notes: "API layer; high function count"
+    
+  - id: "tests"
+    match:
+      - "tests/**"
+      - "**/*.test.ts"
+    unitCount: 156
+    kinds: ["function"]
+    notes: "Test files; safe for additions"
+```
+
+**Algorithm (v0, simple):**
+
+1. Group code units by directory prefix
+2. Count units per directory
+3. Infer module boundaries from:
+   - Directory depth (src/foo vs src/foo/bar)
+   - Unit density (many units = important module)
+   - Naming patterns (test, spec, mock)
+4. Emit YAML seed with notes
 
 ### Remember with Module Scope
 
@@ -213,6 +351,7 @@ LEX_CLI_OUTPUT_MODE=jsonl lex recall "auth"
 | `--max-tokens <n>` | Token limit for Atlas Frame (requires `--auto-radius`) | None |
 | `--cache-stats` | Show cache hit/miss statistics | `false` |
 | `--json` | Output in JSON format | `false` |
+| `--policy-seed <path>` | Generate policy seed file from detected modules (code-atlas) | None |
 
 ---
 

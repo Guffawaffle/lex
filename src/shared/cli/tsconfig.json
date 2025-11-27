@@ -19,6 +19,7 @@
     { "path": "../module_ids" },
     { "path": "../git" },
     { "path": "../atlas" },
+    { "path": "../../atlas" },
     { "path": "../../memory/store" },
     { "path": "../../memory/renderer" }
   ]
