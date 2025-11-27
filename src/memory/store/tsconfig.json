@@ -13,6 +13,7 @@
   "exclude": ["node_modules", "dist", "**/*.test.ts"],
   "references": [
     { "path": "../../shared/logger" },
-    { "path": "../../atlas/schemas" }
+    { "path": "../../atlas/schemas" },
+    { "path": "../../shared/lexsona" }
   ]
 }

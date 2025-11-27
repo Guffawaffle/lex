@@ -52,6 +52,26 @@ export interface CodeAtlasRunRow {
 }
 
 /**
+ * Database row type for lexsona_behavior_rules table
+ *
+ * LexSona behavioral rules with Bayesian confidence scoring.
+ * @see docs/LEXSONA.md for architecture overview
+ * @see docs/research/LexSona/MATH_FRAMEWORK_v0.1.md for mathematical framework
+ */
+export interface BehaviorRuleRow {
+  rule_id: string;
+  context: string; // JSON stringified object
+  correction: string;
+  confidence_alpha: number;
+  confidence_beta: number;
+  observation_count: number;
+  created_at: string;
+  updated_at: string;
+  last_observed: string;
+  decay_tau: number;
+}
+
+/**
  * Get default database path: .smartergpt/lex/memory.db (relative to workspace root)
  * Falls back to ~/.smartergpt/lex/memory.db if not in a lex repository
  * Can be overridden with LEX_DB_PATH or LEX_WORKSPACE_ROOT environment variables
@@ -225,6 +245,10 @@ export function initializeDatabase(db: Database.Database): void {
   if (currentVersion < 6) {
     applyMigrationV6(db);
     db.prepare("INSERT INTO schema_version (version) VALUES (?)").run(6);
+  }
+  if (currentVersion < 7) {
+    applyMigrationV7(db);
+    db.prepare("INSERT INTO schema_version (version) VALUES (?)").run(7);
   }
 }
 
@@ -497,6 +521,43 @@ function applyMigrationV6(db: Database.Database): void {
   // Create index for created_at queries (temporal ordering)
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_code_atlas_runs_created ON code_atlas_runs(created_at);
+  `);
+}
+
+/**
+ * Migration V7: Add lexsona_behavior_rules table for LexSona behavioral memory
+ *
+ * Stores behavioral rules with Bayesian confidence scoring for the LexSona system.
+ * Schema aligned with BehaviorRule type from src/shared/lexsona/schemas.ts
+ *
+ * @see docs/LEXSONA.md for architecture overview
+ * @see docs/research/LexSona/MATH_FRAMEWORK_v0.1.md for mathematical framework
+ */
+function applyMigrationV7(db: Database.Database): void {
+  // Create lexsona_behavior_rules table for behavioral rules
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS lexsona_behavior_rules (
+      rule_id TEXT PRIMARY KEY,
+      context TEXT NOT NULL,
+      correction TEXT NOT NULL,
+      confidence_alpha REAL NOT NULL DEFAULT 1.0,
+      confidence_beta REAL NOT NULL DEFAULT 1.0,
+      observation_count INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      last_observed TEXT NOT NULL,
+      decay_tau INTEGER NOT NULL DEFAULT 180
+    );
+  `);
+
+  // Create index for context queries (JSON column, indexed for prefix matching)
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_lexsona_context ON lexsona_behavior_rules(context);
+  `);
+
+  // Create index for updated_at queries (temporal ordering, recency lookups)
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_lexsona_updated ON lexsona_behavior_rules(updated_at);
   `);
 }
 

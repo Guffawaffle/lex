@@ -1,6 +1,6 @@
 -- ============================================================================
 -- Lex Database Reference Schema
--- Version: 6 (as of 0.6.0)
+-- Version: 7 (as of 0.6.0)
 --
 -- This file documents the complete current schema for reference.
 -- It is NOT executed — actual migrations are in src/memory/store/db.ts.
@@ -181,3 +181,26 @@ CREATE TABLE IF NOT EXISTS oauth_states (
 );
 
 CREATE INDEX IF NOT EXISTS idx_oauth_states_expires ON oauth_states(expires_at);
+
+-- ============================================================================
+-- LEXSONA_BEHAVIOR_RULES (V7)
+-- LexSona: Behavioral rules with Bayesian confidence scoring
+-- @see docs/LEXSONA.md for architecture overview
+-- @see docs/research/LexSona/MATH_FRAMEWORK_v0.1.md for mathematical framework
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS lexsona_behavior_rules (
+  rule_id TEXT PRIMARY KEY,
+  context TEXT NOT NULL,                -- JSON object (module, task_type, etc.)
+  correction TEXT NOT NULL,             -- The behavioral pattern/rule
+  confidence_alpha REAL NOT NULL DEFAULT 1.0,   -- Beta distribution α
+  confidence_beta REAL NOT NULL DEFAULT 1.0,    -- Beta distribution β
+  observation_count INTEGER NOT NULL DEFAULT 0, -- N
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  last_observed TEXT NOT NULL,
+  decay_tau INTEGER NOT NULL DEFAULT 180        -- Decay time constant (days)
+);
+
+CREATE INDEX IF NOT EXISTS idx_lexsona_context ON lexsona_behavior_rules(context);
+CREATE INDEX IF NOT EXISTS idx_lexsona_updated ON lexsona_behavior_rules(updated_at);
