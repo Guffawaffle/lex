@@ -5,8 +5,9 @@
  * Uses Map<string, Frame> for storage with simple in-memory filtering.
  */
 
-import type { FrameStore, FrameSearchCriteria, FrameListOptions } from "../frame-store.js";
+import type { FrameStore, FrameSearchCriteria, FrameListOptions, SaveResult } from "../frame-store.js";
 import type { Frame } from "../../frames/types.js";
+import { Frame as FrameSchema } from "../../frames/types.js";
 
 /**
  * In-memory implementation of FrameStore for unit tests.
@@ -33,6 +34,36 @@ export class MemoryFrameStore implements FrameStore {
    */
   async saveFrame(frame: Frame): Promise<void> {
     this.frames.set(frame.id, frame);
+  }
+
+  /**
+   * Persist multiple Frames to storage with transactional semantics.
+   * All-or-nothing: if any validation fails, no Frames are saved.
+   */
+  async saveFrames(frames: Frame[]): Promise<SaveResult[]> {
+    // Validate all frames first (all-or-nothing on validation failure)
+    for (const frame of frames) {
+      const parseResult = FrameSchema.safeParse(frame);
+      if (!parseResult.success) {
+        // Validation failed - return error results for all frames
+        return frames.map((f, i) => ({
+          id: f.id ?? `frame-${i}`,
+          success: false,
+          error:
+            f === frame
+              ? `Validation failed: ${parseResult.error.message}`
+              : "Transaction aborted due to validation failure in another frame",
+        }));
+      }
+    }
+
+    // All validations passed - insert all frames
+    const results: SaveResult[] = [];
+    for (const frame of frames) {
+      this.frames.set(frame.id, frame);
+      results.push({ id: frame.id, success: true });
+    }
+    return results;
   }
 
   /**
