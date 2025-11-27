@@ -20,8 +20,6 @@ import {
   saveBehaviorRule,
   getBehaviorRuleById,
   deleteBehaviorRule,
-  getBehaviorRuleCount,
-  getAllBehaviorRules,
 } from "@app/memory/store/lexsona-queries.js";
 import type { BehaviorRule, Correction } from "@app/memory/store/lexsona-types.js";
 
