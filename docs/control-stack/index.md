@@ -21,6 +21,24 @@ The control stack is built from six interlocking ideas:
 
 ---
 
+## The PILOT Loop
+
+The Control Deck orchestrates work through the **[PILOT loop](./pilot/)** —a structured cycle that plans and allocates without directly executing:
+
+| Phase | What it does | Math |
+|-------|--------------|------|
+| [**P**erceive](./pilot/perceive.md) | Parse intent, extract features, classify risk | $\vec{I} = g(h(x), s(x))$ |
+| [**I**ntegrate](./pilot/integrate.md) | Pull Lex state, check version contracts, validate scope | $\phi(\vec{I}, \mathcal{L}, \mathcal{S}, \mathcal{C})$ |
+| [**L**ayout](./pilot/layout.md) | Design task graph, assign providers, set budgets | $\lambda(\mathcal{I}, \mathcal{P}, \mathcal{B})$ |
+| [**O**rchestrate](./pilot/orchestrate.md) | Emit plan to LexRunner, configure gates | $\omega(\mathcal{T})$ (pure) |
+| [**T**rack](./pilot/track.md) | Consume Receipts, decide: accept / re-plan / escalate | $\tau(\mathcal{O}, \mathcal{R}, \mathcal{C})$ |
+
+The Control Deck *never* directly edits code or runs commands—it plans and allocates.
+
+> 📖 **[Full PILOT documentation →](./pilot/)**
+
+---
+
 ## The Key Insight
 
 Models don't need superhuman judgment—they need *guardrails that encode the judgment their principals already have* about risk, scope, and acceptable behavior.
