@@ -11,16 +11,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Store Layer Contracts:** Persistence abstraction for database operations
+  - `FrameStore` interface: stable 1.0 contract for Frame persistence
+  - `SqliteFrameStore`: Default SQLite implementation
+  - `src/memory/store/` subpath export for store access
+  - See `docs/STORE_CONTRACTS.md` for interface details
+
 - **SQL Safety Guardrails:** Curated query modules enforced via CI test
   - `test/sql-safety.test.ts`: Fails if `db.prepare()` appears outside curated modules
   - Curated modules: `queries.ts`, `code-unit-queries.ts`, `db.ts`, `backup.ts`, `images.ts`, `code-atlas-runs.ts`, `auth/`, `routes/`, `shared/cli/db.ts`
   - Prevents dynamic SQL from models/prompts reaching the database layer
   - See `.github/copilot-instructions.md` SQL Safety section for rules
 
+- **IP Boundary Guardrail:** CI test ensuring Lex does not import from lex-pr-runner
+  - `test/ip-boundary.test.ts`: Fails if any source imports from lex-pr-runner
+  - Lex is a public MIT library; lex-pr-runner may import FROM Lex, never the reverse
+
 - **Migrations Directory:** Schema evolution infrastructure
   - `migrations/README.md`: Rules for numbered migration files
   - `migrations/000_reference_schema.sql`: Complete V6 schema documentation
   - Schema-only changes; data migrations require explicit approval
+
+### Experimental
+
+- **CodeAtlasStore (@experimental):** Interface for Code Atlas persistence
+  - API may change in 1.0.x releases without semver guarantees
+  - Will be stabilized in a future minor release
 
 ### Security
 
@@ -36,6 +52,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Curated SQL modules whitelist
   - Forbidden patterns with examples
   - Migration workflow guidance
+- **IP Boundary Section:** Added to `.github/copilot-instructions.md`
+  - Lex → lex-pr-runner import forbidden
+  - CI enforcement via `test/ip-boundary.test.ts`
 
 ## [0.4.7-alpha] - 2025-11-26
 

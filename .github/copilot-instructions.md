@@ -134,3 +134,35 @@ Schema changes go in `migrations/` with numbered SQL files:
 The `test/sql-safety.test.ts` test enforces these rules:
 - Fails if `db.prepare()` appears outside curated modules
 - Runs as part of `npm test`
+
+---
+
+## ⚠️ IP Boundary (Lex → lex-pr-runner) ⚠️
+
+**This is a critical rule for maintaining library independence.**
+
+Lex is a **public MIT library**. It must never import from or depend on lex-pr-runner.
+
+### The Boundary
+
+- **Lex (this repo):** Public library, standalone, MIT licensed
+- **lex-pr-runner:** Private tool that imports FROM Lex, never the reverse
+
+### What Is Forbidden
+
+```typescript
+// ❌ NEVER import from lex-pr-runner
+import { anything } from "lex-pr-runner";
+import { anything } from "@smartergpt/lex-pr-runner";
+
+// ❌ NEVER add as dependency
+// In package.json:
+// "dependencies": { "lex-pr-runner": "..." }  // FORBIDDEN
+```
+
+### CI Enforcement
+
+The `test/ip-boundary.test.ts` test enforces this:
+- Scans all source files for forbidden imports
+- Checks package.json for forbidden dependencies
+- Runs as part of `npm test`
