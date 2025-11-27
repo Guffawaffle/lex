@@ -168,6 +168,33 @@ CREATE INDEX IF NOT EXISTS idx_code_atlas_runs_repo ON code_atlas_runs(repo_id);
 CREATE INDEX IF NOT EXISTS idx_code_atlas_runs_created ON code_atlas_runs(created_at);
 
 -- ============================================================================
+-- LEXSONA_BEHAVIOR_RULES (V7)
+-- LexSona: behavioral memory rules with Bayesian confidence
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS lexsona_behavior_rules (
+  rule_id TEXT PRIMARY KEY,
+  category TEXT NOT NULL,
+  text TEXT NOT NULL,
+  scope TEXT NOT NULL,                -- JSON object (RuleScope)
+  alpha INTEGER NOT NULL DEFAULT 2,   -- Bayesian Beta: successes + prior
+  beta INTEGER NOT NULL DEFAULT 5,    -- Bayesian Beta: failures + prior
+  observation_count INTEGER NOT NULL DEFAULT 0,
+  severity TEXT NOT NULL CHECK(severity IN ('must', 'should', 'style')) DEFAULT 'should',
+  decay_tau INTEGER NOT NULL DEFAULT 180,  -- Decay time constant in days
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  last_observed TEXT NOT NULL DEFAULT (datetime('now')),
+  frame_id TEXT                       -- Optional link to Frame for auditability
+);
+
+CREATE INDEX IF NOT EXISTS idx_lexsona_rules_module ON lexsona_behavior_rules(json_extract(scope, '$.module_id'));
+CREATE INDEX IF NOT EXISTS idx_lexsona_rules_category ON lexsona_behavior_rules(category);
+CREATE INDEX IF NOT EXISTS idx_lexsona_rules_observation_last ON lexsona_behavior_rules(observation_count, last_observed DESC);
+CREATE INDEX IF NOT EXISTS idx_lexsona_rules_severity ON lexsona_behavior_rules(severity);
+CREATE INDEX IF NOT EXISTS idx_lexsona_rules_frame_id ON lexsona_behavior_rules(frame_id) WHERE frame_id IS NOT NULL;
+
+-- ============================================================================
 -- OAUTH_STATES (created in auth/state-storage.ts)
 -- OAuth2 PKCE flow state storage
 -- ============================================================================

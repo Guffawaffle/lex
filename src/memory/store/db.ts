@@ -52,26 +52,6 @@ export interface CodeAtlasRunRow {
 }
 
 /**
- * Database row type for lexsona_behavior_rules table
- *
- * LexSona behavioral rules with Bayesian confidence scoring.
- * @see docs/LEXSONA.md for architecture overview
- * @see docs/research/LexSona/MATH_FRAMEWORK_v0.1.md for mathematical framework
- */
-export interface BehaviorRuleRow {
-  rule_id: string;
-  context: string; // JSON stringified object
-  correction: string;
-  confidence_alpha: number;
-  confidence_beta: number;
-  observation_count: number;
-  created_at: string;
-  updated_at: string;
-  last_observed: string;
-  decay_tau: number;
-}
-
-/**
  * Get default database path: .smartergpt/lex/memory.db (relative to workspace root)
  * Falls back to ~/.smartergpt/lex/memory.db if not in a lex repository
  * Can be overridden with LEX_DB_PATH or LEX_WORKSPACE_ROOT environment variables
@@ -131,172 +111,6 @@ function findRepoRoot(startPath: string): string {
 }
 
 /**
- * Result of passphrase strength validation
- */
-export interface PassphraseValidationResult {
-  valid: boolean;
-  errors: string[];
-  warnings: string[];
-  characterClasses: {
-    hasLowercase: boolean;
-    hasUppercase: boolean;
-    hasDigit: boolean;
-    hasSymbol: boolean;
-    count: number;
-  };
-}
-
-/**
- * Validate passphrase strength for entropy requirements
- *
- * Checks for:
- * - Non-empty and non-whitespace-only content
- * - Minimum length of 12 characters
- * - Character-class diversity (>=3 of: lowercase, uppercase, digit, symbol)
- * - Rejection of obviously weak patterns (repeating chars, sequential chars)
- *
- * @param passphrase - User-provided passphrase to validate
- * @returns Validation result with errors, warnings, and character class info
- */
-export function validatePassphraseStrength(passphrase: string): PassphraseValidationResult {
-  const errors: string[] = [];
-  const warnings: string[] = [];
-
-  // Check for empty or whitespace-only passphrase
-  if (!passphrase || passphrase.trim().length === 0) {
-    return {
-      valid: false,
-      errors: ["Passphrase cannot be empty or whitespace-only"],
-      warnings: [],
-      characterClasses: {
-        hasLowercase: false,
-        hasUppercase: false,
-        hasDigit: false,
-        hasSymbol: false,
-        count: 0,
-      },
-    };
-  }
-
-  // Check minimum length
-  if (passphrase.length < 12) {
-    errors.push(
-      "Passphrase is too short. Use at least 12 characters (32+ recommended for production)."
-    );
-  }
-
-  // Check character class diversity
-  const hasLowercase = /[a-z]/.test(passphrase);
-  const hasUppercase = /[A-Z]/.test(passphrase);
-  const hasDigit = /[0-9]/.test(passphrase);
-  // Symbol: anything that's not alphanumeric or whitespace
-  const hasSymbol = /[^a-zA-Z0-9\s]/.test(passphrase);
-
-  const classCount = [hasLowercase, hasUppercase, hasDigit, hasSymbol].filter(Boolean).length;
-
-  if (classCount < 3) {
-    errors.push(
-      `Passphrase lacks character diversity. Use at least 3 of: lowercase, uppercase, digits, symbols. ` +
-        `Found ${classCount} class(es).`
-    );
-  }
-
-  // Check for repeating character patterns (e.g., "aaaa", "1111")
-  // Match 4 or more consecutive identical characters
-  if (/(.)\1{3,}/.test(passphrase)) {
-    errors.push("Passphrase contains repeating character patterns (4+ identical consecutive characters).");
-  }
-
-  // Check for sequential character patterns
-  const hasSequentialPattern = detectSequentialPattern(passphrase);
-  if (hasSequentialPattern) {
-    errors.push("Passphrase contains sequential character patterns (e.g., 'abcd', '1234', 'qwerty').");
-  }
-
-  // Add warnings for recommended but not required improvements
-  if (passphrase.length < 32 && errors.length === 0) {
-    warnings.push("Consider using 32+ characters for production environments.");
-  }
-
-  return {
-    valid: errors.length === 0,
-    errors,
-    warnings,
-    characterClasses: {
-      hasLowercase,
-      hasUppercase,
-      hasDigit,
-      hasSymbol,
-      count: classCount,
-    },
-  };
-}
-
-/**
- * Detect sequential character patterns in a passphrase
- *
- * Checks for:
- * - Alphabetical sequences (abcd, dcba)
- * - Numeric sequences (1234, 4321)
- * - Keyboard patterns (qwerty, asdf)
- *
- * @param passphrase - Passphrase to check
- * @returns true if a sequential pattern is detected
- */
-function detectSequentialPattern(passphrase: string): boolean {
-  const lower = passphrase.toLowerCase();
-
-  // Common keyboard patterns to detect
-  const keyboardPatterns = [
-    "qwerty",
-    "qwertz",
-    "azerty",
-    "asdfgh",
-    "zxcvbn",
-    "qazwsx",
-    "123456",
-    "654321",
-    "abcdef",
-    "fedcba",
-  ];
-
-  for (const pattern of keyboardPatterns) {
-    if (lower.includes(pattern)) {
-      return true;
-    }
-  }
-
-  // Check for 4+ character sequential runs (ascending or descending)
-  const minSequenceLength = 4;
-  for (let i = 0; i <= lower.length - minSequenceLength; i++) {
-    let ascending = true;
-    let descending = true;
-
-    for (let j = 0; j < minSequenceLength - 1; j++) {
-      const currentCode = lower.charCodeAt(i + j);
-      const nextCode = lower.charCodeAt(i + j + 1);
-
-      if (nextCode !== currentCode + 1) {
-        ascending = false;
-      }
-      if (nextCode !== currentCode - 1) {
-        descending = false;
-      }
-      // Early termination when neither pattern is possible
-      if (!ascending && !descending) {
-        break;
-      }
-    }
-
-    if (ascending || descending) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-/**
  * Derive encryption key from passphrase using PBKDF2
  * Uses 64K iterations as recommended by SQLCipher for security
  *
@@ -314,23 +128,18 @@ function detectSequentialPattern(passphrase: string): boolean {
  *
  * @param passphrase - User-provided passphrase from LEX_DB_KEY
  * @param salt - Optional salt (defaults to application-wide constant)
- * @param options - Optional configuration { force: boolean } to bypass strength validation
  * @returns Hex-encoded key suitable for SQLCipher
  */
-export function deriveEncryptionKey(
-  passphrase: string,
-  salt?: Buffer,
-  options?: { force?: boolean }
-): string {
-  // Validate passphrase strength unless force flag is set
-  const validation = validatePassphraseStrength(passphrase);
-
-  if (!validation.valid && !options?.force) {
-    const errorMessage =
-      validation.errors.join(" ") +
-      " Consider using a password manager to generate and store a strong passphrase." +
-      " Use --force to bypass these checks (not recommended for production).";
-    throw new Error(errorMessage);
+export function deriveEncryptionKey(passphrase: string, salt?: Buffer): string {
+  // Validate passphrase strength
+  if (!passphrase || passphrase.trim().length === 0) {
+    throw new Error("Passphrase cannot be empty or whitespace-only");
+  }
+  if (passphrase.length < 12) {
+    throw new Error(
+      "Passphrase is too weak. Use at least 12 characters (32+ recommended for production). " +
+        "Consider using a password manager to generate and store a strong passphrase."
+    );
   }
 
   // Use application-wide constant salt for deterministic key derivation
@@ -349,15 +158,11 @@ export function deriveEncryptionKey(
  * Required in production (NODE_ENV=production)
  * Optional in development/test environments
  *
- * Supports LEX_DB_KEY_FORCE=true to bypass passphrase strength validation
- * (not recommended for production).
- *
  * @returns Derived encryption key or undefined if not set
  * @throws Error if NODE_ENV=production and LEX_DB_KEY is not set
  */
 export function getEncryptionKey(): string | undefined {
   const passphrase = process.env.LEX_DB_KEY;
-  const force = process.env.LEX_DB_KEY_FORCE === "true";
 
   // In production, encryption key is mandatory and must not be empty or whitespace-only
   if (process.env.NODE_ENV === "production" && (!passphrase || !passphrase.trim())) {
@@ -368,9 +173,7 @@ export function getEncryptionKey(): string | undefined {
   }
 
   // Return derived key if passphrase is provided and not empty/whitespace-only
-  return passphrase && passphrase.trim()
-    ? deriveEncryptionKey(passphrase, undefined, { force })
-    : undefined;
+  return passphrase && passphrase.trim() ? deriveEncryptionKey(passphrase) : undefined;
 }
 
 /**
@@ -704,37 +507,77 @@ function applyMigrationV6(db: Database.Database): void {
 /**
  * Migration V7: Add lexsona_behavior_rules table for LexSona behavioral memory
  *
- * Stores behavioral rules with Bayesian confidence scoring for the LexSona system.
- * Schema aligned with BehaviorRule type from src/shared/lexsona/schemas.ts
+ * Schema aligned with LexSona Mathematical Framework v0.1
+ * and CptPlnt lexsona_behavior_rule.schema.json
  *
- * @see docs/LEXSONA.md for architecture overview
- * @see docs/research/LexSona/MATH_FRAMEWORK_v0.1.md for mathematical framework
+ * @see docs/research/LexSona/MATH_FRAMEWORK_v0.1.md
+ * @see docs/research/LexSona/CptPlnt/lexsona_behavior_rule.schema.json
  */
 function applyMigrationV7(db: Database.Database): void {
-  // Create lexsona_behavior_rules table for behavioral rules
+  // Create lexsona_behavior_rules table for behavioral rule storage
   db.exec(`
     CREATE TABLE IF NOT EXISTS lexsona_behavior_rules (
       rule_id TEXT PRIMARY KEY,
-      context TEXT NOT NULL,
-      correction TEXT NOT NULL,
-      confidence_alpha REAL NOT NULL DEFAULT 1.0,
-      confidence_beta REAL NOT NULL DEFAULT 1.0,
+      category TEXT NOT NULL,
+      text TEXT NOT NULL,
+
+      -- Scope (all nullable for partial matching)
+      -- Stored as JSON for flexibility
+      scope TEXT NOT NULL,
+
+      -- Bayesian Beta confidence model
+      -- Prior: Beta(alpha_0=2, beta_0=5) — skeptical, requires evidence
+      alpha INTEGER NOT NULL DEFAULT 2,
+      beta INTEGER NOT NULL DEFAULT 5,
+
+      -- Observation count (reinforcements + counterexamples)
       observation_count INTEGER NOT NULL DEFAULT 0,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL,
-      last_observed TEXT NOT NULL,
-      decay_tau INTEGER NOT NULL DEFAULT 180
+
+      -- Severity level
+      severity TEXT NOT NULL CHECK(severity IN ('must', 'should', 'style')) DEFAULT 'should',
+
+      -- Decay time constant in days (default: 180 days)
+      decay_tau INTEGER NOT NULL DEFAULT 180,
+
+      -- Timestamps
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      last_observed TEXT NOT NULL DEFAULT (datetime('now')),
+
+      -- Optional: Link to Lex Frame for auditability
+      frame_id TEXT
     );
   `);
 
-  // Create index for context queries (JSON column, indexed for prefix matching)
+  // Index for scope-based filtering (using JSON_EXTRACT for module_id)
   db.exec(`
-    CREATE INDEX IF NOT EXISTS idx_lexsona_context ON lexsona_behavior_rules(context);
+    CREATE INDEX IF NOT EXISTS idx_lexsona_rules_module
+    ON lexsona_behavior_rules(json_extract(scope, '$.module_id'));
   `);
 
-  // Create index for updated_at queries (temporal ordering, recency lookups)
+  // Index for category-based grouping
   db.exec(`
-    CREATE INDEX IF NOT EXISTS idx_lexsona_updated ON lexsona_behavior_rules(updated_at);
+    CREATE INDEX IF NOT EXISTS idx_lexsona_rules_category
+    ON lexsona_behavior_rules(category);
+  `);
+
+  // Index for confidence + recency filtering (for active rule queries)
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_lexsona_rules_observation_last
+    ON lexsona_behavior_rules(observation_count, last_observed DESC);
+  `);
+
+  // Index for severity filtering
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_lexsona_rules_severity
+    ON lexsona_behavior_rules(severity);
+  `);
+
+  // Index for frame linkage
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_lexsona_rules_frame_id
+    ON lexsona_behavior_rules(frame_id)
+    WHERE frame_id IS NOT NULL;
   `);
 }
 

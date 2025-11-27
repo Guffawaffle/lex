@@ -1,10 +1,15 @@
 {
   "extends": "../../../tsconfig.base.json",
   "compilerOptions": {
-    "composite": true,
+    "outDir": "../../../dist/shared/lexsona",
     "rootDir": ".",
-    "outDir": "../../../dist/shared/lexsona"
+    "composite": true,
+    "tsBuildInfoFile": "../../../dist/shared/lexsona/.tsbuildinfo"
   },
-  "include": ["./*.ts"],
-  "exclude": ["node_modules", "dist", "*.test.ts"]
+  "include": ["*.ts"],
+  "exclude": ["**/*.test.ts", "**/*.spec.ts"],
+  "references": [
+    { "path": "../logger" },
+    { "path": "../../memory/store" }
+  ]
 }
