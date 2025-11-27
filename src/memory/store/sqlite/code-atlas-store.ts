@@ -71,17 +71,21 @@ export class SqliteCodeAtlasStore implements CodeAtlasStore {
     offset?: number;
   }): Promise<{ items: CodeAtlasRun[]; total: number }> {
     const total = getCodeAtlasRunCount(this.db);
-    const allRuns = getAllCodeAtlasRuns(this.db, options?.limit);
-
-    // Apply offset if provided
     const offset = options?.offset ?? 0;
-    const items = offset > 0 ? allRuns.slice(offset) : allRuns;
-
-    // Apply limit if provided and offset was applied
     const limit = options?.limit;
-    const finalItems = limit && offset > 0 ? items.slice(0, limit) : items;
 
-    return { items: finalItems, total };
+    // Fetch all runs (getAllCodeAtlasRuns doesn't support offset)
+    // Note: This is less efficient than SQL-level pagination, but maintains
+    // correct behavior without modifying the underlying query functions.
+    const allRuns = getAllCodeAtlasRuns(this.db);
+
+    // Apply offset first, then limit
+    let items = offset > 0 ? allRuns.slice(offset) : allRuns;
+    if (limit !== undefined) {
+      items = items.slice(0, limit);
+    }
+
+    return { items, total };
   }
 
   async close(): Promise<void> {

@@ -278,6 +278,21 @@ describe("SqliteCodeAtlasStore Tests", () => {
       assert.strictEqual(result.items.length, 1);
     });
 
+    test("should support offset in listCodeAtlasRuns", async () => {
+      const allResult = await store.listCodeAtlasRuns();
+      const offsetResult = await store.listCodeAtlasRuns({ offset: 1 });
+      
+      // With offset 1, we should get one less item
+      assert.strictEqual(offsetResult.items.length, allResult.items.length - 1);
+      // Total should be the same regardless of offset
+      assert.strictEqual(offsetResult.total, allResult.total);
+    });
+
+    test("should support both limit and offset in listCodeAtlasRuns", async () => {
+      const result = await store.listCodeAtlasRuns({ limit: 1, offset: 1 });
+      assert.strictEqual(result.items.length, 1);
+    });
+
     test("should handle CodeAtlasRun with empty limits", async () => {
       const runWithEmptyLimits: CodeAtlasRun = {
         runId: "sqlite-run-empty-limits",
