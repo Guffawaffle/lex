@@ -293,6 +293,10 @@ export function createProgram(): Command {
       /^(static|llm-assisted|mixed)$/,
       "static"
     )
+    .option(
+      "--policy-seed <path>",
+      "Generate policy seed file from detected modules (YAML format)"
+    )
     .action(async (cmdOptions) => {
       const globalOptions = program.opts();
       const options: CodeAtlasOptions = {
@@ -303,6 +307,7 @@ export function createProgram(): Command {
         out: cmdOptions.out,
         strategy: cmdOptions.strategy,
         json: globalOptions.json || false,
+        policySeed: cmdOptions.policySeed,
       };
       await codeAtlas(options);
     });

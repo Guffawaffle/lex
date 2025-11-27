@@ -15,6 +15,45 @@ import { createHash } from "crypto";
 import * as output from "./output.js";
 import type { CodeUnit } from "../../atlas/schemas/code-unit.js";
 import type { CodeAtlasRun } from "../../atlas/schemas/code-atlas-run.js";
+import { generatePolicySeed } from "../../atlas/policy-seed-generator.js";
+import type { PolicySeed } from "../../atlas/schemas/policy-seed.js";
+
+/**
+ * Convert PolicySeed to YAML format
+ *
+ * Uses a simple YAML serialization that is clear and human-readable.
+ * This is a seed file, not a final policy.
+ */
+function policySeedToYaml(seed: PolicySeed): string {
+  const lines: string[] = [
+    "# Policy Seed - Auto-generated from Code Atlas",
+    "# This is a SEED for human refinement, not a final policy.",
+    "# Review and customize before using.",
+    "",
+    `version: ${seed.version}`,
+    `generatedBy: "${seed.generatedBy}"`,
+    `repoId: "${seed.repoId}"`,
+    `generatedAt: "${seed.generatedAt}"`,
+    "",
+    "modules:",
+  ];
+
+  for (const module of seed.modules) {
+    lines.push(`  - id: "${module.id}"`);
+    lines.push("    match:");
+    for (const pattern of module.match) {
+      lines.push(`      - "${pattern}"`);
+    }
+    lines.push(`    unitCount: ${module.unitCount}`);
+    lines.push(`    kinds: [${module.kinds.map((k) => `"${k}"`).join(", ")}]`);
+    if (module.notes) {
+      lines.push(`    notes: "${module.notes}"`);
+    }
+    lines.push("");
+  }
+
+  return lines.join("\n");
+}
 
 export interface CodeAtlasOptions {
   repo?: string;
@@ -24,6 +63,7 @@ export interface CodeAtlasOptions {
   out?: string;
   strategy?: "static" | "llm-assisted" | "mixed";
   json?: boolean;
+  policySeed?: string;
 }
 
 export interface CodeAtlasOutput {
@@ -35,6 +75,7 @@ export interface CodeAtlasResult {
   success: boolean;
   output?: CodeAtlasOutput;
   outputPath?: string;
+  policySeedPath?: string;
   error?: string;
 }
 
@@ -625,6 +666,24 @@ export async function codeAtlas(options: CodeAtlasOptions = {}): Promise<CodeAtl
       units,
     };
 
+    // Generate policy seed if requested
+    let policySeedPath: string | undefined;
+    if (options.policySeed) {
+      const policySeed = generatePolicySeed(units, repoId);
+      policySeedPath = path.resolve(options.policySeed);
+      const seedDir = path.dirname(policySeedPath);
+      if (!fs.existsSync(seedDir)) {
+        fs.mkdirSync(seedDir, { recursive: true });
+      }
+      // Convert to YAML-like format
+      const yamlContent = policySeedToYaml(policySeed);
+      fs.writeFileSync(policySeedPath, yamlContent);
+
+      if (!options.json) {
+        output.info(`Policy seed written to: ${policySeedPath}`);
+      }
+    }
+
     // Output results
     if (options.out) {
       // Write to file
@@ -639,6 +698,7 @@ export async function codeAtlas(options: CodeAtlasOptions = {}): Promise<CodeAtl
         output.json({
           success: true,
           outputPath: outPath,
+          ...(policySeedPath && { policySeedPath }),
           filesScanned: filesToScan.length,
           unitsEmitted: units.length,
           truncated,
@@ -656,6 +716,7 @@ export async function codeAtlas(options: CodeAtlasOptions = {}): Promise<CodeAtl
         success: true,
         output: atlasOutput,
         outputPath: outPath,
+        ...(policySeedPath && { policySeedPath }),
       };
     } else {
       // Output to stdout
@@ -674,6 +735,7 @@ export async function codeAtlas(options: CodeAtlasOptions = {}): Promise<CodeAtl
       return {
         success: true,
         output: atlasOutput,
+        ...(policySeedPath && { policySeedPath }),
       };
     }
   } catch (error) {
