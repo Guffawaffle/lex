@@ -254,21 +254,24 @@ describe("AtlasFrameCache edge cases", () => {
     test("setEnableCache clears cache when disabling", () => {
       setEnableCache(true);
       const cache = getCache();
-      cache?.set(["test"], 1, createTestFrame(["test"], 1));
+      assert.ok(cache, "Cache should exist when enabled");
+      cache.set(["test"], 1, createTestFrame(["test"], 1));
 
       setEnableCache(false);
       setEnableCache(true);
 
       // Cache should have been cleared
       const newCache = getCache();
-      assert.strictEqual(newCache?.get(["test"], 1), undefined);
+      assert.ok(newCache, "Cache should exist after re-enabling");
+      assert.strictEqual(newCache.get(["test"], 1), undefined);
     });
 
     test("resetCache clears entries and stats", () => {
       setEnableCache(true);
       const cache = getCache();
-      cache?.set(["test"], 1, createTestFrame(["test"], 1));
-      cache?.get(["test"], 1);
+      assert.ok(cache, "Cache should exist when enabled");
+      cache.set(["test"], 1, createTestFrame(["test"], 1));
+      cache.get(["test"], 1);
 
       resetCache();
 
