@@ -27,6 +27,14 @@ import { existsSync } from "fs";
 
 const logger = getLogger("memory:mcp_server:server");
 
+/**
+ * Maximum number of frames to fetch when filtering by jira/branch/module.
+ * This is a performance safeguard - the FrameStore interface doesn't have
+ * specific jira/branch filter methods, so we fetch a batch and filter in JS.
+ * Increase this value if you have very large frame stores.
+ */
+const MAX_FILTER_FETCH_LIMIT = 1000;
+
 interface RememberArgs {
   reference_point: string;
   summary_caption: string;
@@ -470,11 +478,11 @@ export class MCPServer {
         // For jira/branch filtering, we need to search all and filter
         // The FrameStore interface doesn't have specific jira/branch methods
         // We'll use listFrames and filter in JavaScript
-        const allFrames = await this.frameStore.listFrames({ limit: 1000 });
+        const allFrames = await this.frameStore.listFrames({ limit: MAX_FILTER_FETCH_LIMIT });
         frames = allFrames.filter((f) => f.jira === jira).slice(0, limit);
       } else if (branch) {
         // For branch filtering, search all and filter
-        const allFrames = await this.frameStore.listFrames({ limit: 1000 });
+        const allFrames = await this.frameStore.listFrames({ limit: MAX_FILTER_FETCH_LIMIT });
         frames = allFrames.filter((f) => f.branch === branch).slice(0, limit);
       } else {
         frames = [];
@@ -555,7 +563,7 @@ export class MCPServer {
 
     // Get frames using frameStore.listFrames
     // Fetch more than limit to account for filtering
-    let frames = await this.frameStore.listFrames({ limit: 1000 });
+    let frames = await this.frameStore.listFrames({ limit: MAX_FILTER_FETCH_LIMIT });
 
     // Filter by branch if specified
     if (branch) {
