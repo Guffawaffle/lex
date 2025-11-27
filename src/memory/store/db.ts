@@ -111,6 +111,168 @@ function findRepoRoot(startPath: string): string {
 }
 
 /**
+ * Result of passphrase strength validation
+ */
+export interface PassphraseValidationResult {
+  valid: boolean;
+  errors: string[];
+  warnings: string[];
+  characterClasses: {
+    hasLowercase: boolean;
+    hasUppercase: boolean;
+    hasDigit: boolean;
+    hasSymbol: boolean;
+    count: number;
+  };
+}
+
+/**
+ * Validate passphrase strength for entropy requirements
+ *
+ * Checks for:
+ * - Non-empty and non-whitespace-only content
+ * - Minimum length of 12 characters
+ * - Character-class diversity (>=3 of: lowercase, uppercase, digit, symbol)
+ * - Rejection of obviously weak patterns (repeating chars, sequential chars)
+ *
+ * @param passphrase - User-provided passphrase to validate
+ * @returns Validation result with errors, warnings, and character class info
+ */
+export function validatePassphraseStrength(passphrase: string): PassphraseValidationResult {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+
+  // Check for empty or whitespace-only passphrase
+  if (!passphrase || passphrase.trim().length === 0) {
+    return {
+      valid: false,
+      errors: ["Passphrase cannot be empty or whitespace-only"],
+      warnings: [],
+      characterClasses: {
+        hasLowercase: false,
+        hasUppercase: false,
+        hasDigit: false,
+        hasSymbol: false,
+        count: 0,
+      },
+    };
+  }
+
+  // Check minimum length
+  if (passphrase.length < 12) {
+    errors.push(
+      "Passphrase is too short. Use at least 12 characters (32+ recommended for production)."
+    );
+  }
+
+  // Check character class diversity
+  const hasLowercase = /[a-z]/.test(passphrase);
+  const hasUppercase = /[A-Z]/.test(passphrase);
+  const hasDigit = /[0-9]/.test(passphrase);
+  // Symbol: anything that's not alphanumeric or whitespace
+  const hasSymbol = /[^a-zA-Z0-9\s]/.test(passphrase);
+
+  const classCount = [hasLowercase, hasUppercase, hasDigit, hasSymbol].filter(Boolean).length;
+
+  if (classCount < 3) {
+    errors.push(
+      `Passphrase lacks character diversity. Use at least 3 of: lowercase, uppercase, digits, symbols. ` +
+        `Found ${classCount} class(es).`
+    );
+  }
+
+  // Check for repeating character patterns (e.g., "aaaa", "1111")
+  // Match 4 or more consecutive identical characters
+  if (/(.)\1{3,}/.test(passphrase)) {
+    errors.push("Passphrase contains repeating character patterns (4+ identical consecutive characters).");
+  }
+
+  // Check for sequential character patterns
+  const hasSequentialPattern = detectSequentialPattern(passphrase);
+  if (hasSequentialPattern) {
+    errors.push("Passphrase contains sequential character patterns (e.g., 'abcd', '1234', 'qwerty').");
+  }
+
+  // Add warnings for recommended but not required improvements
+  if (passphrase.length < 32 && errors.length === 0) {
+    warnings.push("Consider using 32+ characters for production environments.");
+  }
+
+  return {
+    valid: errors.length === 0,
+    errors,
+    warnings,
+    characterClasses: {
+      hasLowercase,
+      hasUppercase,
+      hasDigit,
+      hasSymbol,
+      count: classCount,
+    },
+  };
+}
+
+/**
+ * Detect sequential character patterns in a passphrase
+ *
+ * Checks for:
+ * - Alphabetical sequences (abcd, dcba)
+ * - Numeric sequences (1234, 4321)
+ * - Keyboard patterns (qwerty, asdf)
+ *
+ * @param passphrase - Passphrase to check
+ * @returns true if a sequential pattern is detected
+ */
+function detectSequentialPattern(passphrase: string): boolean {
+  const lower = passphrase.toLowerCase();
+
+  // Common keyboard patterns to detect
+  const keyboardPatterns = [
+    "qwerty",
+    "qwertz",
+    "azerty",
+    "asdfgh",
+    "zxcvbn",
+    "qazwsx",
+    "123456",
+    "654321",
+    "abcdef",
+    "fedcba",
+  ];
+
+  for (const pattern of keyboardPatterns) {
+    if (lower.includes(pattern)) {
+      return true;
+    }
+  }
+
+  // Check for 4+ character sequential runs (ascending or descending)
+  const minSequenceLength = 4;
+  for (let i = 0; i <= lower.length - minSequenceLength; i++) {
+    let ascending = true;
+    let descending = true;
+
+    for (let j = 0; j < minSequenceLength - 1; j++) {
+      const currentCode = lower.charCodeAt(i + j);
+      const nextCode = lower.charCodeAt(i + j + 1);
+
+      if (nextCode !== currentCode + 1) {
+        ascending = false;
+      }
+      if (nextCode !== currentCode - 1) {
+        descending = false;
+      }
+    }
+
+    if (ascending || descending) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
  * Derive encryption key from passphrase using PBKDF2
  * Uses 64K iterations as recommended by SQLCipher for security
  *
@@ -128,18 +290,23 @@ function findRepoRoot(startPath: string): string {
  *
  * @param passphrase - User-provided passphrase from LEX_DB_KEY
  * @param salt - Optional salt (defaults to application-wide constant)
+ * @param options - Optional configuration { force: boolean } to bypass strength validation
  * @returns Hex-encoded key suitable for SQLCipher
  */
-export function deriveEncryptionKey(passphrase: string, salt?: Buffer): string {
-  // Validate passphrase strength
-  if (!passphrase || passphrase.trim().length === 0) {
-    throw new Error("Passphrase cannot be empty or whitespace-only");
-  }
-  if (passphrase.length < 12) {
-    throw new Error(
-      "Passphrase is too weak. Use at least 12 characters (32+ recommended for production). " +
-        "Consider using a password manager to generate and store a strong passphrase."
-    );
+export function deriveEncryptionKey(
+  passphrase: string,
+  salt?: Buffer,
+  options?: { force?: boolean }
+): string {
+  // Validate passphrase strength unless force flag is set
+  const validation = validatePassphraseStrength(passphrase);
+
+  if (!validation.valid && !options?.force) {
+    const errorMessage =
+      validation.errors.join(" ") +
+      " Consider using a password manager to generate and store a strong passphrase." +
+      " Use --force to bypass these checks (not recommended for production).";
+    throw new Error(errorMessage);
   }
 
   // Use application-wide constant salt for deterministic key derivation
@@ -158,11 +325,15 @@ export function deriveEncryptionKey(passphrase: string, salt?: Buffer): string {
  * Required in production (NODE_ENV=production)
  * Optional in development/test environments
  *
+ * Supports LEX_DB_KEY_FORCE=true to bypass passphrase strength validation
+ * (not recommended for production).
+ *
  * @returns Derived encryption key or undefined if not set
  * @throws Error if NODE_ENV=production and LEX_DB_KEY is not set
  */
 export function getEncryptionKey(): string | undefined {
   const passphrase = process.env.LEX_DB_KEY;
+  const force = process.env.LEX_DB_KEY_FORCE === "true";
 
   // In production, encryption key is mandatory and must not be empty or whitespace-only
   if (process.env.NODE_ENV === "production" && (!passphrase || !passphrase.trim())) {
@@ -173,7 +344,9 @@ export function getEncryptionKey(): string | undefined {
   }
 
   // Return derived key if passphrase is provided and not empty/whitespace-only
-  return passphrase && passphrase.trim() ? deriveEncryptionKey(passphrase) : undefined;
+  return passphrase && passphrase.trim()
+    ? deriveEncryptionKey(passphrase, undefined, { force })
+    : undefined;
 }
 
 /**

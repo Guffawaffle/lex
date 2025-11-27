@@ -10,7 +10,7 @@
 
 import { test, describe, before, after } from "node:test";
 import assert from "node:assert";
-import { unlinkSync, existsSync, copyFileSync } from "fs";
+import { unlinkSync, existsSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import {
@@ -18,6 +18,7 @@ import {
   deriveEncryptionKey,
   getEncryptionKey,
   initializeDatabase,
+  validatePassphraseStrength,
 } from "@app/memory/store/db.js";
 import Database from "better-sqlite3-multiple-ciphers";
 
@@ -57,22 +58,90 @@ describe("Encryption Edge Cases", () => {
 
     test("should reject passphrase shorter than 12 characters (11 chars)", () => {
       assert.throws(
-        () => deriveEncryptionKey("12345678901"), // 11 characters
-        /Passphrase is too weak. Use at least 12 characters/,
+        () => deriveEncryptionKey("Abc123!@#ab"), // 11 characters with diversity
+        /Passphrase is too short. Use at least 12 characters/,
         "11-character passphrase should be rejected"
       );
     });
 
-    test("should accept passphrase with exactly 12 characters", () => {
-      const key = deriveEncryptionKey("123456789012"); // 12 characters
-      assert.ok(key, "12-character passphrase should be accepted");
+    test("should accept passphrase with exactly 12 characters and proper diversity", () => {
+      const key = deriveEncryptionKey("Abc123!@#xyz"); // 12 characters with 4 classes
+      assert.ok(key, "12-character passphrase with diversity should be accepted");
       assert.strictEqual(key.length, 64, "Key should be 64 hex characters");
       assert.ok(/^[0-9a-f]{64}$/.test(key), "Key should be valid hex string");
     });
 
-    test("should accept passphrase longer than 12 characters", () => {
-      const key = deriveEncryptionKey("1234567890123"); // 13 characters
-      assert.ok(key, "13-character passphrase should be accepted");
+    test("should accept passphrase longer than 12 characters with diversity", () => {
+      const key = deriveEncryptionKey("Abc123!@#xyzW"); // 13 characters with 4 classes
+      assert.ok(key, "13-character passphrase with diversity should be accepted");
+      assert.strictEqual(key.length, 64, "Key should be 64 hex characters");
+    });
+
+    test("should reject passphrase with less than 3 character classes", () => {
+      // Only lowercase letters (1 class)
+      assert.throws(
+        () => deriveEncryptionKey("abcdefghijkl"),
+        /Passphrase lacks character diversity.*Found 1 class/,
+        "Passphrase with only lowercase should be rejected"
+      );
+
+      // Only lowercase and digits (2 classes)
+      assert.throws(
+        () => deriveEncryptionKey("abcd12345678"),
+        /Passphrase lacks character diversity.*Found 2 class/,
+        "Passphrase with only 2 classes should be rejected"
+      );
+    });
+
+    test("should accept passphrase with 3 character classes", () => {
+      // lowercase, uppercase, digits (3 classes) - no sequential patterns
+      const key = deriveEncryptionKey("Wrtm13579Plm");
+      assert.ok(key, "Passphrase with 3 character classes should be accepted");
+      assert.strictEqual(key.length, 64, "Key should be 64 hex characters");
+    });
+
+    test("should reject passphrase with repeating characters", () => {
+      assert.throws(
+        () => deriveEncryptionKey("Abc1aaaa!@#X"), // Contains "aaaa"
+        /Passphrase contains repeating character patterns/,
+        "Passphrase with 4+ identical consecutive characters should be rejected"
+      );
+    });
+
+    test("should reject passphrase with sequential patterns", () => {
+      // Contains "abcd" sequential pattern
+      assert.throws(
+        () => deriveEncryptionKey("Xyzabcd!@#12"),
+        /Passphrase contains sequential character patterns/,
+        "Passphrase with sequential pattern should be rejected"
+      );
+
+      // Contains "1234" sequential pattern
+      assert.throws(
+        () => deriveEncryptionKey("Xyz1234!@#ab"),
+        /Passphrase contains sequential character patterns/,
+        "Passphrase with numeric sequential pattern should be rejected"
+      );
+    });
+
+    test("should reject passphrase with keyboard patterns", () => {
+      assert.throws(
+        () => deriveEncryptionKey("Xqwerty!@#12"),
+        /Passphrase contains sequential character patterns/,
+        "Passphrase with qwerty pattern should be rejected"
+      );
+
+      assert.throws(
+        () => deriveEncryptionKey("X123456!@#ab"),
+        /Passphrase contains sequential character patterns/,
+        "Passphrase with 123456 pattern should be rejected"
+      );
+    });
+
+    test("should allow bypass with force option", () => {
+      // Would normally fail due to only 1 character class
+      const key = deriveEncryptionKey("abcdefghijkl", undefined, { force: true });
+      assert.ok(key, "Weak passphrase should be accepted with force option");
       assert.strictEqual(key.length, 64, "Key should be 64 hex characters");
     });
 
@@ -87,9 +156,52 @@ describe("Encryption Edge Cases", () => {
     });
   });
 
+  describe("validatePassphraseStrength", () => {
+    test("should return validation result for empty passphrase", () => {
+      const result = validatePassphraseStrength("");
+      assert.strictEqual(result.valid, false);
+      assert.ok(result.errors.some((e) => e.includes("empty or whitespace-only")));
+      assert.strictEqual(result.characterClasses.count, 0);
+    });
+
+    test("should return validation result with character class info", () => {
+      const result = validatePassphraseStrength("Abc123!@#xyz");
+      assert.strictEqual(result.valid, true);
+      assert.strictEqual(result.errors.length, 0);
+      assert.strictEqual(result.characterClasses.hasLowercase, true);
+      assert.strictEqual(result.characterClasses.hasUppercase, true);
+      assert.strictEqual(result.characterClasses.hasDigit, true);
+      assert.strictEqual(result.characterClasses.hasSymbol, true);
+      assert.strictEqual(result.characterClasses.count, 4);
+    });
+
+    test("should detect missing character classes", () => {
+      const result = validatePassphraseStrength("abcdefghijkl");
+      assert.strictEqual(result.valid, false);
+      assert.strictEqual(result.characterClasses.hasLowercase, true);
+      assert.strictEqual(result.characterClasses.hasUppercase, false);
+      assert.strictEqual(result.characterClasses.hasDigit, false);
+      assert.strictEqual(result.characterClasses.hasSymbol, false);
+      assert.strictEqual(result.characterClasses.count, 1);
+    });
+
+    test("should provide warnings for short but valid passphrases", () => {
+      const result = validatePassphraseStrength("Abc123!@#xyz");
+      assert.strictEqual(result.valid, true);
+      assert.ok(result.warnings.some((w) => w.includes("32+ characters")));
+    });
+
+    test("should not warn for long strong passphrases", () => {
+      const result = validatePassphraseStrength("Abc123!@#xyzAbc123!@#xyzAbc123!@");
+      assert.strictEqual(result.valid, true);
+      assert.strictEqual(result.warnings.length, 0);
+    });
+  });
+
   describe("getEncryptionKey Validation", () => {
     const originalEnv = process.env.LEX_DB_KEY;
     const originalNodeEnv = process.env.NODE_ENV;
+    const originalForce = process.env.LEX_DB_KEY_FORCE;
 
     after(() => {
       // Restore original environment
@@ -103,11 +215,17 @@ describe("Encryption Edge Cases", () => {
       } else {
         delete process.env.NODE_ENV;
       }
+      if (originalForce !== undefined) {
+        process.env.LEX_DB_KEY_FORCE = originalForce;
+      } else {
+        delete process.env.LEX_DB_KEY_FORCE;
+      }
     });
 
     test("should throw in production mode with whitespace-only LEX_DB_KEY", () => {
       process.env.LEX_DB_KEY = "          ";
       process.env.NODE_ENV = "production";
+      delete process.env.LEX_DB_KEY_FORCE;
       assert.throws(
         () => getEncryptionKey(),
         /LEX_DB_KEY environment variable is required in production mode and must not be empty or whitespace-only/,
@@ -118,6 +236,7 @@ describe("Encryption Edge Cases", () => {
     test("should return undefined in non-production with whitespace-only LEX_DB_KEY", () => {
       process.env.LEX_DB_KEY = "          ";
       process.env.NODE_ENV = "test";
+      delete process.env.LEX_DB_KEY_FORCE;
       const key = getEncryptionKey();
       assert.strictEqual(
         key,
@@ -125,12 +244,36 @@ describe("Encryption Edge Cases", () => {
         "Should return undefined for whitespace-only key in non-production"
       );
     });
+
+    test("should bypass validation when LEX_DB_KEY_FORCE=true", () => {
+      // Weak passphrase that would normally fail
+      process.env.LEX_DB_KEY = "weakpassword";
+      process.env.NODE_ENV = "test";
+      process.env.LEX_DB_KEY_FORCE = "true";
+
+      const key = getEncryptionKey();
+      assert.ok(key, "Should return key when force bypass is enabled");
+      assert.strictEqual(key.length, 64, "Key should be 64 hex characters");
+    });
+
+    test("should not bypass validation when LEX_DB_KEY_FORCE is not 'true'", () => {
+      process.env.LEX_DB_KEY = "weakpassword";
+      process.env.NODE_ENV = "test";
+      process.env.LEX_DB_KEY_FORCE = "false";
+
+      assert.throws(
+        () => getEncryptionKey(),
+        /Passphrase lacks character diversity/,
+        "Should still validate when LEX_DB_KEY_FORCE is not 'true'"
+      );
+    });
   });
 
   describe("Wrong Passphrase Handling", () => {
     const TEST_DB_PATH = join(tmpdir(), `test-wrong-pass-${Date.now()}.db`);
-    const CORRECT_PASSPHRASE = "correct-passphrase-12chars";
-    const WRONG_PASSPHRASE = "wrong-passphrase-12chars!!";
+    // Updated passphrases to meet character diversity requirements (3+ classes)
+    const CORRECT_PASSPHRASE = "Correct-Pass12!";
+    const WRONG_PASSPHRASE = "Wrong-Pass123!!";
     const originalEnv = process.env.LEX_DB_KEY;
 
     before(() => {
@@ -215,7 +358,8 @@ describe("Encryption Edge Cases", () => {
   });
 
   describe("Migration Rollback on Insert Failure", () => {
-    const PASSPHRASE = "migration-test-passphrase";
+    // Updated passphrase to meet character diversity requirements (3+ classes)
+    const PASSPHRASE = "Migration-Test!123";
     const originalEnv = process.env.LEX_DB_KEY;
 
     after(() => {

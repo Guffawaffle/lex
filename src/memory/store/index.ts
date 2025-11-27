@@ -129,7 +129,14 @@ function setupGracefulShutdown(): void {
 setupGracefulShutdown();
 
 // Export database creation for testing
-export { createDatabase, getDefaultDbPath } from "./db.js";
+export {
+  createDatabase,
+  getDefaultDbPath,
+  deriveEncryptionKey,
+  getEncryptionKey,
+  validatePassphraseStrength,
+} from "./db.js";
+export type { PassphraseValidationResult } from "./db.js";
 
 // Export SQLite store implementations
 export { SqliteCodeAtlasStore } from "./sqlite/index.js";
