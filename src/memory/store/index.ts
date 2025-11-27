@@ -15,7 +15,7 @@
 import Database from "better-sqlite3-multiple-ciphers";
 import { createDatabase, getDefaultDbPath } from "./db.js";
 
-export type { FrameRow, CodeAtlasRunRow } from "./db.js";
+export type { FrameRow, CodeAtlasRunRow, BehaviorRuleRow } from "./db.js";
 export type { Frame, FrameStatusSnapshot } from "../frames/types.js";
 export type { SearchResult, ExportFramesOptions } from "./queries.js";
 export type { FrameStore, FrameSearchCriteria, FrameListOptions, SaveResult } from "./frame-store.js";
@@ -72,6 +72,19 @@ export {
   deleteCodeUnitsByRepo,
   getCodeUnitCount,
 } from "./code-unit-queries.js";
+
+// LexSona behavior rules exports
+export type { BehaviorRuleQueryOptions } from "./lexsona-queries.js";
+
+export {
+  saveBehaviorRule,
+  getBehaviorRuleById,
+  getAllBehaviorRules,
+  queryBehaviorRules,
+  deleteBehaviorRule,
+  getBehaviorRuleCount,
+  updateBehaviorRuleConfidence,
+} from "./lexsona-queries.js";
 
 // Singleton database instance
 let dbInstance: Database.Database | null = null;
