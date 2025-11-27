@@ -111,6 +111,7 @@
     "test:smoke": "./scripts/consumer-smoke-test.sh",
     "guard:no-js-src": "node ./scripts/check-no-js-in-src.mjs",
     "guard:pack": "node scripts/create-pack-json.js && node scripts/pack-guard.js && rm pack.json *.tgz",
+    "check:release-drift": "node scripts/check-release-drift.mjs",
     "coverage": "c8 -r text -r lcov npm test",
     "check:coverage": "c8 --check-coverage --branches 60 --functions 60 --lines 60 --statements 60 npm test",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",

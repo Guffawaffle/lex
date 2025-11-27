@@ -4,6 +4,23 @@ This document outlines the process for releasing the Lex package.
 
 > **Note:** After PR #91, Lex is now a single package instead of a monorepo. The release process has been simplified.
 
+## Version Alignment Check
+
+Before any release work, verify that package.json version and Git tags are aligned:
+
+```bash
+npm run check:release-drift
+```
+
+This script will:
+- ✅ Exit 0 if a tag exists for the current package.json version
+- ❌ Exit 1 if no tag exists (drift detected), with instructions to fix
+
+Run this check:
+- Before tagging a release
+- After bumping package.json version
+- As part of CI on version-changing PRs (optional)
+
 ## Pre-Release Verification
 
 ### ✅ Build & Test
@@ -261,9 +278,45 @@ On non-tag branches or manual dispatch:
 
 ## Notes
 
-- Package uses semantic versioning (currently `0.2.0`)
+- Package uses semantic versioning (currently `0.6.0`)
 - MIT license
 - Repository: `https://github.com/Guffawaffle/lex.git`
 - Package uses ESM (`"type": "module"`)
 - Single package with subpath exports for modular access
 - Compiled dist files are included for npm consumers
+
+## Catch-Up Releases (One-Time)
+
+As of 2025-11-27, there is drift between existing Git tags and GitHub releases:
+
+| Version | Git Tag | GitHub Release | Status |
+|---------|---------|----------------|--------|
+| v0.2.0 | ✅ | ✅ | Aligned |
+| v0.3.0 | ✅ | ❌ | Needs GH release |
+| v0.4.x-alpha | ✅ (8 tags) | ❌ | Skip (pre-release) |
+| v0.6.0 | ✅ | ❌ | Needs GH release |
+
+### Manual Catch-Up Procedure
+
+For each missing GitHub release, create it manually via GitHub UI or CLI:
+
+```bash
+# Example: Create GitHub release for existing tag v0.6.0
+gh release create v0.6.0 \
+  --title "v0.6.0" \
+  --notes "See CHANGELOG.md for details." \
+  --verify-tag
+
+# For v0.3.0 (historical)
+gh release create v0.3.0 \
+  --title "v0.3.0" \
+  --notes "Historical release. See git log for changes." \
+  --verify-tag
+```
+
+**Notes:**
+- `--verify-tag` ensures the tag already exists (won't create new tags)
+- Alpha releases (v0.4.x-alpha) can be skipped or marked as pre-releases
+- This is a one-time catch-up; future releases will follow the standard workflow
+
+After catch-up, `npm run check:release-drift` should pass.
