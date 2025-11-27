@@ -50,6 +50,20 @@ export interface FrameListOptions {
 }
 
 /**
+ * Result of saving a single Frame in a batch operation.
+ */
+export interface SaveResult {
+  /** The Frame ID. */
+  id: string;
+
+  /** Whether the save was successful. */
+  success: boolean;
+
+  /** Error message if save failed. */
+  error?: string;
+}
+
+/**
  * FrameStore — persistence contract for Frames.
  *
  * Default implementation: SqliteFrameStore (OSS).
@@ -61,6 +75,14 @@ export interface FrameStore {
    * @param frame - The Frame to save.
    */
   saveFrame(frame: Frame): Promise<void>;
+
+  /**
+   * Persist multiple Frames to storage with transactional semantics.
+   * All-or-nothing: if any validation fails, no Frames are saved.
+   * @param frames - Array of Frames to save.
+   * @returns Array of results for each Frame (in same order as input).
+   */
+  saveFrames(frames: Frame[]): Promise<SaveResult[]>;
 
   /**
    * Retrieve a Frame by its unique identifier.

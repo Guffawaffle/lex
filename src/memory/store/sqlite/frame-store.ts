@@ -6,9 +6,10 @@
  */
 
 import type Database from "better-sqlite3-multiple-ciphers";
-import type { FrameStore, FrameSearchCriteria, FrameListOptions } from "../frame-store.js";
+import type { FrameStore, FrameSearchCriteria, FrameListOptions, SaveResult } from "../frame-store.js";
 import type { Frame, FrameStatusSnapshot, FrameSpendMetadata } from "../../frames/types.js";
 import type { FrameRow } from "../db.js";
+import { Frame as FrameSchema } from "../../frames/types.js";
 import { createDatabase } from "../db.js";
 
 /**
@@ -138,6 +139,85 @@ export class SqliteFrameStore implements FrameStore {
       row.spend,
       row.user_id
     );
+  }
+
+  /**
+   * Persist multiple Frames to storage with transactional semantics.
+   * All-or-nothing: if any validation fails, no Frames are saved.
+   * Uses a prepared statement within a transaction for optimal performance.
+   */
+  async saveFrames(frames: Frame[]): Promise<SaveResult[]> {
+    if (this.isClosed) {
+      throw new Error("SqliteFrameStore is closed");
+    }
+
+    // Validate all frames first (all-or-nothing on validation failure)
+    const results: SaveResult[] = [];
+    for (const frame of frames) {
+      const parseResult = FrameSchema.safeParse(frame);
+      if (!parseResult.success) {
+        // Validation failed - return error results for all frames
+        return frames.map((f, i) => ({
+          id: f.id ?? `frame-${i}`,
+          success: false,
+          error:
+            f === frame
+              ? `Validation failed: ${parseResult.error.message}`
+              : "Transaction aborted due to validation failure in another frame",
+        }));
+      }
+    }
+
+    // All validations passed - insert within a transaction
+    const stmt = this.db.prepare(`
+      INSERT OR REPLACE INTO frames (
+        id, timestamp, branch, jira, module_scope, summary_caption,
+        reference_point, status_snapshot, keywords, atlas_frame_id,
+        feature_flags, permissions, run_id, plan_hash, spend, user_id
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    const insertAll = this.db.transaction((framesToInsert: Frame[]) => {
+      for (const frame of framesToInsert) {
+        const row = frameToRow(frame);
+        stmt.run(
+          row.id,
+          row.timestamp,
+          row.branch,
+          row.jira,
+          row.module_scope,
+          row.summary_caption,
+          row.reference_point,
+          row.status_snapshot,
+          row.keywords,
+          row.atlas_frame_id,
+          row.feature_flags,
+          row.permissions,
+          row.run_id,
+          row.plan_hash,
+          row.spend,
+          row.user_id
+        );
+      }
+    });
+
+    try {
+      insertAll(frames);
+      // All frames inserted successfully
+      for (const frame of frames) {
+        results.push({ id: frame.id, success: true });
+      }
+    } catch (error) {
+      // Transaction failed - return error results for all frames
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      return frames.map((f) => ({
+        id: f.id,
+        success: false,
+        error: `Transaction failed: ${errorMessage}`,
+      }));
+    }
+
+    return results;
   }
 
   /**
