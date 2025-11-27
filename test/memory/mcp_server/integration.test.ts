@@ -29,9 +29,9 @@ describe("MCP Server Integration Tests", () => {
     return server;
   }
 
-  function teardown() {
+  async function teardown() {
     if (server) {
-      server.close();
+      await server.close();
     }
     if (testDbPath) {
       try {
@@ -93,7 +93,7 @@ describe("MCP Server Integration Tests", () => {
           "Should include reference point"
         );
       } finally {
-        teardown();
+        await teardown();
       }
     });
 
@@ -158,7 +158,7 @@ describe("MCP Server Integration Tests", () => {
           "Should find specific frame"
         );
       } finally {
-        teardown();
+        await teardown();
       }
     });
   });
@@ -194,7 +194,7 @@ describe("MCP Server Integration Tests", () => {
           "Should list available modules"
         );
       } finally {
-        teardown();
+        await teardown();
       }
     });
 
@@ -217,7 +217,7 @@ describe("MCP Server Integration Tests", () => {
         assert.ok(response.error, "Should return error");
         assert.ok(response.error.message.includes("Did you mean"), "Should provide suggestions");
       } finally {
-        teardown();
+        await teardown();
       }
     });
 
@@ -240,7 +240,7 @@ describe("MCP Server Integration Tests", () => {
         assert.ok(response.content, "Should succeed with valid modules");
         assert.ok(response.content[0].text.includes("✅ Frame stored"), "Should confirm storage");
       } finally {
-        teardown();
+        await teardown();
       }
     });
   });
@@ -280,7 +280,7 @@ describe("MCP Server Integration Tests", () => {
           "Should find frame via FTS5"
         );
       } finally {
-        teardown();
+        await teardown();
       }
     });
 
@@ -335,7 +335,7 @@ describe("MCP Server Integration Tests", () => {
           "Should find via summary search"
         );
       } finally {
-        teardown();
+        await teardown();
       }
     });
 
@@ -373,7 +373,7 @@ describe("MCP Server Integration Tests", () => {
           "Should support wildcard search"
         );
       } finally {
-        teardown();
+        await teardown();
       }
     });
   });
@@ -431,7 +431,7 @@ describe("MCP Server Integration Tests", () => {
           "Should not include ts frame"
         );
       } finally {
-        teardown();
+        await teardown();
       }
     });
 
@@ -471,7 +471,7 @@ describe("MCP Server Integration Tests", () => {
           "Should respect limit parameter"
         );
       } finally {
-        teardown();
+        await teardown();
       }
     });
   });
@@ -497,7 +497,7 @@ describe("MCP Server Integration Tests", () => {
           "Should indicate missing fields"
         );
       } finally {
-        teardown();
+        await teardown();
       }
     });
 
@@ -520,7 +520,7 @@ describe("MCP Server Integration Tests", () => {
           "Should indicate no results"
         );
       } finally {
-        teardown();
+        await teardown();
       }
     });
 
@@ -541,7 +541,7 @@ describe("MCP Server Integration Tests", () => {
           "Should require search parameters"
         );
       } finally {
-        teardown();
+        await teardown();
       }
     });
 
@@ -558,7 +558,7 @@ describe("MCP Server Integration Tests", () => {
           "Should indicate unknown method"
         );
       } finally {
-        teardown();
+        await teardown();
       }
     });
 
@@ -576,7 +576,7 @@ describe("MCP Server Integration Tests", () => {
         assert.ok(response.error, "Should return error");
         assert.ok(response.error.message.includes("Unknown tool"), "Should indicate unknown tool");
       } finally {
-        teardown();
+        await teardown();
       }
     });
   });
@@ -597,7 +597,7 @@ describe("MCP Server Integration Tests", () => {
         assert.ok(toolNames.includes("lex.recall"));
         assert.ok(toolNames.includes("lex.list_frames"));
       } finally {
-        teardown();
+        await teardown();
       }
     });
 
@@ -613,7 +613,7 @@ describe("MCP Server Integration Tests", () => {
         assert.ok(rememberTool.inputSchema, "Should include input schema");
         assert.ok(rememberTool.inputSchema.properties, "Schema should have properties");
       } finally {
-        teardown();
+        await teardown();
       }
     });
   });

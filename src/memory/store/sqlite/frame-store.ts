@@ -79,9 +79,22 @@ function rowToFrame(row: FrameRow): Frame {
  * Handles connection lifecycle management with proper cleanup.
  */
 export class SqliteFrameStore implements FrameStore {
-  private db: Database.Database;
+  private _db: Database.Database;
   private ownsConnection: boolean;
   private isClosed: boolean = false;
+
+  /**
+   * Access the underlying database connection.
+   * Useful for operations not covered by the FrameStore interface (e.g., ImageManager).
+   * 
+   * @throws Error if the store has been closed.
+   */
+  get db(): Database.Database {
+    if (this.isClosed) {
+      throw new Error("SqliteFrameStore is closed");
+    }
+    return this._db;
+  }
 
   /**
    * Create a new SqliteFrameStore.
@@ -94,11 +107,11 @@ export class SqliteFrameStore implements FrameStore {
   constructor(dbOrPath?: Database.Database | string) {
     if (typeof dbOrPath === "string" || dbOrPath === undefined) {
       // Create a new database connection (we own it)
-      this.db = createDatabase(dbOrPath);
+      this._db = createDatabase(dbOrPath);
       this.ownsConnection = true;
     } else {
       // Use existing connection (caller owns it)
-      this.db = dbOrPath;
+      this._db = dbOrPath;
       this.ownsConnection = false;
     }
   }
@@ -113,7 +126,7 @@ export class SqliteFrameStore implements FrameStore {
     }
 
     const row = frameToRow(frame);
-    const stmt = this.db.prepare(`
+    const stmt = this._db.prepare(`
       INSERT OR REPLACE INTO frames (
         id, timestamp, branch, jira, module_scope, summary_caption,
         reference_point, status_snapshot, keywords, atlas_frame_id,
@@ -169,7 +182,7 @@ export class SqliteFrameStore implements FrameStore {
     }
 
     // All validations passed - insert within a transaction
-    const stmt = this.db.prepare(`
+    const stmt = this._db.prepare(`
       INSERT OR REPLACE INTO frames (
         id, timestamp, branch, jira, module_scope, summary_caption,
         reference_point, status_snapshot, keywords, atlas_frame_id,
@@ -177,7 +190,7 @@ export class SqliteFrameStore implements FrameStore {
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
-    const insertAll = this.db.transaction((framesToInsert: Frame[]) => {
+    const insertAll = this._db.transaction((framesToInsert: Frame[]) => {
       for (const frame of framesToInsert) {
         const row = frameToRow(frame);
         stmt.run(
@@ -228,7 +241,7 @@ export class SqliteFrameStore implements FrameStore {
       throw new Error("SqliteFrameStore is closed");
     }
 
-    const stmt = this.db.prepare("SELECT * FROM frames WHERE id = ?");
+    const stmt = this._db.prepare("SELECT * FROM frames WHERE id = ?");
     const row = stmt.get(id) as FrameRow | undefined;
 
     if (!row) {
@@ -297,7 +310,7 @@ export class SqliteFrameStore implements FrameStore {
     }
 
     try {
-      const stmt = this.db.prepare(query);
+      const stmt = this._db.prepare(query);
       let rows = stmt.all(...params) as FrameRow[];
 
       // Handle moduleScope filter in JavaScript (module_scope is JSON array)
@@ -353,7 +366,7 @@ export class SqliteFrameStore implements FrameStore {
       params.push(options.offset);
     }
 
-    const stmt = this.db.prepare(query);
+    const stmt = this._db.prepare(query);
     const rows = stmt.all(...params) as FrameRow[];
 
     return rows.map(rowToFrame);
@@ -371,7 +384,7 @@ export class SqliteFrameStore implements FrameStore {
     this.isClosed = true;
 
     if (this.ownsConnection) {
-      this.db.close();
+      this._db.close();
     }
   }
 }

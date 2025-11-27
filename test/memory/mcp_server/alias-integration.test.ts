@@ -49,9 +49,9 @@ describe("MCP Server Alias Resolution Integration Tests", () => {
     return server;
   }
 
-  function teardown() {
+  async function teardown() {
     if (server) {
-      server.close();
+      await server.close();
     }
     if (testRepoRoot) {
       try {
@@ -90,7 +90,7 @@ describe("MCP Server Alias Resolution Integration Tests", () => {
           "Should not have warnings for exact match"
         );
       } finally {
-        teardown();
+        await teardown();
       }
     });
 
@@ -115,7 +115,7 @@ describe("MCP Server Alias Resolution Integration Tests", () => {
         assert.ok(response.content, "Should succeed with multiple exact matches");
         assert.ok(response.content[0].text.includes("✅ Frame stored"), "Should confirm storage");
       } finally {
-        teardown();
+        await teardown();
       }
     });
   });
@@ -147,7 +147,7 @@ describe("MCP Server Alias Resolution Integration Tests", () => {
           "Should suggest 'policy/scanners'"
         );
       } finally {
-        teardown();
+        await teardown();
       }
     });
 
@@ -176,7 +176,7 @@ describe("MCP Server Alias Resolution Integration Tests", () => {
           "Should suggest correct module"
         );
       } finally {
-        teardown();
+        await teardown();
       }
     });
   });
@@ -204,7 +204,7 @@ describe("MCP Server Alias Resolution Integration Tests", () => {
         assert.ok(response.error.message.includes("auth"), "Error should mention the input");
         // Future: Could suggest "services/auth-core" as it contains "auth"
       } finally {
-        teardown();
+        await teardown();
       }
     });
 
@@ -233,7 +233,7 @@ describe("MCP Server Alias Resolution Integration Tests", () => {
         );
         // May or may not suggest the full path depending on edit distance
       } finally {
-        teardown();
+        await teardown();
       }
     });
   });
@@ -263,7 +263,7 @@ describe("MCP Server Alias Resolution Integration Tests", () => {
           "Should list available modules"
         );
       } finally {
-        teardown();
+        await teardown();
       }
     });
 
@@ -299,7 +299,7 @@ describe("MCP Server Alias Resolution Integration Tests", () => {
           "Should include 'services/auth-core' in available modules"
         );
       } finally {
-        teardown();
+        await teardown();
       }
     });
   });
@@ -333,7 +333,7 @@ describe("MCP Server Alias Resolution Integration Tests", () => {
           "Should mention second invalid module"
         );
       } finally {
-        teardown();
+        await teardown();
       }
     });
   });
@@ -366,7 +366,7 @@ describe("MCP Server Alias Resolution Integration Tests", () => {
         // Typical runs are <10ms, but first runs may be slower due to JIT warmup
         assert.ok(elapsed < 50, `Validation took ${elapsed.toFixed(2)}ms, expected <50ms`);
       } finally {
-        teardown();
+        await teardown();
       }
     });
 
@@ -405,7 +405,7 @@ describe("MCP Server Alias Resolution Integration Tests", () => {
           `Large scope validation took ${elapsed.toFixed(2)}ms, expected <15ms`
         );
       } finally {
-        teardown();
+        await teardown();
       }
     });
   });
@@ -454,7 +454,7 @@ describe("MCP Server Alias Resolution Integration Tests", () => {
           "Should include module scope"
         );
       } finally {
-        teardown();
+        await teardown();
       }
     });
   });

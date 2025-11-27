@@ -1,13 +1,7 @@
 import { getLogger } from "@smartergpt/lex/logger";
-import { createDatabase } from "../store/db.js";
-import {
-  saveFrame,
-  deleteFrame,
-  searchFrames,
-  getFramesByBranch,
-  getFramesByJira,
-  getAllFrames,
-} from "../store/queries.js";
+import { SqliteFrameStore } from "../store/sqlite/index.js";
+import type { FrameStore, FrameSearchCriteria } from "../store/frame-store.js";
+import { deleteFrame } from "../store/queries.js";
 import type Database from "better-sqlite3-multiple-ciphers";
 // @ts-ignore - importing from compiled dist directories
 import { ImageManager } from "../store/images.js";
@@ -90,18 +84,78 @@ export interface ToolCallParams {
 }
 
 /**
+ * Options for creating an MCPServer instance.
+ */
+export interface MCPServerOptions {
+  /** 
+   * FrameStore instance to use for frame persistence. 
+   * If not provided, creates a SqliteFrameStore with the given dbPath.
+   */
+  frameStore?: FrameStore;
+  /** Database path. Only used if frameStore is not provided. */
+  dbPath?: string;
+  /** Repository root path for policy resolution. */
+  repoRoot?: string;
+}
+
+/**
  * MCP Server - handles protocol requests
  */
 export class MCPServer {
-  private db: Database.Database;
-  private imageManager: ImageManager;
+  private frameStore: FrameStore;
+  private db: Database.Database | null; // Database reference for ImageManager (null when using non-SQLite store)
+  private imageManager: ImageManager | null;
   private policy: Policy | null; // Cached policy for validation (null if not available)
   private repoRoot: string | null; // Repository root path
 
-  constructor(dbPath: string, repoRoot?: string) {
-    this.db = createDatabase(dbPath);
-    this.imageManager = new ImageManager(this.db);
-    this.repoRoot = repoRoot || null;
+  /**
+   * Create a new MCPServer instance.
+   * 
+   * Supports two construction patterns:
+   * 1. Legacy: MCPServer(dbPath: string, repoRoot?: string) - creates SqliteFrameStore internally
+   * 2. DI: MCPServer(options: MCPServerOptions) - uses provided FrameStore for testing/swapping
+   * 
+   * @param dbPathOrOptions - Either a database path string (legacy) or MCPServerOptions object
+   * @param repoRoot - Repository root path (only used with legacy constructor)
+   */
+  constructor(dbPathOrOptions: string | MCPServerOptions, repoRoot?: string) {
+    // Handle both legacy (dbPath, repoRoot) and new (options object) signatures
+    let options: MCPServerOptions;
+    if (typeof dbPathOrOptions === "string") {
+      // Legacy constructor: MCPServer(dbPath, repoRoot)
+      options = { dbPath: dbPathOrOptions, repoRoot };
+    } else {
+      // New constructor: MCPServer(options)
+      options = dbPathOrOptions;
+    }
+
+    // Create or use provided FrameStore
+    if (options.frameStore) {
+      this.frameStore = options.frameStore;
+      // For SqliteFrameStore, we can access the db for ImageManager
+      if (this.frameStore instanceof SqliteFrameStore) {
+        this.db = (this.frameStore as SqliteFrameStore).db;
+        this.imageManager = new ImageManager(this.db);
+      } else {
+        // For non-SQLite stores (e.g., MemoryFrameStore), images are not supported
+        this.db = null;
+        this.imageManager = null;
+      }
+    } else if (options.dbPath) {
+      // Create SqliteFrameStore with the provided path
+      const store = new SqliteFrameStore(options.dbPath);
+      this.frameStore = store;
+      this.db = store.db;
+      this.imageManager = new ImageManager(this.db);
+    } else {
+      // Create SqliteFrameStore with default path
+      const store = new SqliteFrameStore();
+      this.frameStore = store;
+      this.db = store.db;
+      this.imageManager = new ImageManager(this.db);
+    }
+
+    this.repoRoot = options.repoRoot || null;
 
     // Load policy once at initialization for better performance
     // If policy is not found, operate without policy enforcement
@@ -215,10 +269,10 @@ export class MCPServer {
         return await this.handleRemember(args);
 
       case "lex.recall":
-        return this.handleRecall(args);
+        return await this.handleRecall(args);
 
       case "lex.list_frames":
-        return this.handleListFrames(args);
+        return await this.handleListFrames(args);
 
       default:
         throw new MCPError(MCPErrorCode.INTERNAL_UNKNOWN_TOOL, `Unknown tool: ${name}`, {
@@ -333,11 +387,18 @@ export class MCPServer {
       image_ids: [] as string[],
     };
 
-    saveFrame(this.db, frame);
+    await this.frameStore.saveFrame(frame);
 
     // Process image attachments if provided
     const imageIds: string[] = [];
     if (images && Array.isArray(images) && images.length > 0) {
+      if (!this.imageManager || !this.db) {
+        throw new MCPError(
+          MCPErrorCode.STORAGE_IMAGE_FAILED,
+          "Image storage is not available with the current store implementation",
+          { frameId }
+        );
+      }
       for (const img of images) {
         try {
           // Decode base64 image data
@@ -358,7 +419,7 @@ export class MCPServer {
 
       // Update frame with image IDs
       frame.image_ids = imageIds;
-      saveFrame(this.db, frame);
+      await this.frameStore.saveFrame(frame);
     }
 
     // Generate Atlas Frame for the module scope
@@ -389,7 +450,7 @@ export class MCPServer {
   /**
    * Handle lex.recall tool - search Frames with Atlas Frame
    */
-  private handleRecall(args: Record<string, unknown>): MCPResponse {
+  private async handleRecall(args: Record<string, unknown>): Promise<MCPResponse> {
     const { reference_point, jira, branch, limit = 10 } = args as unknown as RecallArgs;
 
     if (!reference_point && !jira && !branch) {
@@ -398,14 +459,23 @@ export class MCPServer {
 
     let frames: Frame[];
     try {
+      // Build search criteria based on provided parameters
+      const criteria: FrameSearchCriteria = { limit };
+
       if (reference_point) {
         // Use FTS5 full-text search for reference_point
-        const result = searchFrames(this.db, reference_point);
-        frames = result.frames.slice(0, limit);
+        criteria.query = reference_point;
+        frames = await this.frameStore.searchFrames(criteria);
       } else if (jira) {
-        frames = getFramesByJira(this.db, jira).slice(0, limit);
+        // For jira/branch filtering, we need to search all and filter
+        // The FrameStore interface doesn't have specific jira/branch methods
+        // We'll use listFrames and filter in JavaScript
+        const allFrames = await this.frameStore.listFrames({ limit: 1000 });
+        frames = allFrames.filter((f) => f.jira === jira).slice(0, limit);
       } else if (branch) {
-        frames = getFramesByBranch(this.db, branch).slice(0, limit);
+        // For branch filtering, search all and filter
+        const allFrames = await this.frameStore.listFrames({ limit: 1000 });
+        frames = allFrames.filter((f) => f.branch === branch).slice(0, limit);
       } else {
         frames = [];
       }
@@ -480,15 +550,16 @@ export class MCPServer {
   /**
    * Handle lex.list_frames tool - list recent Frames
    */
-  private handleListFrames(args: Record<string, unknown>): MCPResponse {
+  private async handleListFrames(args: Record<string, unknown>): Promise<MCPResponse> {
     const { branch, module, limit = 10, since } = args as unknown as ListFramesArgs;
 
-    // Get frames based on filters
-    let frames: Frame[];
+    // Get frames using frameStore.listFrames
+    // Fetch more than limit to account for filtering
+    let frames = await this.frameStore.listFrames({ limit: 1000 });
+
+    // Filter by branch if specified
     if (branch) {
-      frames = getFramesByBranch(this.db, branch);
-    } else {
-      frames = getAllFrames(this.db);
+      frames = frames.filter((f: Frame) => f.branch === branch);
     }
 
     // Filter by module if specified
@@ -544,9 +615,10 @@ export class MCPServer {
   }
 
   /**
-   * Close database connection
+   * Close the server and release resources.
+   * Properly closes the FrameStore on shutdown.
    */
-  close() {
-    this.db.close();
+  async close(): Promise<void> {
+    await this.frameStore.close();
   }
 }

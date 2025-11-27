@@ -25,9 +25,9 @@ describe("MCP Server - Protocol", () => {
   }
 
   // Teardown: close database and cleanup
-  function teardown() {
+  async function teardown() {
     if (server) {
-      server.close();
+      await server.close();
     }
     if (testDbPath) {
       try {
@@ -51,7 +51,7 @@ describe("MCP Server - Protocol", () => {
       assert.ok(toolNames.includes("lex.recall"), "Should include lex.recall");
       assert.ok(toolNames.includes("lex.list_frames"), "Should include lex.list_frames");
     } finally {
-      teardown();
+      await teardown();
     }
   });
 
@@ -84,7 +84,7 @@ describe("MCP Server - Protocol", () => {
       assert.ok(response.content[0].text.includes("test memory"), "Should include reference point");
       assert.ok(response.content[0].text.includes("Atlas Frame"), "Should include Atlas Frame");
     } finally {
-      teardown();
+      await teardown();
     }
   });
 
@@ -108,7 +108,7 @@ describe("MCP Server - Protocol", () => {
         "Error should mention missing fields"
       );
     } finally {
-      teardown();
+      await teardown();
     }
   });
 
@@ -151,7 +151,7 @@ describe("MCP Server - Protocol", () => {
       );
       assert.ok(response.content[0].text.includes("Atlas Frame"), "Should include Atlas Frame");
     } finally {
-      teardown();
+      await teardown();
     }
   });
 
@@ -174,7 +174,7 @@ describe("MCP Server - Protocol", () => {
         "Should indicate no results"
       );
     } finally {
-      teardown();
+      await teardown();
     }
   });
 
@@ -195,7 +195,7 @@ describe("MCP Server - Protocol", () => {
         "Error should mention missing parameters"
       );
     } finally {
-      teardown();
+      await teardown();
     }
   });
 
@@ -244,7 +244,7 @@ describe("MCP Server - Protocol", () => {
       assert.ok(response.content[0].text.includes("frame two"), "Should include second frame");
       assert.ok(response.content[0].text.includes("Atlas Frame"), "Should include Atlas Frames");
     } finally {
-      teardown();
+      await teardown();
     }
   });
 
@@ -292,7 +292,7 @@ describe("MCP Server - Protocol", () => {
       assert.ok(response.content[0].text.includes("auth work"), "Should include auth frame");
       assert.ok(!response.content[0].text.includes("ui work"), "Should not include ui frame");
     } finally {
-      teardown();
+      await teardown();
     }
   });
 
@@ -309,7 +309,7 @@ describe("MCP Server - Protocol", () => {
         "Error should mention unknown method"
       );
     } finally {
-      teardown();
+      await teardown();
     }
   });
 
@@ -330,7 +330,7 @@ describe("MCP Server - Protocol", () => {
         "Error should mention unknown tool"
       );
     } finally {
-      teardown();
+      await teardown();
     }
   });
 
@@ -374,7 +374,7 @@ describe("MCP Server - Protocol", () => {
         "Should indicate image attachment"
       );
     } finally {
-      teardown();
+      await teardown();
     }
   });
 
@@ -411,7 +411,7 @@ describe("MCP Server - Protocol", () => {
         "Should indicate 2 images attached"
       );
     } finally {
-      teardown();
+      await teardown();
     }
   });
 
@@ -449,7 +449,7 @@ describe("MCP Server - Protocol", () => {
         "Error should mention image storage failure"
       );
     } finally {
-      teardown();
+      await teardown();
     }
   });
 
@@ -489,7 +489,7 @@ describe("MCP Server - Protocol", () => {
         "Error should mention size limit"
       );
     } finally {
-      teardown();
+      await teardown();
     }
   });
 
@@ -524,7 +524,7 @@ describe("MCP Server - Protocol", () => {
         "Error should list available modules"
       );
     } finally {
-      teardown();
+      await teardown();
     }
   });
 
@@ -551,7 +551,7 @@ describe("MCP Server - Protocol", () => {
         "Error should provide suggestions"
       );
     } finally {
-      teardown();
+      await teardown();
     }
   });
 
@@ -585,7 +585,7 @@ describe("MCP Server - Protocol", () => {
         "Error should mention third invalid module"
       );
     } finally {
-      teardown();
+      await teardown();
     }
   });
 
@@ -617,7 +617,7 @@ describe("MCP Server - Protocol", () => {
       );
       assert.ok(!hasValidModuleError, "Error should not flag valid modules as invalid");
     } finally {
-      teardown();
+      await teardown();
     }
   });
 
@@ -649,7 +649,7 @@ describe("MCP Server - Protocol", () => {
         "Should include all modules"
       );
     } finally {
-      teardown();
+      await teardown();
     }
   });
 
@@ -680,7 +680,7 @@ describe("MCP Server - Protocol", () => {
       assert.ok(text.includes("🌿 Branch:"), "Should include branch info");
       assert.ok(!text.includes("Branch: main"), "Should not hardcode main");
     } finally {
-      teardown();
+      await teardown();
     }
   });
 
@@ -712,7 +712,7 @@ describe("MCP Server - Protocol", () => {
         "Should use provided branch name"
       );
     } finally {
-      teardown();
+      await teardown();
     }
   });
 });
