@@ -9,7 +9,7 @@
  */
 
 import "../../../test/helpers/setup.js";
-import { test, describe, beforeEach, mock } from "node:test";
+import { test, describe, beforeEach } from "node:test";
 import assert from "node:assert";
 import { MemoryFrameStore } from "@app/memory/store/memory/index.js";
 import { createFrameStore } from "@app/memory/store/index.js";
