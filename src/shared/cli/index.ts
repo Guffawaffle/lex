@@ -245,6 +245,9 @@ export function createProgram(): Command {
     .option("--output <path>", "Output encrypted database file (default: input-encrypted.db)")
     .option("--verify", "Verify data integrity after encryption")
     .option("--no-backup", "Skip creating a backup before encryption")
+    .option("--batch-size <n>", "Number of rows per batch/transaction (reduces memory usage)", parseInt)
+    .option("--dry-run", "Estimate migration time and rows without writing")
+    .option("--progress", "Show progress indicator during migration")
     .action(async (cmdOptions) => {
       const globalOptions = program.opts();
       const options: DbEncryptOptions = {
@@ -253,6 +256,9 @@ export function createProgram(): Command {
         verify: cmdOptions.verify || false,
         json: globalOptions.json || false,
         backup: cmdOptions.backup,
+        batchSize: cmdOptions.batchSize,
+        dryRun: cmdOptions.dryRun || false,
+        progress: cmdOptions.progress || false,
       };
       await dbEncrypt(options);
     });

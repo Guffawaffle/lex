@@ -38,6 +38,19 @@ export interface DbEncryptOptions {
    * Defaults to true for safety. Use --no-backup to disable.
    */
   backup?: boolean;
+  /**
+   * Number of rows to insert per batch/transaction. Reduces memory usage
+   * for large migrations. Defaults to processing all rows in one transaction.
+   */
+  batchSize?: number;
+  /**
+   * Dry-run mode: estimate migration time and row counts without writing.
+   */
+  dryRun?: boolean;
+  /**
+   * Show progress indicator during migration.
+   */
+  progress?: boolean;
 }
 
 /**
@@ -164,6 +177,86 @@ export async function dbBackup(options: DbBackupOptions = {}): Promise<void> {
   }
 }
 
+// Constants for progress reporting
+const ESTIMATED_ROWS_PER_SECOND = 10000; // Conservative throughput estimate for dry-run time estimation
+const PROGRESS_UPDATE_INTERVAL = 100; // Update progress every N rows for large tables
+
+/**
+ * Format duration in human-readable format (e.g., "2h 30m 45s", "1m 30s", or "45s")
+ */
+function formatDuration(ms: number): string {
+  const totalSeconds = Math.floor(ms / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  
+  if (hours > 0) {
+    return `${hours}h ${minutes}m ${seconds}s`;
+  }
+  if (minutes > 0) {
+    return `${minutes}m ${seconds}s`;
+  }
+  return `${seconds}s`;
+}
+
+/**
+ * Progress reporter for long-running operations.
+ * Outputs progress updates to stdout without line breaks (using carriage return).
+ */
+interface ProgressState {
+  totalRows: number;
+  processedRows: number;
+  startTime: number;
+  tableName: string;
+}
+
+function updateProgress(state: ProgressState, json: boolean): void {
+  if (json) return; // No progress in JSON mode
+  
+  const elapsed = Date.now() - state.startTime;
+  const rowsPerMs = state.processedRows / (elapsed || 1);
+  const remainingRows = state.totalRows - state.processedRows;
+  const estimatedRemainingMs = remainingRows / (rowsPerMs || 1);
+  
+  const percent = state.totalRows > 0 
+    ? Math.round((state.processedRows / state.totalRows) * 100) 
+    : 100;
+  
+  const etaStr = estimatedRemainingMs > 0 && state.processedRows > 0
+    ? ` ETA: ${formatDuration(estimatedRemainingMs)}`
+    : "";
+  
+  // Use carriage return to overwrite the same line
+  process.stdout.write(
+    `\r• Migrating ${state.tableName}: ${state.processedRows}/${state.totalRows} rows (${percent}%)${etaStr}   `
+  );
+}
+
+function clearProgress(json: boolean): void {
+  if (json) return;
+  // Clear the progress line and move to next line
+  process.stdout.write("\r\x1b[K");
+}
+
+// SQL identifier validation pattern (table and column names)
+const VALID_SQL_IDENTIFIER_PATTERN = /^[a-zA-Z0-9_]+$/;
+
+/**
+ * Validate that a SQL identifier (table or column name) matches the expected pattern.
+ * This prevents SQL injection even though identifiers come from the schema.
+ * 
+ * @param identifier - The identifier to validate
+ * @param type - Type of identifier for error messaging ("table" or "column")
+ * @param context - Additional context for error messaging (e.g., table name for columns)
+ * @throws Error if identifier doesn't match the pattern
+ */
+function validateSqlIdentifier(identifier: string, type: "table" | "column", context?: string): void {
+  if (!VALID_SQL_IDENTIFIER_PATTERN.test(identifier)) {
+    const contextStr = context ? ` in ${context}` : "";
+    throw new Error(`Invalid ${type} name detected${contextStr}: ${identifier}`);
+  }
+}
+
 /**
  * Encrypt an existing database with SQLCipher
  *
@@ -172,10 +265,18 @@ export async function dbBackup(options: DbBackupOptions = {}): Promise<void> {
  * Security features:
  * - Creates a timestamped backup before encryption (unless --no-backup)
  * - Uses atomic file creation via temp+rename pattern to prevent TOCTOU race conditions
+ *
+ * Performance features:
+ * - Optional batch size for memory-efficient large migrations (--batch-size N)
+ * - Progress indicator showing rows processed and ETA (--progress)
+ * - Dry-run mode to estimate migration without writing (--dry-run)
  */
 export async function dbEncrypt(options: DbEncryptOptions = {}): Promise<void> {
   const startTime = Date.now();
   const shouldBackup = options.backup ?? true; // Default to true unless explicitly disabled
+  const batchSize = options.batchSize;
+  const isDryRun = options.dryRun ?? false;
+  const showProgress = options.progress ?? false;
   let tempPath: string | undefined;
   let backupPath: string | undefined;
 
@@ -186,7 +287,7 @@ export async function dbEncrypt(options: DbEncryptOptions = {}): Promise<void> {
 
     // Get passphrase from environment only (not CLI for security)
     const passphrase = process.env.LEX_DB_KEY;
-    if (!passphrase) {
+    if (!passphrase && !isDryRun) {
       throw new Error("Encryption passphrase is required. Set LEX_DB_KEY environment variable.");
     }
 
@@ -196,7 +297,8 @@ export async function dbEncrypt(options: DbEncryptOptions = {}): Promise<void> {
     }
 
     // Check if output exists (still fail early for user feedback, but atomic create prevents race)
-    if (existsSync(outputPath)) {
+    // Skip this check in dry-run mode since we won't write anything
+    if (!isDryRun && existsSync(outputPath)) {
       throw new Error(
         `Output database already exists: ${outputPath}. ` +
           `Please remove it first or choose a different output path.`
@@ -205,17 +307,34 @@ export async function dbEncrypt(options: DbEncryptOptions = {}): Promise<void> {
 
     logger.info("Starting database encryption", {
       operation: "dbEncrypt",
-      metadata: { inputPath, outputPath, verify: options.verify, backup: shouldBackup },
+      metadata: { 
+        inputPath, 
+        outputPath, 
+        verify: options.verify, 
+        backup: shouldBackup,
+        batchSize,
+        dryRun: isDryRun,
+        progress: showProgress,
+      },
     });
 
     if (!options.json) {
-      output.info(`Encrypting database...`);
+      if (isDryRun) {
+        output.info(`[DRY RUN] Analyzing database...`);
+      } else {
+        output.info(`Encrypting database...`);
+      }
       output.info(`Input:  ${inputPath}`);
-      output.info(`Output: ${outputPath}`);
+      if (!isDryRun) {
+        output.info(`Output: ${outputPath}`);
+      }
+      if (batchSize) {
+        output.info(`Batch size: ${batchSize} rows`);
+      }
     }
 
-    // Create backup before encryption (unless opted out)
-    if (shouldBackup) {
+    // Create backup before encryption (unless opted out or dry-run)
+    if (shouldBackup && !isDryRun) {
       backupPath = createEncryptionBackup(inputPath);
       if (!options.json) {
         output.info(`Backup created: ${backupPath}`);
@@ -228,7 +347,7 @@ export async function dbEncrypt(options: DbEncryptOptions = {}): Promise<void> {
 
     // Calculate checksum of source database if verification requested
     let sourceChecksum: string | undefined;
-    if (options.verify) {
+    if (options.verify && !isDryRun) {
       sourceChecksum = calculateDatabaseChecksum(inputPath);
       if (!options.json) {
         output.info(`Source checksum: ${sourceChecksum}`);
@@ -238,18 +357,77 @@ export async function dbEncrypt(options: DbEncryptOptions = {}): Promise<void> {
     // Open source database (unencrypted)
     const sourceDb = new Database(inputPath, { readonly: true });
 
-    // Get row count for progress reporting
-    const rowCountResult = sourceDb.prepare("SELECT COUNT(*) as count FROM frames").get() as {
-      count: number;
-    };
-    const totalRows = rowCountResult.count;
+    // Get table information for all regular tables (exclude FTS virtual tables)
+    const tableNames = sourceDb
+      .prepare(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '%_fts%'"
+      )
+      .all() as Array<{ name: string }>;
+
+    // Collect row counts for all tables (validates table names as well)
+    const tableStats: Array<{ name: string; rowCount: number }> = [];
+    let totalRowsAllTables = 0;
+
+    for (const { name } of tableNames) {
+      validateSqlIdentifier(name, "table");
+      const countResult = sourceDb.prepare(`SELECT COUNT(*) as count FROM ${name}`).get() as {
+        count: number;
+      };
+      tableStats.push({ name, rowCount: countResult.count });
+      totalRowsAllTables += countResult.count;
+    }
+
+    // Get frame count specifically for backward compatibility
+    const framesTable = tableStats.find(t => t.name === "frames");
+    const totalRows = framesTable?.rowCount ?? 0;
 
     if (!options.json) {
-      output.info(`Found ${totalRows} frames to migrate`);
+      output.info(`Found ${totalRows} frames to migrate (${totalRowsAllTables} total rows across ${tableNames.length} tables)`);
+    }
+
+    // Dry-run mode: estimate and exit
+    if (isDryRun) {
+      sourceDb.close();
+      
+      // Estimate time based on typical throughput
+      const estimatedMs = (totalRowsAllTables / ESTIMATED_ROWS_PER_SECOND) * 1000;
+      
+      const duration = Date.now() - startTime;
+      
+      logger.info("Dry run completed", {
+        operation: "dbEncrypt",
+        duration_ms: duration,
+        metadata: { inputPath, totalRows, totalRowsAllTables, tableCount: tableNames.length },
+      });
+
+      if (options.json) {
+        output.json({
+          success: true,
+          operation: "encrypt",
+          dry_run: true,
+          input: inputPath,
+          output: outputPath,
+          tables: tableStats,
+          total_rows: totalRowsAllTables,
+          frames_count: totalRows,
+          estimated_duration_ms: Math.round(estimatedMs),
+          analysis_duration_ms: duration,
+        });
+      } else {
+        output.success(`[DRY RUN] Analysis completed in ${duration}ms`);
+        output.info(`Tables to migrate: ${tableNames.length}`);
+        for (const { name, rowCount } of tableStats) {
+          output.info(`  - ${name}: ${rowCount} rows`);
+        }
+        output.info(`Total rows: ${totalRowsAllTables}`);
+        output.info(`Estimated migration time: ${formatDuration(estimatedMs)}`);
+        output.warn(`\nRun without --dry-run to perform the actual migration`);
+      }
+      return;
     }
 
     // Derive encryption key
-    const encryptionKey = deriveEncryptionKey(passphrase);
+    const encryptionKey = deriveEncryptionKey(passphrase!);
 
     // Create encrypted database in a temp file first (atomic creation pattern).
     // This prevents TOCTOU race conditions: the temp file is created exclusively,
@@ -270,45 +448,79 @@ export async function dbEncrypt(options: DbEncryptOptions = {}): Promise<void> {
     // FTS (full-text search) tables are intentionally excluded from manual copying.
     // After calling initializeDatabase(destDb), triggers will automatically populate FTS tables
     // when data is inserted into the main tables (e.g., 'frames'), ensuring FTS synchronization.
-    const tableNames = sourceDb
-      .prepare(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '%_fts%'"
-      )
-      .all() as Array<{ name: string }>;
 
-    // Validate identifiers to prevent SQL injection (even though they come from schema)
-    const validIdentifierPattern = /^[a-zA-Z0-9_]+$/;
+    let totalProcessedRows = 0;
 
-    for (const { name } of tableNames) {
-      // Validate table name matches expected pattern
-      if (!validIdentifierPattern.test(name)) {
-        throw new Error(`Invalid table name detected: ${name}`);
-      }
+    for (const { name, rowCount } of tableStats) {
       const rows = sourceDb.prepare(`SELECT * FROM ${name}`).all();
       if (rows.length > 0) {
         const columns = Object.keys(rows[0] as Record<string, unknown>);
         // Validate column names to prevent SQL injection
         for (const col of columns) {
-          if (!validIdentifierPattern.test(col)) {
-            throw new Error(`Invalid column name detected in table "${name}": ${col}`);
-          }
+          validateSqlIdentifier(col, "column", `table "${name}"`);
         }
         const placeholders = columns.map(() => "?").join(", ");
         const stmt = destDb.prepare(
           `INSERT OR REPLACE INTO ${name} (${columns.join(", ")}) VALUES (${placeholders})`
         );
 
-        // Wrap per-table inserts in a transaction for atomicity and performance.
-        // This batches all writes into a single transaction, significantly reducing
-        // I/O overhead and ensuring table-level rollback on failure.
-        const insertAllRows = destDb.transaction((rowsToInsert: Record<string, unknown>[]) => {
-          for (const row of rowsToInsert) {
-            const values = columns.map((col) => row[col]);
-            stmt.run(...values);
-          }
-        });
+        // Progress state for this table
+        const progressState: ProgressState = {
+          totalRows: rowCount,
+          processedRows: 0,
+          startTime: Date.now(),
+          tableName: name,
+        };
 
-        insertAllRows(rows as Record<string, unknown>[]);
+        if (batchSize && batchSize > 0) {
+          // Batched processing: insert rows in chunks of batchSize
+          const insertBatch = destDb.transaction((batchRows: Record<string, unknown>[]) => {
+            for (const row of batchRows) {
+              const values = columns.map((col) => row[col]);
+              stmt.run(...values);
+            }
+          });
+
+          for (let i = 0; i < rows.length; i += batchSize) {
+            const batch = rows.slice(i, i + batchSize) as Record<string, unknown>[];
+            insertBatch(batch);
+            
+            progressState.processedRows = Math.min(i + batchSize, rows.length);
+            totalProcessedRows += batch.length;
+            
+            if (showProgress) {
+              updateProgress(progressState, options.json ?? false);
+            }
+          }
+        } else {
+          // Wrap per-table inserts in a transaction for atomicity and performance.
+          // This batches all writes into a single transaction, significantly reducing
+          // I/O overhead and ensuring table-level rollback on failure.
+          const insertAllRows = destDb.transaction((rowsToInsert: Record<string, unknown>[]) => {
+            let rowIdx = 0;
+            for (const row of rowsToInsert) {
+              const values = columns.map((col) => row[col]);
+              stmt.run(...values);
+              rowIdx++;
+              
+              // Update progress periodically for large tables
+              if (showProgress && rowIdx % PROGRESS_UPDATE_INTERVAL === 0) {
+                progressState.processedRows = rowIdx;
+                updateProgress(progressState, options.json ?? false);
+              }
+            }
+          });
+
+          insertAllRows(rows as Record<string, unknown>[]);
+          totalProcessedRows += rows.length;
+        }
+
+        // Final progress update for this table
+        if (showProgress) {
+          progressState.processedRows = rowCount;
+          updateProgress(progressState, options.json ?? false);
+          clearProgress(options.json ?? false);
+        }
       }
     }
 
@@ -355,7 +567,7 @@ export async function dbEncrypt(options: DbEncryptOptions = {}): Promise<void> {
     logger.info("Database encryption completed", {
       operation: "dbEncrypt",
       duration_ms: duration,
-      metadata: { inputPath, outputPath, rowCount: totalRows, backupPath },
+      metadata: { inputPath, outputPath, rowCount: totalRows, backupPath, batchSize },
     });
 
     if (options.json) {
@@ -365,14 +577,16 @@ export async function dbEncrypt(options: DbEncryptOptions = {}): Promise<void> {
         input: inputPath,
         output: outputPath,
         rows_migrated: totalRows,
+        total_rows_all_tables: totalProcessedRows,
         source_checksum: sourceChecksum,
         backup_path: backupPath,
+        batch_size: batchSize,
         duration_ms: duration,
       });
     } else {
       output.success(`Database encrypted successfully in ${duration}ms`);
       output.info(`Encrypted database: ${outputPath}`);
-      output.info(`Rows migrated: ${totalRows}`);
+      output.info(`Rows migrated: ${totalRows} frames (${totalProcessedRows} total rows)`);
       if (backupPath) {
         output.info(`Backup: ${backupPath}`);
       }
@@ -381,6 +595,11 @@ export async function dbEncrypt(options: DbEncryptOptions = {}): Promise<void> {
       output.info(`Example: export LEX_DB_KEY="your-passphrase-here"`);
     }
   } catch (error) {
+    // Clear progress line if showing progress
+    if (showProgress) {
+      clearProgress(options.json ?? false);
+    }
+    
     // Cleanup temp file on error
     if (tempPath && existsSync(tempPath)) {
       try {
