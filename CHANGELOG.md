@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- **Database migration hardening (SEC-001):** Column names are now validated during `lex db encrypt` migration
+  - Added validation for column names using alphanumeric pattern `/^[a-zA-Z0-9_]+$/`
+  - Both `dbEncrypt` and `calculateDatabaseChecksum` functions now validate column names
+  - Migration fails with explicit error if malformed column names are detected
+  - Prevents potential SQL injection from maliciously crafted source databases
+
 ## [0.4.7-alpha] - 2025-11-26
 
 ### Added

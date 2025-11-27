@@ -37,6 +37,32 @@ export {
 // Export auto-tuning utilities
 export { estimateTokens, autoTuneRadius, estimateTokensBeforeGeneration } from "./auto-tune.js";
 
+// Export Atlas rebuild queue (LEX-108: Batch Operations)
+export {
+  AtlasRebuildQueue,
+  createAtlasRebuildQueue,
+  type AtlasRebuildCallbacks,
+  type AtlasRebuildQueueConfig,
+} from "./queue.js";
+
+// Export Atlas rebuild trigger API (LEX-108: Batch Operations)
+export {
+  AtlasRebuildManager,
+  initAtlasRebuildManager,
+  getAtlasRebuildManager,
+  triggerAtlasRebuild,
+  onRebuildComplete,
+  removeRebuildCallback,
+  resetAtlasRebuildManager,
+  type RebuildResult,
+  type RebuildCallback,
+  type AtlasRebuildManagerConfig,
+} from "./trigger.js";
+
+// Export Atlas rebuild and validation utilities
+export { rebuildAtlas, type Atlas, type AtlasNode } from "./rebuild.js";
+export { validateAtlas, checkReachability, type ValidationResult } from "./validate.js";
+
 // Export Code Atlas schemas (Layer 0)
 export {
   CodeUnitSchema,
