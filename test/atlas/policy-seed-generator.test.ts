@@ -9,17 +9,21 @@ import assert from "node:assert";
 import { generatePolicySeed } from "../../src/atlas/policy-seed-generator.js";
 import type { CodeUnit } from "../../src/atlas/schemas/code-unit.js";
 
-// Helper function to create test code units
+// Counter for generating deterministic test IDs
+let testUnitCounter = 0;
+
+// Helper function to create test code units with deterministic IDs
 function createCodeUnit(
   overrides: Partial<CodeUnit> & { filePath: string; name: string; kind: CodeUnit["kind"] }
 ): CodeUnit {
+  testUnitCounter++;
   return {
-    id: `unit-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    id: `test-unit-${testUnitCounter}`,
     repoId: "test-repo",
     language: "ts",
     symbolPath: `${overrides.filePath}::${overrides.name}`,
     span: { startLine: 1, endLine: 10 },
-    discoveredAt: new Date().toISOString(),
+    discoveredAt: "2025-11-26T00:00:00Z",
     schemaVersion: "code-unit-v0",
     ...overrides,
   };

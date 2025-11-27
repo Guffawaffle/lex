@@ -92,9 +92,16 @@ function inferModuleNotes(prefix: string, units: CodeUnit[]): string {
 
 /**
  * Generate a module ID from a directory prefix
+ *
+ * Strips common source directory prefixes (src/, lib/, app/) for cleaner IDs.
+ * This is a v0 simplification; future versions may make this configurable.
+ *
+ * @param prefix - Directory prefix (e.g., "src/core/utils")
+ * @returns Module ID (e.g., "core-utils")
  */
 function generateModuleId(prefix: string): string {
   // Remove common prefixes like src/, lib/, app/
+  // NOTE: These are hardcoded for v0. Consider making configurable in future.
   const cleaned = prefix.replace(/^(src|lib|app)\//i, "");
 
   // Convert path to module ID format (replace slashes with dashes, lowercase)
@@ -128,8 +135,11 @@ function groupByDirectory(units: CodeUnit[]): DirectoryGroup[] {
 /**
  * Merge child directories into parent when appropriate
  *
- * Merges directories that have too few units on their own
- * into their parent directories to reduce noise.
+ * Merges directories that have fewer units than `minUnits` (default: 3)
+ * into their parent directories to reduce noise in the output.
+ *
+ * @param groups - Directory groups to consolidate
+ * @param minUnits - Minimum units required for a directory to remain standalone (default: 3)
  */
 function consolidateDirectories(groups: DirectoryGroup[], minUnits: number = 3): DirectoryGroup[] {
   // Sort by depth (deepest first) for bottom-up merging
@@ -140,7 +150,8 @@ function consolidateDirectories(groups: DirectoryGroup[], minUnits: number = 3):
     const parentPrefix = path.dirname(group.prefix);
 
     // If this group has too few units, try to merge into parent
-    if (group.units.length < minUnits && parentPrefix !== "." && parentPrefix !== group.prefix) {
+    // The parentPrefix !== "." check handles root-level directories
+    if (group.units.length < minUnits && parentPrefix !== ".") {
       const parent = merged.get(parentPrefix);
       if (parent) {
         // Merge into existing parent

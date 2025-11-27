@@ -23,31 +23,42 @@ import type { PolicySeed } from "../../atlas/schemas/policy-seed.js";
  *
  * Uses a simple YAML serialization that is clear and human-readable.
  * This is a seed file, not a final policy.
+ *
+ * NOTE: This is a v0 simplified YAML serializer. It handles the specific
+ * structure of PolicySeed without a full YAML library. Values are quoted
+ * to handle most special characters. Consider using a dedicated YAML library
+ * if more complex escaping is needed in the future.
  */
 function policySeedToYaml(seed: PolicySeed): string {
+  // Helper to escape YAML strings (handles quotes and newlines)
+  const escapeYaml = (s: string): string => {
+    // Replace backslashes first, then quotes
+    return s.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n/g, "\\n");
+  };
+
   const lines: string[] = [
     "# Policy Seed - Auto-generated from Code Atlas",
     "# This is a SEED for human refinement, not a final policy.",
     "# Review and customize before using.",
     "",
     `version: ${seed.version}`,
-    `generatedBy: "${seed.generatedBy}"`,
-    `repoId: "${seed.repoId}"`,
-    `generatedAt: "${seed.generatedAt}"`,
+    `generatedBy: "${escapeYaml(seed.generatedBy)}"`,
+    `repoId: "${escapeYaml(seed.repoId)}"`,
+    `generatedAt: "${escapeYaml(seed.generatedAt)}"`,
     "",
     "modules:",
   ];
 
   for (const module of seed.modules) {
-    lines.push(`  - id: "${module.id}"`);
+    lines.push(`  - id: "${escapeYaml(module.id)}"`);
     lines.push("    match:");
     for (const pattern of module.match) {
-      lines.push(`      - "${pattern}"`);
+      lines.push(`      - "${escapeYaml(pattern)}"`);
     }
     lines.push(`    unitCount: ${module.unitCount}`);
-    lines.push(`    kinds: [${module.kinds.map((k) => `"${k}"`).join(", ")}]`);
+    lines.push(`    kinds: [${module.kinds.map((k) => `"${escapeYaml(k)}"`).join(", ")}]`);
     if (module.notes) {
-      lines.push(`    notes: "${module.notes}"`);
+      lines.push(`    notes: "${escapeYaml(module.notes)}"`);
     }
     lines.push("");
   }
