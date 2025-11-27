@@ -76,13 +76,11 @@ describe("Encryption Edge Cases", () => {
       assert.strictEqual(key.length, 64, "Key should be 64 hex characters");
     });
 
-    test("should reject passphrase with leading/trailing whitespace if trimmed length is too short", () => {
-      // "  12345  " has 9 non-whitespace chars (length is 9 total)
-      // But deriveEncryptionKey checks length before trim for min length
-      // Let's test that a passphrase with leading/trailing whitespace that has
-      // enough total length but trimmed is empty should be rejected
+    test("should reject long whitespace-only passphrase", () => {
+      // deriveEncryptionKey checks `passphrase.trim().length === 0` first,
+      // rejecting whitespace-only strings regardless of their total length
       assert.throws(
-        () => deriveEncryptionKey("             "), // 13 spaces - passes length check but trim is empty
+        () => deriveEncryptionKey("             "), // 13 spaces - rejected because trim is empty
         /Passphrase cannot be empty or whitespace-only/,
         "Passphrase with enough length but only whitespace should be rejected"
       );
