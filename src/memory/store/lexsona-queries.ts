@@ -62,11 +62,23 @@ function ruleToRow(rule: BehaviorRule): Omit<BehaviorRuleRow, "created_at" | "up
  * Convert database row to BehaviorRule object
  */
 function rowToRule(row: BehaviorRuleRow): BehaviorRule {
+  let scope: RuleScope;
+  try {
+    scope = JSON.parse(row.scope) as RuleScope;
+  } catch {
+    // Handle corrupt JSON gracefully with empty scope
+    logger.warn("Invalid scope JSON in database row", {
+      operation: "rowToRule",
+      metadata: { ruleId: row.rule_id, scope: row.scope },
+    });
+    scope = {};
+  }
+
   return {
     rule_id: row.rule_id,
     category: row.category,
     text: row.text,
-    scope: JSON.parse(row.scope) as RuleScope,
+    scope,
     alpha: row.alpha,
     beta: row.beta,
     observation_count: row.observation_count,
@@ -82,9 +94,15 @@ function rowToRule(row: BehaviorRuleRow): BehaviorRule {
 /**
  * Calculate base confidence (Bayesian posterior mean)
  * confidence = alpha / (alpha + beta)
+ *
+ * Returns 0.5 (neutral) if both alpha and beta are 0
  */
 function calculateConfidence(alpha: number, beta: number): number {
-  return alpha / (alpha + beta);
+  const sum = alpha + beta;
+  if (sum === 0) {
+    return 0.5; // Neutral confidence when no data
+  }
+  return alpha / sum;
 }
 
 /**
@@ -94,11 +112,21 @@ function calculateConfidence(alpha: number, beta: number): number {
  *
  * @param lastObserved - ISO 8601 timestamp of last observation
  * @param tauDays - Decay time constant in days
- * @returns Decay factor in range (0, 1]
+ * @returns Decay factor in range (0, 1], or 1.0 for invalid dates
  */
 function calculateDecayFactor(lastObserved: string, tauDays: number): number {
   const now = Date.now();
   const lastObservedMs = Date.parse(lastObserved);
+
+  // Handle invalid dates gracefully
+  if (isNaN(lastObservedMs)) {
+    logger.warn("Invalid lastObserved timestamp", {
+      operation: "calculateDecayFactor",
+      metadata: { lastObserved },
+    });
+    return 1.0; // Return full confidence for invalid dates
+  }
+
   const deltaMs = now - lastObservedMs;
   const tauMs = tauDays * 86400000; // Convert days to milliseconds
 
