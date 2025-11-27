@@ -177,16 +177,24 @@ export async function dbBackup(options: DbBackupOptions = {}): Promise<void> {
   }
 }
 
+// Constants for progress reporting
+const ESTIMATED_ROWS_PER_SECOND = 10000; // Conservative throughput estimate for dry-run time estimation
+const PROGRESS_UPDATE_INTERVAL = 100; // Update progress every N rows for large tables
+
 /**
- * Format duration in human-readable format (e.g., "1m 30s" or "45s")
+ * Format duration in human-readable format (e.g., "2h 30m 45s", "1m 30s", or "45s")
  */
 function formatDuration(ms: number): string {
-  const seconds = Math.floor(ms / 1000);
-  const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = seconds % 60;
+  const totalSeconds = Math.floor(ms / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
   
+  if (hours > 0) {
+    return `${hours}h ${minutes}m ${seconds}s`;
+  }
   if (minutes > 0) {
-    return `${minutes}m ${remainingSeconds}s`;
+    return `${minutes}m ${seconds}s`;
   }
   return `${seconds}s`;
 }
@@ -228,6 +236,25 @@ function clearProgress(json: boolean): void {
   if (json) return;
   // Clear the progress line and move to next line
   process.stdout.write("\r\x1b[K");
+}
+
+// SQL identifier validation pattern (table and column names)
+const VALID_SQL_IDENTIFIER_PATTERN = /^[a-zA-Z0-9_]+$/;
+
+/**
+ * Validate that a SQL identifier (table or column name) matches the expected pattern.
+ * This prevents SQL injection even though identifiers come from the schema.
+ * 
+ * @param identifier - The identifier to validate
+ * @param type - Type of identifier for error messaging ("table" or "column")
+ * @param context - Additional context for error messaging (e.g., table name for columns)
+ * @throws Error if identifier doesn't match the pattern
+ */
+function validateSqlIdentifier(identifier: string, type: "table" | "column", context?: string): void {
+  if (!VALID_SQL_IDENTIFIER_PATTERN.test(identifier)) {
+    const contextStr = context ? ` in ${context}` : "";
+    throw new Error(`Invalid ${type} name detected${contextStr}: ${identifier}`);
+  }
 }
 
 /**
@@ -337,17 +364,12 @@ export async function dbEncrypt(options: DbEncryptOptions = {}): Promise<void> {
       )
       .all() as Array<{ name: string }>;
 
-    // Validate identifiers to prevent SQL injection (even though they come from schema)
-    const validIdentifierPattern = /^[a-zA-Z0-9_]+$/;
-
-    // Collect row counts for all tables
+    // Collect row counts for all tables (validates table names as well)
     const tableStats: Array<{ name: string; rowCount: number }> = [];
     let totalRowsAllTables = 0;
 
     for (const { name } of tableNames) {
-      if (!validIdentifierPattern.test(name)) {
-        throw new Error(`Invalid table name detected: ${name}`);
-      }
+      validateSqlIdentifier(name, "table");
       const countResult = sourceDb.prepare(`SELECT COUNT(*) as count FROM ${name}`).get() as {
         count: number;
       };
@@ -367,9 +389,8 @@ export async function dbEncrypt(options: DbEncryptOptions = {}): Promise<void> {
     if (isDryRun) {
       sourceDb.close();
       
-      // Estimate time based on typical throughput (rough estimate: ~10,000 rows/sec)
-      const estimatedRowsPerSec = 10000;
-      const estimatedMs = (totalRowsAllTables / estimatedRowsPerSec) * 1000;
+      // Estimate time based on typical throughput
+      const estimatedMs = (totalRowsAllTables / ESTIMATED_ROWS_PER_SECOND) * 1000;
       
       const duration = Date.now() - startTime;
       
@@ -436,9 +457,7 @@ export async function dbEncrypt(options: DbEncryptOptions = {}): Promise<void> {
         const columns = Object.keys(rows[0] as Record<string, unknown>);
         // Validate column names to prevent SQL injection
         for (const col of columns) {
-          if (!validIdentifierPattern.test(col)) {
-            throw new Error(`Invalid column name detected in table "${name}": ${col}`);
-          }
+          validateSqlIdentifier(col, "column", `table "${name}"`);
         }
         const placeholders = columns.map(() => "?").join(", ");
         const stmt = destDb.prepare(
@@ -484,8 +503,8 @@ export async function dbEncrypt(options: DbEncryptOptions = {}): Promise<void> {
               stmt.run(...values);
               rowIdx++;
               
-              // Update progress every 100 rows for large tables
-              if (showProgress && rowIdx % 100 === 0) {
+              // Update progress periodically for large tables
+              if (showProgress && rowIdx % PROGRESS_UPDATE_INTERVAL === 0) {
                 progressState.processedRows = rowIdx;
                 updateProgress(progressState, options.json ?? false);
               }

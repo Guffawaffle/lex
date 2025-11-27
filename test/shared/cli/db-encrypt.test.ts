@@ -12,6 +12,7 @@ import { mkdirSync, writeFileSync, existsSync, readdirSync, rmSync, unlinkSync }
 import { join } from "path";
 import { tmpdir } from "os";
 import { execFileSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import Database from "better-sqlite3-multiple-ciphers";
 import { createDatabase, deriveEncryptionKey, initializeDatabase } from "@app/memory/store/db.js";
 import { saveFrame } from "@app/memory/store/index.js";
@@ -454,7 +455,7 @@ describe("Database Encryption Session Management (SEC-004)", () => {
       const db = createDatabase(dbPath);
       for (let i = 0; i < frameCount; i++) {
         const testFrame: Frame = {
-          id: `test-frame-${Date.now()}-${i}`,
+          id: `test-frame-${randomUUID()}`,
           timestamp: new Date().toISOString(),
           branch: "main",
           module_scope: ["test"],
