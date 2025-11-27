@@ -50,8 +50,8 @@ export async function recall(
     if (frameById) {
       frames = [frameById];
     } else {
-      // 2. Try as search query (FTS5 full-text search)
-      // This will match against reference_point, summary_caption, jira, and keywords
+      // 2. Try as search query (full-text search)
+      // Semantics depend on FrameStore implementation
       const searchResults = await store.searchFrames({ query });
       frames = searchResults;
     }

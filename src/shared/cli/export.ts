@@ -21,6 +21,7 @@ export interface ExportCommandOptions {
 
 /**
  * Parse duration string (e.g., "7d", "30d", "1h") to Date
+ * @throws Error if the date string is invalid
  */
 function parseDurationToDate(duration: string): Date {
   const now = new Date();
@@ -28,7 +29,11 @@ function parseDurationToDate(duration: string): Date {
 
   if (!match) {
     // Not a duration, assume it's an ISO date
-    return new Date(duration);
+    const parsed = new Date(duration);
+    if (isNaN(parsed.getTime())) {
+      throw new Error(`Invalid date format: "${duration}". Use ISO date or duration (e.g., "7d", "1h")`);
+    }
+    return parsed;
   }
 
   const value = parseInt(match[1], 10);

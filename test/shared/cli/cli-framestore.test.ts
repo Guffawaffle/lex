@@ -267,5 +267,3 @@ describe("CLI Commands with FrameStore Dependency Injection", () => {
     });
   });
 });
-
-console.log("\n✅ CLI Commands with FrameStore Dependency Injection Tests\n");
