@@ -10,6 +10,7 @@
  * - src/memory/store/db.ts (schema initialization)
  * - src/memory/store/backup.ts (backup utilities)
  * - src/memory/store/code-atlas-runs.ts (CodeAtlas run tracking)
+ * - src/memory/store/sqlite/ (SqliteFrameStore implementation)
  * - src/memory/mcp_server/auth/state-storage.ts (OAuth state)
  * - src/memory/mcp_server/routes/*.ts (MCP route handlers)
  * - src/shared/cli/db.ts (CLI database utilities)
@@ -30,6 +31,7 @@ const ALLOWED_PATTERNS = [
   "memory/store/backup.ts",
   "memory/store/code-atlas-runs.ts",
   "memory/store/images.ts",
+  "memory/store/sqlite/", // SqliteFrameStore and future sqlite implementations
   "memory/mcp_server/auth/state-storage.ts",
   "memory/mcp_server/routes/",
   "shared/cli/db.ts",

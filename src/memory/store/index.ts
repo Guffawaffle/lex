@@ -21,6 +21,9 @@ export type { SearchResult, ExportFramesOptions } from "./queries.js";
 export type { FrameStore, FrameSearchCriteria, FrameListOptions } from "./frame-store.js";
 export type { CodeAtlasStore } from "./code-atlas-store.js";
 
+// SqliteFrameStore - production-ready FrameStore implementation
+export { SqliteFrameStore } from "./sqlite/index.js";
+
 export {
   saveFrame,
   getFrameById,
