@@ -130,3 +130,6 @@ setupGracefulShutdown();
 
 // Export database creation for testing
 export { createDatabase, getDefaultDbPath } from "./db.js";
+
+// Export SQLite store implementations
+export { SqliteCodeAtlasStore } from "./sqlite/index.js";
