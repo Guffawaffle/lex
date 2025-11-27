@@ -22,19 +22,22 @@ import Database from "better-sqlite3-multiple-ciphers";
 describe("Database Encryption Tests", () => {
   describe("Key Derivation", () => {
     test("should derive consistent key from same passphrase", () => {
-      const key1 = deriveEncryptionKey("test-passphrase-123");
-      const key2 = deriveEncryptionKey("test-passphrase-123");
+      // Updated passphrase to meet character diversity requirements
+      const key1 = deriveEncryptionKey("Test-Phrase@123");
+      const key2 = deriveEncryptionKey("Test-Phrase@123");
       assert.strictEqual(key1, key2, "Same passphrase should produce same key");
     });
 
     test("should derive different keys from different passphrases", () => {
-      const key1 = deriveEncryptionKey("passphrase-1");
-      const key2 = deriveEncryptionKey("passphrase-2");
+      // Updated passphrases to meet character diversity requirements
+      const key1 = deriveEncryptionKey("Passphrase!1xx");
+      const key2 = deriveEncryptionKey("Passphrase!2yy");
       assert.notStrictEqual(key1, key2, "Different passphrases should produce different keys");
     });
 
     test("should return 64-character hex string (256-bit key)", () => {
-      const key = deriveEncryptionKey("test-passphrase");
+      // Updated passphrase to meet character diversity requirements
+      const key = deriveEncryptionKey("Test-Phrase@99");
       assert.strictEqual(key.length, 64, "Key should be 64 hex characters (32 bytes)");
       assert.ok(/^[0-9a-f]{64}$/.test(key), "Key should be valid hex string");
     });
@@ -43,6 +46,7 @@ describe("Database Encryption Tests", () => {
   describe("Environment-based Key Management", () => {
     const originalEnv = process.env.LEX_DB_KEY;
     const originalNodeEnv = process.env.NODE_ENV;
+    const originalForce = process.env.LEX_DB_KEY_FORCE;
 
     after(() => {
       // Restore original environment
@@ -56,18 +60,26 @@ describe("Database Encryption Tests", () => {
       } else {
         delete process.env.NODE_ENV;
       }
+      if (originalForce !== undefined) {
+        process.env.LEX_DB_KEY_FORCE = originalForce;
+      } else {
+        delete process.env.LEX_DB_KEY_FORCE;
+      }
     });
 
     test("should return undefined when LEX_DB_KEY not set in non-production", () => {
       delete process.env.LEX_DB_KEY;
+      delete process.env.LEX_DB_KEY_FORCE;
       process.env.NODE_ENV = "test";
       const key = getEncryptionKey();
       assert.strictEqual(key, undefined, "Should return undefined when key not set");
     });
 
     test("should return derived key when LEX_DB_KEY is set", () => {
-      process.env.LEX_DB_KEY = "my-secret-passphrase";
+      // Updated passphrase to meet character diversity requirements
+      process.env.LEX_DB_KEY = "My-Secret@Pass99";
       process.env.NODE_ENV = "test";
+      delete process.env.LEX_DB_KEY_FORCE;
       const key = getEncryptionKey();
       assert.ok(key, "Should return a key when LEX_DB_KEY is set");
       assert.strictEqual(key.length, 64, "Should return 64-character hex key");
@@ -75,6 +87,7 @@ describe("Database Encryption Tests", () => {
 
     test("should throw error in production mode without LEX_DB_KEY", () => {
       delete process.env.LEX_DB_KEY;
+      delete process.env.LEX_DB_KEY_FORCE;
       process.env.NODE_ENV = "production";
       assert.throws(
         () => getEncryptionKey(),
@@ -84,15 +97,18 @@ describe("Database Encryption Tests", () => {
     });
 
     test("should not throw in production mode with LEX_DB_KEY", () => {
-      process.env.LEX_DB_KEY = "production-secret-key";
+      // Updated passphrase to meet character diversity requirements
+      process.env.LEX_DB_KEY = "Prod-Secret@Key77";
       process.env.NODE_ENV = "production";
+      delete process.env.LEX_DB_KEY_FORCE;
       assert.doesNotThrow(() => getEncryptionKey(), "Should not throw with key in production");
     });
   });
 
   describe("Encrypted Database Operations", () => {
     const TEST_DB_PATH = join(tmpdir(), `test-encrypted-${Date.now()}.db`);
-    const TEST_PASSPHRASE = "test-encryption-key-123";
+    // Updated passphrase to meet character diversity requirements
+    const TEST_PASSPHRASE = "Test-Encrypt@Key99";
     const originalEnv = process.env.LEX_DB_KEY;
 
     before(() => {
@@ -157,8 +173,8 @@ describe("Database Encryption Tests", () => {
       const db1 = createDatabase(TEST_DB_PATH);
       db1.close();
 
-      // Try to open with wrong key
-      process.env.LEX_DB_KEY = "wrong-passphrase";
+      // Try to open with wrong key (still meets diversity requirements)
+      process.env.LEX_DB_KEY = "Wrong-Passphrase@77";
       
       assert.throws(
         () => createDatabase(TEST_DB_PATH),

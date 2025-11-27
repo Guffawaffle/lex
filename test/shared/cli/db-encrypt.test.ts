@@ -21,7 +21,8 @@ describe("Database Encryption Security (SEC-003)", () => {
   const testDir = join(tmpdir(), `lex-db-encrypt-test-${Date.now()}`);
   const lexBin = join(process.cwd(), "dist", "shared", "cli", "lex.js");
   
-  function getTestEnv(dbPath: string, passphrase: string = "test-passphrase"): NodeJS.ProcessEnv {
+  // Updated default passphrase to meet character diversity requirements
+  function getTestEnv(dbPath: string, passphrase: string = "Test-Passphrase@99"): NodeJS.ProcessEnv {
     return {
       NODE_ENV: "test",
       LEX_LOG_LEVEL: "silent",
@@ -259,7 +260,8 @@ describe("Database Encryption Migration Tests (SEC-002)", () => {
     const TEST_DIR = join(tmpdir(), `lex-encrypt-test-${Date.now()}`);
     const SOURCE_DB_PATH = join(TEST_DIR, "source.db");
     const DEST_DB_PATH = join(TEST_DIR, "dest-encrypted.db");
-    const TEST_PASSPHRASE = "test-passphrase-secure-123";
+    // Updated passphrase to meet character diversity requirements
+    const TEST_PASSPHRASE = "Test-Passphrase@Secure99";
 
     before(() => {
       if (!existsSync(TEST_DIR)) {
