@@ -52,6 +52,114 @@ export interface CodeAtlasRunRow {
 }
 
 /**
+ * Result of passphrase strength validation
+ */
+export interface PassphraseValidationResult {
+  valid: boolean;
+  errors: string[];
+  warnings: string[];
+  characterClasses: {
+    hasLowercase: boolean;
+    hasUppercase: boolean;
+    hasDigit: boolean;
+    hasSymbol: boolean;
+    count: number;
+  };
+}
+
+/**
+ * Detect sequential character patterns in a passphrase
+ */
+function detectSequentialPattern(passphrase: string): boolean {
+  const lowerPass = passphrase.toLowerCase();
+  const sequences = [
+    "abcdefghijklmnopqrstuvwxyz",
+    "zyxwvutsrqponmlkjihgfedcba",
+    "0123456789",
+    "9876543210",
+    "qwertyuiop",
+    "poiuytrewq",
+    "asdfghjkl",
+    "lkjhgfdsa",
+    "zxcvbnm",
+    "mnbvcxz",
+  ];
+
+  for (const seq of sequences) {
+    for (let i = 0; i <= seq.length - 4; i++) {
+      if (lowerPass.includes(seq.substring(i, i + 4))) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+/**
+ * Validate passphrase strength for entropy requirements
+ */
+export function validatePassphraseStrength(passphrase: string): PassphraseValidationResult {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+
+  if (!passphrase || passphrase.trim().length === 0) {
+    return {
+      valid: false,
+      errors: ["Passphrase cannot be empty or whitespace-only"],
+      warnings: [],
+      characterClasses: {
+        hasLowercase: false,
+        hasUppercase: false,
+        hasDigit: false,
+        hasSymbol: false,
+        count: 0,
+      },
+    };
+  }
+
+  if (passphrase.length < 12) {
+    errors.push(
+      "Passphrase is too short. Use at least 12 characters (32+ recommended for production)."
+    );
+  }
+
+  const hasLowercase = /[a-z]/.test(passphrase);
+  const hasUppercase = /[A-Z]/.test(passphrase);
+  const hasDigit = /[0-9]/.test(passphrase);
+  const hasSymbol = /[^a-zA-Z0-9\s]/.test(passphrase);
+  const classCount = [hasLowercase, hasUppercase, hasDigit, hasSymbol].filter(Boolean).length;
+
+  if (classCount < 3) {
+    errors.push(
+      `Passphrase lacks character diversity. Use at least 3 of: lowercase, uppercase, digits, symbols. Found ${classCount} class(es).`
+    );
+  }
+
+  if (/(.)\1{3,}/.test(passphrase)) {
+    errors.push(
+      "Passphrase contains repeating character patterns (4+ identical consecutive characters)."
+    );
+  }
+
+  if (detectSequentialPattern(passphrase)) {
+    errors.push(
+      "Passphrase contains sequential character patterns (e.g., 'abcd', '1234', 'qwerty')."
+    );
+  }
+
+  if (passphrase.length < 32 && errors.length === 0) {
+    warnings.push("Consider using 32+ characters for production environments.");
+  }
+
+  return {
+    valid: errors.length === 0,
+    errors,
+    warnings,
+    characterClasses: { hasLowercase, hasUppercase, hasDigit, hasSymbol, count: classCount },
+  };
+}
+
+/**
  * Get default database path: .smartergpt/lex/memory.db (relative to workspace root)
  * Falls back to ~/.smartergpt/lex/memory.db if not in a lex repository
  * Can be overridden with LEX_DB_PATH or LEX_WORKSPACE_ROOT environment variables
