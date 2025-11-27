@@ -180,10 +180,11 @@ export function queryBehaviorRules(
 
   // Apply confidence filtering in application code
   if (options.minConfidence !== undefined && options.minConfidence > 0) {
+    const minConfidenceThreshold = options.minConfidence;
     rules = rules.filter((rule) => {
       const confidence =
         rule.confidence_alpha / (rule.confidence_alpha + rule.confidence_beta);
-      return confidence >= options.minConfidence!;
+      return confidence >= minConfidenceThreshold;
     });
   }
 

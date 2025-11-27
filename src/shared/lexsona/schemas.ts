@@ -44,7 +44,7 @@ export const BehaviorRuleSchema = z.object({
   /** ISO 8601 timestamp when the rule was last observed/reinforced */
   last_observed: z.string().datetime(),
 
-  /** Decay time constant in days (default: 180 days, ~6 months half-life) */
+  /** Decay time constant in days (must be > 0, default: 180 days, ~6 months half-life) */
   decay_tau: z.number().int().positive().default(180),
 });
 
