@@ -476,7 +476,3 @@ describe("Frame Payload Validation", () => {
     });
   });
 });
-
-console.log(
-  "\n✅ Frame Payload Validation Tests - covering valid/invalid payloads and unknown field warnings\n"
-);
