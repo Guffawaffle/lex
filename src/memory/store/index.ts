@@ -190,20 +190,3 @@ export type { PassphraseValidationResult } from "./db.js";
 
 // Export SQLite store implementations
 export { SqliteCodeAtlasStore } from "./sqlite/index.js";
-
-// Import types for the factory function
-import type { FrameStore } from "./frame-store.js";
-import { SqliteFrameStore } from "./sqlite/index.js";
-
-/**
- * Create a FrameStore instance.
- * 
- * Factory function that creates a production-ready SqliteFrameStore.
- * Use this for dependency injection in the MCP server and other components.
- * 
- * @param dbPath - Optional database path. Uses default path (~/.lex/frames.db) if not provided.
- * @returns A FrameStore instance.
- */
-export function createFrameStore(dbPath?: string): FrameStore {
-  return new SqliteFrameStore(dbPath);
-}
