@@ -54,6 +54,17 @@ Closes #<!-- issue number -->
 - [ ] **Deprecation Warnings:** Old API marked deprecated (if replacing)
 - [ ] **Semver:** Version bump planned (major/minor/patch)
 
+### FrameStore Changes (if applicable)
+
+<!-- If this PR modifies FrameStore schema or interface, check here -->
+<!-- See src/memory/store/CONTRACT.md for the change protocol -->
+
+- [ ] This PR modifies FrameStore schema or interface
+- [ ] Schema migration plan documented
+- [ ] Version bump in schema (Patch/Minor/Major per CONTRACT.md)
+- [ ] Cross-repo notification to LexRunner (if shared concept)
+- [ ] Chief Architect explicit approval obtained
+
 ## Cross-Repo Coordination (if applicable)
 
 <!-- If this affects LexRunner, check here -->
