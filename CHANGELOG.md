@@ -7,6 +7,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0] - 2025-11-27
+
+### 🎉 First Stable Release
+
+Lex 1.0.0 marks the first stable API contract. All public exports now have explicit subpaths,
+and the FrameStore interface is frozen for 1.0.x releases.
+
+### Highlights
+
+- **Stable API Contract:** All public exports have explicit subpaths in `package.json`
+- **Security:** SQLCipher database encryption + OAuth2/JWT authentication
+- **MCP Server:** Machine-readable error codes (`MCPErrorCode` enum) for orchestrators
+- **CLI:** JSON output mode with schema validation
+- **Policy Bootstrap:** `lex init --policy` generates starter policy from codebase
+
+### Added
+
+- **ARCH-001: FrameStore Contract Freeze**
+  - `FRAME_STORE_SCHEMA_VERSION = "1.0.0"` exported from `@smartergpt/lex/store`
+  - `CONTRACT.md` documents persistence requirements
+  - PR template updated with FrameStore change checklist
+  - Changes to FrameStore interface now require explicit protocol
+
+### Breaking Changes from 0.4.x
+
+- Wildcard exports removed (use explicit subpaths)
+- `getCurrentBranch()` / `getCurrentCommit()` now return `string | undefined`
+- `LEX_GIT_MODE=off` is the new default (set to `live` for git features)
+
+### Subpath Exports
+
+| Import | Purpose |
+|--------|---------|
+| `@smartergpt/lex` | Core types + store API |
+| `@smartergpt/lex/types` | All shared types |
+| `@smartergpt/lex/store` | Database operations |
+| `@smartergpt/lex/policy` | Policy loading |
+| `@smartergpt/lex/atlas` | Atlas Frame generation |
+| `@smartergpt/lex/module-ids` | Module ID validation |
+| `@smartergpt/lex/aliases` | Alias resolution |
+| `@smartergpt/lex/cli-output` | CLI JSON utilities |
+
+### Metrics
+
+| Metric | Value |
+|--------|-------|
+| Tests | 1013 |
+| Source files | 108 |
+| Exports | 14 subpaths |
+| Schema version | 2 |
+
 ## [0.6.0] - 2025-11-27
 
 ### Added
