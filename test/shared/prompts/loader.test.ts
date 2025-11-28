@@ -3,7 +3,7 @@
  *
  * Precedence chain:
  * 1. LEX_PROMPTS_DIR (explicit environment override)
- * 2. .smartergpt.local/prompts/ (local untracked overlay)
+ * 2. .smartergpt/prompts/ (local untracked overlay)
  * 3. Package prompts/ (published canon from build)
  *
  * Tests cover:

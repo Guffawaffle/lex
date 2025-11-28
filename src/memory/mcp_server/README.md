@@ -190,7 +190,7 @@ node dist/memory/mcp_server/frame-mcp.js
 
 ### Environment Variables:
 - `LEX_WORKSPACE_ROOT` - Workspace/project root directory (overrides auto-detection from script location)
-- `LEX_MEMORY_DB` - Path to SQLite database (default: `<workspace>/.smartergpt.local/lex/memory.db` or `~/.lex/frames.db`)
+- `LEX_MEMORY_DB` - Path to SQLite database (default: `<workspace>/.smartergpt/lex/memory.db` or `~/.lex/frames.db`)
 - `LEX_POLICY_PATH` - Explicit path to policy file (overrides auto-detection)
 - `LEX_DB_PATH` - Alternative to LEX_MEMORY_DB for database path
 - `LEX_DEFAULT_BRANCH` - Override git branch detection
@@ -198,13 +198,13 @@ node dist/memory/mcp_server/frame-mcp.js
 
 **Policy Resolution (in order of priority):**
 1. `LEX_POLICY_PATH` environment variable (explicit override)
-2. `LEX_WORKSPACE_ROOT` (if set) or auto-detected workspace root: `.smartergpt.local/lex/lexmap.policy.json` (working file)
+2. `LEX_WORKSPACE_ROOT` (if set) or auto-detected workspace root: `.smartergpt/lex/lexmap.policy.json` (working file)
 3. `LEX_WORKSPACE_ROOT` (if set) or auto-detected workspace root: `policy/policy_spec/lexmap.policy.json` (example)
 4. Operate without policy enforcement (allows any module IDs)
 
 **Database Path Resolution (in order of priority):**
 1. `LEX_MEMORY_DB` or `LEX_DB_PATH` environment variable (explicit override)
-2. `LEX_WORKSPACE_ROOT` (if set) or auto-detected workspace root: `.smartergpt.local/lex/memory.db`
+2. `LEX_WORKSPACE_ROOT` (if set) or auto-detected workspace root: `.smartergpt/lex/memory.db`
 3. Home directory fallback: `~/.lex/frames.db`
 
 ### Example Usage:
@@ -271,7 +271,7 @@ Health check endpoint. Returns `200 OK` with `{"status":"ok"}`.
 
 ### Environment Variables:
 - `LEX_API_KEY` - API key for authentication (required for security)
-- `LEX_DB_PATH` - Path to SQLite database (default: `.smartergpt.local/lex/memory.db`)
+- `LEX_DB_PATH` - Path to SQLite database (default: `.smartergpt/lex/memory.db`)
 - `LEX_API_PORT` - Server port (default: `3000`)
 
 ### Example: Starting the Server

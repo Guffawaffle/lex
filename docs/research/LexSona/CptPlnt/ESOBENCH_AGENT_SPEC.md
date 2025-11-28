@@ -22,7 +22,7 @@ This is the bar Lex+LexRunner+LexSona are aiming for.
 
 ## 2. Drop-in Spec: `lexsona-esobench-explorer.md`
 
-*Recommended location: `.smartergpt.local/lex/lexsona-esobench-explorer.md`*
+*Recommended location: `.smartergpt/lex/lexsona-esobench-explorer.md`*
 
 ```markdown
 # LexSona Mode: EsoBench Explorer

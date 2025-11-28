@@ -446,7 +446,7 @@ LexSona should **decay** or adapt rules when:
 - `docs/research/LexSona/CptPlnt/lexsona_schema.sql` – Database schema for behavioral rules
 - `docs/research/LexSona/CptPlnt/lexsona_behavior_rule_schema.json` – JSON schema for rule serialization
 - `PROJECT_0.5.0_SCOPE.md` – LexSona v0 integration milestones
-- `.smartergpt.local/deliverables/umbrella-20251122-2155/PM_ACTION_CHECKLIST.md` – Operational execution log
+- `.smartergpt/deliverables/umbrella-20251122-2155/PM_ACTION_CHECKLIST.md` – Operational execution log
 
 ---
 

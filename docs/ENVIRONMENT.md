@@ -33,7 +33,7 @@ export LEX_WORKSPACE_ROOT=/path/to/my/project
 
 **Purpose:** Override the database file location.
 
-**Default:** `.smartergpt.local/lex/memory.db` relative to workspace root.
+**Default:** `.smartergpt/lex/memory.db` relative to workspace root.
 
 **Used by:** Frame storage, all memory operations.
 
@@ -199,10 +199,10 @@ export LEX_LOG_PRETTY=1
 **Purpose:** Enable NDJSON file logging.
 
 **Values:**
-- `1`: Enable NDJSON logging to `.smartergpt.local/lex/logs/lex.log.ndjson`
+- `1`: Enable NDJSON logging to `.smartergpt/lex/logs/lex.log.ndjson`
 - (unset): Disable in test mode, auto-detect otherwise
 
-**Log location:** `.smartergpt.local/lex/logs/lex.log.ndjson`
+**Log location:** `.smartergpt/lex/logs/lex.log.ndjson`
 
 **Log rotation:** Automatic at 100MB.
 
@@ -252,7 +252,7 @@ export LEX_PROMPTS_DIR=/custom/prompts
 
 **Default:** Searched in this order:
 1. `LEX_RULES_DIR` (this variable)
-2. `.smartergpt.local/canon/rules/`
+2. `.smartergpt/rules/`
 3. `canon/rules/` (package defaults)
 
 **Note:** Rules are experimental and not part of the Lex 1.0.0 contract.
@@ -318,7 +318,7 @@ export LEX_ENABLE_EXTERNAL_SCANNER_TESTS=1
 | Variable | Purpose | Default | Contract Status |
 |----------|---------|---------|-----------------|
 | `LEX_WORKSPACE_ROOT` | Workspace root | Auto-detect | 1.0.0 |
-| `LEX_DB_PATH` | Database path | `.smartergpt.local/lex/memory.db` | 1.0.0 |
+| `LEX_DB_PATH` | Database path | `.smartergpt/lex/memory.db` | 1.0.0 |
 | `LEX_POLICY_PATH` | Policy file path | `.smartergpt/lex/lexmap.policy.json` | 1.0.0 |
 | `LEX_APP_ROOT` | App root | Auto-detect | 1.0.0 |
 | `LEX_GIT_MODE` | Git integration | `live` | 1.0.0 |
