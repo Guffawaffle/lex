@@ -10,6 +10,10 @@
  */
 
 import Database from "better-sqlite3-multiple-ciphers";
+import { homedir } from "os";
+import { join, dirname } from "path";
+import { mkdirSync, existsSync, readFileSync } from "fs";
+import { pbkdf2Sync } from "crypto";
 
 /**
  * FrameStore schema version following SemVer.
@@ -22,10 +26,6 @@ import Database from "better-sqlite3-multiple-ciphers";
  * @see CONTRACT.md for change protocol
  */
 export const FRAME_STORE_SCHEMA_VERSION = "1.0.0";
-import { homedir } from "os";
-import { join, dirname } from "path";
-import { mkdirSync, existsSync, readFileSync } from "fs";
-import { pbkdf2Sync } from "crypto";
 
 export interface FrameRow {
   id: string;
