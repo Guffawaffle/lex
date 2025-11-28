@@ -33,6 +33,24 @@ export { SqliteFrameStore } from "./sqlite/index.js";
 // Memory-based store implementations for testing
 export { MemoryFrameStore } from "./memory/index.js";
 
+// Import FrameStore interface and SqliteFrameStore for factory function
+import type { FrameStore } from "./frame-store.js";
+import { SqliteFrameStore } from "./sqlite/index.js";
+
+/**
+ * Create a FrameStore instance with the default SQLite implementation.
+ *
+ * This factory function provides a clean interface for CLI commands to obtain
+ * a FrameStore, enabling easy testing by allowing injection of alternative
+ * implementations (e.g., MemoryFrameStore).
+ *
+ * @param dbPath - Optional database path (defaults to standard ~/.lex/frames.db)
+ * @returns A FrameStore instance configured with the specified database path.
+ */
+export function createFrameStore(dbPath?: string): FrameStore {
+  return new SqliteFrameStore(dbPath ?? getDefaultDbPath());
+}
+
 export {
   saveFrame,
   getFrameById,

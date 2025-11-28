@@ -5,7 +5,7 @@
  */
 
 import type { Frame } from "../types/frame.js";
-import { getDb, getFramesByJira, getFramesByBranch } from "../../memory/store/index.js";
+import { createFrameStore, type FrameStore } from "../../memory/store/index.js";
 import {
   buildTimeline,
   filterTimeline,
@@ -30,23 +30,36 @@ export interface TimelineCommandOptions {
 /**
  * Execute the 'lex timeline' command
  * Shows Frame evolution for a ticket or branch
+ *
+ * @param ticketOrBranch - Jira ticket ID or branch name
+ * @param options - Command options
+ * @param frameStore - Optional FrameStore for dependency injection (defaults to SqliteFrameStore)
  */
 export async function timeline(
   ticketOrBranch: string,
-  options: TimelineCommandOptions = {}
+  options: TimelineCommandOptions = {},
+  frameStore?: FrameStore
 ): Promise<void> {
+  // If no store is provided, create a default one (which we'll need to close)
+  const store = frameStore ?? createFrameStore();
+  const ownsStore = frameStore === undefined;
+
   try {
-    const db = getDb();
     let frames: Frame[] = [];
     let title: string;
 
-    // Try to find frames by Jira ticket first, then by branch
-    const framesByJira = getFramesByJira(db, ticketOrBranch);
+    // Get all frames and filter by Jira ticket or branch
+    // First, try to match by Jira ticket ID
+    const allFrames = await store.listFrames();
+    
+    // Try to find frames by Jira ticket first
+    const framesByJira = allFrames.filter(f => f.jira === ticketOrBranch);
     if (framesByJira.length > 0) {
       frames = framesByJira;
       title = `${ticketOrBranch}: Timeline`;
     } else {
-      const framesByBranch = getFramesByBranch(db, ticketOrBranch);
+      // Try by branch name
+      const framesByBranch = allFrames.filter(f => f.branch === ticketOrBranch);
       if (framesByBranch.length > 0) {
         frames = framesByBranch;
         title = `Branch ${ticketOrBranch}: Timeline`;
@@ -117,5 +130,10 @@ export async function timeline(
     const errorMessage = error instanceof Error ? error.message : String(error);
     output.error(`\n❌ Error: ${errorMessage}\n`);
     process.exit(2);
+  } finally {
+    // Close store if we own it
+    if (ownsStore) {
+      await store.close();
+    }
   }
 }

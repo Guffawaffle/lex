@@ -9,7 +9,7 @@ import { v4 as uuidv4 } from "uuid";
 import type { Frame } from "../types/frame.js";
 import { validateModuleIds } from "../module_ids/index.js";
 import { loadPolicyIfAvailable } from "../policy/loader.js";
-import { getDb, saveFrame } from "../../memory/store/index.js";
+import { createFrameStore, type FrameStore } from "../../memory/store/index.js";
 import { getCurrentBranch } from "../git/branch.js";
 import * as output from "./output.js";
 
@@ -35,8 +35,18 @@ export interface RememberOptions {
 /**
  * Execute the 'lex remember' command
  * Creates a new Frame with user input
+ *
+ * @param options - Command options
+ * @param frameStore - Optional FrameStore for dependency injection (defaults to SqliteFrameStore)
  */
-export async function remember(options: RememberOptions = {}): Promise<void> {
+export async function remember(
+  options: RememberOptions = {},
+  frameStore?: FrameStore
+): Promise<void> {
+  // If no store is provided, create a default one (which we'll need to close)
+  const store = frameStore ?? createFrameStore();
+  const ownsStore = frameStore === undefined;
+
   try {
     // Get current git branch
     const branch = await getCurrentBranch();
@@ -104,9 +114,8 @@ export async function remember(options: RememberOptions = {}): Promise<void> {
       permissions: answers.permissions,
     };
 
-    // Save Frame to database
-    const db = getDb();
-    saveFrame(db, frame);
+    // Save Frame to database using FrameStore
+    await store.saveFrame(frame);
 
     // Output result
     if (options.json) {
@@ -126,6 +135,11 @@ export async function remember(options: RememberOptions = {}): Promise<void> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     output.error(`\n❌ Error: ${errorMessage}\n`);
     process.exit(2);
+  } finally {
+    // Close store if we own it
+    if (ownsStore) {
+      await store.close();
+    }
   }
 }
 
