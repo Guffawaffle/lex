@@ -7,7 +7,7 @@ This directory contains behavioral rule definitions for LexSona v0 integration.
 Rules define behavioral preferences and policies that guide agent behavior. They are loaded with the same precedence chain as prompts and schemas:
 
 1. **LEX_RULES_DIR** (environment variable) - Highest priority
-2. **.smartergpt.local/canon/rules/** (workspace overlay) - Medium priority  
+2. **.smartergpt/rules/** (workspace overlay) - Medium priority  
 3. **canon/rules/** (package defaults) - Lowest priority
 
 ## Rule Structure
@@ -84,7 +84,7 @@ rules.forEach(rule => {
 File: tool-fallback-protocol.json
 
 Package (canon/rules/):                  confidence: 0.89
-Workspace (.smartergpt.local/canon/rules/): confidence: 0.92  ← Overrides package
+Workspace (.smartergpt/rules/):          confidence: 0.92  ← Overrides package
 ENV ($LEX_RULES_DIR):                    confidence: 0.95  ← Overrides all
 
 Result: ENV version loaded (highest precedence)

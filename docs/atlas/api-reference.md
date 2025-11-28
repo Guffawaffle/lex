@@ -377,7 +377,7 @@ import type {
 |----------|-------------|---------|
 | `LEX_API_KEY` | API key for HTTP authentication | Required |
 | `LEX_API_PORT` | HTTP server port | `3000` |
-| `LEX_DB_PATH` | SQLite database path | `.smartergpt.local/lex/memory.db` |
+| `LEX_DB_PATH` | SQLite database path | `.smartergpt/lex/memory.db` |
 | `LEX_POLICY_PATH` | Policy file path | Auto-detect |
 | `LEX_WORKSPACE_ROOT` | Workspace root for policy resolution | Auto-detect |
 | `LEX_DEBUG` | Enable debug logging | `false` |

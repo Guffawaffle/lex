@@ -166,7 +166,7 @@ Keep your memory database optimized and backed up:
 ```bash
 # Create a timestamped backup (memory-20251123.sqlite)
 lex db backup --rotate 7
-# Keeps last 7 backups, stored in .smartergpt.local/lex/backups/
+# Keeps last 7 backups, stored in .smartergpt/lex/backups/
 
 # Optimize database (rebuild and compact)
 lex db vacuum
@@ -175,7 +175,7 @@ lex db vacuum
 export LEX_BACKUP_RETENTION=14  # Keep 14 most recent backups
 ```
 
-**NDJSON Logging:** Lex automatically logs operations to `.smartergpt.local/lex/logs/lex.log.ndjson` with structured fields:
+**NDJSON Logging:** Lex automatically logs operations to `.smartergpt/lex/logs/lex.log.ndjson` with structured fields:
 - `timestamp`, `level`, `message`, `module`, `operation`, `duration_ms`, `metadata`, `error`
 - Log files rotate automatically at 100MB
 - Logs are silent in test mode unless `LEX_LOG_NDJSON=1`
@@ -280,7 +280,7 @@ Lex provides multiple entry points for different use cases:
 ```typescript
 import { saveFrame, searchFrames, getDb, closeDb } from '@smartergpt/lex';
 
-const db = getDb(); // Uses .smartergpt.local/lex/memory.db
+const db = getDb(); // Uses .smartergpt/lex/memory.db
 
 await saveFrame(db, {
   referencePoint: 'authentication flow',
@@ -493,13 +493,13 @@ lex check merged-facts.json
 Lex uses a **precedence chain** for configuration:
 
 1. **Environment:** `LEX_CANON_DIR=/custom/canon` (highest)
-2. **Local overlay:** `.smartergpt.local/prompts/`
+2. **Local overlay:** `.smartergpt/prompts/`
 3. **Package defaults:** `prompts/` (lowest)
 
 ```bash
 # Customize locally
-cp prompts/remember.md .smartergpt.local/prompts/
-vim .smartergpt.local/prompts/remember.md
+cp prompts/remember.md .smartergpt/prompts/
+vim .smartergpt/prompts/remember.md
 
 # Or use custom directory
 LEX_CANON_DIR=/my/custom/canon lex remember ...
@@ -511,12 +511,12 @@ LEX_CANON_DIR=/my/custom/canon lex remember ...
 |----------|---------|---------|
 | `LEX_LOG_LEVEL` | Log verbosity (`silent`, `trace`, `debug`, `info`, `warn`, `error`, `fatal`) | `info` (tests: `silent`) |
 | `LEX_LOG_PRETTY` | Pretty-print logs (`1` = enabled) | Auto-detect TTY |
-| `LEX_POLICY_PATH` | Custom policy file location | `.smartergpt.local/lex/lexmap.policy.json` |
-| `LEX_DB_PATH` | Database location | `.smartergpt.local/lex/memory.db` |
+| `LEX_POLICY_PATH` | Custom policy file location | `.smartergpt/lex/lexmap.policy.json` |
+| `LEX_DB_PATH` | Database location | `.smartergpt/lex/memory.db` |
 | `LEX_DB_KEY` | **NEW:** Database encryption passphrase (required in production) | None (unencrypted) |
 | `LEX_DEFAULT_BRANCH` | Override default branch detection | Auto-detect from git |
 | `LEX_CANON_DIR` | Override canonical resources root | Package defaults |
-| `SMARTERGPT_PROFILE` | Profile configuration path | `.smartergpt.local/profile.yml` |
+| `SMARTERGPT_PROFILE` | Profile configuration path | `.smartergpt/profile.yml` |
 | `LEX_CLI_OUTPUT_MODE` | CLI output format (`plain` or `jsonl`) | `plain` |
 
 ### 🔐 Database Encryption (New in 0.5.0-alpha)
@@ -590,7 +590,7 @@ lex/
 ├── docs/                    # Documentation
 ├── examples/                # Usage examples & optional scanners
 ├── test/                    # Test suite
-└── .smartergpt.local/      # Local workspace (gitignored)
+└── .smartergpt/            # Local workspace (gitignored)
 ```
 
 ### Running Tests
