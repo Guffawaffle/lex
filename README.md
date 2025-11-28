@@ -5,10 +5,10 @@
 ### **Episodic Memory & Architectural Policy for AI Agents**
 
 [![MIT License](https://img.shields.io/badge/License-MIT-green)](./LICENSE)
-[![npm version](https://img.shields.io/npm/v/@smartergpt/lex?label=version&color=blue)](https://www.npmjs.com/package/@smartergpt/lex)
+[![npm version](https://img.shields.io/npm/v/@smartergpt/lex)](https://www.npmjs.com/package/@smartergpt/lex)
 [![CI Status](https://img.shields.io/badge/CI-passing-success)](https://github.com/Guffawaffle/lex/actions)
-[![Coverage](https://img.shields.io/badge/coverage-89.2%25-yellow)](#quality-metrics)
-[![Tests](https://img.shields.io/badge/tests-123%2F123-success)](#quality-metrics)
+[![Node.js](https://img.shields.io/badge/Node.js-20+-339933)](https://nodejs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178C6)](https://www.typescriptlang.org/)
 
 **Stop losing context. Start building agents that remember.**
 
@@ -116,15 +116,13 @@ lex check merged-facts.json
 
 ```bash
 # Install globally (recommended)
-npm install -g @smartergpt/lex@alpha
+npm install -g @smartergpt/lex
 
 # Or locally in your project
-npm install @smartergpt/lex@alpha
+npm install @smartergpt/lex
 ```
 
-**Requires Node.js 20+** (see `.nvmrc` for exact version)
-
-Note: This package is published under the `alpha` dist-tag. Current version is `0.6.0`.
+**Requires Node.js 20+** (tested through Node.js 22, see `.nvmrc`)
 
 ### Initialize
 
@@ -301,14 +299,18 @@ closeDb(db);
 |--------|---------|---------------|
 | `@smartergpt/lex` | Core API + store operations | [API Usage](./docs/API_USAGE.md) |
 | `@smartergpt/lex/cli` | Programmatic CLI access | [CLI Output](./docs/CLI_OUTPUT.md) |
-| `@smartergpt/lex/store` | Direct database operations | [API Usage](./docs/API_USAGE.md) |
+| `@smartergpt/lex/cli-output` | CLI JSON utilities | [CLI Output](./docs/CLI_OUTPUT.md) |
+| `@smartergpt/lex/store` | Direct database operations | [Store Contracts](./docs/STORE_CONTRACTS.md) |
 | `@smartergpt/lex/types` | All shared types | [API Usage](./docs/API_USAGE.md) |
 | `@smartergpt/lex/policy` | Policy loading & validation | [API Usage](./docs/API_USAGE.md) |
 | `@smartergpt/lex/atlas` | Atlas Frame generation | [Architecture](./docs/ARCHITECTURE.md) |
+| `@smartergpt/lex/atlas/code-unit` | Code unit schemas | [Atlas](./docs/atlas/README.md) |
+| `@smartergpt/lex/atlas/schemas` | Atlas schemas | [Atlas](./docs/atlas/README.md) |
 | `@smartergpt/lex/aliases` | Module alias resolution | [Aliases](./src/shared/aliases/README.md) |
 | `@smartergpt/lex/module-ids` | Module ID validation | [API Usage](./docs/API_USAGE.md) |
 | `@smartergpt/lex/memory` | Frame payload validation | [API Usage](./docs/API_USAGE.md) |
-| `@smartergpt/lex/logger` | NDJSON logging (internal) | [API Usage](./docs/API_USAGE.md) |
+| `@smartergpt/lex/logger` | NDJSON logging | [API Usage](./docs/API_USAGE.md) |
+| `@smartergpt/lex/prompts` | Template system | [Canon Architecture](./docs/CANON_ARCHITECTURE.md) |
 
 [Full API Documentation →](./docs/API_USAGE.md)
 
@@ -316,67 +318,67 @@ closeDb(db);
 
 ## 🎯 Project Status
 
-**Current Version:** `0.6.0` ([Changelog](./CHANGELOG.md))
+**Current Version:** `1.0.0` ([Changelog](./CHANGELOG.md))
 
-### ⚠️ Alpha Status
+### 🎉 1.0.0 — First Stable Release
 
-Lex is **production-ready for local development** but still alpha for multi-tenant deployments.
+Lex 1.0.0 marks the first stable API contract. All public exports have explicit subpaths, and the FrameStore interface is frozen for 1.0.x releases.
 
 **Ready for:**
 - ✅ Personal projects and local dev tools
 - ✅ Private MCP servers
 - ✅ CI/CD policy enforcement
-- ✅ Experimental AI agent workflows
+- ✅ Multi-user deployments with OAuth2/JWT
+- ✅ Encrypted databases with SQLCipher
 
-**Not yet ready for:**
-- ❌ Public SaaS deployments
-- ❌ Multi-tenant production systems
-- ❌ Stable APIs (expect breaking changes in minor versions)
+**1.0.0 Highlights:**
+- **Stable API Contract** — All exports have explicit subpaths in `package.json`
+- **FrameStore Contract** — `FRAME_STORE_SCHEMA_VERSION = "1.0.0"` guarantees persistence compatibility
+- **Security** — SQLCipher database encryption + OAuth2/JWT authentication
+- **MCP Server** — Machine-readable error codes (`MCPErrorCode` enum) for orchestrators
+- **CLI** — JSON output mode with schema validation
+- **Policy Bootstrap** — `lex init --policy` generates starter policy from codebase
 
-### 🚧 Active Development: Project 0.5.0
-
-**Timeline:** Q1 2026 (January–March)
-**Goal:** Production-ready release with security hardening and LexSona behavioral rules
+### 🚧 Active Development: 1.1.0
 
 | Feature | Status | Target |
 |---------|--------|--------|
-| Canon assets + precedence | ✅ Complete | Nov 2025 |
-| LexSona behavioral rules (v0) | 🟡 In Progress | Dec 2025 |
-| SQLCipher encryption | 🟡 Planned | Feb 2026 |
-| OAuth2/JWT auth | 🟡 Planned | Feb 2026 |
-| Enhanced audit logging | 🟡 Planned | Feb 2026 |
-| API stability guarantee | 🟡 Planned | Mar 2026 |
-
-[Project 0.5.0 Details →](./docs/PROJECT_0.5.0_METRICS.md)
+| lex.yaml workflow config | 🟡 In Progress | Q1 2025 |
+| Control Stack (Gates/Receipts) | 🟡 In Progress | Q1 2025 |
+| LexSona behavioral rules | 🟡 Experimental | Q1 2025 |
+| Enhanced audit logging | 🟡 Planned | Q1 2025 |
 
 ### Quality Metrics
 
-- **Test Coverage:** 89.2% (target: ≥90%)
-- **Passing Tests:** 123/123
-- **CI Success Rate:** 96.4% (target: ≥98%)
-- **Security:** 0 critical/high findings
+| Metric | Value |
+|--------|-------|
+| Test Files | 78 |
+| Test Suites | 23 |
+| Source Files | 108 |
+| Exports | 14 subpaths |
+| Schema Version | 2 |
 
 ---
 
 ## 🌟 Why Lex?
 
-### Democratizing AI Capability
+### Cognitive Architecture for AI Agents
 
-**The Challenge:** Today's AI landscape is two-tier. Frontier models (GPT-5.1, Claude 4.5 Sonnet) outperform smaller models primarily due to parameter count—not reasoning architecture.
+**The Challenge:** AI coding assistants lose context between sessions. They can't remember what you were working on, why you made certain decisions, or which parts of your codebase are off-limits.
 
-**Our Thesis:** *Cognitive architecture can bridge this gap.* Just as human experts use external memory and structured reasoning, AI agents can achieve near-frontier performance with:
-- Episodic memory (Lex Frames)
-- Orchestration tools (LexRunner)
-- Behavioral constraints (LexSona)
+**Our Approach:** External memory and structured reasoning — the same techniques human experts use to maintain context across complex, long-running projects.
 
-**Proof Target:** A locally-run Llama 3.3 8B agent (~8GB VRAM) or Qwen 2.5 14B (~16GB VRAM) achieving **≥85% of frontier model scores** on EsoBench.
+**The Components:**
+- **Episodic memory** — Lex Frames capture what you were doing, blockers, and next actions
+- **Spatial memory** — Atlas Frames provide token-efficient architectural context
+- **Policy enforcement** — Boundaries and permissions enforced in CI
+- **Orchestration** — LexRunner coordinates multi-PR workflows
 
 **Why This Matters:**
-- **Access over exclusivity** — No $200/month API budget or high-end GPU required
-- **Architecture over parameters** — Smarter systems, not just bigger models
-- **Raising the floor** — Advanced AI for students, hobbyists, and consumer hardware (RTX 4060 Ti 16GB, RX 7900 XT)
-
-[Mission Statement →](./docs/OVERVIEW.md)
+- **Continuity** — Pick up exactly where you left off, every time
+- **Architecture** — AI assistants understand your codebase structure
+- **Guardrails** — Prevent violations before they happen
+- **Accessibility** — Works with any LLM that supports MCP
 
 ---
 
@@ -513,13 +515,17 @@ LEX_CANON_DIR=/my/custom/canon lex remember ...
 | `LEX_LOG_PRETTY` | Pretty-print logs (`1` = enabled) | Auto-detect TTY |
 | `LEX_POLICY_PATH` | Custom policy file location | `.smartergpt/lex/lexmap.policy.json` |
 | `LEX_DB_PATH` | Database location | `.smartergpt/lex/memory.db` |
-| `LEX_DB_KEY` | **NEW:** Database encryption passphrase (required in production) | None (unencrypted) |
+| `LEX_DB_KEY` | Database encryption passphrase (required in production) | None (unencrypted) |
+| `LEX_GIT_MODE` | Git integration (`off`, `live`) | `off` |
 | `LEX_DEFAULT_BRANCH` | Override default branch detection | Auto-detect from git |
 | `LEX_CANON_DIR` | Override canonical resources root | Package defaults |
-| `SMARTERGPT_PROFILE` | Profile configuration path | `.smartergpt/profile.yml` |
+| `LEX_PROMPTS_DIR` | Override prompts directory | Package defaults |
+| `LEX_SCHEMAS_DIR` | Override schemas directory | Package defaults |
 | `LEX_CLI_OUTPUT_MODE` | CLI output format (`plain` or `jsonl`) | `plain` |
+| `LEX_BACKUP_RETENTION` | Number of database backups to retain | `7` |
+| `SMARTERGPT_PROFILE` | Profile configuration path | `.smartergpt/profile.yml` |
 
-### 🔐 Database Encryption (New in 0.5.0-alpha)
+### 🔐 Database Encryption
 
 Protect your Frame data with SQLCipher encryption:
 
@@ -542,7 +548,7 @@ export LEX_DB_KEY="production-passphrase"
 - ✅ Mandatory in production (`NODE_ENV=production`)
 - ✅ Migration tool with integrity verification
 
-[Security Guide →](./SECURITY.md#database-encryption-new-in-050-alpha)
+[Security Guide →](./SECURITY.md#database-encryption)
 
 [Environment Configuration →](./docs/ADOPTION_GUIDE.md)
 
@@ -596,10 +602,13 @@ lex/
 ### Running Tests
 
 ```bash
-npm test                     # Run all tests
+npm test                     # Run all tests (excludes git tests)
 npm run test:coverage       # With coverage report
 npm run test:watch          # Watch mode
+npm run test:git            # Git integration tests (requires non-interactive signing)
 ```
+
+**Note:** Git tests are quarantined due to mandatory GPG signing in this environment. See [test/README.md](./test/README.md) for details.
 
 ### Code Quality
 

@@ -1,6 +1,6 @@
 # External Scanner Examples
 
-These are **optional example implementations** of language-specific scanners that demonstrate the LexMap scanner plugin architecture. They are provided as reference implementations for users who need multi-language code scanning.
+These are **optional example implementations** of language-specific scanners that demonstrate the Lex scanner plugin architecture. They are provided as reference implementations for users who need multi-language code scanning.
 
 ## ⚠️ Security Notice
 
@@ -124,7 +124,7 @@ All scanners produce JSON conforming to the same schema:
 
 ## Integration Workflow
 
-These external scanners fit into the LexMap pipeline as **optional first-stage processors**:
+These external scanners fit into the Lex policy pipeline as **optional first-stage processors**:
 
 ```bash
 # 1. Scan each language (only if you need multi-language support)

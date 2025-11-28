@@ -1,6 +1,6 @@
 # Canon Directory
 
-This directory contains the canonical source for prompts and schemas that are published with the `@guffawaffle/lex` package.
+This directory contains the canonical source for prompts and schemas that are published with the `@smartergpt/lex` package.
 
 ## Structure
 

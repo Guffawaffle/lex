@@ -1,10 +1,10 @@
 # Lex Overview
 
-> Subsystems: Lex includes distinct subsystems that work together:
-> - LexBrain — the work-memory subsystem that provides Frames and recall
-> - LexMap — the architecture policy + module vocabulary used for explainable reasoning
+> Subsystems: Lex includes two core capabilities that work together:
+> - **Memory Layer** — the work-memory system that provides Frames and recall
+> - **Policy Layer** — the architecture policy + module vocabulary used for explainable reasoning
 >
-> This page describes the overall product and highlights where LexBrain fits.
+> This page describes the overall product and its core features.
 
 ## The Pain
 
@@ -30,9 +30,9 @@ LLM assistants are powerful, but they **forget**. Every new session starts from 
 
 ---
 
-## LexBrain's Answer
+## Lex Memory
 
-LexBrain gives you **persistent, queryable, timestamped work memory** called **Frames**.
+Lex gives you **persistent, queryable, timestamped work memory** called **Frames**.
 
 A Frame is a deliberate snapshot of a meaningful engineering moment. It captures:
 
@@ -129,11 +129,11 @@ Key fields:
 - `summary_caption` — the human "why this mattered"
 - `status_snapshot.next_action` — literally "what Future Me needs to do next"
 - `keywords` — for fast search ("that auth handshake timeout issue," "Add User disabled," etc.)
-- `module_scope` — where LexMap plugs in (see below)
+- `module_scope` — where policy enforcement plugs in (see below)
 
 ---
 
-## How LexBrain Lets You Ask "What Was I Doing on TICKET-123?"
+## Asking "What Was I Doing on TICKET-123?"
 
 You literally type:
 
@@ -153,14 +153,14 @@ No digging through terminals. No re-explaining. The assistant reads the Frame an
 
 ## This Is Not Screen Recording or Telemetry
 
-LexBrain does **not**:
+Lex does **not**:
 
 - Record everything you do
 - Scrape your keystrokes
 - Upload data to a cloud service by default
 - Spy on you for management dashboards
 
-LexBrain captures **intentional, high-signal checkpoints**.
+Lex captures **intentional, high-signal checkpoints**.
 
 You call `/remember` when:
 
@@ -175,16 +175,16 @@ This is deliberate. Engineers will not adopt a "spy."
 
 ---
 
-## How LexMap Fits In
+## How Policy Fits In
 
-LexBrain can run standalone and give you continuity ("what was I doing yesterday?").
+Lex memory can run standalone and give you continuity ("what was I doing yesterday?").
 
-But when you add **LexMap**, you unlock something deeper: **policy-aware reasoning**.
+But when you add **policy enforcement**, you unlock something deeper: **policy-aware reasoning**.
 
 ### THE CRITICAL RULE
 
 > **THE CRITICAL RULE:**
-> Every module name in `module_scope` MUST match the module IDs defined in LexMap's `lexmap.policy.json`.
+> Every module name in `module_scope` MUST match the module IDs defined in your `lexmap.policy.json`.
 > No ad hoc naming. No "almost the same module."
 > If the vocabulary drifts, we lose the ability to line up:
 >
@@ -194,18 +194,18 @@ But when you add **LexMap**, you unlock something deeper: **policy-aware reasoni
 
 This rule is the bridge.
 
-When you capture a Frame, LexBrain calls LexMap to resolve which modules own the files you touched. It records those canonical module IDs in `module_scope`.
+When you capture a Frame, Lex resolves which modules own the files you touched. It records those canonical module IDs in `module_scope`.
 
 Later, when you ask "Why is the Add User button still disabled?", the assistant can:
 
-1. Pull the last Frame for that ticket from LexBrain
+1. Pull the last Frame for that ticket
 2. See `module_scope = ["ui/user-admin-panel", "services/auth-core"]`
-3. Ask LexMap if `ui/user-admin-panel` is even allowed to call `services/auth-core` directly
+3. Check if `ui/user-admin-panel` is even allowed to call `services/auth-core` directly
 4. Answer: "It's disabled because the UI was still talking straight to a forbidden service. Policy says that path must go through the approved service layer and be gated by `can_manage_users`. Here's the timestamped Frame from last night."
 
 That's not vibes. That's **receipts**.
 
-Without LexBrain + LexMap, your assistant guesses. With LexBrain + LexMap, your assistant **cites and explains**.
+Without Lex, your assistant guesses. With Lex, your assistant **cites and explains**.
 
 ---
 
@@ -217,10 +217,10 @@ Most AI coding tools operate in a vacuum. They see your code, but they don't kno
 - Why you deliberately left something half-finished
 - Which modules are forbidden from talking to each other
 
-LexBrain + LexMap gives your assistant a **shared vocabulary** between:
+Lex gives your assistant a **shared vocabulary** between:
 
 - What you were doing (captured in Frames)
-- What the architecture policy says you're allowed to do (defined in LexMap)
+- What the architecture policy says you're allowed to do (defined in policy)
 
 When those align, the assistant can tell you:
 
@@ -234,17 +234,17 @@ That's the moat.
 
 ## What This Means for Onboarding
 
-Before LexBrain:
+Before Lex:
 
 > You: "Hey, what's the deal with the Add User button?"
 >
 > Teammate: "Uh... I think someone was working on auth stuff? Let me scroll through Slack."
 
-After LexBrain:
+After Lex:
 
 > You: `/recall Add User button`
 >
-> LexBrain: "Last touched on TICKET-123, 11:04 PM last night. The button is disabled because the admin UI is still calling a forbidden service. The engineer left a note to fix `UserAccessController` wiring and gate it with `can_manage_users`. Here's the memory card."
+> Lex: "Last touched on TICKET-123, 11:04 PM last night. The button is disabled because the admin UI is still calling a forbidden service. The engineer left a note to fix `UserAccessController` wiring and gate it with `can_manage_users`. Here's the memory card."
 
 Onboarding a teammate into a half-finished feature goes from "good luck" to "here's the exact state, timestamp, and next action."
 
@@ -252,17 +252,17 @@ Onboarding a teammate into a half-finished feature goes from "good luck" to "her
 
 ## This Is Not...
 
-LexBrain is not:
+Lex is not:
 
 - Production-hardened compliance tooling
 - A management surveillance dashboard
 - Magic autonomous dev that writes code for you
 
-LexBrain is:
+Lex is:
 
 - A tool that gives you yesterday's brain back, on demand
 - A way for assistants to explain WHY you left work in a half-finished state, without you re-explaining it
-- A bridge to tie that explanation back to actual architectural rules in LexMap, if you opt in
+- A bridge to tie that explanation back to actual architectural policy rules, if you opt in
 
 ---
 
@@ -352,9 +352,9 @@ The memory card renderer doesn't have to be pretty; it has to be legible and con
 
 ## Next Steps
 
-- Read the [Adoption Guide](./ADOPTION_GUIDE.md) to roll out LexBrain in phases
+- Read the [Adoption Guide](./ADOPTION_GUIDE.md) to roll out Lex in phases
 - Read the [Mind Palace Guide](./MIND_PALACE.md) to learn about reference points and Atlas Frames
 - Read the [Code Atlas Documentation](./atlas/README.md) for spatial memory and code intelligence
 - Read the [Architecture Loop](./ARCHITECTURE_LOOP.md) to understand the full explainability story
 - Read the [FAQ](./FAQ.md) for privacy, security, and compliance questions
-- Read [Contributing](../CONTRIBUTING.md) to extend LexBrain safely
+- Read [Contributing](../CONTRIBUTING.md) to extend Lex safely

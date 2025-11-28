@@ -1,4 +1,4 @@
-# LexBrain Architecture Loop
+# Lex Architecture Loop
 
 This document explains the moat.
 
@@ -8,7 +8,7 @@ Most AI coding assistants operate in a vacuum. They see your code, but they don'
 - Why you deliberately left something half-finished
 - Which modules are forbidden from talking to each other
 
-LexBrain + LexMap solves this. Here's how.
+Lex (memory + policy) solves this. Here's how.
 
 ---
 
@@ -23,7 +23,7 @@ You're on branch `feature/TICKET-123_auth_handshake_fix`.
 You've been debugging for an hour. Tests are failing. You've identified the blocker:
 
 - The admin UI (`ui/user-admin-panel`) is calling `services/auth-core` directly.
-- That call path is **forbidden** by your architecture policy (defined in LexMap's `lexmap.policy.json`).
+- That call path is **forbidden** by your architecture policy (defined in `lexmap.policy.json`).
 - The correct path is: UI → approved service layer → auth-core, gated by the `can_manage_users` permission.
 - You've left the Add User button disabled until you fix the wiring.
 
@@ -36,34 +36,32 @@ It's 11 PM. You're about to go to sleep.
 You call:
 
 ```bash
-lexbrain remember \
+lex remember \
   --jira TICKET-123 \
-  --branch feature/TICKET-123_auth_handshake_fix \
+  --reference-point "Auth handshake fix for TICKET-123" \
   --summary "Auth handshake timeout; Add User button still disabled in admin panel" \
   --next "Enable Add User button for can_manage_users role" \
-  --context ./test-output.txt ./current-diff.txt
+  --modules "ui/user-admin-panel,services/auth-core"
 ```
 
-LexBrain does the following:
+Lex does the following:
 
-1. **Generates a memory card image** from your text inputs
+1. **Captures the work context** from your inputs
 
-   - Monospace panel showing test failures, stack trace, timeout message
-   - Header band with timestamp (`2025-11-01T23:04:12-05:00`), branch, ticket ID
-   - Human summary: "Auth handshake timeout; Add User button still disabled"
+   - Summary: "Auth handshake timeout; Add User button still disabled"
    - Next action: "Enable Add User button for can_manage_users role"
+   - Timestamp, branch, ticket ID
 
 2. **Extracts keywords** from the summary and context
 
    - `"Add User disabled"`, `"auth handshake timeout"`, `"connect_handshake_ms"`, `"UserAccessController"`, `"ExternalAuthClient"`, `"TICKET-123"`
 
-3. **Resolves `module_scope`** by calling LexMap
+3. **Validates `module_scope`** against policy
 
-   - Asks LexMap: "Which modules own these files?"
-   - LexMap responds: `["ui/user-admin-panel", "services/auth-core"]`
-   - LexBrain records those canonical module IDs in the Frame metadata
+   - Checks that `["ui/user-admin-panel", "services/auth-core"]` are valid module IDs
+   - Records those canonical module IDs in the Frame metadata
 
-4. **Stores the Frame** (image + raw text + metadata) in the local database
+4. **Stores the Frame** in the local database
 
 ---
 

@@ -24,7 +24,7 @@ This directory contains SQL migration files for schema evolution.
 ## Current Schema Version
 
 The schema version is tracked in `src/memory/store/db.ts` via the `schema_version` table.
-Current version: **6** (as of 0.6.0)
+Current version: **6** (as of 1.0.0)
 
 ## Migration Execution
 

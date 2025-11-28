@@ -1,6 +1,6 @@
 # memory/
 
-**LexBrain subsystem: episodic work memory and recall**
+**Lex Memory Layer: episodic work memory and recall**
 
 This directory contains everything related to capturing and retrieving work session Frames.
 

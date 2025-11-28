@@ -1,4 +1,4 @@
-# LexMap TypeScript Scanner
+# Lex TypeScript Scanner
 
 The official, first-party scanner for TypeScript and JavaScript codebases. This scanner extracts architectural facts for policy enforcement.
 
@@ -136,7 +136,7 @@ Example policy:
 
 ## Integration with Pipeline
 
-The TypeScript scanner is the first step in the LexMap pipeline:
+The TypeScript scanner is the first step in the Lex policy pipeline:
 
 1. **Scan** - Run TypeScript scanner on codebase
 2. **Merge** - (Optional) Combine with other scanner outputs using `policy/merge/lexmap-merge.ts`

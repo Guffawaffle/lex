@@ -1,59 +1,46 @@
-# LexBrain Adoption Guide
+# Lex Adoption Guide
 
-This guide walks you through rolling out LexBrain in your workflow—step by step, no fluff, no surprises.
+> **Note:** This guide is being updated for Lex 1.0.0. Some commands and paths may have changed. See the [Quick Start](../QUICK_START.md) for the most current installation instructions.
+
+This guide walks you through rolling out Lex in your workflow—step by step, no fluff, no surprises.
 
 The goal: get to a state where you can `/recall TICKET-123` and your assistant instantly knows what you were doing, why you stopped, and what's next.
 
 ---
 
-## Phase 1: Install LexBrain Locally and Confirm It Works
+## Phase 1: Install Lex Locally and Confirm It Works
 
 ### Goal
 
-Prove that LexBrain can capture a Frame and store it in a local database.
+Prove that Lex can capture a Frame and store it in a local database.
 
 ### Steps
 
-1. **Clone the LexBrain repo**
+1. **Install Lex**
 
    ```bash
-   git clone https://github.com/yourorg/lexbrain.git /srv/lex-brain
-   cd /srv/lex-brain
+   npm install @smartergpt/lex
    ```
 
-2. **Install dependencies**
+2. **Capture a test Frame**
 
    ```bash
-   pnpm install
-   ```
-
-3. **Run the setup script**
-
-   ```bash
-   ./start-lexbrain.sh
-   ```
-
-   This initializes the local database (e.g. `/srv/lex-brain/thoughts.db`).
-
-4. **Capture a test Frame**
-
-   ```bash
-   lexbrain remember \
+   npx lex remember \
      --jira TEST-1 \
-     --branch main \
-     --summary "Testing LexBrain installation" \
+     --reference-point "Testing Lex installation" \
+     --summary "Initial setup test" \
      --next "Verify recall works"
    ```
 
-5. **Recall that Frame**
+3. **Recall that Frame**
 
    ```bash
-   lexbrain recall TEST-1
+   npx lex recall TEST-1
    ```
 
    You should see:
-   - The memory card image (or a path to it)
-   - `summary_caption: "Testing LexBrain installation"`
+   - The Frame metadata
+   - `summary_caption: "Initial setup test"`
    - `next_action: "Verify recall works"`
    - Timestamp and branch
 
@@ -244,18 +231,18 @@ This rule is the bridge.
    Those module IDs should match what's in `lexmap.policy.json`.
 
    **Important:** Module IDs are validated strictly. If you make a typo, you'll get a helpful error:
-   
+
    ```bash
    lexbrain remember --jira TICKET-123 \
      --summary "Auth work" \
      --modules "auth-cor"  # Typo!
-   
+
    # Error: Module 'auth-cor' not found in policy.
    # Did you mean: services/auth-core?
    ```
-   
+
    Always use exact module IDs from your policy. Fuzzy matching provides suggestions but doesn't auto-correct.
-   
+
    **Future:** Alias tables will support team shorthand (e.g., `auth` → `services/auth-core`). See `src/shared/aliases/README.md`.
 
 4. **Test policy-aware reasoning**

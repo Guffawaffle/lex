@@ -1,6 +1,6 @@
 # policy/
 
-**LexMap subsystem: architectural policy enforcement**
+**Lex Policy Layer: architectural policy enforcement**
 
 This directory contains everything related to defining and enforcing architectural boundaries in code.
 

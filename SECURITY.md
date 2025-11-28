@@ -9,31 +9,29 @@ We provide security updates for the following versions:
 
 | Version | Supported          | Security Posture |
 | ------- | ------------------ | ---------------- |
-| 0.4.x   | :white_check_mark: | Dev/alpha - Local use only |
-| 0.3.x   | :white_check_mark: | Dev - Local use only |
-| 0.2.x   | :x:                | End of support |
-| < 0.2   | :x:                | End of support |
+| 1.0.x   | :white_check_mark: | Production-ready for local/private use |
+| 0.5.x   | :white_check_mark: | Maintenance only |
+| < 0.5   | :x:                | End of support |
 
 **Version Support Policy:**
-- **0.4.0-alpha:** Suitable for local dev, private automation, small trusted teams
-- **0.5.0 (planned Q1 2026):** Will add auth, encryption, audit logging for internal production use
+- **1.0.0:** Production-ready for local dev, private automation, trusted teams. Includes OAuth2/JWT and SQLCipher encryption.
 - Security fixes backported to current minor version only
-- Once we reach 1.0.0, we will follow semantic versioning strictly
+- We follow semantic versioning strictly
 
 ---
 
-## Known Limitations (0.4.6-alpha)
+## Known Limitations (1.0.0)
 
-**This alpha release is NOT production-hardened.** Known security limitations:
+Lex 1.0.0 is production-ready for local development and trusted team environments. Known limitations:
 
-1. **No authentication on MCP stdio mode** (MCP server runs as local process)
-2. **HTTP mode supports OAuth2/JWT** (recommended) and API keys (deprecated) - See Authentication below
-3. **Database encryption available** (SQLCipher support added in 0.5.0-alpha) - See Database Encryption below
+1. **No authentication on MCP stdio mode** (MCP server runs as local process - by design)
+2. **HTTP mode supports OAuth2/JWT** (recommended for multi-user) - See Authentication below
+3. **Database encryption available** (SQLCipher) - See Database Encryption below
 4. **Limited audit trail** (HTTP requests logged, database ops not tracked)
 5. **SQLite limitations** (not suitable for high-concurrency multi-tenant deployments)
 6. **Example scanners not audited** (Python/PHP in `examples/scanners/`)
 
-**New in 0.5.0-alpha:**
+**Security Features (1.0.0):**
 - ✅ OAuth2/JWT authentication for multi-user deployments
 - ✅ User isolation (frames scoped to user_id)
 - ✅ Token refresh and revocation
@@ -57,7 +55,7 @@ See `docs/SECURITY_POSTURE.md` for detailed guidance and production roadmap
 
 ---
 
-## Database Encryption (New in 0.5.0-alpha)
+## Database Encryption
 
 **⚠️ IMPORTANT: Database encryption is OPTIONAL but RECOMMENDED for production use.**
 

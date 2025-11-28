@@ -33,4 +33,23 @@ This is the integration layer. This is what makes Lex one system instead of two 
 
 ---
 
-**Note:** This directory is new (created during the LexBrain + LexMap merge). Code will migrate here from both repos as we identify shared concerns.
+**Structure:**
+
+```
+shared/
+├── aliases/      # Module alias resolution
+├── atlas/        # Fold radius logic + Atlas Frame export
+├── cli/          # User-facing commands
+├── config/       # Configuration loading
+├── git/          # Git integration (feature-flagged via LEX_GIT_MODE)
+├── lexsona/      # LexSona behavioral rules (experimental)
+├── logger/       # NDJSON structured logging
+├── module_ids/   # THE CRITICAL RULE enforcement
+├── paths/        # Path utilities
+├── policy/       # Policy loading + precedence
+├── prompts/      # Template system
+├── rules/        # Rules system
+├── schemas/      # Schema utilities
+├── tokens/       # Token utilities
+└── types/        # Canonical types
+```

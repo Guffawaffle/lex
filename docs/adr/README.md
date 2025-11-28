@@ -16,6 +16,7 @@ This directory contains Architecture Decision Records for Lex. Each ADR document
 | 0005 | [Git Integration Feature Flag](./0005-git-integration-feature-flag.md) | Accepted | 2025-11-25 |
 | 0006 | [Spec vs Engine Separation](./0006-spec-vs-engine-separation.md) | Proposed | 2025-11-25 |
 | 0007 | [Safety-First Defaults](./0007-safety-first-defaults.md) | Proposed | 2025-11-25 |
+| 0008 | [lex.yaml Workflow Configuration](./0008-lex-yaml.md) | Accepted | 2025-11-27 |
 
 ## Conventions
 
