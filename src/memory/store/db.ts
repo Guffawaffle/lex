@@ -5,9 +5,23 @@
  * on reference_point, keywords, and summary_caption.
  *
  * Supports encryption via SQLCipher when LEX_DB_KEY environment variable is set.
+ *
+ * @see CONTRACT.md for the FrameStore persistence contract
  */
 
 import Database from "better-sqlite3-multiple-ciphers";
+
+/**
+ * FrameStore schema version following SemVer.
+ *
+ * Changes require:
+ * - Patch: additive optional fields
+ * - Minor: additive required fields with defaults
+ * - Major: breaking changes
+ *
+ * @see CONTRACT.md for change protocol
+ */
+export const FRAME_STORE_SCHEMA_VERSION = "1.0.0";
 import { homedir } from "os";
 import { join, dirname } from "path";
 import { mkdirSync, existsSync, readFileSync } from "fs";

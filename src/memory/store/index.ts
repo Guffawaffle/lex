@@ -185,6 +185,7 @@ export {
   deriveEncryptionKey,
   getEncryptionKey,
   validatePassphraseStrength,
+  FRAME_STORE_SCHEMA_VERSION,
 } from "./db.js";
 export type { PassphraseValidationResult } from "./db.js";
 

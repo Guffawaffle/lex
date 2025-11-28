@@ -2,6 +2,8 @@
 
 SQLite-based local storage for Frames with FTS5 full-text search.
 
+> **📋 Contract:** See [CONTRACT.md](./CONTRACT.md) for the FrameStore persistence contract (frozen for 1.0.0).
+
 ## Features
 
 - **Local-first storage**: SQLite database at `~/.lex/frames.db` (configurable)
