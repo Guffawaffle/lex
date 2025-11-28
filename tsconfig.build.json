@@ -15,6 +15,7 @@
     { "path": "src/atlas/schemas" },
     { "path": "src/shared/git" },
     { "path": "src/shared/config" },
+    { "path": "src/shared/config/lex-yaml" },
     { "path": "src/shared/cli" },
     { "path": "src/shared/paths" },
     { "path": "src/shared/tokens" },

@@ -14,3 +14,11 @@ export {
   type PolicyValidationError,
   type PolicyValidationWarning,
 } from "./schema.js";
+
+// Path matching for lex.yaml policy enforcement
+export {
+  matchesPattern,
+  isPathAllowed,
+  filterPathsByPolicy,
+  getDenialReason,
+} from "./path-matcher.js";

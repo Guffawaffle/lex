@@ -1,0 +1,137 @@
+# lex.yaml - AI Workflow Configuration for Lex
+# Schema version 0.1 (see docs/adr/0008-lex-yaml.md)
+
+version: 0.1
+
+# Shared defaults inherited by all workflows
+defaults:
+  provider:
+    id: default
+    max_tokens: 16000
+
+  tools:
+    servers:
+      - filesystem
+      - git
+    commands: []
+
+  policy:
+    lexmap: canon/policy/lexmap.policy.json
+    allowed_paths:
+      - "src/**"
+      - "test/**"
+      - "docs/**"
+      - "scripts/**"
+      - "examples/**"
+    denied_paths:
+      - ".git/**"
+      - "node_modules/**"
+      - "coverage/**"
+      - "dist/**"
+      - "*.db"
+      - "*.db-journal"
+
+  limits:
+    max_edits: 100
+    max_files: 50
+    timeout_seconds: 300
+
+  checks:
+    - id: lint
+      description: "ESLint must pass"
+      cmd: "npm run lint"
+      type: lint
+      required: true
+    - id: typecheck
+      description: "TypeScript must compile"
+      cmd: "npm run typecheck"
+      type: typecheck
+      required: true
+    - id: test
+      description: "All tests must pass"
+      cmd: "npm test"
+      type: test
+      required: true
+
+# Named workflows
+workflows:
+  # Standard check-all workflow for CI/pre-commit
+  check-all:
+    description: "Run all checks (lint, typecheck, test)"
+    inputs:
+      required: []
+      optional:
+        - files
+    # Uses all defaults
+
+  # PR review workflow
+  review-pr:
+    description: "Review a pull request and suggest improvements"
+    inputs:
+      required:
+        - pr_number
+      optional:
+        - focus_areas
+    provider:
+      id: default
+      max_tokens: 12000
+    limits:
+      max_edits: 50
+      max_files: 30
+      timeout_seconds: 600
+
+  # Module refactoring workflow
+  refactor-module:
+    description: "Refactor a specific module with tests"
+    inputs:
+      required:
+        - path
+      optional:
+        - scope
+    limits:
+      max_edits: 200
+      max_files: 20
+      timeout_seconds: 900
+    checks:
+      - id: typecheck
+        description: "TypeScript must compile"
+        cmd: "npm run typecheck"
+        type: typecheck
+        required: true
+      - id: test
+        description: "All tests must pass"
+        cmd: "npm test"
+        type: test
+        required: true
+
+  # Documentation workflow
+  update-docs:
+    description: "Update documentation for a feature or API"
+    inputs:
+      required:
+        - topic
+      optional:
+        - files
+    policy:
+      allowed_paths:
+        - "docs/**"
+        - "README.md"
+        - "CHANGELOG.md"
+        - "*.md"
+      denied_paths:
+        - ".git/**"
+        - "node_modules/**"
+    limits:
+      max_edits: 50
+      max_files: 20
+      timeout_seconds: 300
+    checks:
+      # Docs workflow only needs lint (no test/typecheck)
+      - id: lint
+        description: "ESLint must pass"
+        cmd: "npm run lint"
+        type: lint
+        required: true
+
+# Reserved for future use
+includes: []
