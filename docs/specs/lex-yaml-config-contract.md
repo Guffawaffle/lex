@@ -1,0 +1,246 @@
+# lex.yaml Configuration Contract v1.0.0
+
+> **Status:** Draft — awaiting `[signed ~]`
+> **Version:** 1.0.0
+> **Created:** 2025-11-29
+> **Parent Issue:** #415
+
+---
+
+## Overview
+
+This contract defines the schema and behavior of `lex.yaml`, the optional configuration file for Lex-enabled repositories. The config file allows customization of Lex behavior while maintaining sensible defaults for unconfigured repos.
+
+---
+
+## Hard Promises
+
+### 1. Optional by Default
+
+`lex.yaml` is **never required**. All Lex commands work with auto-detection when the file is absent.
+
+### 2. Minimal Schema
+
+The schema starts small and grows conservatively. Each field must have a clear use case.
+
+### 3. Backwards Compatible
+
+Adding new optional fields does not break existing `lex.yaml` files.
+
+### 4. Validated Early
+
+Config validation happens at load time with clear error messages, not at command execution time.
+
+---
+
+## Schema (v1.0.0)
+
+```yaml
+# lex.yaml - Lex Configuration
+# All fields are optional
+
+# Schema version (for future migrations)
+version: "1.0.0"
+
+# Path to policy file (relative to repo root)
+# Default: auto-detect from canon/policy/lexmap.policy.json or lexmap.policy.json
+policy: ./canon/policy/lexmap.policy.json
+
+# Instructions generation settings
+instructions:
+  # Where to write canonical instructions
+  # Default: .smartergpt/instructions/lex.md
+  canonical: .smartergpt/instructions/lex.md
+  
+  # Host surfaces to project to (auto-detected if omitted)
+  # Default: auto-detect based on repo structure
+  hosts:
+    - copilot    # .github/copilot-instructions.md
+    - cursor     # .cursorrules
+  
+  # Custom content to include in generated instructions
+  # Default: none
+  include:
+    - ./docs/AI_GUIDELINES.md    # Appended to situational guidance
+```
+
+---
+
+## Field Definitions
+
+### `version`
+
+| Property | Value |
+|----------|-------|
+| Type | `string` |
+| Required | No |
+| Default | `"1.0.0"` |
+| Pattern | SemVer (`major.minor.patch`) |
+
+Used for future schema migrations. Lex will warn if the config version is newer than the installed Lex version.
+
+### `policy`
+
+| Property | Value |
+|----------|-------|
+| Type | `string` (file path) |
+| Required | No |
+| Default | Auto-detect |
+| Resolution | Relative to repo root |
+
+Auto-detection order:
+1. `canon/policy/lexmap.policy.json`
+2. `lexmap.policy.json`
+3. `.smartergpt/policy/lexmap.policy.json`
+
+### `instructions.canonical`
+
+| Property | Value |
+|----------|-------|
+| Type | `string` (file path) |
+| Required | No |
+| Default | `.smartergpt/instructions/lex.md` |
+| Resolution | Relative to repo root |
+
+### `instructions.hosts`
+
+| Property | Value |
+|----------|-------|
+| Type | `string[]` |
+| Required | No |
+| Default | Auto-detect |
+| Valid values | `copilot`, `cursor` |
+
+If omitted, Lex auto-detects based on repo structure:
+- `.github/` exists → `copilot`
+- `.cursorrules` exists → `cursor`
+
+### `instructions.include`
+
+| Property | Value |
+|----------|-------|
+| Type | `string[]` (file paths) |
+| Required | No |
+| Default | `[]` |
+| Resolution | Relative to repo root |
+
+Files to include in generated instructions. Content is appended to the appropriate section.
+
+---
+
+## Zod Schema
+
+```typescript
+import { z } from "zod";
+
+export const LexConfigSchema = z.object({
+  version: z.string().regex(/^\d+\.\d+\.\d+$/).optional().default("1.0.0"),
+  
+  policy: z.string().optional(),
+  
+  instructions: z.object({
+    canonical: z.string().optional().default(".smartergpt/instructions/lex.md"),
+    hosts: z.array(z.enum(["copilot", "cursor"])).optional(),
+    include: z.array(z.string()).optional().default([]),
+  }).optional().default({}),
+}).strict();
+
+export type LexConfig = z.infer<typeof LexConfigSchema>;
+```
+
+---
+
+## Loading Behavior
+
+### Load Order
+
+1. Check for `lex.yaml` in repo root
+2. If found, parse and validate with Zod
+3. If not found, use defaults with auto-detection
+4. Merge explicit config with auto-detected values
+
+### Error Handling
+
+| Condition | Behavior |
+|-----------|----------|
+| `lex.yaml` not found | Use defaults, no warning |
+| `lex.yaml` invalid YAML | Error with parse location |
+| `lex.yaml` fails schema | Error with field-level message |
+| Unknown fields | Error (strict mode) |
+| Referenced file not found | Warning, continue with available files |
+
+### Auto-Detection Logic
+
+```typescript
+function detectPolicy(repoRoot: string): string | undefined {
+  const candidates = [
+    "canon/policy/lexmap.policy.json",
+    "lexmap.policy.json",
+    ".smartergpt/policy/lexmap.policy.json",
+  ];
+  return candidates.find(c => existsSync(join(repoRoot, c)));
+}
+
+function detectHosts(repoRoot: string): string[] {
+  const hosts: string[] = [];
+  if (existsSync(join(repoRoot, ".github"))) hosts.push("copilot");
+  if (existsSync(join(repoRoot, ".cursorrules"))) hosts.push("cursor");
+  return hosts;
+}
+```
+
+---
+
+## CLI Integration
+
+### `lex init --config`
+
+Scaffolds a minimal `lex.yaml` with detected values:
+
+```bash
+lex init --config
+```
+
+Produces:
+
+```yaml
+# lex.yaml - Generated by lex init
+version: "1.0.0"
+
+# Detected policy file
+policy: ./canon/policy/lexmap.policy.json
+
+# Instructions will be generated to:
+# - .smartergpt/instructions/lex.md (canonical)
+# - .github/copilot-instructions.md (detected)
+```
+
+### Config Display
+
+```bash
+lex config show
+```
+
+Shows resolved config (explicit + auto-detected).
+
+---
+
+## Acceptance Criteria
+
+- [ ] `lex.yaml` schema defined in Zod
+- [ ] Config loader with fallback to defaults
+- [ ] Auto-detection for policy and hosts
+- [ ] `lex init --config` scaffolds config file
+- [ ] Validation errors are clear and actionable
+- [ ] Unknown fields cause errors (strict mode)
+- [ ] Existing 1.x repos work without `lex.yaml`
+
+---
+
+## Signatures
+
+**Guff**
+`[awaiting signature]`
+
+**Lex**
+`[signed Lex ✶]` (pending Guff's signature)
