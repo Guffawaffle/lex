@@ -105,6 +105,48 @@ npm rebuild better-sqlite3-multiple-ciphers
 
 **Muscle memory:** Mass test failures → rebuild SQLite first.
 
+---
+
+## 🧠 Lex Memory (Use This!)
+
+**When you learn something worth preserving, use Lex to remember it.**
+
+### Quick Commands
+
+```bash
+# Remember something (creates a Frame)
+lex remember \
+  --summary "What you learned" \
+  --modules "memory/store" \
+  --next "What to do with this knowledge"
+
+# Recall before starting related work
+lex recall "sqlite"
+
+# See available module scopes
+cat canon/policy/lexmap.policy.json | jq '.modules | keys'
+```
+
+### When to Use
+
+- **Discovered a gotcha** → `lex remember` with `--keywords`
+- **Starting work on a module** → `lex recall` for prior context
+- **Debugging took > 30 mins** → Document the solution as a Frame
+
+### Module Scopes (Quick Reference)
+
+| Scope | What it covers |
+|-------|----------------|
+| `memory/store` | SQLite, Frame persistence |
+| `memory/frames` | Frame types and operations |
+| `shared/atlas` | Code graph, fold radius |
+| `cli` | CLI commands |
+| `policy/check` | Policy validation |
+
+**Full list:** `cat canon/policy/lexmap.policy.json | jq '.modules | keys'`
+
+---
+
 ## Code Style
 
 - TypeScript only in `src/`
