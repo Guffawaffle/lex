@@ -50,11 +50,11 @@ export function detectAvailableHosts(repoRoot: string): HostDetectionResult {
   // Detect Copilot: .github/ directory must exist
   const githubDir = path.join(repoRoot, ".github");
   const copilotInstructionsPath = path.join(githubDir, "copilot-instructions.md");
-  const copilotAvailable = fs.existsSync(githubDir) && fs.statSync(githubDir).isDirectory();
+  const copilotAvailable = isDirectory(githubDir);
 
   // Detect Cursor: .cursorrules file must exist
   const cursorRulesPath = path.join(repoRoot, ".cursorrules");
-  const cursorAvailable = fs.existsSync(cursorRulesPath) && fs.statSync(cursorRulesPath).isFile();
+  const cursorAvailable = isFile(cursorRulesPath);
 
   return {
     copilot: {
@@ -66,4 +66,28 @@ export function detectAvailableHosts(repoRoot: string): HostDetectionResult {
       path: cursorAvailable ? cursorRulesPath : null,
     },
   };
+}
+
+/**
+ * Check if a path exists and is a directory
+ * Handles race conditions by catching errors from statSync
+ */
+function isDirectory(filePath: string): boolean {
+  try {
+    return fs.statSync(filePath).isDirectory();
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Check if a path exists and is a file
+ * Handles race conditions by catching errors from statSync
+ */
+function isFile(filePath: string): boolean {
+  try {
+    return fs.statSync(filePath).isFile();
+  } catch {
+    return false;
+  }
 }
