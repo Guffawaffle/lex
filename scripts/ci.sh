@@ -21,9 +21,12 @@ export npm_config_audit=false
 echo "==> npm ci (ignore postinstall)"
 npm ci --ignore-scripts
 
-# Rebuild native deps *if* present (tolerate absence)
-echo "==> rebuilding native deps if present"
-npm rebuild better-sqlite3 --update-binary || true
+# Rebuild native deps and validate bindings
+echo "==> rebuilding native SQLite bindings"
+npm run rebuild-sqlite || true
+
+echo "==> checking SQLite bindings health"
+npm run check-sqlite
 
 # Lint + type-check (non-blocking if scripts missing)
 if npm run | rg -q '^  lint';   then echo "==> npm run lint"; npm run lint; fi

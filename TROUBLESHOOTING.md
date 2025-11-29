@@ -99,13 +99,26 @@ npm run test:all           # All tests
 ### Native Dependencies Fail
 
 **Problem:**
-`better-sqlite3` or other native modules fail to load.
+`better-sqlite3-multiple-ciphers` (our SQLite binding) fails to load, often manifesting as mass test failures (100+ tests failing with SQLite-related errors).
 
-**Solution:**
-Rebuild native dependencies:
+**Common Symptoms:**
+- Tests that worked yesterday suddenly fail in bulk
+- Error messages mentioning `better-sqlite3`, `SQLITE`, or native bindings
+- Errors after Node.js version changes or `npm ci`
+
+**Quick Fix:**
 ```bash
-npm rebuild better-sqlite3
+npm run check-sqlite   # Diagnose the problem
+npm run rebuild-sqlite # Recompile for current Node
 ```
+
+**Full Documentation:** See [`docs/dev/sqlite-bindings.md`](docs/dev/sqlite-bindings.md) for:
+- Why native bindings break
+- Common scenarios and fixes
+- CI integration details
+- Troubleshooting guide
+
+**Doctrine:** We treat broken bindings as a failing gate, not a shrug.
 
 ---
 

@@ -3,7 +3,7 @@
 > **Status:** Ready for Implementation
 > **Created:** 2025-11-29
 > **Primary Issue:** #415
-> **Contracts:** 
+> **Contracts:**
 > - `docs/specs/lex-2.0.0-instructions-contract.md`
 > - `docs/specs/lex-yaml-config-contract.md`
 

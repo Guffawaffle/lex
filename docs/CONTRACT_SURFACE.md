@@ -1,7 +1,13 @@
-# Lex Contract Surface
+# Lex Contract Surface (v1)
 
 > **For runner authors and tool builders.**
 > This is what you must understand to be "Lex-compatible."
+
+**Scope:** This document defines the Lex contract surface. LexRunner behavior is intentionally out of scope — it is one implementation, not the specification.
+
+See also: [`FOUNDERS_NOTE.md`](./FOUNDERS_NOTE.md) for the philosophy behind this separation.
+
+---
 
 ## Overview
 

@@ -51,13 +51,13 @@ instructions:
   # Where to write canonical instructions
   # Default: .smartergpt/instructions/lex.md
   canonical: .smartergpt/instructions/lex.md
-  
+
   # Host surfaces to project to (auto-detected if omitted)
   # Default: auto-detect based on repo structure
   hosts:
     - copilot    # .github/copilot-instructions.md
     - cursor     # .cursorrules
-  
+
   # Custom content to include in generated instructions
   # Default: none
   include:
@@ -135,9 +135,9 @@ import { z } from "zod";
 
 export const LexConfigSchema = z.object({
   version: z.string().regex(/^\d+\.\d+\.\d+$/).optional().default("1.0.0"),
-  
+
   policy: z.string().optional(),
-  
+
   instructions: z.object({
     canonical: z.string().optional().default(".smartergpt/instructions/lex.md"),
     hosts: z.array(z.enum(["copilot", "cursor"])).optional(),
