@@ -22,7 +22,11 @@ project/
 # User workspace directories (created by 'lex init')
 # .smartergpt/ is the organization workspace root
 # prompts/ is legacy location
-.smartergpt/
+# NOTE: We track .smartergpt/instructions/lex.md as canonical AI source
+.smartergpt/*
+!.smartergpt/instructions/
+.smartergpt/instructions/*
+!.smartergpt/instructions/lex.md
 .smartergpt-local/
 prompts/
 
@@ -79,7 +83,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-.smartergpt/**
+# Duplicate .smartergpt patterns consolidated above (lines 25-32)
 .smartergpt.local/**
 .smartergpt-local
 .smartergpt.local/

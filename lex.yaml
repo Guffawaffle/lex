@@ -1,0 +1,13 @@
+# Lex Configuration
+# See: docs/specs/lex-yaml-config-contract.md
+
+version: 1
+
+instructions:
+  # Canonical source of AI instructions
+  canonical: .smartergpt/instructions/lex.md
+
+  # Which hosts to project to (auto-detected if omitted)
+  projections:
+    copilot: true
+    cursor: true
