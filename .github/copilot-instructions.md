@@ -85,25 +85,27 @@ Tests requiring git are:
 ## Build & Test
 
 ```bash
-npm ci           # Install deps
-npm run build    # Build
-npm test         # Run tests (excludes git tests)
-npm run lint     # Lint
-npm run local-ci # Full CI (excludes git tests)
-npm run test:git # Git tests ONLY (requires non-interactive git signing)
+npm ci              # Install deps
+npm run build       # Build
+npm run check-sqlite # Verify native bindings (run after npm ci or Node upgrade)
+npm test            # Run tests (excludes git tests)
+npm run lint        # Lint
+npm run local-ci    # Full CI (excludes git tests)
+npm run test:git    # Git tests ONLY (requires non-interactive git signing)
 ```
 
 **Important:** `npm run local-ci` executes the full CI pipeline but **excludes git tests**. Git tests are quarantined and should NEVER run in CI or via `npm test`.
 
-### Native Module Rebuild
+### Native SQLite Bindings
 
-If tests fail in bulk with SQLite-related errors (especially after Node.js updates or fresh installs):
+Lex uses native SQLite bindings that must match your Node.js version. If tests fail in bulk:
 
 ```bash
-npm rebuild better-sqlite3-multiple-ciphers
+npm run check-sqlite   # Diagnose binding health
+npm run rebuild-sqlite # Fix: recompile for current Node
 ```
 
-**Muscle memory:** Mass test failures → rebuild SQLite first.
+**Doctrine:** We treat broken bindings as a failing gate, not a shrug. See [`docs/dev/sqlite-bindings.md`](../docs/dev/sqlite-bindings.md) for full details.
 
 ---
 

@@ -96,6 +96,8 @@
     "validate-schemas": "node scripts/validate-schemas.js",
     "prompts:lint": "node scripts/lint-prompts.js",
     "type-check": "tsc -p tsconfig.build.json --noEmit",
+    "check-sqlite": "npx tsx scripts/check-sqlite-bindings.ts",
+    "rebuild-sqlite": "npm rebuild better-sqlite3-multiple-ciphers",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "lint:baseline:check": "npx eslint . --format=json 2>&1 | grep -v '^>' > current-lint.json && node scripts/lint-budget.mjs current-lint.json lint-baseline.json && rm current-lint.json",
