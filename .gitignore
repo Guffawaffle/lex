@@ -23,10 +23,12 @@ project/
 # .smartergpt/ is the organization workspace root
 # prompts/ is legacy location
 # NOTE: We track .smartergpt/instructions/lex.md as canonical AI source
+# NOTE: We track .smartergpt/personas/ for callable AI personas
 .smartergpt/*
 !.smartergpt/instructions/
 .smartergpt/instructions/*
 !.smartergpt/instructions/lex.md
+!.smartergpt/personas/
 .smartergpt-local/
 prompts/
 
