@@ -99,13 +99,26 @@ npm run test:all           # All tests
 ### Native Dependencies Fail
 
 **Problem:**
-`better-sqlite3` or other native modules fail to load.
+`better-sqlite3-multiple-ciphers` (our SQLite binding) or other native modules fail to load, often manifesting as mass test failures (100+ tests failing with SQLite-related errors).
+
+**Common Symptoms:**
+- Tests that worked yesterday suddenly fail in bulk
+- Error messages mentioning `better-sqlite3`, `SQLITE`, or native bindings
+- Errors after Node.js version changes or `npm ci`
+
+**Root Cause:**
+Native modules are compiled for a specific Node.js ABI version. When Node.js is updated (even minor versions), or after fresh `npm ci`, the compiled bindings may become incompatible.
 
 **Solution:**
-Rebuild native dependencies:
+Rebuild the native SQLite module:
 ```bash
-npm rebuild better-sqlite3
+npm rebuild better-sqlite3-multiple-ciphers
 ```
+
+**Prevention:**
+- After switching Node.js versions, always run `npm rebuild`
+- If CI passes but local fails, rebuild native modules first
+- Add this to your troubleshooting muscle memory: mass failures → rebuild SQLite
 
 ---
 

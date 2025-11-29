@@ -95,6 +95,16 @@ npm run test:git # Git tests ONLY (requires non-interactive git signing)
 
 **Important:** `npm run local-ci` executes the full CI pipeline but **excludes git tests**. Git tests are quarantined and should NEVER run in CI or via `npm test`.
 
+### Native Module Rebuild
+
+If tests fail in bulk with SQLite-related errors (especially after Node.js updates or fresh installs):
+
+```bash
+npm rebuild better-sqlite3-multiple-ciphers
+```
+
+**Muscle memory:** Mass test failures → rebuild SQLite first.
+
 ## Code Style
 
 - TypeScript only in `src/`
