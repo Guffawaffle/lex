@@ -35,6 +35,23 @@ const DEFAULT_CONFIG: LexYaml = {
 };
 
 /**
+ * Create a deep clone of a LexYaml configuration.
+ */
+function cloneLexYaml(config: LexYaml): LexYaml {
+  return {
+    version: config.version,
+    instructions: config.instructions
+      ? {
+          canonical: config.instructions.canonical,
+          projections: config.instructions.projections
+            ? { ...config.instructions.projections }
+            : undefined,
+        }
+      : undefined,
+  };
+}
+
+/**
  * Load the lex.yaml configuration from the repository.
  *
  * Searches for configuration in the following order:
@@ -69,7 +86,7 @@ export function loadLexYaml(repoRoot: string): LexYaml | null {
 
   // No config file found - return auto-detected defaults
   logger.debug("No lex.yaml found, using auto-detected defaults");
-  return DEFAULT_CONFIG;
+  return cloneLexYaml(DEFAULT_CONFIG);
 }
 
 /**
@@ -139,5 +156,5 @@ export function findLexYamlPath(
  * @returns The default LexYaml configuration
  */
 export function getDefaultLexYaml(): LexYaml {
-  return { ...DEFAULT_CONFIG };
+  return cloneLexYaml(DEFAULT_CONFIG);
 }

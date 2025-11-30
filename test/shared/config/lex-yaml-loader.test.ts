@@ -168,6 +168,17 @@ instructions:
 
       assert.deepStrictEqual(result, defaultConfig);
     });
+
+    test("returns deeply cloned default config (not shared reference)", () => {
+      testDir = createTestDir();
+
+      const result1 = loadLexYaml(testDir);
+      const result2 = loadLexYaml(testDir);
+
+      assert.notStrictEqual(result1, result2);
+      assert.notStrictEqual(result1?.instructions, result2?.instructions);
+      assert.notStrictEqual(result1?.instructions?.projections, result2?.instructions?.projections);
+    });
   });
 
   describe("invalid YAML", () => {
@@ -330,5 +341,27 @@ describe("getDefaultLexYaml", () => {
 
     assert.notStrictEqual(config1, config2);
     assert.deepStrictEqual(config1, config2);
+  });
+
+  test("returns deeply cloned nested objects (not shared references)", () => {
+    const config1 = getDefaultLexYaml();
+    const config2 = getDefaultLexYaml();
+
+    // Verify nested objects are also new instances
+    assert.notStrictEqual(config1.instructions, config2.instructions);
+    assert.notStrictEqual(config1.instructions?.projections, config2.instructions?.projections);
+  });
+
+  test("mutations do not affect other returned configs", () => {
+    const config1 = getDefaultLexYaml();
+    const config2 = getDefaultLexYaml();
+
+    // Mutate config1
+    if (config1.instructions?.projections) {
+      config1.instructions.projections.copilot = false;
+    }
+
+    // Verify config2 is unaffected
+    assert.strictEqual(config2.instructions?.projections?.copilot, true);
   });
 });
