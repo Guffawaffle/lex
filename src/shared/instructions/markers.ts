@@ -88,22 +88,28 @@ export function extractMarkedContent(fileContent: string): ExtractedContent {
 
   // Calculate content boundaries
   const beforeEnd = beginIndex;
-  const lexStart = beginIndex + LEX_BEGIN.length + 1; // +1 for the newline after BEGIN
-  const lexEnd = endIndex - 1; // -1 for the newline before END
   const afterStart = endIndex + LEX_END.length;
+
+  // Calculate lex content boundaries, handling optional newlines
+  let lexStart = beginIndex + LEX_BEGIN.length;
+  let lexEnd = endIndex;
+
+  // Skip leading newline after BEGIN marker if present
+  if (fileContent[lexStart] === "\n") {
+    lexStart += 1;
+  }
+
+  // Skip trailing newline before END marker if present
+  if (lexEnd > lexStart && fileContent[lexEnd - 1] === "\n") {
+    lexEnd -= 1;
+  }
 
   // Extract the sections
   const before = fileContent.slice(0, beforeEnd);
   const after = fileContent.slice(afterStart);
 
-  // Handle edge case where there's no content between markers
-  // (lexStart > lexEnd means markers are adjacent)
-  let lex: string;
-  if (lexStart > lexEnd) {
-    lex = "";
-  } else {
-    lex = fileContent.slice(lexStart, lexEnd);
-  }
+  // Extract lex content (may be empty if markers are adjacent)
+  const lex = lexStart >= lexEnd ? "" : fileContent.slice(lexStart, lexEnd);
 
   return {
     before,

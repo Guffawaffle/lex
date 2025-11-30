@@ -203,6 +203,28 @@ ${LEX_END}
       assert.strictEqual(result.lex, "Lex content", "lex should be extracted correctly");
       assert.strictEqual(result.after, "\n   More spaces   ", "after should preserve whitespace");
     });
+
+    it("should handle markers without newlines (edge case)", () => {
+      // Edge case where markers don't have newlines
+      const fileContent = `${LEX_BEGIN}content${LEX_END}`;
+
+      const result = extractMarkedContent(fileContent);
+
+      assert.strictEqual(result.before, "", "before should be empty");
+      assert.strictEqual(result.lex, "content", "lex should extract content correctly without newlines");
+      assert.strictEqual(result.after, "", "after should be empty");
+    });
+
+    it("should handle adjacent markers without content", () => {
+      // Markers directly adjacent with no content between them
+      const fileContent = `${LEX_BEGIN}${LEX_END}`;
+
+      const result = extractMarkedContent(fileContent);
+
+      assert.strictEqual(result.before, "", "before should be empty");
+      assert.strictEqual(result.lex, "", "lex should be empty for adjacent markers");
+      assert.strictEqual(result.after, "", "after should be empty");
+    });
   });
 
   describe("replaceMarkedContent", () => {
