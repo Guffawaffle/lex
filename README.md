@@ -108,6 +108,26 @@ lex check merged-facts.json
 
 [Learn more about Policy →](./docs/API_USAGE.md)
 
+### 📝 Instructions Generation
+
+Maintain a single source of truth for AI assistant guidance:
+
+```bash
+# Your canonical instructions live in one place
+.smartergpt/instructions/lex.md
+
+# Project them to host-specific files
+lex instructions generate
+# Creates: .github/copilot-instructions.md, .cursorrules
+```
+
+**Benefits:**
+- Single source → Multiple hosts (Copilot, Cursor, etc.)
+- Safe updates via marker system (human content preserved)
+- Deterministic output (same input = same output)
+
+[Learn more about Instructions →](./docs/INSTRUCTIONS.md)
+
 ---
 
 ## 🚀 Quick Start
@@ -248,6 +268,7 @@ Lex is built on three pillars:
 - [Mind Palace Guide](./docs/MIND_PALACE.md) — Using Frames for episodic memory
 - [Code Atlas Guide](./docs/atlas/README.md) — Spatial memory and architectural context
 - [Policy Enforcement](./docs/API_USAGE.md) — Setting up architectural boundaries
+- [Instructions Generation](./docs/INSTRUCTIONS.md) — Sync AI instructions across IDEs
 - [CLI Reference](./docs/CLI_OUTPUT.md) — Command-line usage and output modes
 - [MCP Integration](./memory/mcp_server/README.md) — Using Lex with Model Context Protocol
 - [OAuth2/JWT Authentication](./docs/AUTH.md) — Multi-user authentication setup

@@ -21,6 +21,10 @@ import {
 } from "./db.js";
 import { policyCheck, type PolicyCheckOptions } from "./policy-check.js";
 import { codeAtlas, type CodeAtlasOptions } from "./code-atlas.js";
+import {
+  instructionsGenerate,
+  type InstructionsGenerateOptions,
+} from "./instructions.js";
 import * as output from "./output.js";
 import { readFileSync } from "fs";
 import { join, dirname } from "path";
@@ -56,10 +60,11 @@ export function createProgram(): Command {
   // lex init command
   program
     .command("init")
-    .description("Initialize .smartergpt/ workspace with prompts and policy")
+    .description("Initialize .smartergpt/ workspace with prompts, policy, and instructions")
     .option("--force", "Overwrite existing files")
     .option("--policy", "Generate seed policy from src/ directory structure")
     .option("--prompts-dir <path>", "Custom prompts directory (default: .smartergpt/prompts)")
+    .option("--no-instructions", "Skip creating canonical instructions file")
     .action(async (cmdOptions) => {
       const globalOptions = program.opts();
       const options: InitOptions = {
@@ -67,6 +72,7 @@ export function createProgram(): Command {
         policy: cmdOptions.policy || false,
         json: globalOptions.json || false,
         promptsDir: cmdOptions.promptsDir,
+        instructions: cmdOptions.instructions,
       };
       await init(options);
     });
@@ -282,6 +288,31 @@ export function createProgram(): Command {
         srcDir: cmdOptions.srcDir,
       };
       await policyCheck(options);
+    });
+
+  // lex instructions command group
+  const instructionsCommand = program
+    .command("instructions")
+    .description("Manage AI assistant instructions");
+
+  // lex instructions generate
+  instructionsCommand
+    .command("generate")
+    .description("Generate host-specific instruction projections from canonical source")
+    .option("--project-root <path>", "Project root directory")
+    .option("--config <path>", "Path to lex.yaml config")
+    .option("--dry-run", "Preview changes without writing")
+    .option("--verbose", "Show detailed output")
+    .action(async (cmdOptions) => {
+      const globalOptions = program.opts();
+      const options: InstructionsGenerateOptions = {
+        projectRoot: cmdOptions.projectRoot,
+        config: cmdOptions.config,
+        dryRun: cmdOptions.dryRun || false,
+        verbose: cmdOptions.verbose || false,
+        json: globalOptions.json || false,
+      };
+      await instructionsGenerate(options);
     });
 
   // lex code-atlas command

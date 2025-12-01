@@ -297,3 +297,133 @@ test("init: --policy generates sorted module list", async () => {
     cleanup();
   }
 });
+
+// ============ Instructions Bootstrap Tests ============
+
+test("init: creates instructions file by default", async () => {
+  setupTest();
+  const originalCwd = process.cwd();
+  
+  try {
+    process.chdir(testDir);
+    
+    const result = await init({ json: true });
+    
+    assert.strictEqual(result.success, true, "Should succeed");
+    assert.strictEqual(result.instructionsCreated, true, "Should report instructions created");
+    
+    const instructionsPath = join(testDir, ".smartergpt/instructions/lex.md");
+    assert.ok(existsSync(instructionsPath), "Should create instructions file");
+    
+    // Verify file is in filesCreated
+    assert.ok(
+      result.filesCreated.some(f => f.includes("instructions/lex.md")),
+      "Should include instructions file in filesCreated"
+    );
+    
+    // Verify content is from the canonical template
+    const content = readFileSync(instructionsPath, "utf-8");
+    assert.ok(content.includes("Lex Instructions"), "Should contain canonical instructions content");
+  } finally {
+    process.chdir(originalCwd);
+    cleanup();
+  }
+});
+
+test("init: skips instructions file if workspace already exists (unless --force)", async () => {
+  setupTest();
+  const originalCwd = process.cwd();
+  
+  try {
+    process.chdir(testDir);
+    
+    // Create existing workspace with custom instructions file
+    mkdirSync(join(testDir, ".smartergpt/instructions"), { recursive: true });
+    writeFileSync(join(testDir, ".smartergpt/instructions/lex.md"), "# Custom Instructions");
+    
+    // Init should fail because workspace already exists (without --force)
+    const result = await init({ json: true });
+    
+    assert.strictEqual(result.success, false, "Should fail (workspace already exists)");
+    assert.match(result.message, /already initialized/, "Should indicate already initialized");
+    
+    // Verify custom content is preserved
+    const content = readFileSync(join(testDir, ".smartergpt/instructions/lex.md"), "utf-8");
+    assert.strictEqual(content, "# Custom Instructions", "Should preserve custom instructions");
+  } finally {
+    process.chdir(originalCwd);
+    cleanup();
+  }
+});
+
+test("init: --force overwrites existing instructions file", async () => {
+  setupTest();
+  const originalCwd = process.cwd();
+  
+  try {
+    process.chdir(testDir);
+    
+    // Create existing instructions file with custom content
+    mkdirSync(join(testDir, ".smartergpt/instructions"), { recursive: true });
+    writeFileSync(join(testDir, ".smartergpt/instructions/lex.md"), "# Custom Instructions");
+    
+    const result = await init({ force: true, json: true });
+    
+    assert.strictEqual(result.success, true, "Should succeed");
+    assert.strictEqual(result.instructionsCreated, true, "Should report instructions created");
+    
+    // Verify content is replaced with canonical template
+    const content = readFileSync(join(testDir, ".smartergpt/instructions/lex.md"), "utf-8");
+    assert.ok(content.includes("Lex Instructions"), "Should replace with canonical instructions");
+    assert.ok(!content.includes("Custom Instructions"), "Should not contain custom content");
+  } finally {
+    process.chdir(originalCwd);
+    cleanup();
+  }
+});
+
+test("init: --no-instructions skips instructions creation", async () => {
+  setupTest();
+  const originalCwd = process.cwd();
+  
+  try {
+    process.chdir(testDir);
+    
+    const result = await init({ instructions: false, json: true });
+    
+    assert.strictEqual(result.success, true, "Should succeed");
+    assert.strictEqual(result.instructionsCreated, false, "Should not create instructions");
+    
+    // Verify instructions file was not created
+    assert.ok(!existsSync(join(testDir, ".smartergpt/instructions/lex.md")), "Should not create instructions file");
+    
+    // Verify no instructions file in filesCreated
+    assert.ok(
+      !result.filesCreated.some(f => f.includes("instructions/lex.md")),
+      "Should not include instructions file in filesCreated"
+    );
+  } finally {
+    process.chdir(originalCwd);
+    cleanup();
+  }
+});
+
+test("init: creates instructions directory even if template is missing", async () => {
+  setupTest();
+  const originalCwd = process.cwd();
+  
+  try {
+    process.chdir(testDir);
+    
+    // This test verifies the directory is created (template should exist in the package)
+    const result = await init({ json: true });
+    
+    assert.strictEqual(result.success, true, "Should succeed");
+    
+    // Verify instructions directory exists
+    assert.ok(existsSync(join(testDir, ".smartergpt/instructions")), "Should create instructions directory");
+  } finally {
+    process.chdir(originalCwd);
+    cleanup();
+  }
+});
