@@ -218,7 +218,7 @@ lex instructions generate --repo /path/to/repo
 
 The canonical instruction file at `.smartergpt/instructions/lex.md` should follow this structure:
 
-```markdown
+````markdown
 # Lex Instructions
 
 ## What Lex Does in This Repository
@@ -245,12 +245,12 @@ The canonical instruction file at `.smartergpt/instructions/lex.md` should follo
 
 ## Memory Commands
 
-\`\`\`bash
+```bash
 lex remember --reference-point "..." --summary "..."
 lex recall "query"
 lex timeline
-\`\`\`
 ```
+````
 
 ### Content Guidelines
 

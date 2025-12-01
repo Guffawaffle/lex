@@ -12,7 +12,7 @@ The instructions feature allows you to maintain a **single source of truth** for
 
 Create `.smartergpt/instructions/lex.md`:
 
-```markdown
+````markdown
 # Project Instructions
 
 ## Overview
@@ -43,11 +43,11 @@ This project uses TypeScript with React for the frontend and Node.js for the bac
 
 ## Memory Commands
 
-\`\`\`bash
+```bash
 lex remember --reference-point "feature" --summary "What was done"
 lex recall "search term"
-\`\`\`
 ```
+````
 
 ### 2. Configure projection (optional)
 
