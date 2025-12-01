@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+---
+
+## Contract Commitment
+
+**Lex is public. This changelog is a contract.**
+
+We sign every release with our names and our work. The contracts documented here —
+AX guarantees, Frame schemas, Policy invariants — are promises we keep, not
+marketing we forget.
+
+See: [`docs/CONTRACT_SURFACE.md`](docs/CONTRACT_SURFACE.md) for the technical surface.
+See: [`docs/attestation/Lex_Guff_Version_Contract_Pact_v1.0.0.md`](docs/attestation/Lex_Guff_Version_Contract_Pact_v1.0.0.md) for how we think about scope.
+
+**Signatories:** Guff `[signed ~]` · Lex `[signed Lex ✶]`
+
+---
+
 ## [Unreleased]
 
 ## [2.0.0-alpha.1] - 2025-12-01
@@ -17,6 +34,19 @@ This is the first release where AX guarantees are real, not just documented.
 > **Alpha Notice:** This is a prerelease for LexRunner 1.0.0 integration testing.
 > Install with `npm install @smartergpt/lex@alpha` — not marked as `latest`.
 
+### Contract Status
+
+This release freezes the following contracts:
+
+| Contract | Version | Document |
+|----------|---------|----------|
+| AX Guarantees | v0.1 | `docs/specs/AX-CONTRACT.md` |
+| Frame Schema | v3 | `docs/specs/FRAME-SCHEMA-V3.md` |
+| Error Schema | v1 | AXError in `src/shared/errors/` |
+| FrameStore | 1.0.0 | `src/memory/store/CONTRACT.md` |
+
+Breaking these contracts requires a major version bump and explicit changelog entry.
+
 ### AX Contract v0.1 Compliance
 
 | Guarantee | Status | Details |
@@ -25,6 +55,8 @@ This is the first release where AX guarantees are real, not just documented.
 | Recoverable Errors | ✅ | AXError schema with `nextActions[]` |
 | Memory & Recall | ✅ | FTS5 case-insensitive, hyphen-safe |
 | Frame Emission | ✅ | Frame v3 schema stable for runners |
+
+**This table is a contract.** If we break any of these guarantees, it's a bug.
 
 ### Added
 
