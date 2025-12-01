@@ -1,6 +1,8 @@
 # AX Contract v0.1
 
-> AX: "AI Experience" – the discipline of designing systems for AI agents as first-class consumers.
+> **AX: Agent eXperience** – the discipline of designing systems where AI agents are first-class consumers of tools, APIs, workflows, and memory.
+>
+> Industry sometimes uses "AX / AI Experience" to mean *human* experience of AI products. We explicitly stake out the complementary blade: **how agents experience our systems**, not how humans experience the UI.
 
 This document is not philosophy. It is a set of **concrete, testable guarantees** that Lex and LexRunner commit to for AX v0.1.
 

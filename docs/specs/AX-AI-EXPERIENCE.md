@@ -1,12 +1,24 @@
-# AX: AI Experience
+# AX: Agent eXperience
 
-> **The discipline of designing systems for AI agents as first-class consumers.**
+> **The discipline of designing systems where AI agents are first-class consumers of tools, APIs, workflows, and memory.**
+
+---
+
+## Canonical Definition
+
+**In the Lex/LexRunner universe, AX = Agent eXperience.**
+
+Industry sometimes uses "AX" or "AI Experience" to mean the *human* experience of AI products (how users feel when interacting with AI features). We explicitly stake out the complementary blade:
+
+> **AX is how agents experience our systems, not how humans experience AI.**
+
+This distinction matters. A system can have great human-facing AI UX (friendly chatbot, smooth onboarding) while being hostile to AI agents (unstructured output, no error recovery, no memory). AX focuses on the latter.
 
 ---
 
 ## Abstract
 
-Just as UX (User Experience) revolutionized how we design for humans, and DX (Developer Experience) emerged when we recognized developers as users, **AX (AI Experience)** is the next evolution: designing tools, APIs, workflows, and systems with AI agents as primary consumers.
+Just as UX (User Experience) revolutionized how we design for humans, and DX (Developer Experience) emerged when we recognized developers as users, **AX (Agent eXperience)** is the next evolution: designing tools, APIs, workflows, and systems with AI agents as primary consumers.
 
 AX is not about making systems "AI-friendly" as an afterthought. It's about recognizing that AI agents are now:
 - Tool users
@@ -16,6 +28,8 @@ AX is not about making systems "AI-friendly" as an afterthought. It's about reco
 - Decision makers (within bounds)
 
 This spec defines the principles, patterns, and anti-patterns of AX, with concrete application to Lex and LexRunner.
+
+**Binding Contract:** See [AX-CONTRACT.md](./AX-CONTRACT.md) for the enforceable v0.1 guarantees.
 
 ---
 
