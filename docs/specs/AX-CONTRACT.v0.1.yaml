@@ -1,0 +1,172 @@
+# AX Contract v0.1 - Machine-Readable Specification
+#
+# This is the authoritative, machine-parsable AX contract.
+# For prose explanation, see AX-CONTRACT.md
+#
+# Status: Active
+# Applies To: lex, lex-pr-runner
+# AX Level: 3 (AI-Native)
+
+schemaVersion: "0.1.0"
+status: active
+appliesTo:
+  - repo: lex
+    minVersion: "2.0.0"
+    description: "AX-native memory/policy core"
+  - repo: lex-pr-runner
+    minVersion: "1.0.0"
+    description: "AX-native orchestrator"
+
+# =============================================================================
+# AX Issues & Requirements
+# =============================================================================
+
+requirements:
+  # AX-001: Universal Structured Output
+  AX-001:
+    name: "Universal --json flag"
+    principle: "Structured Over Conversational"
+    priority: P0
+    description: >
+      All CLI commands that output data for machine consumption MUST support
+      a --json flag. MCP tools MUST return structured JSON, not prose.
+    repos:
+      lex:
+        required: true
+        milestone: "2.0.0"
+        scope: "Core memory commands (remember, recall, timeline)"
+      lex-pr-runner:
+        required: true
+        milestone: "1.0.0"
+        scope: "All CLI commands, all MCP tools"
+    acceptance:
+      - "--json flag on all data-outputting commands"
+      - "MCP tools return JSON, not prose"
+      - "Output schemas are stable and documented"
+
+  # AX-002: Recall Search Semantics
+  AX-002:
+    name: "Recall search semantics"
+    principle: "Memory Is a Feature"
+    priority: P1  # Highest priority - fixes compounding pain
+    description: >
+      lex recall MUST search keywords, reference_point, and summary_caption.
+      Search MUST be case-insensitive and handle natural query patterns
+      (hyphens, multi-word, partial matches).
+    repos:
+      lex:
+        required: true
+        milestone: "2.0.0"
+        scope: "FTS5 search, query normalization"
+      lex-pr-runner:
+        required: false
+        note: "Consumes lex recall via MCP; benefits from lex fix"
+    acceptance:
+      - "FTS5 searches all three fields (keywords, reference_point, summary_caption)"
+      - "Hyphenated terms work (e.g., 'senior-dev' finds 'senior-dev-enhancements')"
+      - "Case-insensitive matching"
+      - "Prefix wildcards work (e.g., 'datab*' finds 'database')"
+    status: implemented  # Fixed 2025-12-01 in commit 5d29125
+
+  # AX-003: Structured AXError + nextActions
+  AX-003:
+    name: "Structured AXError with nextActions[]"
+    principle: "Fail Loud, Recover Clear"
+    priority: P0
+    description: >
+      Structured errors MUST include an AXError shape with code, message,
+      context, and at least one nextActions[] entry.
+    repos:
+      lex:
+        required: true
+        milestone: "2.0.0"
+        scope: "Core memory/CLI errors"
+      lex-pr-runner:
+        required: true
+        milestone: "1.0.0"
+        scope: "All MCP tools, gate failures, merge errors"
+    acceptance:
+      - "AXError schema defined and exported"
+      - "Errors include nextActions[] with >=1 suggestion"
+      - "Error codes are stable and documented"
+    axErrorShape:
+      code: "string (stable identifier)"
+      message: "string (human readable)"
+      context: "object (optional details)"
+      nextActions: "string[] (min 1 entry)"
+
+  # AX-004: MCP/CLI Parity Audit
+  AX-004:
+    name: "MCP/CLI parity audit"
+    principle: "Structured Over Conversational"
+    priority: P1
+    description: >
+      Core commands accessible via CLI MUST also be accessible via MCP
+      with equivalent semantics. Document any intentional gaps.
+    repos:
+      lex:
+        required: false
+        note: "Documented non-goal for v0.1 except core memory commands"
+      lex-pr-runner:
+        required: true
+        milestone: "1.0.0"
+        scope: "All orchestration commands"
+    acceptance:
+      - "Parity matrix documented"
+      - "Gaps explicitly listed as intentional or TODO"
+      - "Core commands (plan, gates, merge-weave) available via MCP"
+
+  # AX-005: Frame Emission Contract
+  AX-005:
+    name: "Frame emission for core workflows"
+    principle: "Memory Is a Feature"
+    priority: P0
+    description: >
+      Core workflows MUST emit Frames capturing what was attempted,
+      scope touched, outcome, and recommended next steps.
+    repos:
+      lex:
+        required: true
+        milestone: "2.0.0"
+        scope: "Frame schema ready for runner load"
+      lex-pr-runner:
+        required: true
+        milestone: "1.0.0"
+        scope: "merge-weave, executor runs, significant orchestrations"
+    acceptance:
+      - "Merge-weave emits Frame on completion"
+      - "Executor runs emit Frame"
+      - "Frames include: summary, modules/scope, outcome, next_actions"
+
+# =============================================================================
+# Version Contracts
+# =============================================================================
+
+versionContracts:
+  "LexRunner 1.0.0":
+    description: "First AX-native orchestrator"
+    requiredAX:
+      - AX-001  # --json everywhere
+      - AX-003  # AXError + nextActions
+      - AX-004  # MCP/CLI parity
+      - AX-005  # Frame emission
+    optionalAX: []
+
+  "Lex 2.0.0":
+    description: "First AX-native memory/policy core"
+    requiredAX:
+      - AX-001  # --json for core commands
+      - AX-002  # Recall semantics (P1 - highest priority)
+      - AX-003  # AXError for core errors
+    optionalAX:
+      - AX-005  # Frame schema stability (lex provides, runner emits)
+
+# =============================================================================
+# Audit Trail
+# =============================================================================
+
+auditTrail:
+  - date: "2025-12-01"
+    action: "AX-002 implemented (recall FTS5 hyphen handling)"
+    commit: "5d29125"
+    repo: lex
