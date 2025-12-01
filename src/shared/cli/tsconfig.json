@@ -21,6 +21,7 @@
     { "path": "../atlas" },
     { "path": "../config" },
     { "path": "../instructions" },
+    { "path": "../errors" },
     { "path": "../../atlas" },
     { "path": "../../memory/store" },
     { "path": "../../memory/renderer" }

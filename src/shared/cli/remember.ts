@@ -2,6 +2,10 @@
  * CLI Command: lex remember
  *
  * Prompts user for Frame metadata, validates module_scope, creates Frame.
+ *
+ * Per AX v0.1 Contract:
+ * - Supports --json for structured output
+ * - Uses AXError for structured error handling
  */
 
 import inquirer from "inquirer";
@@ -11,7 +15,8 @@ import { validateModuleIds } from "../module_ids/index.js";
 import { loadPolicyIfAvailable } from "../policy/loader.js";
 import { createFrameStore, type FrameStore } from "../../memory/store/index.js";
 import { getCurrentBranch } from "../git/branch.js";
-import * as output from "./output.js";
+import { createOutput } from "./output.js";
+import { createAXError, type AXError } from "../errors/ax-error.js";
 
 export interface RememberOptions {
   jira?: string;
@@ -36,6 +41,10 @@ export interface RememberOptions {
  * Execute the 'lex remember' command
  * Creates a new Frame with user input
  *
+ * Per AX v0.1 Contract:
+ * - --json outputs structured CliEvent with frame data
+ * - Errors return AXError shape with nextActions
+ *
  * @param options - Command options
  * @param frameStore - Optional FrameStore for dependency injection (defaults to SqliteFrameStore)
  */
@@ -43,6 +52,13 @@ export async function remember(
   options: RememberOptions = {},
   frameStore?: FrameStore
 ): Promise<void> {
+  // Create output writer for this command
+  // When --json is set, use JSONL mode for structured output (AX v0.1 compliance)
+  const out = createOutput({
+    scope: "cli:remember",
+    mode: options.json ? "jsonl" : "plain",
+  });
+
   // If no store is provided, create a default one (which we'll need to close)
   const store = frameStore ?? createFrameStore();
   const ownsStore = frameStore === undefined;
@@ -69,11 +85,13 @@ export async function remember(
         const reason = options.noPolicy
           ? "Policy validation disabled (--skip-policy flag)"
           : "No policy file found";
-        output.warn(
-          `\n⚠️  ${reason}. Module validation skipped.\n` +
-            (options.noPolicy
-              ? ""
-              : "   To enable validation, create a policy file or set LEX_POLICY_PATH.\n")
+        out.warn(
+          `${reason}. Module validation skipped.`,
+          undefined,
+          "POLICY_SKIPPED",
+          options.noPolicy
+            ? undefined
+            : "To enable validation, create a policy file or set LEX_POLICY_PATH."
         );
       }
       resolvedModules = answers.modules || [];
@@ -82,11 +100,27 @@ export async function remember(
       const validationResult = await validateModuleIds(answers.modules || [], policy);
 
       if (!validationResult.valid) {
-        output.error(`\n❌ Module validation failed:\n`);
-        for (const error of validationResult.errors || []) {
-          output.error(`  - ${error.message}`);
+        if (options.json) {
+          const axError: AXError = createAXError(
+            "MODULE_VALIDATION_FAILED",
+            "Module validation failed",
+            [
+              "Check module names match policy file",
+              "Run 'lex policy check' to see valid modules",
+              "Use --skip-policy to bypass validation",
+            ],
+            {
+              errors: validationResult.errors?.map((e) => e.message),
+              providedModules: answers.modules,
+            }
+          );
+          out.json({ level: "error", message: axError.message, data: axError, code: axError.code });
+        } else {
+          out.error("Module validation failed");
+          for (const error of validationResult.errors || []) {
+            out.error(`  - ${error.message}`);
+          }
         }
-        output.error("");
         process.exit(1);
       }
 
@@ -117,23 +151,49 @@ export async function remember(
     // Save Frame to database using FrameStore
     await store.saveFrame(frame);
 
-    // Output result
+    // Output result (AX v0.1: structured output with --json)
     if (options.json) {
-      output.json({ id: frame.id, timestamp: frame.timestamp });
+      out.json({
+        level: "success",
+        message: "Frame stored",
+        code: "FRAME_CREATED",
+        data: {
+          frameId: frame.id,
+          timestamp: frame.timestamp,
+          branch: frame.branch,
+          modules: frame.module_scope,
+          referencePoint: frame.reference_point,
+        },
+      });
     } else {
-      output.success("\n✅ Frame created successfully!\n");
-      output.info(`Frame ID: ${frame.id}`);
-      output.info(`Timestamp: ${frame.timestamp}`);
-      output.info(`Branch: ${frame.branch}`);
+      out.success("Frame created successfully!");
+      out.info(`Frame ID: ${frame.id}`);
+      out.info(`Timestamp: ${frame.timestamp}`);
+      out.info(`Branch: ${frame.branch}`);
       if (frame.jira) {
-        output.info(`Jira: ${frame.jira}`);
+        out.info(`Jira: ${frame.jira}`);
       }
-      output.info(`Reference: ${frame.reference_point}`);
-      output.info(`Modules: ${frame.module_scope.join(", ")}`);
+      out.info(`Reference: ${frame.reference_point}`);
+      out.info(`Modules: ${frame.module_scope.join(", ")}`);
     }
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    output.error(`\n❌ Error: ${errorMessage}\n`);
+    if (options.json) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const axError: AXError = createAXError(
+        "FRAME_STORE_FAILED",
+        errorMessage,
+        [
+          "Check database connection",
+          "Verify write permissions",
+          "Run 'lex check' to diagnose issues",
+        ],
+        error instanceof Error ? { stack: error.stack?.split("\n").slice(0, 5) } : undefined
+      );
+      out.json({ level: "error", message: axError.message, data: axError, code: axError.code });
+    } else {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      out.error(`Error: ${errorMessage}`);
+    }
     process.exit(2);
   } finally {
     // Close store if we own it

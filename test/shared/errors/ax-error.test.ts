@@ -37,10 +37,7 @@ describe("AXError Schema", () => {
           query: "test query",
           operation: "recall",
         },
-        nextActions: [
-          "Check that the database exists",
-          "Verify FTS5 tables are initialized",
-        ],
+        nextActions: ["Check that the database exists", "Verify FTS5 tables are initialized"],
       };
       const result = AXErrorSchema.safeParse(error);
       assert.ok(result.success, `Validation failed: ${JSON.stringify(result)}`);
@@ -111,11 +108,9 @@ describe("AXError Schema", () => {
 
   describe("createAXError factory", () => {
     it("should create AXError with required fields", () => {
-      const error = createAXError(
-        "FRAME_NOT_FOUND",
-        "Frame not found",
-        ["Run 'lex timeline' to see recent Frames"]
-      );
+      const error = createAXError("FRAME_NOT_FOUND", "Frame not found", [
+        "Run 'lex timeline' to see recent Frames",
+      ]);
 
       assert.equal(error.code, "FRAME_NOT_FOUND");
       assert.equal(error.message, "Frame not found");
@@ -124,43 +119,29 @@ describe("AXError Schema", () => {
     });
 
     it("should create AXError with context", () => {
-      const error = createAXError(
-        "FRAME_NOT_FOUND",
-        "Frame not found",
-        ["Check the frame ID"],
-        { frameId: "abc-123" }
-      );
+      const error = createAXError("FRAME_NOT_FOUND", "Frame not found", ["Check the frame ID"], {
+        frameId: "abc-123",
+      });
 
       assert.deepEqual(error.context, { frameId: "abc-123" });
     });
 
     it("should throw on invalid code format", () => {
       assert.throws(() => {
-        createAXError(
-          "invalid-code",
-          "Test",
-          ["Action"]
-        );
+        createAXError("invalid-code", "Test", ["Action"]);
       });
     });
 
     it("should throw on empty nextActions", () => {
       assert.throws(() => {
-        createAXError(
-          "VALID_CODE",
-          "Test",
-          []
-        );
+        createAXError("VALID_CODE", "Test", []);
       });
     });
 
     it("should be valid according to AXErrorSchema", () => {
-      const error = createAXError(
-        "FRAME_NOT_FOUND",
-        "Frame not found",
-        ["Try again"],
-        { id: "test" }
-      );
+      const error = createAXError("FRAME_NOT_FOUND", "Frame not found", ["Try again"], {
+        id: "test",
+      });
       const result = AXErrorSchema.safeParse(error);
       assert.ok(result.success, `Factory output should be valid`);
     });
@@ -169,11 +150,7 @@ describe("AXError Schema", () => {
   describe("wrapAsAXError utility", () => {
     it("should wrap a standard Error", () => {
       const original = new Error("Original error message");
-      const wrapped = wrapAsAXError(
-        original,
-        "UNKNOWN_ERROR",
-        ["Check logs for details"]
-      );
+      const wrapped = wrapAsAXError(original, "UNKNOWN_ERROR", ["Check logs for details"]);
 
       assert.equal(wrapped.code, "UNKNOWN_ERROR");
       assert.equal(wrapped.message, "Original error message");
@@ -189,22 +166,15 @@ describe("AXError Schema", () => {
 
     it("should add additional context", () => {
       const original = new Error("Test");
-      const wrapped = wrapAsAXError(
-        original,
-        "UNKNOWN_ERROR",
-        ["Try again"],
-        { operation: "test-op" }
-      );
+      const wrapped = wrapAsAXError(original, "UNKNOWN_ERROR", ["Try again"], {
+        operation: "test-op",
+      });
 
       assert.equal(wrapped.context?.operation, "test-op");
     });
 
     it("should be valid according to AXErrorSchema", () => {
-      const wrapped = wrapAsAXError(
-        new Error("test"),
-        "UNKNOWN_ERROR",
-        ["Check details"]
-      );
+      const wrapped = wrapAsAXError(new Error("test"), "UNKNOWN_ERROR", ["Check details"]);
       const result = AXErrorSchema.safeParse(wrapped);
       assert.ok(result.success, `Wrapped error should be valid`);
     });
@@ -212,11 +182,7 @@ describe("AXError Schema", () => {
 
   describe("isAXError type guard", () => {
     it("should return true for valid AXError", () => {
-      const error = createAXError(
-        "FRAME_NOT_FOUND",
-        "Frame not found",
-        ["Check ID"]
-      );
+      const error = createAXError("FRAME_NOT_FOUND", "Frame not found", ["Check ID"]);
       assert.ok(isAXError(error));
     });
 
@@ -256,35 +222,21 @@ describe("AXError Schema", () => {
 
   describe("AXErrorException class", () => {
     it("should extend Error", () => {
-      const exception = new AXErrorException(
-        "FRAME_NOT_FOUND",
-        "Frame not found",
-        ["Check ID"]
-      );
+      const exception = new AXErrorException("FRAME_NOT_FOUND", "Frame not found", ["Check ID"]);
       assert.ok(exception instanceof Error);
     });
 
     it("should be throwable and catchable", () => {
-      assert.throws(
-        () => {
-          throw new AXErrorException(
-            "FRAME_NOT_FOUND",
-            "Frame not found",
-            ["Check ID"]
-          );
-        },
-        AXErrorException
-      );
+      assert.throws(() => {
+        throw new AXErrorException("FRAME_NOT_FOUND", "Frame not found", ["Check ID"]);
+      }, AXErrorException);
     });
 
     it("should have axError property with valid AXError", () => {
-      const exception = new AXErrorException(
-        "FRAME_NOT_FOUND",
-        "Frame not found",
-        ["Check ID"],
-        { frameId: "abc" }
-      );
-      
+      const exception = new AXErrorException("FRAME_NOT_FOUND", "Frame not found", ["Check ID"], {
+        frameId: "abc",
+      });
+
       const result = AXErrorSchema.safeParse(exception.axError);
       assert.ok(result.success);
       assert.equal(exception.axError.code, "FRAME_NOT_FOUND");
@@ -292,26 +244,18 @@ describe("AXError Schema", () => {
     });
 
     it("should serialize to JSON as AXError", () => {
-      const exception = new AXErrorException(
-        "FRAME_NOT_FOUND",
-        "Frame not found",
-        ["Check ID"]
-      );
-      
+      const exception = new AXErrorException("FRAME_NOT_FOUND", "Frame not found", ["Check ID"]);
+
       const json = JSON.stringify(exception);
       const parsed = JSON.parse(json);
-      
+
       assert.equal(parsed.code, "FRAME_NOT_FOUND");
       assert.deepEqual(parsed.nextActions, ["Check ID"]);
     });
 
     it("toAXError should return valid AXError", () => {
-      const exception = new AXErrorException(
-        "FRAME_NOT_FOUND",
-        "Frame not found",
-        ["Check ID"]
-      );
-      
+      const exception = new AXErrorException("FRAME_NOT_FOUND", "Frame not found", ["Check ID"]);
+
       const axError = exception.toAXError();
       assert.ok(isAXError(axError));
     });
@@ -319,11 +263,7 @@ describe("AXError Schema", () => {
 
   describe("isAXErrorException type guard", () => {
     it("should return true for AXErrorException", () => {
-      const exception = new AXErrorException(
-        "FRAME_NOT_FOUND",
-        "Frame not found",
-        ["Check ID"]
-      );
+      const exception = new AXErrorException("FRAME_NOT_FOUND", "Frame not found", ["Check ID"]);
       assert.ok(isAXErrorException(exception));
     });
 
@@ -333,11 +273,7 @@ describe("AXError Schema", () => {
     });
 
     it("should return false for AXError (plain object)", () => {
-      const error = createAXError(
-        "FRAME_NOT_FOUND",
-        "Frame not found",
-        ["Check ID"]
-      );
+      const error = createAXError("FRAME_NOT_FOUND", "Frame not found", ["Check ID"]);
       assert.ok(!isAXErrorException(error));
     });
   });
@@ -366,11 +302,7 @@ describe("AXError Schema", () => {
       const error = createAXError(
         "MEMORY_SEARCH_FAILED",
         "Search failed",
-        [
-          "Retry with simpler query",
-          "Check database connection",
-          "Verify FTS5 tables exist",
-        ],
+        ["Retry with simpler query", "Check database connection", "Verify FTS5 tables exist"],
         { query: "test" }
       );
 
@@ -393,12 +325,7 @@ describe("AXError Schema", () => {
         assert.ok(result.success, `Code ${code} should be valid`);
       }
 
-      const invalidCodes = [
-        "frame-not-found",
-        "FrameNotFound",
-        "frame_not_found",
-        "123_INVALID",
-      ];
+      const invalidCodes = ["frame-not-found", "FrameNotFound", "frame_not_found", "123_INVALID"];
 
       for (const code of invalidCodes) {
         const error = { code, message: "Test", nextActions: ["Action"] };

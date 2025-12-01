@@ -167,9 +167,13 @@ test("CLI: lex remember with --json outputs JSON", () => {
       { encoding: "utf-8", env: getTestEnv() }
     );
 
-    const json = JSON.parse(output.trim());
-    assert.ok(json.id, "JSON should contain Frame ID");
-    assert.ok(json.timestamp, "JSON should contain timestamp");
+    // AX v0.1: --json outputs CliEvent format with v, ts, level, message, data
+    const event = JSON.parse(output.trim());
+    assert.equal(event.v, 1, "CliEvent should have version 1");
+    assert.ok(event.ts, "CliEvent should have timestamp");
+    assert.equal(event.level, "success", "Should be success level");
+    assert.ok(event.data?.frameId, "data should contain frameId");
+    assert.ok(event.data?.timestamp, "data should contain timestamp");
   } finally {
     cleanup();
   }

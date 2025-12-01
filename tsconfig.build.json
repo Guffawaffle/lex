@@ -12,6 +12,7 @@
     { "path": "src/shared/rules" },
     { "path": "src/shared/lexsona" },
     { "path": "src/shared/atlas" },
+    { "path": "src/shared/errors" },
     { "path": "src/atlas/schemas" },
     { "path": "src/shared/git" },
     { "path": "src/shared/config" },
