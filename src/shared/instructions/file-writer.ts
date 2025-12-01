@@ -10,6 +10,11 @@ import * as path from "node:path";
 import * as crypto from "node:crypto";
 
 /**
+ * Number of random bytes for temp file suffix (produces 16 hex chars)
+ */
+const TEMP_FILE_RANDOM_BYTES = 8;
+
+/**
  * Result of a projection operation
  * Represents content to be written to a target file
  */
@@ -188,7 +193,7 @@ function writeSingleProjection(
 function generateTempPath(targetPath: string): string {
   const dir = path.dirname(targetPath);
   const baseName = path.basename(targetPath);
-  const randomSuffix = crypto.randomBytes(8).toString("hex");
+  const randomSuffix = crypto.randomBytes(TEMP_FILE_RANDOM_BYTES).toString("hex");
   return path.join(dir, `.${baseName}.${randomSuffix}.tmp`);
 }
 
