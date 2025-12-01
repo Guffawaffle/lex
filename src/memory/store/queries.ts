@@ -8,6 +8,7 @@ import Database from "better-sqlite3-multiple-ciphers";
 import type { FrameRow } from "./db.js";
 import type { Frame, FrameStatusSnapshot, FrameSpendMetadata } from "../frames/types.js";
 import { getNDJSONLogger } from "../../shared/logger/index.js";
+import { normalizeFTS5Query } from "./fts5-utils.js";
 
 const logger = getNDJSONLogger("memory/store");
 
@@ -96,12 +97,12 @@ export function saveFrame(db: Database.Database, frame: Frame): void {
     row.spend,
     row.user_id
   );
-  
+
   const duration = Date.now() - startTime;
   logger.info("Frame saved", {
     operation: "saveFrame",
     duration_ms: duration,
-    metadata: { frameId: frame.id, jira: frame.jira, branch: frame.branch }
+    metadata: { frameId: frame.id, jira: frame.jira, branch: frame.branch },
   });
 }
 
@@ -117,7 +118,7 @@ export function getFrameById(db: Database.Database, id: string): Frame | null {
     logger.debug("Frame not found", {
       operation: "getFrameById",
       duration_ms: Date.now() - startTime,
-      metadata: { frameId: id }
+      metadata: { frameId: id },
     });
     return null;
   }
@@ -125,7 +126,7 @@ export function getFrameById(db: Database.Database, id: string): Frame | null {
   logger.debug("Frame retrieved", {
     operation: "getFrameById",
     duration_ms: Date.now() - startTime,
-    metadata: { frameId: id }
+    metadata: { frameId: id },
   });
   return rowToFrame(row);
 }
@@ -142,6 +143,19 @@ export interface SearchResult {
  */
 export function searchFrames(db: Database.Database, query: string): SearchResult {
   const startTime = Date.now();
+
+  // Normalize query for FTS5 compatibility
+  const normalizedQuery = normalizeFTS5Query(query);
+
+  // If normalization resulted in empty query, return empty results
+  if (!normalizedQuery) {
+    logger.warn("Search query normalized to empty string", {
+      operation: "searchFrames",
+      metadata: { originalQuery: query },
+    });
+    return { frames: [], hint: "Search query contained only special characters" };
+  }
+
   try {
     const stmt = db.prepare(`
       SELECT f.*
@@ -151,16 +165,20 @@ export function searchFrames(db: Database.Database, query: string): SearchResult
       ORDER BY f.timestamp DESC
     `);
 
-    const rows = stmt.all(query) as FrameRow[];
+    const rows = stmt.all(normalizedQuery) as FrameRow[];
     const duration = Date.now() - startTime;
     logger.info("Search completed", {
       operation: "searchFrames",
       duration_ms: duration,
-      metadata: { query, resultCount: rows.length }
+      metadata: {
+        query,
+        normalizedQuery: normalizedQuery !== query ? normalizedQuery : undefined,
+        resultCount: rows.length,
+      },
     });
     return { frames: rows.map(rowToFrame) };
   } catch (error: unknown) {
-    // Check if this is an FTS5-related error (caused by special characters)
+    // Check if this is an FTS5-related error (unlikely after normalization, but kept for safety)
     const err = error as { code?: string; message?: string };
     if (
       err?.code === "SQLITE_ERROR" &&
@@ -168,21 +186,15 @@ export function searchFrames(db: Database.Database, query: string): SearchResult
         err?.message?.includes("no such column") ||
         err?.message?.includes("unknown special query"))
     ) {
-      // Extract a simpler search term by removing special characters
-      const simplifiedQuery = query.replace(/[^a-zA-Z0-9\s]/g, " ").trim();
-      const hint = simplifiedQuery
-        ? `Search contained special characters. Try simpler terms (e.g., '${simplifiedQuery}')`
-        : "Search contained special characters. Try simpler terms";
-      
-      logger.warn("Search query contained special characters", {
+      logger.warn("FTS5 search error after normalization", {
         operation: "searchFrames",
         duration_ms: Date.now() - startTime,
-        metadata: { query, error: err.message }
+        metadata: { query, normalizedQuery, error: err.message },
       });
 
       return {
         frames: [],
-        hint,
+        hint: `Search failed. Try simpler terms.`,
       };
     }
     // Re-throw non-FTS5 errors

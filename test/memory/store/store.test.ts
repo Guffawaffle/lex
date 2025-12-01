@@ -325,42 +325,56 @@ describe("Frame Storage Tests", () => {
     });
   });
 
-  describe("FTS5 Special Character Handling", () => {
-    test("should handle period (.) without throwing error", async () => {
+  describe("FTS5 Special Character Handling (Normalization)", () => {
+    // After AX-002 fix: special characters are normalized, not rejected
+    // This allows natural queries like "senior-dev" or "AX-001" to work
+
+    test("should normalize period (.) to space", async () => {
+      // "0.3.0" becomes "0 3 0" - searches for those individual terms
       const result = searchFrames(db, "0.3.0");
-      assert.strictEqual(result.frames.length, 0, "Should return empty results");
-      assert.ok(result.hint, "Should provide a hint");
+      // No hint since query was normalized successfully
+      assert.strictEqual(result.hint, undefined, "Should not need hint after normalization");
+    });
+
+    test("should normalize colon (:) to space", async () => {
+      // "TICKET-123:" becomes "TICKET 123"
+      const result = searchFrames(db, "TICKET-123:");
+      assert.strictEqual(result.hint, undefined, "Should not need hint after normalization");
+    });
+
+    test("should normalize asterisk (*) at start (leading asterisk invalid)", async () => {
+      // "*test" becomes "test" - leading asterisk is removed (invalid in FTS5)
+      const result = searchFrames(db, "*test");
+      assert.strictEqual(result.hint, undefined, "Should not need hint after normalization");
+    });
+
+    test("should preserve trailing asterisk for prefix wildcard", async () => {
+      // "test*" preserved - valid FTS5 prefix query
+      const result = searchFrames(db, "auth*");
+      // If there's an auth-related frame, this should work
+      assert.strictEqual(result.hint, undefined, "Should not need hint for valid prefix query");
+    });
+
+    test("should normalize hyphen (-) at start (fixes AX-002)", async () => {
+      // "-test" becomes "test" - this was the key AX-002 bug
+      // Previously, FTS5 interpreted "-" as negation operator
+      const result = searchFrames(db, "-test");
+      assert.strictEqual(result.hint, undefined, "Should not need hint after normalization");
+    });
+
+    test("should search normalized terms successfully", async () => {
+      // "v0.3.0 release" becomes "v0 3 0 release"
+      const result = searchFrames(db, "v0.3.0 release");
+      assert.strictEqual(result.hint, undefined, "Should not need hint after normalization");
+    });
+
+    test("should return hint for query with only special characters", async () => {
+      // "---" normalizes to empty string
+      const result = searchFrames(db, "---");
+      assert.ok(result.hint, "Should provide hint for empty-after-normalization query");
       assert.ok(
         result.hint.includes("special characters"),
         "Hint should mention special characters"
-      );
-    });
-
-    test("should handle colon (:) without throwing error", async () => {
-      const result = searchFrames(db, "TICKET-123:");
-      assert.strictEqual(result.frames.length, 0, "Should return empty results");
-      assert.ok(result.hint, "Should provide a hint");
-    });
-
-    test("should handle asterisk at start without throwing error", async () => {
-      const result = searchFrames(db, "*test");
-      assert.strictEqual(result.frames.length, 0, "Should return empty results");
-      assert.ok(result.hint, "Should provide a hint");
-    });
-
-    test("should handle hyphen (-) at start without throwing error", async () => {
-      const result = searchFrames(db, "-test");
-      assert.strictEqual(result.frames.length, 0, "Should return empty results");
-      assert.ok(result.hint, "Should provide a hint");
-    });
-
-    test("should suggest simplified query in hint", async () => {
-      const result = searchFrames(db, "v0.3.0 release");
-      assert.strictEqual(result.frames.length, 0, "Should return empty results");
-      assert.ok(result.hint, "Should provide a hint");
-      assert.ok(
-        result.hint.includes("v0 3 0 release") || result.hint.includes("release"),
-        "Hint should suggest simplified query"
       );
     });
   });

@@ -6,11 +6,17 @@
  */
 
 import type Database from "better-sqlite3-multiple-ciphers";
-import type { FrameStore, FrameSearchCriteria, FrameListOptions, SaveResult } from "../frame-store.js";
+import type {
+  FrameStore,
+  FrameSearchCriteria,
+  FrameListOptions,
+  SaveResult,
+} from "../frame-store.js";
 import type { Frame, FrameStatusSnapshot, FrameSpendMetadata } from "../../frames/types.js";
 import type { FrameRow } from "../db.js";
 import { Frame as FrameSchema } from "../../frames/types.js";
 import { createDatabase } from "../db.js";
+import { normalizeFTS5Query } from "../fts5-utils.js";
 
 /**
  * Convert Frame object to database row
@@ -86,7 +92,7 @@ export class SqliteFrameStore implements FrameStore {
   /**
    * Access the underlying database connection.
    * Useful for operations not covered by the FrameStore interface (e.g., ImageManager).
-   * 
+   *
    * @throws Error if the store has been closed.
    */
   get db(): Database.Database {
@@ -268,20 +274,23 @@ export class SqliteFrameStore implements FrameStore {
     let usesFTS = false;
     let baseQuery = "SELECT f.* FROM frames f";
 
-    // Handle FTS5 query
+    // Handle FTS5 query - normalize for compatibility with hyphenated terms
     if (criteria.query) {
-      try {
-        baseQuery = `
-          SELECT f.*
-          FROM frames f
-          JOIN frames_fts fts ON f.rowid = fts.rowid
-          WHERE frames_fts MATCH ?
-        `;
-        params.push(criteria.query);
-        usesFTS = true;
-      } catch {
-        // FTS5 syntax error, return empty results
-        return [];
+      const normalizedQuery = normalizeFTS5Query(criteria.query);
+      if (normalizedQuery) {
+        try {
+          baseQuery = `
+            SELECT f.*
+            FROM frames f
+            JOIN frames_fts fts ON f.rowid = fts.rowid
+            WHERE frames_fts MATCH ?
+          `;
+          params.push(normalizedQuery);
+          usesFTS = true;
+        } catch {
+          // FTS5 syntax error, return empty results
+          return [];
+        }
       }
     }
 
