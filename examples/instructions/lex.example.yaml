@@ -1,0 +1,23 @@
+# Lex Configuration Example
+# See: docs/specs/lex-yaml-config-contract.md
+
+# Schema version for this config file
+version: 1
+
+# Instructions generation settings
+instructions:
+  # Path to the canonical instruction file (relative to repo root)
+  # This is the single source of truth for AI assistant guidance
+  # Default: .smartergpt/instructions/lex.md
+  canonical: .smartergpt/instructions/lex.md
+
+  # Which hosts to project to
+  # If omitted, both are enabled by default
+  projections:
+    # GitHub Copilot: projects to .github/copilot-instructions.md
+    # Requires: .github/ directory to exist
+    copilot: true
+
+    # Cursor IDE: projects to .cursorrules
+    # Requires: .cursorrules file to already exist
+    cursor: true
