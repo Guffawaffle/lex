@@ -330,21 +330,22 @@ test("init: creates instructions file by default", async () => {
   }
 });
 
-test("init: skips instructions file if it already exists", async () => {
+test("init: skips instructions file if workspace already exists (unless --force)", async () => {
   setupTest();
   const originalCwd = process.cwd();
   
   try {
     process.chdir(testDir);
     
-    // Create existing instructions file
+    // Create existing workspace with custom instructions file
     mkdirSync(join(testDir, ".smartergpt/instructions"), { recursive: true });
     writeFileSync(join(testDir, ".smartergpt/instructions/lex.md"), "# Custom Instructions");
     
-    // Init should fail because workspace already exists
+    // Init should fail because workspace already exists (without --force)
     const result = await init({ json: true });
     
     assert.strictEqual(result.success, false, "Should fail (workspace already exists)");
+    assert.match(result.message, /already initialized/, "Should indicate already initialized");
     
     // Verify custom content is preserved
     const content = readFileSync(join(testDir, ".smartergpt/instructions/lex.md"), "utf-8");
