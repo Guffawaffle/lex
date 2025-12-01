@@ -452,6 +452,51 @@ test("CLI: lex timeline with --format=json outputs JSON", () => {
   }
 });
 
+test("CLI: lex timeline with --json outputs structured CliEvent (AX v0.1)", () => {
+  setupTest();
+  try {
+    // Create a frame
+    execFileSync(
+      process.execPath,
+      [
+        lexBin,
+        "remember",
+        "--jira",
+        "TICKET-AX",
+        "--reference-point",
+        "ax json timeline test",
+        "--summary",
+        "AX JSON test",
+        "--next",
+        "Test action",
+        "--modules",
+        "ui/admin-panel",
+      ],
+      { encoding: "utf-8", env: getTestEnv() }
+    );
+
+    // Get timeline with --json global flag (AX v0.1 format)
+    const output = execFileSync(process.execPath, [lexBin, "--json", "timeline", "TICKET-AX"], {
+      encoding: "utf-8",
+      env: getTestEnv(),
+    });
+
+    // AX v0.1: --json outputs CliEvent format with v, ts, level, message, data
+    const event = JSON.parse(output.trim());
+    assert.equal(event.v, 1, "CliEvent should have version 1");
+    assert.ok(event.ts, "CliEvent should have timestamp");
+    assert.equal(event.level, "success", "Should be success level");
+    assert.equal(event.code, "TIMELINE_RETRIEVED", "Should have TIMELINE_RETRIEVED code");
+    assert.ok(event.data?.frames, "data should contain frames array");
+    assert.ok(Array.isArray(event.data.frames), "frames should be an array");
+    assert.ok(event.data.frames.length > 0, "frames should have entries");
+    assert.ok(event.data.frames[0].id, "Each frame should have id");
+    assert.ok(event.data.frames[0].referencePoint, "Each frame should have referencePoint");
+  } finally {
+    cleanup();
+  }
+});
+
 test("CLI: lex timeline shows blocker evolution", () => {
   setupTest();
   try {
