@@ -131,6 +131,7 @@ function createProjection(
   const existingContent = readFile ? readFile(targetPath) : null;
 
   // If file doesn't exist, create it with wrapped content
+  // Add trailing newline for clean file ending (POSIX convention)
   if (existingContent === null) {
     return {
       host,
@@ -141,6 +142,7 @@ function createProjection(
   }
 
   // File exists - check if update is needed
+  // Note: replaceMarkedContent handles trailing newlines internally
   const newContent = replaceMarkedContent(existingContent, canonicalContent);
 
   // Check if content would actually change (idempotency)
