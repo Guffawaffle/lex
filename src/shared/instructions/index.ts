@@ -1,7 +1,8 @@
 /**
  * Instructions module
  *
- * Provides host detection and instructions generation utilities
+ * Provides host detection, projection engine, and file writing utilities
+ * for generating IDE-specific instruction files from canonical source.
  */
 
 export {
@@ -18,6 +19,14 @@ export {
   type ProjectionAction,
   type HostType,
 } from "./projection-engine.js";
+
+export {
+  writeProjections,
+  type FileProjection,
+  type WriteOptions,
+  type WriteResult,
+  type WriteError,
+} from "./file-writer.js";
 
 export {
   loadCanonicalInstructions,
