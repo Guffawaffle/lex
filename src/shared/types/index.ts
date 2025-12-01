@@ -5,9 +5,21 @@
  * memory/ and policy/ workspaces.
  */
 
-// Frame types
+// Frame types (original interface-based)
 export type { Frame, StatusSnapshot, SpendMetadata } from "./frame.js";
 export { FRAME_SCHEMA_VERSION, validateFrameMetadata } from "./frame.js";
+
+// Frame Zod schemas (for validation and runner integration)
+export {
+  FrameSchema,
+  StatusSnapshotSchema,
+  SpendMetadataSchema,
+  isFrame,
+  parseFrame,
+  safeParseFrame,
+  createFrame,
+} from "./frame-schema.js";
+
 // AtlasFrame is defined in the shared atlas package (spatial neighborhood types).
 // We re-export it here so consumers can import all shared types from
 // `shared/types` while keeping atlas-specific implementation separate.
