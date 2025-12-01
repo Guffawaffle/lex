@@ -64,4 +64,4 @@ If you're building a runner and you respect the contracts, you're welcome here. 
 
 ---
 
-— Joe (Guffawaffle), November 2025
+— Written by Lex, Signed by Joe (Guffawaffle), November 2025
