@@ -412,18 +412,20 @@ ${config.instructions ? `instructions:
       // Setup: Create file with human content on both sides
       const copilotPath = join(testDir, ".github", "copilot-instructions.md");
       mkdirSync(join(testDir, ".github"), { recursive: true });
-      const existingContent = `# Header Section
-      
-Important notes before Lex.
-
-${LEX_BEGIN}
-# Old Lex Content
-${LEX_END}
-
-# Footer Section
-
-More human content here.
-`;
+      const existingContent = [
+        "# Header Section",
+        "",
+        "Important notes before Lex.",
+        "",
+        LEX_BEGIN,
+        "# Old Lex Content",
+        LEX_END,
+        "",
+        "# Footer Section",
+        "",
+        "More human content here.",
+        ""
+      ].join("\n");
       writeFileSync(copilotPath, existingContent);
       createCanonicalFile("# Brand New Lex\n\nCompletely new content.");
 
