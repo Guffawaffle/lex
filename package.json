@@ -1,6 +1,6 @@
 {
   "name": "@smartergpt/lex",
-  "version": "1.0.2",
+  "version": "2.0.0-alpha.1",
   "description": "MIT-licensed memory, policy, and atlas framework with MCP server. For local dev and private automation.",
   "type": "module",
   "main": "dist/index.js",
@@ -21,6 +21,10 @@
     "./types": {
       "types": "./dist/shared/types/index.d.ts",
       "import": "./dist/shared/types/index.js"
+    },
+    "./errors": {
+      "types": "./dist/shared/errors/index.d.ts",
+      "import": "./dist/shared/errors/index.js"
     },
     "./policy": {
       "types": "./dist/shared/policy/index.d.ts",

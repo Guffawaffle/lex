@@ -7,6 +7,76 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0-alpha.1] - 2025-12-01
+
+### 🚀 AX-Native Release (Alpha)
+
+Lex 2.0.0 introduces **AX (Agent eXperience)** as a first-class design principle.
+This is the first release where AX guarantees are real, not just documented.
+
+> **Alpha Notice:** This is a prerelease for LexRunner 1.0.0 integration testing.
+> Install with `npm install @smartergpt/lex@alpha` — not marked as `latest`.
+
+### AX Contract v0.1 Compliance
+
+| Guarantee | Status | Details |
+|-----------|--------|---------|
+| Structured Output | ✅ | `--json` on `remember`, `timeline` |
+| Recoverable Errors | ✅ | AXError schema with `nextActions[]` |
+| Memory & Recall | ✅ | FTS5 case-insensitive, hyphen-safe |
+| Frame Emission | ✅ | Frame v3 schema stable for runners |
+
+### Added
+
+- **AXError Schema** (`src/shared/errors/ax-error.ts`)
+  - Zod schema: `code`, `message`, `context`, `nextActions[]`
+  - Factory: `createAXError()`, `wrapAsAXError()`
+  - Type guard: `isAXError()`
+  - Exception class: `AXErrorException`
+
+- **Frame Schema v3** (`src/shared/types/frame-schema.ts`)
+  - Zod validation: `FrameSchema`, `parseFrame()`, `createFrame()`
+  - Runner fields: `runId`, `planHash`, `executorRole`, `toolCalls`, `guardrailProfile`
+  - Documentation: `docs/specs/FRAME-SCHEMA-V3.md`
+
+- **CLI JSON Output**
+  - `lex remember --json` — structured event output
+  - `lex timeline --json` — structured event output
+  - AXError integration for failure cases
+
+- **AX Documentation**
+  - `docs/specs/AX-CONTRACT.md` — v0.1 guarantees
+  - `docs/specs/AX-AI-EXPERIENCE.md` — philosophy
+  - `docs/specs/AX-IMPLEMENTATION-PLAN.md` — roadmap
+
+### Fixed
+
+- **Recall FTS5 Hyphen Handling** (AX-002)
+  - Compound queries like `"recall-fix"` now work correctly
+  - Case-insensitive search per AX Contract §2.4
+
+### New Exports
+
+| Import | Purpose |
+|--------|---------|
+| `@smartergpt/lex/errors` | AXError schema and utilities |
+
+### For LexRunner Integration
+
+LexRunner 1.0.0 can now:
+- Import `AXErrorSchema`, `createAXError` from `@smartergpt/lex/errors`
+- Import `FrameSchema`, `createFrame` from `@smartergpt/lex/types`
+- Emit Frames for merge-weave completions
+- Return structured errors with recovery actions
+
+---
+
+## [1.0.2] - 2025-11-28
+
+### Fixed
+
+- Minor bug fixes and stability improvements
+
 ## [1.0.0] - 2025-11-27
 
 ### 🎉 First Stable Release
