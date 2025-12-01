@@ -60,10 +60,11 @@ export function createProgram(): Command {
   // lex init command
   program
     .command("init")
-    .description("Initialize .smartergpt/ workspace with prompts and policy")
+    .description("Initialize .smartergpt/ workspace with prompts, policy, and instructions")
     .option("--force", "Overwrite existing files")
     .option("--policy", "Generate seed policy from src/ directory structure")
     .option("--prompts-dir <path>", "Custom prompts directory (default: .smartergpt/prompts)")
+    .option("--no-instructions", "Skip creating canonical instructions file")
     .action(async (cmdOptions) => {
       const globalOptions = program.opts();
       const options: InitOptions = {
@@ -71,6 +72,7 @@ export function createProgram(): Command {
         policy: cmdOptions.policy || false,
         json: globalOptions.json || false,
         promptsDir: cmdOptions.promptsDir,
+        instructions: cmdOptions.instructions,
       };
       await init(options);
     });

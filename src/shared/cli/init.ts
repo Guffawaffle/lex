@@ -17,6 +17,7 @@ export interface InitOptions {
   json?: boolean;
   promptsDir?: string; // Optional: custom prompts directory
   policy?: boolean; // Generate seed policy from directory structure
+  instructions?: boolean; // Create canonical instructions file (default: true)
 }
 
 export interface InitResult {
@@ -25,6 +26,7 @@ export interface InitResult {
   message: string;
   filesCreated: string[];
   modulesDiscovered?: number;
+  instructionsCreated?: boolean;
 }
 
 /**
@@ -156,12 +158,35 @@ export async function init(options: InitOptions = {}): Promise<InitResult> {
       }
     }
 
+    // Create instructions directory and canonical instructions file
+    // Default to true unless explicitly set to false
+    const shouldCreateInstructions = options.instructions !== false;
+    let instructionsCreated = false;
+    
+    if (shouldCreateInstructions) {
+      const instructionsDir = path.join(workspaceDir, "instructions");
+      fs.mkdirSync(instructionsDir, { recursive: true });
+      
+      const instructionsPath = path.join(instructionsDir, "lex.md");
+      
+      if (!fs.existsSync(instructionsPath) || options.force) {
+        const canonInstructionsPath = path.join(canonDir, "instructions", "lex.example.md");
+        
+        if (fs.existsSync(canonInstructionsPath)) {
+          fs.copyFileSync(canonInstructionsPath, instructionsPath);
+          filesCreated.push(path.relative(baseDir, instructionsPath));
+          instructionsCreated = true;
+        }
+      }
+    }
+
     const result: InitResult = {
       success: true,
       workspaceDir,
       message: "Workspace initialized successfully",
       filesCreated,
       modulesDiscovered: options.policy ? modulesDiscovered : undefined,
+      instructionsCreated,
     };
 
     if (options.json) {
@@ -174,6 +199,9 @@ export async function init(options: InitOptions = {}): Promise<InitResult> {
       output.info(
         `  ├── prompts/ (${filesCreated.filter((f) => f.includes("prompts/")).length} files from canon)`
       );
+      if (instructionsCreated) {
+        output.info(`  ├── instructions/lex.md (canonical instructions)`);
+      }
       if (options.policy && modulesDiscovered > 0) {
         output.info(`  └── lex/lexmap.policy.json (${modulesDiscovered} modules discovered)`);
       } else {
