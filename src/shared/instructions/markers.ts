@@ -12,6 +12,17 @@ export const LEX_BEGIN = "<!-- LEX:BEGIN -->";
 export const LEX_END = "<!-- LEX:END -->";
 
 /**
+ * Regex patterns for flexible marker detection
+ * These match variant formats like:
+ * - <!-- LEX:BEGIN -->
+ * - <!-- LEX:BEGIN - comment -->
+ * - <!--LEX:BEGIN-->
+ * - <!--  LEX:BEGIN  -->
+ */
+const LEX_BEGIN_PATTERN = /<!--\s*LEX:BEGIN\s*(?:-[^>]*)?\s*-->/;
+const LEX_END_PATTERN = /<!--\s*LEX:END\s*(?:-[^>]*)?\s*-->/;
+
+/**
  * Header comment added after LEX:BEGIN
  */
 const LEX_HEADER =
@@ -29,6 +40,12 @@ export interface ExtractResult {
   after: string;
   /** Whether valid markers were found */
   hasMarkers: boolean;
+  /** Whether variant (non-standard) markers were detected */
+  hasVariantMarkers?: boolean;
+  /** The actual BEGIN marker found (for diagnostics) */
+  foundBeginMarker?: string;
+  /** The actual END marker found (for diagnostics) */
+  foundEndMarker?: string;
 }
 
 /**
@@ -58,6 +75,10 @@ export function wrapWithMarkers(content: string): string {
 /**
  * Extract marked content from a file, preserving human sections
  *
+ * Supports both standard markers and variant formats:
+ * - Standard: `<!-- LEX:BEGIN -->` and `<!-- LEX:END -->`
+ * - Variant: `<!-- LEX:BEGIN - comment -->`, `<!--LEX:BEGIN-->`, etc.
+ *
  * @param fileContent - Full content of the file
  * @returns Object with before, lex (if found), and after sections
  *
@@ -67,12 +88,33 @@ export function wrapWithMarkers(content: string): string {
  * if (result.hasMarkers) {
  *   console.log("Lex section:", result.lex);
  *   console.log("Human content preserved:", result.before + result.after);
+ *   if (result.hasVariantMarkers) {
+ *     console.warn("Non-standard markers detected, will be normalized on next generate");
+ *   }
  * }
  * ```
  */
 export function extractMarkedContent(fileContent: string): ExtractResult {
-  const beginIndex = fileContent.indexOf(LEX_BEGIN);
-  const endIndex = fileContent.indexOf(LEX_END);
+  // First try exact match (fast path)
+  let beginIndex = fileContent.indexOf(LEX_BEGIN);
+  let endIndex = fileContent.indexOf(LEX_END);
+  let foundBeginMarker = LEX_BEGIN;
+  let foundEndMarker = LEX_END;
+  let hasVariantMarkers = false;
+
+  // If exact match fails, try regex patterns
+  if (beginIndex === -1 || endIndex === -1) {
+    const beginMatch = fileContent.match(LEX_BEGIN_PATTERN);
+    const endMatch = fileContent.match(LEX_END_PATTERN);
+
+    if (beginMatch && endMatch) {
+      beginIndex = beginMatch.index!;
+      endIndex = endMatch.index!;
+      foundBeginMarker = beginMatch[0];
+      foundEndMarker = endMatch[0];
+      hasVariantMarkers = true;
+    }
+  }
 
   // No markers found
   if (beginIndex === -1 || endIndex === -1) {
@@ -96,14 +138,17 @@ export function extractMarkedContent(fileContent: string): ExtractResult {
 
   // Extract sections
   const before = fileContent.slice(0, beginIndex);
-  const lexContent = fileContent.slice(beginIndex + LEX_BEGIN.length, endIndex).trim();
-  const after = fileContent.slice(endIndex + LEX_END.length);
+  const lexContent = fileContent.slice(beginIndex + foundBeginMarker.length, endIndex).trim();
+  const after = fileContent.slice(endIndex + foundEndMarker.length);
 
   return {
     before,
     lex: lexContent,
     after,
     hasMarkers: true,
+    hasVariantMarkers,
+    foundBeginMarker,
+    foundEndMarker,
   };
 }
 
@@ -159,11 +204,75 @@ export function replaceMarkedContent(fileContent: string, newLexContent: string)
 /**
  * Check if content appears to have valid Lex markers
  *
+ * Supports both standard markers and variant formats.
+ *
  * @param content - File content to check
  * @returns True if both BEGIN and END markers are present in correct order
  */
 export function hasValidMarkers(content: string): boolean {
-  const beginIndex = content.indexOf(LEX_BEGIN);
-  const endIndex = content.indexOf(LEX_END);
-  return beginIndex !== -1 && endIndex !== -1 && beginIndex < endIndex;
+  const result = extractMarkedContent(content);
+  return result.hasMarkers;
+}
+
+/**
+ * Check if content has variant (non-standard) markers that should be normalized
+ *
+ * @param content - File content to check
+ * @returns True if variant markers were detected
+ */
+export function hasVariantMarkers(content: string): boolean {
+  const result = extractMarkedContent(content);
+  return result.hasVariantMarkers === true;
+}
+
+/**
+ * Remove Lex-generated content from a file, preserving human sections
+ *
+ * @param fileContent - Current file content
+ * @returns File content with Lex section removed, or original if no markers
+ *
+ * @example
+ * ```ts
+ * const cleaned = removeMarkedContent(fileWithLex);
+ * // Returns file with only human content (before + after sections)
+ * ```
+ */
+export function removeMarkedContent(fileContent: string): {
+  content: string;
+  removed: boolean;
+  removedContent: string | null;
+} {
+  const extracted = extractMarkedContent(fileContent);
+
+  if (!extracted.hasMarkers) {
+    return {
+      content: fileContent,
+      removed: false,
+      removedContent: null,
+    };
+  }
+
+  // Combine before and after, normalizing whitespace
+  const normalizedBefore = extracted.before.replace(/\n+$/, "");
+  const normalizedAfter = extracted.after.replace(/^\n+/, "");
+
+  let result = "";
+  if (normalizedBefore && normalizedAfter) {
+    result = normalizedBefore + "\n\n" + normalizedAfter;
+  } else if (normalizedBefore) {
+    result = normalizedBefore;
+  } else if (normalizedAfter) {
+    result = normalizedAfter;
+  }
+
+  // Ensure file ends with newline if non-empty
+  if (result && !result.endsWith("\n")) {
+    result += "\n";
+  }
+
+  return {
+    content: result,
+    removed: true,
+    removedContent: extracted.lex,
+  };
 }
