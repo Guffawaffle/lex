@@ -22,7 +22,7 @@ export interface RecallOptions {
   autoRadius?: boolean;
   maxTokens?: number;
   showCacheStats?: boolean;
-  list?: number; // If set, list recent frames instead of searching
+  list?: number | boolean; // If set, list recent frames instead of searching (true = use default limit)
 }
 
 /**
@@ -47,7 +47,9 @@ export async function recall(
 
     // Handle --list mode: show recent frames
     if (options.list !== undefined) {
-      const limit = options.list || 10; // Default to 10 if --list used without value
+      // When --list is used without a value, it's set to true (boolean)
+      // When --list N is used, it's set to N (number)
+      const limit = typeof options.list === 'number' && options.list > 0 ? options.list : 10;
       const allFrames = await store.listFrames({ limit });
       frames = allFrames;
 
