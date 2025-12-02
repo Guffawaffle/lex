@@ -131,6 +131,7 @@ export function createProgram(): Command {
       parseInt
     )
     .option("--cache-stats", "Show cache statistics")
+    .option("--exact", "Disable fuzzy matching (prefix wildcards)")
     .action(async (query, cmdOptions) => {
       const globalOptions = program.opts();
       const options: RecallOptions = {
@@ -138,6 +139,7 @@ export function createProgram(): Command {
         autoRadius: cmdOptions.autoRadius || false,
         maxTokens: cmdOptions.maxTokens,
         showCacheStats: cmdOptions.cacheStats || false,
+        exact: cmdOptions.exact || false,
         json: globalOptions.json || false,
       };
 

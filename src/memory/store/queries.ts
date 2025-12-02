@@ -136,16 +136,26 @@ export interface SearchResult {
   hint?: string;
 }
 
+export interface SearchOptions {
+  exact?: boolean; // If true, disable automatic prefix wildcards for exact matching
+}
+
 /**
  * Search Frames using FTS5 full-text search
  * @param query Natural language query string (searches reference_point, summary_caption, keywords)
+ * @param options Search options (exact: disable fuzzy matching)
  * @returns SearchResult with frames array and optional hint for FTS5 syntax errors
  */
-export function searchFrames(db: Database.Database, query: string): SearchResult {
+export function searchFrames(
+  db: Database.Database,
+  query: string,
+  options: SearchOptions = {}
+): SearchResult {
   const startTime = Date.now();
 
   // Normalize query for FTS5 compatibility
-  const normalizedQuery = normalizeFTS5Query(query);
+  // By default, adds prefix wildcards for fuzzy matching unless exact=true
+  const normalizedQuery = normalizeFTS5Query(query, options.exact);
 
   // If normalization resulted in empty query, return empty results
   if (!normalizedQuery) {

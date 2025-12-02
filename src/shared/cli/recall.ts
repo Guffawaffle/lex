@@ -22,6 +22,7 @@ export interface RecallOptions {
   autoRadius?: boolean;
   maxTokens?: number;
   showCacheStats?: boolean;
+  exact?: boolean; // If true, disable fuzzy matching (prefix wildcards)
 }
 
 /**
@@ -52,7 +53,10 @@ export async function recall(
     } else {
       // 2. Try as search query (full-text search)
       // Semantics depend on FrameStore implementation
-      const searchResults = await store.searchFrames({ query });
+      const searchResults = await store.searchFrames({
+        query,
+        exact: options.exact,
+      });
       frames = searchResults;
     }
 

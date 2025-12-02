@@ -262,6 +262,7 @@ export class SqliteFrameStore implements FrameStore {
    *
    * Uses FTS5 for text search when query is provided.
    * Supports filtering by moduleScope, since, and until dates.
+   * Fuzzy matching is enabled by default (can be disabled with exact=true).
    */
   async searchFrames(criteria: FrameSearchCriteria): Promise<Frame[]> {
     if (this.isClosed) {
@@ -275,8 +276,9 @@ export class SqliteFrameStore implements FrameStore {
     let baseQuery = "SELECT f.* FROM frames f";
 
     // Handle FTS5 query - normalize for compatibility with hyphenated terms
+    // By default, adds prefix wildcards for fuzzy matching unless exact=true
     if (criteria.query) {
-      const normalizedQuery = normalizeFTS5Query(criteria.query);
+      const normalizedQuery = normalizeFTS5Query(criteria.query, criteria.exact);
       if (normalizedQuery) {
         try {
           baseQuery = `
