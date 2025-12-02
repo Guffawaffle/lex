@@ -121,8 +121,9 @@ export function createProgram(): Command {
 
   // lex recall command
   program
-    .command("recall <query>")
-    .description("Retrieve a Frame by reference point, ticket ID, or Frame ID")
+    .command("recall [query]")
+    .description("Retrieve a Frame by reference point, ticket ID, or Frame ID, or list recent frames")
+    .option("--list [limit]", "List recent frames (optionally limit to N results)", parseInt)
     .option("--fold-radius <number>", "Fold radius for Atlas Frame neighborhood", parseInt)
     .option("--auto-radius", "Auto-tune radius based on token limits")
     .option(
@@ -135,6 +136,7 @@ export function createProgram(): Command {
     .action(async (query, cmdOptions) => {
       const globalOptions = program.opts();
       const options: RecallOptions = {
+        list: cmdOptions.list,
         foldRadius: cmdOptions.foldRadius || 1,
         autoRadius: cmdOptions.autoRadius || false,
         maxTokens: cmdOptions.maxTokens,
@@ -146,6 +148,12 @@ export function createProgram(): Command {
       // Validate auto-radius options
       if (options.autoRadius && !options.maxTokens) {
         output.error("Error: --auto-radius requires --max-tokens to be specified");
+        process.exit(1);
+      }
+
+      // Validate that either query or --list is provided
+      if (!query && options.list === undefined) {
+        output.error("\n❌ Error: Either provide a search query or use --list to browse recent frames\n");
         process.exit(1);
       }
 

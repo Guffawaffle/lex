@@ -266,4 +266,67 @@ describe("CLI Commands with FrameStore Dependency Injection", () => {
       assert.strictEqual(frames.length, 3, "Store should have 3 frames");
     });
   });
+
+  describe("recall --list functionality", () => {
+    let store: MemoryFrameStore;
+
+    beforeEach(() => {
+      store = new MemoryFrameStore();
+    });
+
+    test("should list frames with default limit", async () => {
+      // Add multiple frames
+      await store.saveFrame(testFrame1);
+      await store.saveFrame(testFrame2);
+      await store.saveFrame(testFrame3);
+
+      // List with default limit
+      const frames = await store.listFrames({ limit: 10 });
+      
+      assert.strictEqual(frames.length, 3, "Should return all 3 frames when limit is 10");
+    });
+
+    test("should list frames with custom limit", async () => {
+      // Add multiple frames
+      await store.saveFrame(testFrame1);
+      await store.saveFrame(testFrame2);
+      await store.saveFrame(testFrame3);
+
+      // List with limit of 2
+      const frames = await store.listFrames({ limit: 2 });
+      
+      assert.strictEqual(frames.length, 2, "Should return only 2 frames");
+    });
+
+    test("should return frames in descending timestamp order", async () => {
+      await store.saveFrame(testFrame1); // 2025-11-01
+      await store.saveFrame(testFrame2); // 2025-11-02
+      await store.saveFrame(testFrame3); // 2025-11-03
+
+      const frames = await store.listFrames({ limit: 10 });
+      
+      assert.strictEqual(frames.length, 3, "Should return all frames");
+      // Most recent first
+      assert.strictEqual(frames[0].id, "frame-003", "Most recent frame should be first");
+      assert.strictEqual(frames[1].id, "frame-002", "Second most recent frame should be second");
+      assert.strictEqual(frames[2].id, "frame-001", "Oldest frame should be last");
+    });
+
+    test("should return empty array when no frames exist", async () => {
+      const frames = await store.listFrames({ limit: 10 });
+      
+      assert.strictEqual(frames.length, 0, "Should return empty array when no frames exist");
+    });
+
+    test("should handle limit of 1", async () => {
+      await store.saveFrame(testFrame1);
+      await store.saveFrame(testFrame2);
+      await store.saveFrame(testFrame3);
+
+      const frames = await store.listFrames({ limit: 1 });
+      
+      assert.strictEqual(frames.length, 1, "Should return exactly 1 frame");
+      assert.strictEqual(frames[0].id, "frame-003", "Should return the most recent frame");
+    });
+  });
 });
