@@ -20,6 +20,12 @@ export interface FrameSearchCriteria {
    */
   query?: string;
 
+  /**
+   * If true, disable automatic fuzzy matching (prefix wildcards).
+   * Default is false (fuzzy matching enabled).
+   */
+  exact?: boolean;
+
   /** Filter by module IDs (any match). */
   moduleScope?: string[];
 
