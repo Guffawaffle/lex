@@ -49,7 +49,16 @@ export async function recall(
     if (options.list !== undefined) {
       // When --list is used without a value, it's set to true (boolean)
       // When --list N is used, it's set to N (number)
-      const limit = typeof options.list === 'number' && options.list > 0 ? options.list : 10;
+      // Explicitly handle 0 as invalid
+      let limit = 10; // default
+      if (typeof options.list === 'number') {
+        if (options.list > 0) {
+          limit = options.list;
+        } else {
+          output.error(`\n❌ Error: --list limit must be greater than 0\n`);
+          process.exit(1);
+        }
+      }
       const allFrames = await store.listFrames({ limit });
       frames = allFrames;
 
@@ -120,10 +129,10 @@ export async function recall(
         for (let i = 0; i < frames.length; i++) {
           const frame = frames[i];
           const date = new Date(frame.timestamp).toISOString().split("T")[0];
-          const keywordsStr = frame.keywords && frame.keywords.length > 0 
+          const keywordsStr = frame.keywords?.length 
             ? frame.keywords.join(", ") 
             : "none";
-          const modulesStr = frame.module_scope.length > 0
+          const modulesStr = frame.module_scope.length
             ? frame.module_scope.join(", ")
             : "none";
           
