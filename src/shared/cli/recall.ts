@@ -63,7 +63,7 @@ export async function recall(
       frames = allFrames;
 
       if (frames.length === 0) {
-        output.info(`\n❌ No frames found in database\n`);
+        output.error(`\n❌ No frames found in database\n`);
         process.exit(1);
       }
     } else {
@@ -128,7 +128,8 @@ export async function recall(
         output.info(`\nRecent frames (${frames.length} most recent):\n`);
         for (let i = 0; i < frames.length; i++) {
           const frame = frames[i];
-          const date = new Date(frame.timestamp).toISOString().split("T")[0];
+          // Format date as YYYY-MM-DD for consistency
+          const date = new Date(frame.timestamp).toISOString().substring(0, 10);
           const keywordsStr = frame.keywords?.join(", ") ?? "none";
           const modulesStr = frame.module_scope.join(", ") || "none";
           
