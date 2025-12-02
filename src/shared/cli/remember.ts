@@ -67,11 +67,38 @@ export async function remember(
     // Get current git branch
     const branch = await getCurrentBranch();
 
-    // If interactive mode or missing required fields, prompt for input
+    // AX Level 3: In JSON mode, NEVER prompt — fail-fast with structured guidance
+    if (options.json) {
+      const missingRequired: string[] = [];
+      if (!options.summary) missingRequired.push("--summary");
+      if (!options.modules || options.modules.length === 0) missingRequired.push("--modules");
+
+      if (missingRequired.length > 0) {
+        const axError: AXError = createAXError(
+          "MISSING_REQUIRED_PARAMS",
+          `Missing required parameters: ${missingRequired.join(", ")}`,
+          [
+            ...missingRequired.map((p) => `Add ${p} parameter`),
+            "Example: lex remember --summary 'What happened' --modules 'cli,memory/store'",
+            "Use --interactive for guided input",
+          ],
+          {
+            missingParams: missingRequired,
+            providedParams: Object.keys(options).filter(
+              (k) => options[k as keyof RememberOptions] !== undefined
+            ),
+          }
+        );
+        out.json({ level: "error", message: axError.message, data: axError, code: axError.code });
+        process.exit(1);
+      }
+    }
+
+    // If interactive mode or missing required fields (non-JSON), prompt for input
     const answers =
-      options.interactive || !options.summary || !options.next || !options.modules
+      options.interactive || !options.summary || !options.modules
         ? await promptForFrameData(options, branch)
-        : options;
+        : applyDefaults(options);
 
     // Resolve and validate module_scope against policy (THE CRITICAL RULE + auto-correction)
     // Load policy if available, or skip validation if --no-policy or no policy file exists
@@ -100,18 +127,35 @@ export async function remember(
       const validationResult = await validateModuleIds(answers.modules || [], policy);
 
       if (!validationResult.valid) {
+        // Get valid modules from policy for helpful error recovery
+        const validModules = Object.keys(policy.modules || {});
+        const providedModules = answers.modules || [];
+
+        // Build specific next actions based on what went wrong
+        const nextActions: string[] = [];
+
+        // For each invalid module, suggest the closest valid one if available
+        for (const error of validationResult.errors || []) {
+          if (error.suggestions && error.suggestions.length > 0) {
+            nextActions.push(`Replace '${error.module}' with '${error.suggestions[0]}'`);
+          }
+        }
+
+        // Always include the valid modules list and escape hatch
+        nextActions.push(
+          `Valid modules: ${validModules.slice(0, 10).join(", ")}${validModules.length > 10 ? ` (and ${validModules.length - 10} more)` : ""}`
+        );
+        nextActions.push("Use --no-policy to bypass module validation");
+
         if (options.json) {
           const axError: AXError = createAXError(
             "MODULE_VALIDATION_FAILED",
             "Module validation failed",
-            [
-              "Check module names match policy file",
-              "Run 'lex policy check' to see valid modules",
-              "Use --skip-policy to bypass validation",
-            ],
+            nextActions,
             {
               errors: validationResult.errors?.map((e) => e.message),
-              providedModules: answers.modules,
+              providedModules,
+              validModules,
             }
           );
           out.json({ level: "error", message: axError.message, data: axError, code: axError.code });
@@ -204,6 +248,30 @@ export async function remember(
 }
 
 /**
+ * Apply defaults to optional fields (AX Level 3: no hidden prompts)
+ *
+ * Required fields: summary, modules
+ * Optional fields with defaults:
+ *   - referencePoint: "" (empty string)
+ *   - next: "" (empty string)
+ *   - jira: undefined
+ *   - blockers: undefined
+ *   - mergeBlockers: undefined
+ *   - testsFailing: undefined
+ *   - keywords: undefined
+ *   - featureFlags: undefined
+ *   - permissions: undefined
+ */
+function applyDefaults(options: RememberOptions): RememberOptions {
+  return {
+    ...options,
+    referencePoint: options.referencePoint ?? "",
+    next: options.next ?? "",
+    // All other optional fields default to undefined (omitted from Frame)
+  };
+}
+
+/**
  * Prompt user for Frame metadata interactively
  */
 async function promptForFrameData(
@@ -213,7 +281,10 @@ async function promptForFrameData(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const questions: any[] = [];
 
-  if (!options.jira) {
+  // Only prompt for REQUIRED fields when not in full interactive mode
+  const fullInteractive = options.interactive;
+
+  if (fullInteractive && !options.jira) {
     questions.push({
       type: "input",
       name: "jira",
@@ -225,8 +296,8 @@ async function promptForFrameData(
     questions.push({
       type: "input",
       name: "referencePoint",
-      message: "Reference point (memorable phrase):",
-      validate: (input: string) => input.trim().length > 0 || "Reference point is required",
+      message: "Reference point (memorable phrase, optional):",
+      default: "",
     });
   }
 
@@ -243,8 +314,8 @@ async function promptForFrameData(
     questions.push({
       type: "input",
       name: "next",
-      message: "Next action:",
-      validate: (input: string) => input.trim().length > 0 || "Next action is required",
+      message: "Next action (optional):",
+      default: "",
     });
   }
 
@@ -262,7 +333,8 @@ async function promptForFrameData(
     });
   }
 
-  if (!options.blockers) {
+  // Only prompt for optional fields in full interactive mode
+  if (fullInteractive && !options.blockers) {
     questions.push({
       type: "input",
       name: "blockers",
@@ -277,7 +349,7 @@ async function promptForFrameData(
     });
   }
 
-  if (!options.mergeBlockers) {
+  if (fullInteractive && !options.mergeBlockers) {
     questions.push({
       type: "input",
       name: "mergeBlockers",
