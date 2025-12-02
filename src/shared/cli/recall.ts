@@ -22,18 +22,19 @@ export interface RecallOptions {
   autoRadius?: boolean;
   maxTokens?: number;
   showCacheStats?: boolean;
+  list?: number; // If set, list recent frames instead of searching
 }
 
 /**
  * Execute the 'lex recall' command
- * Searches for Frames and displays results with Atlas Frame context
+ * Searches for Frames and displays results with Atlas Frame context, or lists recent frames
  *
- * @param query - Search query string
+ * @param query - Search query string (optional when using --list)
  * @param options - Command options
  * @param frameStore - Optional FrameStore for dependency injection (defaults to SqliteFrameStore)
  */
 export async function recall(
-  query: string,
+  query: string | undefined,
   options: RecallOptions = {},
   frameStore?: FrameStore
 ): Promise<void> {
@@ -44,45 +45,102 @@ export async function recall(
   try {
     let frames: Frame[] = [];
 
-    // Try different search strategies
-    // 1. Try as Frame ID (exact match)
-    const frameById = await store.getFrameById(query);
-    if (frameById) {
-      frames = [frameById];
-    } else {
-      // 2. Try as search query (full-text search)
-      // Semantics depend on FrameStore implementation
-      const searchResults = await store.searchFrames({ query });
-      frames = searchResults;
-    }
+    // Handle --list mode: show recent frames
+    if (options.list !== undefined) {
+      const limit = options.list || 10; // Default to 10 if --list used without value
+      const allFrames = await store.listFrames({ limit });
+      frames = allFrames;
 
-    if (frames.length === 0) {
-      output.info(`\n❌ No frames found matching: "${query}"\n`);
-      process.exit(1);
+      if (frames.length === 0) {
+        output.info(`\n❌ No frames found in database\n`);
+        process.exit(1);
+      }
+    } else {
+      // Normal search mode - query is required
+      if (!query) {
+        output.error(`\n❌ Error: Search query required when not using --list\n`);
+        process.exit(1);
+      }
+
+      // Try different search strategies
+      // 1. Try as Frame ID (exact match)
+      const frameById = await store.getFrameById(query);
+      if (frameById) {
+        frames = [frameById];
+      } else {
+        // 2. Try as search query (full-text search)
+        // Semantics depend on FrameStore implementation
+        const searchResults = await store.searchFrames({ query });
+        frames = searchResults;
+      }
+
+      if (frames.length === 0) {
+        output.info(`\n❌ No frames found matching: "${query}"\n`);
+        process.exit(1);
+      }
     }
 
     // Output results
     if (options.json) {
-      // JSON output includes frames and their Atlas Frames
-      const results = [];
-      for (const frame of frames) {
-        const atlasResult = await generateAtlasFrameWithAutoTune(frame, options);
-        results.push({
-          frame,
-          atlasFrame: atlasResult.atlasFrame,
-          foldRadius: atlasResult.actualRadius,
-          autoTuned: atlasResult.autoTuned,
-          tokens: atlasResult.tokens,
-        });
+      // JSON output
+      if (options.list !== undefined) {
+        // For list mode, output minimal frame info
+        const results = frames.map((frame) => ({
+          id: frame.id,
+          timestamp: frame.timestamp,
+          summary_caption: frame.summary_caption,
+          keywords: frame.keywords || [],
+          module_scope: frame.module_scope,
+          jira: frame.jira,
+          branch: frame.branch,
+        }));
+        json({ frames: results });
+      } else {
+        // For search mode, include frames and their Atlas Frames
+        const results = [];
+        for (const frame of frames) {
+          const atlasResult = await generateAtlasFrameWithAutoTune(frame, options);
+          results.push({
+            frame,
+            atlasFrame: atlasResult.atlasFrame,
+            foldRadius: atlasResult.actualRadius,
+            autoTuned: atlasResult.autoTuned,
+            tokens: atlasResult.tokens,
+          });
+        }
+        json(results);
       }
-      json(results);
     } else {
       // Pretty print results
-      for (let i = 0; i < frames.length; i++) {
-        if (i > 0) {
-          output.info("\n" + "─".repeat(80) + "\n");
+      if (options.list !== undefined) {
+        // List mode: show compact list
+        output.info(`\nRecent frames (${frames.length} most recent):\n`);
+        for (let i = 0; i < frames.length; i++) {
+          const frame = frames[i];
+          const date = new Date(frame.timestamp).toISOString().split("T")[0];
+          const keywordsStr = frame.keywords && frame.keywords.length > 0 
+            ? frame.keywords.join(", ") 
+            : "none";
+          const modulesStr = frame.module_scope.length > 0
+            ? frame.module_scope.join(", ")
+            : "none";
+          
+          output.info(`${i + 1}. [${date}] ${frame.summary_caption}`);
+          output.info(`   Keywords: ${keywordsStr}`);
+          output.info(`   Modules: ${modulesStr}`);
+          if (frame.jira) {
+            output.info(`   Jira: ${frame.jira}`);
+          }
+          output.info("");
         }
-        await displayFrame(frames[i], options);
+      } else {
+        // Search mode: show full frame details with Atlas
+        for (let i = 0; i < frames.length; i++) {
+          if (i > 0) {
+            output.info("\n" + "─".repeat(80) + "\n");
+          }
+          await displayFrame(frames[i], options);
+        }
       }
 
       // Show cache stats if requested
