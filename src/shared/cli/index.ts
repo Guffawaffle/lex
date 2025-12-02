@@ -151,7 +151,7 @@ export function createProgram(): Command {
 
       // Validate that either query or --list is provided
       if (!query && options.list === undefined) {
-        output.error("Error: Either provide a search query or use --list to browse recent frames");
+        output.error("\n❌ Error: Either provide a search query or use --list to browse recent frames\n");
         process.exit(1);
       }
 

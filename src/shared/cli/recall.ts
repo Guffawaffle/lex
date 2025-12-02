@@ -129,12 +129,8 @@ export async function recall(
         for (let i = 0; i < frames.length; i++) {
           const frame = frames[i];
           const date = new Date(frame.timestamp).toISOString().split("T")[0];
-          const keywordsStr = frame.keywords?.length 
-            ? frame.keywords.join(", ") 
-            : "none";
-          const modulesStr = frame.module_scope.length
-            ? frame.module_scope.join(", ")
-            : "none";
+          const keywordsStr = frame.keywords?.join(", ") ?? "none";
+          const modulesStr = frame.module_scope.join(", ") || "none";
           
           output.info(`${i + 1}. [${date}] ${frame.summary_caption}`);
           output.info(`   Keywords: ${keywordsStr}`);
