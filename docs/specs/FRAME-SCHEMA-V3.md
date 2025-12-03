@@ -201,7 +201,7 @@ export interface SpendMetadata {
 
 ### Recall Search Frame (Rich Metadata)
 
-This example shows a Frame with comprehensive metadata, typical of results from `lex recall`:
+This example shows a Frame with comprehensive metadata, typical of Frames found when using `lex recall`:
 
 ```json
 {
