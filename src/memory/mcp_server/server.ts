@@ -24,7 +24,7 @@ import { getCurrentBranch } from "../../shared/git/branch.js";
 import { randomUUID } from "crypto";
 import { join } from "path";
 import { existsSync } from "fs";
-import { AXErrorException } from "../../shared/errors/ax-error.js";
+import { AXErrorException, isAXErrorException } from "../../shared/errors/ax-error.js";
 
 const logger = getLogger("memory:mcp_server:server");
 
@@ -84,6 +84,9 @@ export interface MCPResponse {
   error?: {
     message: string;
     code: string;
+    context?: Record<string, unknown>;
+    nextActions?: string[];
+    metadata?: Record<string, unknown>;
   };
 }
 
@@ -227,6 +230,18 @@ export class MCPServer {
       // Handle MCPError with structured response
       if (error instanceof MCPError) {
         return error.toResponse();
+      }
+
+      // Handle AXErrorException with structured response
+      if (isAXErrorException(error)) {
+        return {
+          error: {
+            code: error.axError.code,
+            message: error.axError.message,
+            context: error.axError.context,
+            nextActions: error.axError.nextActions,
+          },
+        };
       }
 
       // Handle generic errors
