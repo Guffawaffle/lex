@@ -254,13 +254,16 @@ const VALID_SQL_IDENTIFIER_PATTERN = /^[a-zA-Z0-9_]+$/;
 function validateSqlIdentifier(identifier: string, type: "table" | "column", context?: string): void {
   if (!VALID_SQL_IDENTIFIER_PATTERN.test(identifier)) {
     const contextStr = context ? ` in ${context}` : "";
+    const errorCode = type === "table" ? "INVALID_TABLE_NAME" : "INVALID_COLUMN_NAME";
+    const errorMessage = `Invalid ${type} name detected${contextStr}: ${identifier}`;
+    const nextActions = [
+      `Ensure the database schema uses valid ${type} names`,
+      `Check that no special characters are present in ${type} names`
+    ];
     throw new AXErrorException(
-      "INVALID_SQL_IDENTIFIER",
-      `Invalid ${type} name detected${contextStr}: ${identifier}`,
-      [
-        "Ensure the database schema uses valid identifier names",
-        "Check that no special characters are present in table/column names"
-      ],
+      errorCode,
+      errorMessage,
+      nextActions,
       { identifier, type, context }
     );
   }

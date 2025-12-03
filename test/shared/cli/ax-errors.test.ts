@@ -59,18 +59,6 @@ describe("CLI AXError Integration", () => {
       assert.ok(error.axError.nextActions.length > 0);
     });
 
-    test("INVALID_SQL_IDENTIFIER should be valid AXError", () => {
-      const error = new AXErrorException(
-        "INVALID_SQL_IDENTIFIER",
-        "Invalid table name detected",
-        ["Ensure the database schema uses valid identifier names"]
-      );
-      
-      assert.ok(isAXErrorException(error));
-      assert.strictEqual(error.axError.code, "INVALID_SQL_IDENTIFIER");
-      assert.ok(error.axError.nextActions.length > 0);
-    });
-
     test("INVALID_TABLE_NAME should be valid AXError", () => {
       const error = new AXErrorException(
         "INVALID_TABLE_NAME",
