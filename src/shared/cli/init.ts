@@ -7,6 +7,7 @@ import * as path from "path";
 import { fileURLToPath } from "url";
 import * as output from "./output.js";
 import { discoverModules, generatePolicyFile } from "./policy-generator.js";
+import { AXErrorException } from "../errors/ax-error.js";
 
 // ESM compatibility: create __dirname equivalent
 const __filename = fileURLToPath(import.meta.url);
@@ -42,7 +43,16 @@ function resolveCanonDir(): string {
     }
     pkgRoot = path.dirname(pkgRoot);
   }
-  throw new Error("Could not find package root");
+  throw new AXErrorException(
+    "PACKAGE_ROOT_NOT_FOUND",
+    "Could not find package root",
+    [
+      "Ensure the package is properly installed",
+      "Check that package.json exists in the package root",
+      "Verify the installation directory structure is intact"
+    ],
+    { searchPath: __dirname, operation: "init" }
+  );
 }
 
 /**
