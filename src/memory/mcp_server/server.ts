@@ -24,6 +24,7 @@ import { getCurrentBranch } from "../../shared/git/branch.js";
 import { randomUUID } from "crypto";
 import { join } from "path";
 import { existsSync } from "fs";
+import { AXErrorException } from "../../shared/errors/ax-error.js";
 
 const logger = getLogger("memory:mcp_server:server");
 
@@ -462,7 +463,16 @@ export class MCPServer {
     const { reference_point, jira, branch, limit = 10 } = args as unknown as RecallArgs;
 
     if (!reference_point && !jira && !branch) {
-      throw new Error("At least one search parameter required: reference_point, jira, or branch");
+      throw new AXErrorException(
+        "MCP_RECALL_MISSING_PARAMS",
+        "At least one search parameter required: reference_point, jira, or branch",
+        [
+          "Provide a reference_point to search by text",
+          "Provide a jira ticket ID to filter by Jira ticket",
+          "Provide a branch name to filter by git branch",
+        ],
+        { providedParams: { reference_point, jira, branch } }
+      );
     }
 
     let frames: Frame[];

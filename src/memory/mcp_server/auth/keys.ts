@@ -8,6 +8,7 @@ import { generateKeyPairSync } from "crypto";
 import { writeFileSync, readFileSync, existsSync, mkdirSync } from "fs";
 import { join, dirname } from "path";
 import { JwtKeys } from "./jwt.js";
+import { AXErrorException } from "../../../shared/errors/ax-error.js";
 
 export interface KeyPairPaths {
   privateKeyPath: string;
@@ -61,10 +62,28 @@ export function saveKeyPair(keys: JwtKeys, paths: KeyPairPaths): void {
  */
 export function loadKeyPair(paths: KeyPairPaths): JwtKeys {
   if (!existsSync(paths.privateKeyPath)) {
-    throw new Error(`Private key not found at ${paths.privateKeyPath}`);
+    throw new AXErrorException(
+      "JWT_PRIVATE_KEY_NOT_FOUND",
+      `Private key not found at ${paths.privateKeyPath}`,
+      [
+        "Run initializeKeys() to generate a new key pair",
+        "Verify the path is correct",
+        "Check file permissions on the keys directory",
+      ],
+      { privateKeyPath: paths.privateKeyPath }
+    );
   }
   if (!existsSync(paths.publicKeyPath)) {
-    throw new Error(`Public key not found at ${paths.publicKeyPath}`);
+    throw new AXErrorException(
+      "JWT_PUBLIC_KEY_NOT_FOUND",
+      `Public key not found at ${paths.publicKeyPath}`,
+      [
+        "Run initializeKeys() to generate a new key pair",
+        "Verify the path is correct",
+        "Check file permissions on the keys directory",
+      ],
+      { publicKeyPath: paths.publicKeyPath }
+    );
   }
 
   const privateKey = readFileSync(paths.privateKeyPath, "utf-8");

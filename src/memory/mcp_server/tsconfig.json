@@ -22,6 +22,7 @@
     { "path": "../../shared/atlas" },
     { "path": "../store" },
     { "path": "../../shared/module_ids" },
-    { "path": "../../shared/aliases" }
+    { "path": "../../shared/aliases" },
+    { "path": "../../shared/errors" }
   ]
 }
