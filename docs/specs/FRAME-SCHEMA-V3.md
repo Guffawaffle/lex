@@ -199,6 +199,52 @@ export interface SpendMetadata {
 }
 ```
 
+### Recall Search Frame (Rich Metadata)
+
+This example shows a Frame with comprehensive metadata, typical of results from `lex recall`:
+
+```json
+{
+  "id": "f-a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "timestamp": "2025-11-15T09:45:00Z",
+  "branch": "feature/auth-refactor",
+  "module_scope": ["auth/oauth", "auth/jwt", "policy/permissions"],
+  "summary_caption": "Refactored OAuth flow with JWT token validation",
+  "reference_point": "auth-refactor-phase-1",
+  "status_snapshot": {
+    "next_action": "Add integration tests for token refresh",
+    "blockers": []
+  },
+  "jira": "AUTH-456",
+  "keywords": ["oauth", "jwt", "authentication", "security", "refactor"],
+  "atlas_frame_id": "atlas-f-a1b2c3d4",
+  "feature_flags": ["new-auth-flow", "jwt-validation"],
+  "permissions": ["auth:read", "auth:write"]
+}
+```
+
+### Timeline Milestone Frame
+
+This example shows a Frame marking a significant milestone, typical in `lex timeline` output:
+
+```json
+{
+  "id": "f-9876fedc-ba09-8765-4321-0fedcba98765",
+  "timestamp": "2025-12-01T16:30:00Z",
+  "branch": "release/v2.0.0",
+  "module_scope": ["release", "changelog", "docs"],
+  "summary_caption": "Release v2.0.0: Frame v3 schema stable",
+  "reference_point": "release-v2.0.0",
+  "status_snapshot": {
+    "next_action": "Publish to npm and announce",
+    "blockers": []
+  },
+  "jira": "REL-100",
+  "keywords": ["release", "v2.0.0", "stable", "frame-v3"],
+  "image_ids": ["release-banner-v2.0.0.png"]
+}
+```
+
 ---
 
 ## Searchable Fields
@@ -236,9 +282,34 @@ const version = FRAME_SCHEMA_VERSION; // 3
 - Required fields will **not change** without major version bump
 - Deprecated fields will be documented for at least one major version
 
+### Frozen Fields (Stable Contract)
+
+These required fields are **frozen** and will not change without a major version bump:
+
+- `id` - Unique identifier
+- `timestamp` - ISO 8601 timestamp
+- `branch` - Git branch or context
+- `module_scope` - Array of module identifiers
+- `summary_caption` - Human-readable summary
+- `reference_point` - Unique reference for recall
+- `status_snapshot.next_action` - Required next action
+
+### Evolutionary Fields (May Be Added)
+
+Optional fields may be added in minor versions without breaking compatibility:
+
+- All v1 optional fields (`jira`, `keywords`, `atlas_frame_id`, etc.)
+- All v2 provenance fields (`runId`, `planHash`, `spend`)
+- All v3 runner fields (`userId`, `executorRole`, `toolCalls`, `guardrailProfile`)
+- Future optional metadata fields
+
+Runners and consumers should **ignore unknown fields** to maintain forward compatibility.
+
 ---
 
 ## Runner Integration Guide
+
+For LexRunner Frame emission implementation details, see [lex-pr-runner#484](https://github.com/Guffawaffle/lex-pr-runner/issues/484).
 
 ### Emitting Frames from LexRunner
 
