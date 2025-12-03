@@ -84,9 +84,8 @@ export interface MCPResponse {
   error?: {
     message: string;
     code: string;
-    context?: Record<string, unknown>;
-    nextActions?: string[];
-    metadata?: Record<string, unknown>;
+    context?: Record<string, unknown>; // Structured context (from AXError or MCPError metadata)
+    nextActions?: string[]; // Recovery suggestions (from AXError)
   };
 }
 
@@ -229,7 +228,13 @@ export class MCPServer {
     } catch (error: unknown) {
       // Handle MCPError with structured response
       if (error instanceof MCPError) {
-        return error.toResponse();
+        return {
+          error: {
+            code: error.code,
+            message: error.message,
+            context: error.metadata, // Map metadata to context for consistency
+          },
+        };
       }
 
       // Handle AXErrorException with structured response
