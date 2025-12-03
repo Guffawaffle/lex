@@ -309,7 +309,7 @@ Runners and consumers should **ignore unknown fields** to maintain forward compa
 
 ## Runner Integration Guide
 
-For LexRunner Frame emission implementation details, see [lex-pr-runner#484](https://github.com/Guffawaffle/lex-pr-runner/issues/484).
+For LexRunner Frame emission specifications, see issue [lex-pr-runner#484](https://github.com/Guffawaffle/lex-pr-runner/issues/484).
 
 ### Emitting Frames from LexRunner
 
