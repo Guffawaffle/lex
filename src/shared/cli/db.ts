@@ -16,6 +16,7 @@ import Database from "better-sqlite3-multiple-ciphers";
 import { existsSync, renameSync, unlinkSync, copyFileSync } from "fs";
 import { createHash, randomBytes } from "crypto";
 import { dirname, join, basename } from "path";
+import { AXErrorException } from "../errors/ax-error.js";
 
 const logger = getNDJSONLogger("cli/db");
 
@@ -253,7 +254,18 @@ const VALID_SQL_IDENTIFIER_PATTERN = /^[a-zA-Z0-9_]+$/;
 function validateSqlIdentifier(identifier: string, type: "table" | "column", context?: string): void {
   if (!VALID_SQL_IDENTIFIER_PATTERN.test(identifier)) {
     const contextStr = context ? ` in ${context}` : "";
-    throw new Error(`Invalid ${type} name detected${contextStr}: ${identifier}`);
+    const errorCode = type === "table" ? "INVALID_TABLE_NAME" : "INVALID_COLUMN_NAME";
+    const errorMessage = `Invalid ${type} name detected${contextStr}: ${identifier}`;
+    const nextActions = [
+      `Ensure the database schema uses valid ${type} names`,
+      `Check that no special characters are present in ${type} names`
+    ];
+    throw new AXErrorException(
+      errorCode,
+      errorMessage,
+      nextActions,
+      { identifier, type, context }
+    );
   }
 }
 
@@ -288,20 +300,43 @@ export async function dbEncrypt(options: DbEncryptOptions = {}): Promise<void> {
     // Get passphrase from environment only (not CLI for security)
     const passphrase = process.env.LEX_DB_KEY;
     if (!passphrase && !isDryRun) {
-      throw new Error("Encryption passphrase is required. Set LEX_DB_KEY environment variable.");
+      throw new AXErrorException(
+        "DB_ENCRYPTION_KEY_MISSING",
+        "Encryption passphrase is required. Set LEX_DB_KEY environment variable.",
+        [
+          "Set the LEX_DB_KEY environment variable: export LEX_DB_KEY=\"your-passphrase\"",
+          "Ensure the passphrase is secure and backed up safely"
+        ],
+        { operation: "dbEncrypt" }
+      );
     }
 
     // Verify input database exists
     if (!existsSync(inputPath)) {
-      throw new Error(`Input database not found: ${inputPath}`);
+      throw new AXErrorException(
+        "DB_NOT_FOUND",
+        `Input database not found: ${inputPath}`,
+        [
+          "Run `lex init` to create the database",
+          "Check that LEX_DB_PATH environment variable points to the correct location",
+          "Verify the database file path is correct"
+        ],
+        { path: inputPath, operation: "dbEncrypt" }
+      );
     }
 
     // Check if output exists (still fail early for user feedback, but atomic create prevents race)
     // Skip this check in dry-run mode since we won't write anything
     if (!isDryRun && existsSync(outputPath)) {
-      throw new Error(
-        `Output database already exists: ${outputPath}. ` +
-          `Please remove it first or choose a different output path.`
+      throw new AXErrorException(
+        "DB_OUTPUT_EXISTS",
+        `Output database already exists: ${outputPath}. Please remove it first or choose a different output path.`,
+        [
+          "Remove the existing output database file",
+          "Choose a different output path using --output option",
+          "Backup the existing file if needed before removing"
+        ],
+        { outputPath, inputPath, operation: "dbEncrypt" }
       );
     }
 
@@ -551,9 +586,15 @@ export async function dbEncrypt(options: DbEncryptOptions = {}): Promise<void> {
       verifyDb.close();
 
       if (verifiedRows !== totalRows) {
-        throw new Error(
-          `Data verification failed: source has ${totalRows} rows, ` +
-            `encrypted database has ${verifiedRows} rows`
+        throw new AXErrorException(
+          "DB_VERIFICATION_FAILED",
+          `Data verification failed: source has ${totalRows} rows, encrypted database has ${verifiedRows} rows`,
+          [
+            "Check for database corruption during encryption",
+            "Retry the encryption operation",
+            "Restore from backup if available"
+          ],
+          { totalRows, verifiedRows, inputPath, outputPath, operation: "dbEncrypt" }
         );
       }
 
@@ -679,7 +720,15 @@ function calculateDatabaseChecksum(dbPath: string): string {
   const tableData: Record<string, unknown[]> = {};
   for (const { name } of tables) {
     if (!validIdentifierPattern.test(name)) {
-      throw new Error(`Invalid table name detected during checksum: ${name}`);
+      throw new AXErrorException(
+        "INVALID_TABLE_NAME",
+        `Invalid table name detected during checksum: ${name}`,
+        [
+          "Ensure the database schema uses valid table names",
+          "Check that no special characters are present in table names"
+        ],
+        { tableName: name, operation: "calculateChecksum" }
+      );
     }
 
     // Get primary key columns for ordering
@@ -692,7 +741,15 @@ function calculateDatabaseChecksum(dbPath: string): string {
     // Validate column names from pragma to prevent SQL injection
     for (const col of pkCols) {
       if (!validIdentifierPattern.test(col)) {
-        throw new Error(`Invalid column name detected in table "${name}": ${col}`);
+        throw new AXErrorException(
+          "INVALID_COLUMN_NAME",
+          `Invalid column name detected in table "${name}": ${col}`,
+          [
+            "Ensure the database schema uses valid column names",
+            "Check that no special characters are present in column names"
+          ],
+          { tableName: name, columnName: col, operation: "calculateChecksum" }
+        );
       }
     }
 
