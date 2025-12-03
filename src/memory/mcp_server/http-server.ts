@@ -21,6 +21,7 @@ import { createAtlasRouter } from "./routes/atlas.js";
 import { createAuthMiddleware } from "./auth/middleware.js";
 import { initializeKeys } from "./auth/keys.js";
 import { getLogger } from "@smartergpt/lex/logger";
+import { AXErrorException } from "../../shared/errors/ax-error.js";
 
 const logger = getLogger("memory:mcp_server:http-server");
 const auditLogger = getLogger("memory:mcp_server:audit");
@@ -181,11 +182,19 @@ export async function startHttpServer(
 ): Promise<void> {
   // SECURITY: Require at least one authentication method
   if (!options.enableOAuth && (!options.apiKey || options.apiKey.trim() === "")) {
-    throw new Error(
+    throw new AXErrorException(
+      "MCP_AUTH_REQUIRED",
       "HTTP server requires authentication. " +
         "Either enable OAuth2 (enableOAuth: true) or provide an API key. " +
         "For local development, use MCP stdio mode instead (safer, no network exposure). " +
-        "See SECURITY.md for more information."
+        "See SECURITY.md for more information.",
+      [
+        "Set enableOAuth: true to enable OAuth2 authentication",
+        "Or provide an API key via the apiKey option",
+        "For local development, use MCP stdio mode (no HTTP server needed)",
+        "See SECURITY.md for deployment best practices",
+      ],
+      { enableOAuth: options.enableOAuth, hasApiKey: Boolean(options.apiKey) }
     );
   }
 

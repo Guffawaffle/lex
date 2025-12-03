@@ -5,6 +5,7 @@
  */
 
 import axios from "axios";
+import { AXErrorException } from "../../../shared/errors/ax-error.js";
 
 export interface GitHubOAuthConfig {
   clientId: string;
@@ -63,7 +64,17 @@ export async function exchangeGitHubCode(
   );
 
   if (!response.data.access_token) {
-    throw new Error("Failed to obtain access token from GitHub");
+    throw new AXErrorException(
+      "AUTH_GITHUB_TOKEN_FAILED",
+      "Failed to obtain access token from GitHub",
+      [
+        "Verify your GitHub OAuth app configuration",
+        "Check that client_id and client_secret are correct",
+        "Ensure the authorization code is valid and not expired",
+        "Check GitHub OAuth app settings at https://github.com/settings/developers",
+      ],
+      { clientId: config.clientId, redirectUri: config.redirectUri }
+    );
   }
 
   return response.data;
@@ -95,7 +106,16 @@ export async function getGitHubUser(accessToken: string): Promise<GitHubUser> {
   const email = primaryEmail?.email || verifiedEmail?.email || userResponse.data.email;
 
   if (!email) {
-    throw new Error("GitHub user has no verified email address");
+    throw new AXErrorException(
+      "AUTH_GITHUB_NO_EMAIL",
+      "GitHub user has no verified email address",
+      [
+        "Add a verified email to your GitHub account",
+        "Make your primary email public in GitHub settings",
+        "Grant the 'user:email' scope in OAuth permissions",
+      ],
+      { userId: userResponse.data.id, login: userResponse.data.login }
+    );
   }
 
   return {

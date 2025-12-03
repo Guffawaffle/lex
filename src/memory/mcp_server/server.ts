@@ -24,6 +24,7 @@ import { getCurrentBranch } from "../../shared/git/branch.js";
 import { randomUUID } from "crypto";
 import { join } from "path";
 import { existsSync } from "fs";
+import { AXErrorException, isAXErrorException } from "../../shared/errors/ax-error.js";
 
 const logger = getLogger("memory:mcp_server:server");
 
@@ -83,6 +84,8 @@ export interface MCPResponse {
   error?: {
     message: string;
     code: string;
+    context?: Record<string, unknown>; // Structured context (from AXError or MCPError metadata)
+    nextActions?: string[]; // Recovery suggestions (from AXError)
   };
 }
 
@@ -225,7 +228,25 @@ export class MCPServer {
     } catch (error: unknown) {
       // Handle MCPError with structured response
       if (error instanceof MCPError) {
-        return error.toResponse();
+        return {
+          error: {
+            code: error.code,
+            message: error.message,
+            context: error.metadata, // Map metadata to context for consistency
+          },
+        };
+      }
+
+      // Handle AXErrorException with structured response
+      if (isAXErrorException(error)) {
+        return {
+          error: {
+            code: error.axError.code,
+            message: error.axError.message,
+            context: error.axError.context,
+            nextActions: error.axError.nextActions,
+          },
+        };
       }
 
       // Handle generic errors
@@ -462,7 +483,16 @@ export class MCPServer {
     const { reference_point, jira, branch, limit = 10 } = args as unknown as RecallArgs;
 
     if (!reference_point && !jira && !branch) {
-      throw new Error("At least one search parameter required: reference_point, jira, or branch");
+      throw new AXErrorException(
+        "MCP_RECALL_MISSING_PARAMS",
+        "At least one search parameter required: reference_point, jira, or branch",
+        [
+          "Provide a reference_point to search by text",
+          "Provide a jira ticket ID to filter by Jira ticket",
+          "Provide a branch name to filter by git branch",
+        ],
+        { providedParams: { reference_point, jira, branch } }
+      );
     }
 
     let frames: Frame[];
