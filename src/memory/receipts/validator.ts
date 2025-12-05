@@ -104,10 +104,8 @@ function mapZodCode(issue: z.ZodIssue): string {
       return "INVALID_VALUE";
     case "invalid_format":
       return "INVALID_FORMAT";
-    case "invalid_literal":
-      return "INVALID_LITERAL";
-    case "invalid_enum_value":
-      return "INVALID_ENUM_VALUE";
+    case "invalid_value":
+      return "INVALID_VALUE";
     case "too_small":
       return "TOO_SMALL";
     case "too_big":

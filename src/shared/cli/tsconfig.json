@@ -24,6 +24,7 @@
     { "path": "../errors" },
     { "path": "../../atlas" },
     { "path": "../../memory/store" },
-    { "path": "../../memory/renderer" }
+    { "path": "../../memory/renderer" },
+    { "path": "../../memory/receipts" }
   ]
 }
