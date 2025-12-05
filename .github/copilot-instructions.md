@@ -105,6 +105,28 @@ lex check
 
 ---
 
+## 🔐 Admin Authority Delegation
+
+**Standing Grant (effective 2025-12-05):** Guff grants GitHub Copilot (Senior Dev / Eager PM personas) delegated `--admin` merge authority to main **when all local CI passes**.
+
+**Conditions for `--admin` merge:**
+1. All local CI gates pass: `npm run local-ci` (includes lint, build, tests)
+2. Merge target is `main` branch
+3. Document CI pass in merge commit message
+
+**What this enables:**
+- Bypass branch protection review requirements for Copilot-authored PRs
+- Self-merge after verified CI pass (no human approval needed for routine work)
+
+**What this does NOT grant:**
+- Authority to merge others' PRs without Guff's explicit approval
+- Bypass of CI gates (all gates must pass locally)
+- Any access to production credentials or secrets
+
+**Authority chain:** Guff (admin, standing grant) → Copilot personas (delegated, CI-gated)
+
+---
+
 ## 🎭 Personas (Callable AI Modes)
 
 **Activate personas using natural language triggers.** When a user says one of the activation phrases, switch to that persona mode immediately.
