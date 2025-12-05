@@ -1,7 +1,7 @@
 /**
- * CLI Command: lex instructions generate
+ * CLI Commands: lex instructions generate / check
  *
- * Generates host-specific instruction projections from the canonical source file.
+ * Generates and validates host-specific instruction projections from the canonical source file.
  *
  * Usage:
  *   lex instructions generate                    # Generate all projections
@@ -9,6 +9,9 @@
  *   lex instructions generate --json             # Output as JSON
  *   lex instructions generate --verbose          # Show detailed progress
  *   lex instructions generate --project-root .   # Custom project root
+ *
+ *   lex instructions check                       # Verify projections are in sync
+ *   lex instructions check --json                # Output results as JSON
  */
 
 import { resolve } from "node:path";
@@ -266,5 +269,170 @@ function createErrorResult(errorMessage: string): InstructionsGenerateResult {
     skipped: [],
     errors: [{ path: "", error: errorMessage }],
     summary: { generated: 0, skipped: 0, errors: 1 },
+  };
+}
+
+/**
+ * Options for the instructions check command
+ */
+export interface InstructionsCheckOptions {
+  /** Project root directory (default: process.cwd()) */
+  projectRoot?: string;
+  /** Path to lex.yaml config file */
+  config?: string;
+  /** Output results as JSON */
+  json?: boolean;
+}
+
+/**
+ * Result of checking instructions (for JSON output)
+ */
+export interface InstructionsCheckResult {
+  inSync: Array<{ path: string }>;
+  outOfSync: Array<{ path: string; reason: string }>;
+  errors: Array<{ path: string; error: string }>;
+  summary: {
+    inSync: number;
+    outOfSync: number;
+    errors: number;
+    total: number;
+  };
+}
+
+/**
+ * Execute the 'lex instructions check' command
+ *
+ * Validates that host-specific instruction files are in sync with the canonical source.
+ * Exits with code 1 if any files are out of sync.
+ *
+ * @param options - Command options
+ */
+export async function instructionsCheck(options: InstructionsCheckOptions = {}): Promise<void> {
+  const projectRoot = resolve(options.projectRoot ?? process.cwd());
+
+  try {
+    // Load config
+    const configResult = loadLexYaml(projectRoot);
+    if (!configResult.success || !configResult.config) {
+      const errorMsg = configResult.error ?? "Failed to load lex.yaml configuration";
+      if (options.json) {
+        output.json(createCheckErrorResult(errorMsg));
+      } else {
+        output.error(errorMsg);
+      }
+      process.exit(1);
+    }
+
+    // Load canonical instructions
+    const canonical = loadCanonicalInstructions(projectRoot, configResult.config);
+    if (!canonical.exists) {
+      const errorMsg = `Canonical instruction file not found: ${canonical.path}`;
+      if (options.json) {
+        output.json(createCheckErrorResult(errorMsg));
+      } else {
+        output.error(errorMsg);
+        output.info(
+          `Create the file at: ${configResult.config.instructions?.canonical ?? ".smartergpt/instructions/lex.md"}`
+        );
+      }
+      process.exit(1);
+    }
+
+    // Detect available hosts
+    const hosts = detectAvailableHosts(projectRoot);
+
+    // Generate expected projections (without writing)
+    const projections = generateProjections({
+      canonical,
+      hosts,
+      config: configResult.config,
+      readFile: defaultFileReader,
+    });
+
+    // Check each projection
+    const result: InstructionsCheckResult = {
+      inSync: [],
+      outOfSync: [],
+      errors: [],
+      summary: { inSync: 0, outOfSync: 0, errors: 0, total: 0 },
+    };
+
+    for (const projection of projections) {
+      result.summary.total++;
+
+      if (projection.action === "skip") {
+        // Content matches - in sync
+        result.inSync.push({ path: projection.path });
+        result.summary.inSync++;
+      } else if (projection.action === "create") {
+        // File doesn't exist - out of sync
+        result.outOfSync.push({ path: projection.path, reason: "file does not exist" });
+        result.summary.outOfSync++;
+      } else if (projection.action === "update") {
+        // Content differs - out of sync
+        result.outOfSync.push({ path: projection.path, reason: "content differs" });
+        result.summary.outOfSync++;
+      }
+    }
+
+    // Output
+    if (options.json) {
+      output.json(result);
+    } else {
+      displayCheckResults(result);
+    }
+
+    // Exit with code 1 if any files are out of sync
+    process.exit(result.summary.outOfSync > 0 || result.summary.errors > 0 ? 1 : 0);
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    if (options.json) {
+      output.json(createCheckErrorResult(errorMsg));
+    } else {
+      output.error(`Failed to check instructions: ${errorMsg}`);
+    }
+    process.exit(1);
+  }
+}
+
+/**
+ * Display check results in human-readable format
+ */
+function displayCheckResults(result: InstructionsCheckResult): void {
+  // Show in-sync files
+  for (const item of result.inSync) {
+    output.success(`✓ ${item.path} is in sync`);
+  }
+
+  // Show out-of-sync files
+  for (const item of result.outOfSync) {
+    output.error(`✗ ${item.path} is OUT OF SYNC (${item.reason})`);
+  }
+
+  // Show errors
+  for (const item of result.errors) {
+    output.error(`! ${item.path}: ${item.error}`);
+  }
+
+  // Summary
+  output.info("");
+  if (result.summary.outOfSync === 0 && result.summary.errors === 0) {
+    output.success(`All ${result.summary.total} file(s) are in sync.`);
+  } else {
+    output.error(
+      `${result.summary.outOfSync} file(s) out of sync. Run 'lex instructions generate' to fix.`
+    );
+  }
+}
+
+/**
+ * Create an error result for check JSON output
+ */
+function createCheckErrorResult(errorMessage: string): InstructionsCheckResult {
+  return {
+    inSync: [],
+    outOfSync: [],
+    errors: [{ path: "", error: errorMessage }],
+    summary: { inSync: 0, outOfSync: 0, errors: 1, total: 0 },
   };
 }

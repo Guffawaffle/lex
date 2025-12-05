@@ -23,7 +23,9 @@ import { policyCheck, type PolicyCheckOptions } from "./policy-check.js";
 import { codeAtlas, type CodeAtlasOptions } from "./code-atlas.js";
 import {
   instructionsGenerate,
+  instructionsCheck,
   type InstructionsGenerateOptions,
+  type InstructionsCheckOptions,
 } from "./instructions.js";
 import * as output from "./output.js";
 import { readFileSync } from "fs";
@@ -122,7 +124,9 @@ export function createProgram(): Command {
   // lex recall command
   program
     .command("recall [query]")
-    .description("Retrieve a Frame by reference point, ticket ID, or Frame ID, or list recent frames")
+    .description(
+      "Retrieve a Frame by reference point, ticket ID, or Frame ID, or list recent frames"
+    )
     .option("--list [limit]", "List recent frames (optionally limit to N results)", parseInt)
     .option("--fold-radius <number>", "Fold radius for Atlas Frame neighborhood", parseInt)
     .option("--auto-radius", "Auto-tune radius based on token limits")
@@ -153,7 +157,9 @@ export function createProgram(): Command {
 
       // Validate that either query or --list is provided
       if (!query && options.list === undefined) {
-        output.error("\n❌ Error: Either provide a search query or use --list to browse recent frames\n");
+        output.error(
+          "\n❌ Error: Either provide a search query or use --list to browse recent frames\n"
+        );
         process.exit(1);
       }
 
@@ -261,7 +267,11 @@ export function createProgram(): Command {
     .option("--output <path>", "Output encrypted database file (default: input-encrypted.db)")
     .option("--verify", "Verify data integrity after encryption")
     .option("--no-backup", "Skip creating a backup before encryption")
-    .option("--batch-size <n>", "Number of rows per batch/transaction (reduces memory usage)", parseInt)
+    .option(
+      "--batch-size <n>",
+      "Number of rows per batch/transaction (reduces memory usage)",
+      parseInt
+    )
     .option("--dry-run", "Estimate migration time and rows without writing")
     .option("--progress", "Show progress indicator during migration")
     .action(async (cmdOptions) => {
@@ -325,6 +335,22 @@ export function createProgram(): Command {
       await instructionsGenerate(options);
     });
 
+  // lex instructions check
+  instructionsCommand
+    .command("check")
+    .description("Verify instruction files are in sync with canonical source")
+    .option("--project-root <path>", "Project root directory")
+    .option("--config <path>", "Path to lex.yaml config")
+    .action(async (cmdOptions) => {
+      const globalOptions = program.opts();
+      const options: InstructionsCheckOptions = {
+        projectRoot: cmdOptions.projectRoot,
+        config: cmdOptions.config,
+        json: globalOptions.json || false,
+      };
+      await instructionsCheck(options);
+    });
+
   // lex code-atlas command
   program
     .command("code-atlas")
@@ -340,10 +366,7 @@ export function createProgram(): Command {
       /^(static|llm-assisted|mixed)$/,
       "static"
     )
-    .option(
-      "--policy-seed <path>",
-      "Generate policy seed file from detected modules (YAML format)"
-    )
+    .option("--policy-seed <path>", "Generate policy seed file from detected modules (YAML format)")
     .action(async (cmdOptions) => {
       const globalOptions = program.opts();
       const options: CodeAtlasOptions = {
