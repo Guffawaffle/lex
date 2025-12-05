@@ -15,7 +15,7 @@ Provides two interfaces:
 - ✅ SQLite + FTS5 for fuzzy Frame recall
 - ✅ Atlas Frame generation (spatial neighborhood context)
 - ✅ Module ID validation with fuzzy suggestions (THE CRITICAL RULE)
-- ✅ Three MCP tools: `lex.remember`, `lex.recall`, `lex.list_frames`
+- ✅ Four MCP tools: `lex.remember`, `lex.recall`, `lex.list_frames`, `lex.policy_check`
 - ✅ Local-first (no cloud sync, no telemetry)
 - ✅ Comprehensive test suite (integration + alias resolution + performance)
 
@@ -110,6 +110,65 @@ List recent Frames with optional filtering.
 }
 ```
 
+### `lex.policy_check`
+
+Validate code against policy rules from `lexmap.policy.json`.
+
+**Optional Parameters:**
+- `path` - Path to check (defaults to current directory)
+- `policyPath` - Path to policy file (defaults to `lexmap.policy.json`)
+- `strict` - Fail on warnings (default: false)
+
+**Example:**
+```json
+{
+  "method": "tools/call",
+  "params": {
+    "name": "lex.policy_check",
+    "arguments": {
+      "policyPath": "./lexmap.policy.json",
+      "strict": false
+    }
+  }
+}
+```
+
+**Response (Success):**
+```json
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "✅ Policy valid: 12 modules defined\n"
+    }
+  ]
+}
+```
+
+**Response (With Warnings):**
+```json
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "✅ Policy valid: 12 modules defined\n\nWarnings:\n  ⚠️  modules.orphan-module: Module has no matching files in src/\n"
+    }
+  ]
+}
+```
+
+**Response (Invalid Policy):**
+```json
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "❌ Policy invalid: 2 error(s) found\n\nErrors:\n  ❌ modules.bad-module: Missing required field 'owns_paths'\n"
+    }
+  ]
+}
+```
+
 ## Error Codes (1.0.0 Contract)
 
 MCP tool responses use structured error codes for machine-readable error handling.
@@ -141,6 +200,8 @@ Orchestrators can branch on these codes without parsing error messages.
 | `VALIDATION_EMPTY_MODULE_SCOPE` | Validation | module_scope array is empty |
 | `VALIDATION_INVALID_STATUS` | Validation | status_snapshot structure is invalid |
 | `VALIDATION_INVALID_IMAGE` | Validation | Image data is malformed |
+| `VALIDATION_INVALID_PATH` | Validation | Path provided does not exist or is inaccessible |
+| `VALIDATION_POLICY_FAILED` | Validation | Policy validation failed |
 | `STORAGE_WRITE_FAILED` | Storage | Failed to save frame |
 | `STORAGE_READ_FAILED` | Storage | Failed to read from database |
 | `STORAGE_DELETE_FAILED` | Storage | Failed to delete from database |

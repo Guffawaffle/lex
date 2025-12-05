@@ -590,12 +590,13 @@ describe("MCP Server Integration Tests", () => {
         });
 
         assert.ok(response.tools, "Should return tools array");
-        assert.strictEqual(response.tools.length, 3, "Should have 3 tools");
+        assert.strictEqual(response.tools.length, 4, "Should have 4 tools");
 
         const toolNames = response.tools.map((t) => t.name);
         assert.ok(toolNames.includes("lex.remember"));
         assert.ok(toolNames.includes("lex.recall"));
         assert.ok(toolNames.includes("lex.list_frames"));
+        assert.ok(toolNames.includes("lex.policy_check"));
       } finally {
         await teardown();
       }
