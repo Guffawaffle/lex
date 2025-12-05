@@ -295,6 +295,189 @@ describe("lex instructions generate", () => {
       assert.match(content, /Lex Section/, "Should update lex content");
     });
   });
+});
+
+describe("lex instructions init", () => {
+  let testDir: string;
+
+  beforeEach(() => {
+    testDir = mkdtempSync(join(tmpdir(), "lex-instructions-init-test-"));
+  });
+
+  afterEach(() => {
+    rmSync(testDir, { recursive: true, force: true });
+  });
+
+  /**
+   * Helper to run the CLI command
+   */
+  function runCli(args: string[]): { stdout: string; exitCode: number } {
+    try {
+      const stdout = execFileSync(process.execPath, [lexBin, ...args], {
+        encoding: "utf-8",
+        cwd: testDir,
+        env: {
+          ...process.env,
+          LEX_LOG_LEVEL: "silent",
+        },
+      });
+      return { stdout, exitCode: 0 };
+    } catch (error: unknown) {
+      const err = error as { stdout?: string; stderr?: string; status?: number };
+      const output = (err.stdout ?? "") + (err.stderr ?? "");
+      return {
+        stdout: output,
+        exitCode: err.status ?? 1,
+      };
+    }
+  }
+
+  describe("happy path", () => {
+    it("should create all files on fresh directory", () => {
+      const result = runCli(["instructions", "init"]);
+
+      assert.strictEqual(result.exitCode, 0, "Should exit with 0");
+
+      // Check canonical file
+      const canonicalPath = join(testDir, ".smartergpt", "instructions", "lex.md");
+      assert.ok(existsSync(canonicalPath), "Should create canonical file");
+      const canonicalContent = readFileSync(canonicalPath, "utf-8");
+      assert.match(canonicalContent, /canonical source/, "Should have template content");
+
+      // Check lex.yaml
+      const lexYamlPath = join(testDir, "lex.yaml");
+      assert.ok(existsSync(lexYamlPath), "Should create lex.yaml");
+      const yamlContent = readFileSync(lexYamlPath, "utf-8");
+      assert.match(
+        yamlContent,
+        /canonical:.*\.smartergpt\/instructions\/lex\.md/,
+        "Should reference canonical"
+      );
+      assert.match(yamlContent, /copilot: true/, "Should enable copilot");
+      assert.match(yamlContent, /cursor: true/, "Should enable cursor");
+
+      // Check target files
+      const copilotPath = join(testDir, ".github", "copilot-instructions.md");
+      assert.ok(existsSync(copilotPath), "Should create copilot file");
+      const copilotContent = readFileSync(copilotPath, "utf-8");
+      assert.match(copilotContent, /LEX:BEGIN/, "Should have LEX markers");
+
+      const cursorPath = join(testDir, ".cursorrules");
+      assert.ok(existsSync(cursorPath), "Should create cursor file");
+    });
+
+    it("should create only specified targets with --targets", () => {
+      const result = runCli(["instructions", "init", "--targets", "copilot"]);
+
+      assert.strictEqual(result.exitCode, 0, "Should exit with 0");
+
+      // Copilot should exist
+      const copilotPath = join(testDir, ".github", "copilot-instructions.md");
+      assert.ok(existsSync(copilotPath), "Should create copilot file");
+
+      // Cursor should NOT exist
+      const cursorPath = join(testDir, ".cursorrules");
+      assert.ok(!existsSync(cursorPath), "Should NOT create cursor file");
+
+      // lex.yaml should only mention copilot
+      const yamlContent = readFileSync(join(testDir, "lex.yaml"), "utf-8");
+      assert.match(yamlContent, /copilot: true/, "Should enable copilot");
+      assert.ok(!yamlContent.includes("cursor"), "Should not mention cursor");
+    });
+  });
+
+  describe("abort behavior", () => {
+    it("should abort if files exist without --force", () => {
+      // Create canonical file first
+      const canonicalDir = join(testDir, ".smartergpt", "instructions");
+      mkdirSync(canonicalDir, { recursive: true });
+      writeFileSync(join(canonicalDir, "lex.md"), "# Existing");
+
+      const result = runCli(["instructions", "init"]);
+
+      assert.strictEqual(result.exitCode, 1, "Should exit with 1");
+      assert.match(result.stdout, /already exist/, "Should mention existing files");
+      assert.match(result.stdout, /--force/, "Should suggest --force");
+    });
+
+    it("should overwrite with --force", () => {
+      // Create canonical file first
+      const canonicalDir = join(testDir, ".smartergpt", "instructions");
+      mkdirSync(canonicalDir, { recursive: true });
+      writeFileSync(join(canonicalDir, "lex.md"), "# Old Content");
+
+      const result = runCli(["instructions", "init", "--force"]);
+
+      assert.strictEqual(result.exitCode, 0, "Should exit with 0");
+
+      // Check content was replaced
+      const canonicalContent = readFileSync(join(canonicalDir, "lex.md"), "utf-8");
+      assert.match(canonicalContent, /canonical source/, "Should have new template content");
+      assert.ok(!canonicalContent.includes("Old Content"), "Should not have old content");
+    });
+  });
+
+  describe("error handling", () => {
+    it("should reject invalid targets", () => {
+      const result = runCli(["instructions", "init", "--targets", "invalid"]);
+
+      assert.strictEqual(result.exitCode, 1, "Should exit with 1");
+      assert.match(result.stdout, /Invalid target/, "Should show error for invalid target");
+    });
+  });
+
+  describe("JSON output", () => {
+    it("should output JSON with --json flag", () => {
+      const result = runCli(["--json", "instructions", "init"]);
+
+      assert.strictEqual(result.exitCode, 0, "Should exit with 0");
+
+      // Extract JSON from output (may have log lines)
+      const jsonMatch = result.stdout.match(/\{[\s\S]*"success"[\s\S]*\}/);
+      assert.ok(jsonMatch, "Should contain JSON output");
+
+      const parsed = JSON.parse(jsonMatch[0]);
+      assert.strictEqual(parsed.success, true, "Should have success: true");
+      assert.ok(Array.isArray(parsed.created), "Should have created array");
+      assert.ok(parsed.created.length > 0, "Should have created files");
+    });
+  });
+});
+
+describe("lex instructions", () => {
+  let testDir: string;
+
+  beforeEach(() => {
+    testDir = mkdtempSync(join(tmpdir(), "lex-instructions-help-test-"));
+  });
+
+  afterEach(() => {
+    rmSync(testDir, { recursive: true, force: true });
+  });
+
+  /**
+   * Helper to run the CLI command
+   */
+  function runCli(args: string[]): { stdout: string; exitCode: number } {
+    try {
+      const stdout = execFileSync(process.execPath, [lexBin, ...args], {
+        encoding: "utf-8",
+        cwd: testDir,
+        env: {
+          ...process.env,
+          LEX_LOG_LEVEL: "silent",
+        },
+      });
+      return { stdout, exitCode: 0 };
+    } catch (error: unknown) {
+      const err = error as { stdout?: string; stderr?: string; status?: number };
+      const output = (err.stdout ?? "") + (err.stderr ?? "");
+      return {
+        stdout: output,
+        exitCode: err.status ?? 1,
+      };
+    }
+  }
 
   describe("help command", () => {
     it("should display help for instructions command", () => {
@@ -302,6 +485,7 @@ describe("lex instructions generate", () => {
 
       assert.strictEqual(result.exitCode, 0, "Should exit with 0");
       assert.match(result.stdout, /Manage AI assistant instructions/, "Should show description");
+      assert.match(result.stdout, /init/, "Should mention init subcommand");
       assert.match(result.stdout, /generate/, "Should mention generate subcommand");
     });
 

@@ -1,9 +1,13 @@
 /**
- * CLI Commands: lex instructions generate / check
+ * CLI Commands: lex instructions init / generate / check
  *
- * Generates and validates host-specific instruction projections from the canonical source file.
+ * Scaffolds, generates, and validates host-specific instruction projections from the canonical source file.
  *
  * Usage:
+ *   lex instructions init                        # Scaffold canonical source + lex.yaml + targets
+ *   lex instructions init --force                # Overwrite existing files
+ *   lex instructions init --targets copilot      # Only configure specific hosts
+ *
  *   lex instructions generate                    # Generate all projections
  *   lex instructions generate --dry-run          # Preview changes
  *   lex instructions generate --json             # Output as JSON
@@ -14,6 +18,8 @@
  *   lex instructions check --json                # Output results as JSON
  */
 
+import * as fs from "node:fs";
+import * as path from "node:path";
 import { resolve } from "node:path";
 import { loadLexYaml } from "../config/lex-yaml-loader.js";
 import { loadCanonicalInstructions } from "../instructions/canonical-loader.js";
@@ -24,7 +30,38 @@ import {
   type ProjectionResult,
 } from "../instructions/projection-engine.js";
 import { writeProjections, type WriteResult } from "../instructions/file-writer.js";
+import { wrapWithMarkers } from "../instructions/markers.js";
 import * as output from "./output.js";
+
+/**
+ * Supported host targets for instructions init
+ */
+export type InstructionsHostTarget = "copilot" | "cursor";
+
+/**
+ * Options for the instructions init command
+ */
+export interface InstructionsInitOptions {
+  /** Project root directory (default: process.cwd()) */
+  projectRoot?: string;
+  /** Overwrite existing files */
+  force?: boolean;
+  /** Comma-separated host targets (default: "copilot,cursor") */
+  targets?: string;
+  /** Output results as JSON */
+  json?: boolean;
+}
+
+/**
+ * Result of initializing instructions (for JSON output)
+ */
+export interface InstructionsInitResult {
+  success: boolean;
+  created: string[];
+  skipped: string[];
+  errors: Array<{ path: string; error: string }>;
+  nextSteps: string[];
+}
 
 /**
  * Options for the instructions generate command
@@ -54,6 +91,255 @@ export interface InstructionsGenerateResult {
     skipped: number;
     errors: number;
   };
+}
+
+/**
+ * Execute the 'lex instructions init' command
+ *
+ * Creates the canonical source file, lex.yaml configuration, and target files
+ * with LEX markers for the specified hosts.
+ *
+ * @param options - Command options
+ */
+export async function instructionsInit(options: InstructionsInitOptions = {}): Promise<void> {
+  const projectRoot = resolve(options.projectRoot ?? process.cwd());
+  const force = options.force ?? false;
+
+  // Parse targets
+  const targetStr = options.targets ?? "copilot,cursor";
+  const targets = targetStr
+    .split(",")
+    .map((t) => t.trim().toLowerCase()) as InstructionsHostTarget[];
+  const validTargets: InstructionsHostTarget[] = ["copilot", "cursor"];
+  const invalidTargets = targets.filter((t) => !validTargets.includes(t));
+
+  if (invalidTargets.length > 0) {
+    const errorMsg = `Invalid target(s): ${invalidTargets.join(", ")}. Valid targets: ${validTargets.join(", ")}`;
+    if (options.json) {
+      output.json({
+        success: false,
+        created: [],
+        skipped: [],
+        errors: [{ path: "", error: errorMsg }],
+        nextSteps: [],
+      } as InstructionsInitResult);
+    } else {
+      output.error(errorMsg);
+    }
+    process.exit(1);
+  }
+
+  const result: InstructionsInitResult = {
+    success: true,
+    created: [],
+    skipped: [],
+    errors: [],
+    nextSteps: [],
+  };
+
+  try {
+    // Define paths
+    const canonicalPath = path.join(projectRoot, ".smartergpt", "instructions", "lex.md");
+    const lexYamlPath = path.join(projectRoot, "lex.yaml");
+
+    // Check existing files
+    const canonicalExists = fs.existsSync(canonicalPath);
+    const lexYamlExists = fs.existsSync(lexYamlPath);
+
+    // Check if we should abort
+    if (!force) {
+      if (canonicalExists) {
+        result.skipped.push(canonicalPath);
+      }
+      if (lexYamlExists) {
+        result.skipped.push(lexYamlPath);
+      }
+
+      if (canonicalExists || lexYamlExists) {
+        const msg = "Files already exist. Use --force to overwrite.";
+        if (options.json) {
+          result.success = false;
+          result.errors.push({ path: "", error: msg });
+          output.json(result);
+        } else {
+          output.error(msg);
+          for (const skipped of result.skipped) {
+            output.info(`  - ${path.relative(projectRoot, skipped)}`);
+          }
+        }
+        process.exit(1);
+      }
+    }
+
+    // Create canonical source directory and file
+    const canonicalDir = path.dirname(canonicalPath);
+    fs.mkdirSync(canonicalDir, { recursive: true });
+
+    const canonicalTemplate = getCanonicalTemplate();
+    fs.writeFileSync(canonicalPath, canonicalTemplate, "utf8");
+    result.created.push(path.relative(projectRoot, canonicalPath));
+
+    // Create lex.yaml
+    const lexYamlContent = getLexYamlTemplate(targets);
+    fs.writeFileSync(lexYamlPath, lexYamlContent, "utf8");
+    result.created.push(path.relative(projectRoot, lexYamlPath));
+
+    // Create target files with LEX markers
+    const targetPaths = getTargetPaths(projectRoot, targets);
+    for (const { host, targetPath } of targetPaths) {
+      const targetExists = fs.existsSync(targetPath);
+
+      if (targetExists && !force) {
+        result.skipped.push(path.relative(projectRoot, targetPath));
+        continue;
+      }
+
+      // Create directory if needed
+      const targetDir = path.dirname(targetPath);
+      fs.mkdirSync(targetDir, { recursive: true });
+
+      // Create file with placeholder LEX markers
+      const placeholderContent = getTargetPlaceholder(host);
+      const wrappedContent = wrapWithMarkers(placeholderContent);
+      fs.writeFileSync(targetPath, wrappedContent, "utf8");
+      result.created.push(path.relative(projectRoot, targetPath));
+    }
+
+    // Set next steps
+    result.nextSteps = [
+      `Edit ${path.relative(projectRoot, canonicalPath)} with your project instructions`,
+      "Run 'lex instructions generate' to update target files",
+    ];
+
+    // Output
+    if (options.json) {
+      output.json(result);
+    } else {
+      displayInitResults(result, projectRoot);
+    }
+
+    process.exit(result.errors.length > 0 ? 1 : 0);
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    if (options.json) {
+      result.success = false;
+      result.errors.push({ path: "", error: errorMsg });
+      output.json(result);
+    } else {
+      output.error(`Failed to initialize instructions: ${errorMsg}`);
+    }
+    process.exit(1);
+  }
+}
+
+/**
+ * Get the canonical source template content
+ */
+function getCanonicalTemplate(): string {
+  return `# Project Instructions
+
+> **This file is the canonical source of AI assistant guidance for this repository.**
+> Content from here is projected to host files (e.g., \`.github/copilot-instructions.md\`).
+
+## Overview
+
+[Describe your project and key conventions here]
+
+## Key Files
+
+| File | Purpose |
+|------|---------|
+| \`src/\` | Source code |
+| \`test/\` | Test files |
+
+## Coding Style
+
+- [Add your coding conventions]
+
+---
+
+*Generated by \`lex instructions init\`. Edit this file, then run \`lex instructions generate\`.*
+`;
+}
+
+/**
+ * Get the lex.yaml template content
+ */
+function getLexYamlTemplate(targets: InstructionsHostTarget[]): string {
+  const projectionsLines = targets.map((t) => `    ${t}: true`).join("\n");
+  return `# Lex Configuration
+# See: https://github.com/Guffawaffle/lex
+
+version: 1
+
+instructions:
+  # Canonical source of AI instructions
+  canonical: .smartergpt/instructions/lex.md
+
+  # Which hosts to project to (auto-detected if omitted)
+  projections:
+${projectionsLines}
+`;
+}
+
+/**
+ * Get target file paths for specified hosts
+ */
+function getTargetPaths(
+  projectRoot: string,
+  targets: InstructionsHostTarget[]
+): Array<{ host: InstructionsHostTarget; targetPath: string }> {
+  const paths: Array<{ host: InstructionsHostTarget; targetPath: string }> = [];
+
+  if (targets.includes("copilot")) {
+    paths.push({
+      host: "copilot",
+      targetPath: path.join(projectRoot, ".github", "copilot-instructions.md"),
+    });
+  }
+
+  if (targets.includes("cursor")) {
+    paths.push({
+      host: "cursor",
+      targetPath: path.join(projectRoot, ".cursorrules"),
+    });
+  }
+
+  return paths;
+}
+
+/**
+ * Get placeholder content for a target file
+ */
+function getTargetPlaceholder(_host: InstructionsHostTarget): string {
+  return `# Lex Instructions
+
+This content is auto-generated from the canonical source.
+Run \`lex instructions generate\` to update.
+`;
+}
+
+/**
+ * Display init results in human-readable format
+ */
+function displayInitResults(result: InstructionsInitResult, _projectRoot: string): void {
+  for (const created of result.created) {
+    output.success(`✓ Created ${created}`);
+  }
+
+  for (const skipped of result.skipped) {
+    output.warn(`- Skipped ${skipped} (already exists)`);
+  }
+
+  for (const err of result.errors) {
+    output.error(`✗ ${err.path}: ${err.error}`);
+  }
+
+  output.info("");
+  output.info("Next steps:");
+  for (let i = 0; i < result.nextSteps.length; i++) {
+    output.info(`  ${i + 1}. ${result.nextSteps[i]}`);
+  }
 }
 
 /**

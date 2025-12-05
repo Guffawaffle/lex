@@ -18,6 +18,24 @@ import { fileURLToPath } from "url";
 let aliasTableCache: AliasTable | null = null;
 
 /**
+ * Cache for policy module ID sets in resolver
+ * Uses WeakMap to avoid memory leaks - entries are garbage collected when policy is no longer referenced
+ */
+const resolverPolicyModuleIdsCache = new WeakMap<Policy, Set<string>>();
+
+/**
+ * Get or create a Set of module IDs from a policy (with caching)
+ */
+function getPolicyModuleIds(policy: Policy): Set<string> {
+  let moduleIds = resolverPolicyModuleIdsCache.get(policy);
+  if (!moduleIds) {
+    moduleIds = new Set(Object.keys(policy.modules));
+    resolverPolicyModuleIdsCache.set(policy, moduleIds);
+  }
+  return moduleIds;
+}
+
+/**
  * Load alias table from aliases.json with caching
  *
  * @param aliasTablePath - Optional path to alias table JSON file
@@ -130,7 +148,8 @@ export async function resolveModuleId(
   aliasTable?: AliasTable,
   options?: ResolverOptions
 ): Promise<AliasResolution> {
-  const policyModuleIds = new Set(Object.keys(policy.modules));
+  // Use cached Set for O(1) lookups - avoids O(n) Set creation on every call
+  const policyModuleIds = getPolicyModuleIds(policy);
 
   // Default options
   const opts: Required<ResolverOptions> = {

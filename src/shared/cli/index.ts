@@ -22,8 +22,10 @@ import {
 import { policyCheck, type PolicyCheckOptions } from "./policy-check.js";
 import { codeAtlas, type CodeAtlasOptions } from "./code-atlas.js";
 import {
+  instructionsInit,
   instructionsGenerate,
   instructionsCheck,
+  type InstructionsInitOptions,
   type InstructionsGenerateOptions,
   type InstructionsCheckOptions,
 } from "./instructions.js";
@@ -314,6 +316,24 @@ export function createProgram(): Command {
   const instructionsCommand = program
     .command("instructions")
     .description("Manage AI assistant instructions");
+
+  // lex instructions init
+  instructionsCommand
+    .command("init")
+    .description("Scaffold canonical source file, lex.yaml, and target files")
+    .option("--project-root <path>", "Project root directory")
+    .option("--force", "Overwrite existing files")
+    .option("--targets <hosts>", "Comma-separated host targets (default: copilot,cursor)")
+    .action(async (cmdOptions) => {
+      const globalOptions = program.opts();
+      const options: InstructionsInitOptions = {
+        projectRoot: cmdOptions.projectRoot,
+        force: cmdOptions.force || false,
+        targets: cmdOptions.targets,
+        json: globalOptions.json || false,
+      };
+      await instructionsInit(options);
+    });
 
   // lex instructions generate
   instructionsCommand
