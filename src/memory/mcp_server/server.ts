@@ -92,6 +92,12 @@ interface TimelineArgs {
   format?: "text" | "json";
 }
 
+interface CodeAtlasArgs {
+  path?: string;
+  foldRadius?: number;
+  maxTokens?: number;
+}
+
 export interface MCPRequest {
   method: string;
   params?: unknown;
@@ -123,8 +129,8 @@ export interface ToolCallParams {
  * Options for creating an MCPServer instance.
  */
 export interface MCPServerOptions {
-  /** 
-   * FrameStore instance to use for frame persistence. 
+  /**
+   * FrameStore instance to use for frame persistence.
    * If not provided, creates a SqliteFrameStore with the given dbPath.
    */
   frameStore?: FrameStore;
@@ -146,11 +152,11 @@ export class MCPServer {
 
   /**
    * Create a new MCPServer instance.
-   * 
+   *
    * Supports two construction patterns:
    * 1. Legacy: MCPServer(dbPath: string, repoRoot?: string) - creates SqliteFrameStore internally
    * 2. DI: MCPServer(options: MCPServerOptions) - uses provided FrameStore for testing/swapping
-   * 
+   *
    * @param dbPathOrOptions - Either a database path string (legacy) or MCPServerOptions object
    * @param repoRoot - Repository root path (only used with legacy constructor)
    */
@@ -328,25 +334,26 @@ export class MCPServer {
       case "lex.list_frames":
         return await this.handleListFrames(args);
 
-<<<<<<< HEAD
       case "lex.policy_check":
         return await this.handlePolicyCheck(args);
-||||||| 9784b83
-=======
+
       case "lex.timeline":
         return await this.handleTimeline(args);
->>>>>>> pr-496
+
+      case "lex.code_atlas":
+        return await this.handleCodeAtlas(args);
 
       default:
         throw new MCPError(MCPErrorCode.INTERNAL_UNKNOWN_TOOL, `Unknown tool: ${name}`, {
           requestedTool: name,
-<<<<<<< HEAD
-          availableTools: ["lex.remember", "lex.recall", "lex.list_frames", "lex.policy_check"],
-||||||| 9784b83
-          availableTools: ["lex.remember", "lex.recall", "lex.list_frames"],
-=======
-          availableTools: ["lex.remember", "lex.recall", "lex.list_frames", "lex.timeline"],
->>>>>>> pr-496
+          availableTools: [
+            "lex.remember",
+            "lex.recall",
+            "lex.list_frames",
+            "lex.policy_check",
+            "lex.timeline",
+            "lex.code_atlas",
+          ],
         });
     }
   }
@@ -693,7 +700,6 @@ export class MCPServer {
   }
 
   /**
-<<<<<<< HEAD
    * Handle lex.policy_check tool - validate policy file
    */
   private async handlePolicyCheck(args: Record<string, unknown>): Promise<MCPResponse> {
@@ -716,11 +722,13 @@ export class MCPServer {
       const validation = validatePolicySchema(policy);
 
       // Prepare result
-      const valid = strict ? validation.valid && validation.warnings.length === 0 : validation.valid;
+      const valid = strict
+        ? validation.valid && validation.warnings.length === 0
+        : validation.valid;
 
       // Format output
       let output = "";
-      
+
       if (valid) {
         output += `✅ Policy valid: ${validation.moduleCount} modules defined\n`;
       } else {
@@ -753,7 +761,7 @@ export class MCPServer {
       };
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      
+
       // If it's already an MCPError, rethrow it
       if (error instanceof MCPError) {
         throw error;
@@ -769,12 +777,13 @@ export class MCPServer {
       }
 
       // Otherwise, it's an invalid policy
-      throw new MCPError(
-        MCPErrorCode.POLICY_INVALID,
-        `Policy validation failed: ${errorMessage}`,
-        { policyPath }
-||||||| 9784b83
-=======
+      throw new MCPError(MCPErrorCode.POLICY_INVALID, `Policy validation failed: ${errorMessage}`, {
+        policyPath,
+      });
+    }
+  }
+
+  /**
    * Handle lex.timeline tool - show timeline of Frame evolution
    */
   private async handleTimeline(args: Record<string, unknown>): Promise<MCPResponse> {
@@ -889,7 +898,123 @@ export class MCPServer {
         MCPErrorCode.INTERNAL_ERROR,
         `Failed to generate timeline: ${errorMessage}`,
         { ticketOrBranch, error: errorMessage }
->>>>>>> pr-496
+      );
+    }
+  }
+
+  /**
+   * Handle lex.code_atlas tool - analyze code structure and dependencies
+   */
+  private async handleCodeAtlas(args: Record<string, unknown>): Promise<MCPResponse> {
+    const {
+      path: requestPath,
+      foldRadius: _foldRadius,
+      maxTokens: _maxTokens,
+    } = args as unknown as CodeAtlasArgs;
+
+    // Use provided path or current directory
+    const repoPath = requestPath || this.repoRoot || process.cwd();
+
+    try {
+      // Import spawnSync to run the CLI
+      const { spawnSync } = await import("child_process");
+
+      // Run the code-atlas CLI command
+      const result = spawnSync("npx", ["lex", "code-atlas", "--repo", repoPath, "--json"], {
+        encoding: "utf8",
+        stdio: ["pipe", "pipe", "pipe"],
+      });
+
+      if (result.error) {
+        throw new MCPError(
+          MCPErrorCode.INTERNAL_ERROR,
+          `Failed to execute code-atlas: ${result.error.message}`,
+          { path: repoPath }
+        );
+      }
+
+      if (result.status !== 0) {
+        const errorMsg = result.stderr || result.stdout || "Code atlas generation failed";
+        throw new MCPError(
+          MCPErrorCode.INTERNAL_ERROR,
+          `Code atlas generation failed: ${errorMsg}`,
+          { path: repoPath }
+        );
+      }
+
+      // Parse the JSON output
+      let output;
+      try {
+        output = JSON.parse(result.stdout);
+      } catch (parseError) {
+        throw new MCPError(
+          MCPErrorCode.INTERNAL_ERROR,
+          `Failed to parse code-atlas output: ${parseError instanceof Error ? parseError.message : String(parseError)}`,
+          { path: repoPath }
+        );
+      }
+
+      const { run, units } = output;
+
+      // Format the output for MCP response
+      const summary =
+        `🗺️  Code Atlas Generated\n` +
+        `📍 Repository: ${run.repoId}\n` +
+        `📁 Files scanned: ${run.filesScanned.length}${
+          run.truncated ? ` (truncated from ${run.filesRequested.length})` : ""
+        }\n` +
+        `🔍 Units extracted: ${run.unitsEmitted}\n` +
+        `⚙️  Strategy: ${run.strategy}\n` +
+        `📅 Created: ${run.createdAt}\n\n`;
+
+      // Group units by file for better readability
+      const unitsByFile = new Map<string, typeof units>();
+      for (const unit of units) {
+        const existing = unitsByFile.get(unit.filePath) || [];
+        existing.push(unit);
+        unitsByFile.set(unit.filePath, existing);
+      }
+
+      let unitsOutput = "📦 Extracted Units:\n";
+      let fileCount = 0;
+      for (const [filePath, fileUnits] of unitsByFile) {
+        fileCount++;
+        unitsOutput += `\n${fileCount}. ${filePath} (${fileUnits.length} units)\n`;
+        for (const unit of fileUnits) {
+          unitsOutput += `   - ${unit.kind}: ${unit.name} (lines ${unit.span.startLine}-${unit.span.endLine})\n`;
+        }
+        // Limit output to avoid overwhelming the response
+        if (fileCount >= 20) {
+          const remainingFiles = unitsByFile.size - fileCount;
+          if (remainingFiles > 0) {
+            unitsOutput += `\n... and ${remainingFiles} more files\n`;
+          }
+          break;
+        }
+      }
+
+      // Include raw data as JSON for programmatic access
+      const jsonOutput = `\n📄 Full Output (JSON):\n\`\`\`json\n${JSON.stringify(output, null, 2)}\n\`\`\``;
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: summary + unitsOutput + jsonOutput,
+          },
+        ],
+      };
+    } catch (error: unknown) {
+      // Handle errors from code atlas generation
+      if (error instanceof MCPError) {
+        throw error;
+      }
+
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      throw new MCPError(
+        MCPErrorCode.INTERNAL_ERROR,
+        `Failed to generate code atlas: ${errorMessage}`,
+        { path: requestPath, error: errorMessage }
       );
     }
   }
