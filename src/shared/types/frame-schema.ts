@@ -22,6 +22,45 @@ export const SpendMetadataSchema = z.object({
 export type SpendMetadata = z.infer<typeof SpendMetadataSchema>;
 
 /**
+ * TurnCostComponent schema - Turn Cost components
+ */
+export const TurnCostComponentSchema = z.object({
+  latency: z.number().describe("Response time in ms"),
+  contextReset: z.number().describe("Tokens for context re-establishment"),
+  renegotiation: z.number().describe("Count of clarification turns"),
+  tokenBloat: z.number().describe("Excess tokens beyond minimum"),
+  attentionSwitch: z.number().describe("Human intervention count"),
+});
+
+export type TurnCostComponent = z.infer<typeof TurnCostComponentSchema>;
+
+/**
+ * TurnCostWeights schema - Turn Cost weight configuration
+ */
+export const TurnCostWeightsSchema = z.object({
+  lambda: z.number().default(0.1).describe("Latency weight"),
+  gamma: z.number().default(0.2).describe("Context reset weight"),
+  rho: z.number().default(0.3).describe("Renegotiation weight"),
+  tau: z.number().default(0.1).describe("Token bloat weight"),
+  alpha: z.number().default(0.3).describe("Attention switch weight"),
+});
+
+export type TurnCostWeights = z.infer<typeof TurnCostWeightsSchema>;
+
+/**
+ * TurnCost schema - coordination cost tracking
+ */
+export const TurnCostSchema = z.object({
+  components: TurnCostComponentSchema,
+  weights: TurnCostWeightsSchema.optional(),
+  weightedScore: z.number().optional().describe("Calculated weighted Turn Cost score"),
+  sessionId: z.string().optional().describe("Session identifier for Turn Cost tracking"),
+  timestamp: z.string().optional().describe("ISO 8601 timestamp of measurement"),
+});
+
+export type TurnCost = z.infer<typeof TurnCostSchema>;
+
+/**
  * StatusSnapshot schema - current status and next action
  */
 export const StatusSnapshotSchema = z.object({
@@ -41,7 +80,7 @@ export const StatusSnapshotSchema = z.object({
 export type StatusSnapshot = z.infer<typeof StatusSnapshotSchema>;
 
 /**
- * Frame schema v3 - the canonical shape for memory units
+ * Frame schema v4 - the canonical shape for memory units
  *
  * @example
  * ```json
@@ -127,14 +166,23 @@ export const FrameSchema = z.object({
 
   /** Safety profile applied */
   guardrailProfile: z.string().optional(),
+
+  // === v4 fields (Turn Cost Measurement) ===
+
+  /** Turn Cost coordination metrics */
+  turnCost: TurnCostSchema.optional(),
 });
 
 export type Frame = z.infer<typeof FrameSchema>;
 
 /**
  * Frame schema version constant
+ * v1: Initial schema (pre-0.4.0)
+ * v2: Added runId, planHash, spend fields for execution provenance (0.4.0)
+ * v3: Added executorRole, toolCalls, guardrailProfile for LexRunner (0.5.0)
+ * v4: Added turnCost for governance Turn Cost measurement (2.0.0-alpha.1)
  */
-export const FRAME_SCHEMA_VERSION = 3;
+export const FRAME_SCHEMA_VERSION = 4;
 
 /**
  * Validate a Frame using Zod schema

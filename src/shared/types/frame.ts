@@ -15,6 +15,30 @@ export interface SpendMetadata {
   tokens_estimated?: number;
 }
 
+export interface TurnCostComponent {
+  latency: number;
+  contextReset: number;
+  renegotiation: number;
+  tokenBloat: number;
+  attentionSwitch: number;
+}
+
+export interface TurnCostWeights {
+  lambda: number;
+  gamma: number;
+  rho: number;
+  tau: number;
+  alpha: number;
+}
+
+export interface TurnCost {
+  components: TurnCostComponent;
+  weights?: TurnCostWeights;
+  weightedScore?: number;
+  sessionId?: string;
+  timestamp?: string;
+}
+
 export interface Frame {
   id: string;
   timestamp: string;
@@ -39,6 +63,8 @@ export interface Frame {
   executorRole?: string;
   toolCalls?: string[];
   guardrailProfile?: string;
+  // Turn Cost metrics (v4)
+  turnCost?: TurnCost;
 }
 
 /**
@@ -46,8 +72,9 @@ export interface Frame {
  * v1: Initial schema (pre-0.4.0)
  * v2: Added runId, planHash, spend fields for execution provenance (0.4.0)
  * v3: Added executorRole, toolCalls, guardrailProfile for LexRunner (0.5.0)
+ * v4: Added turnCost for governance Turn Cost measurement (2.0.0-alpha.1)
  */
-export const FRAME_SCHEMA_VERSION = 3;
+export const FRAME_SCHEMA_VERSION = 4;
 
 export function validateFrameMetadata(frame: unknown): frame is Frame {
   if (typeof frame !== "object" || frame === null) return false;
