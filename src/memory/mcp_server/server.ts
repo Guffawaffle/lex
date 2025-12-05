@@ -670,76 +670,57 @@ export class MCPServer {
     const { path: checkPath, policyPath, strict = false } = args as unknown as PolicyCheckArgs;
 
     try {
-      // Change directory if path is provided
-      const originalCwd = process.cwd();
-      if (checkPath) {
-        try {
-          process.chdir(checkPath);
-        } catch (error: unknown) {
-          const errorMessage = error instanceof Error ? error.message : String(error);
-          throw new MCPError(
-            MCPErrorCode.VALIDATION_INVALID_PATH,
-            `Invalid path: ${errorMessage}`,
-            { path: checkPath }
-          );
+      // Resolve policy path - if checkPath is provided, resolve policyPath relative to it
+      let resolvedPolicyPath: string | undefined = policyPath;
+      if (checkPath && policyPath) {
+        const { resolve, isAbsolute } = await import("path");
+        if (!isAbsolute(policyPath)) {
+          resolvedPolicyPath = resolve(checkPath, policyPath);
         }
       }
 
-      try {
-        // Load policy file
-        const policy: Policy = loadPolicy(policyPath);
+      // Load policy file
+      const policy: Policy = loadPolicy(resolvedPolicyPath);
 
-        // Validate schema
-        const validation = validatePolicySchema(policy);
+      // Validate schema
+      const validation = validatePolicySchema(policy);
 
-        // Prepare result
-        const valid = strict ? validation.valid && validation.warnings.length === 0 : validation.valid;
+      // Prepare result
+      const valid = strict ? validation.valid && validation.warnings.length === 0 : validation.valid;
 
-        // Format output
-        let output = "";
-        
-        if (valid) {
-          output += `✅ Policy valid: ${validation.moduleCount} modules defined\n`;
-        } else {
-          output += `❌ Policy invalid: ${validation.errors.length} error(s) found\n`;
-        }
-
-        // Add errors
-        if (validation.errors.length > 0) {
-          output += "\nErrors:\n";
-          for (const error of validation.errors) {
-            output += `  ❌ ${error.path}: ${error.message}\n`;
-          }
-        }
-
-        // Add warnings
-        if (validation.warnings.length > 0) {
-          output += "\nWarnings:\n";
-          for (const warning of validation.warnings) {
-            output += `  ⚠️  ${warning.path}: ${warning.message}\n`;
-          }
-        }
-
-        // Restore original directory
-        if (checkPath) {
-          process.chdir(originalCwd);
-        }
-
-        return {
-          content: [
-            {
-              type: "text",
-              text: output,
-            },
-          ],
-        };
-      } catch (innerError: unknown) {
-        // Restore original directory on error
-        if (checkPath) {
-          process.chdir(originalCwd);
-        }
-        throw innerError;
+      // Format output
+      let output = "";
+      
+      if (valid) {
+        output += `✅ Policy valid: ${validation.moduleCount} modules defined\n`;
+      } else {
+        output += `❌ Policy invalid: ${validation.errors.length} error(s) found\n`;
       }
+
+      // Add errors
+      if (validation.errors.length > 0) {
+        output += "\nErrors:\n";
+        for (const error of validation.errors) {
+          output += `  ❌ ${error.path}: ${error.message}\n`;
+        }
+      }
+
+      // Add warnings
+      if (validation.warnings.length > 0) {
+        output += "\nWarnings:\n";
+        for (const warning of validation.warnings) {
+          output += `  ⚠️  ${warning.path}: ${warning.message}\n`;
+        }
+      }
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: output,
+          },
+        ],
+      };
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       
@@ -748,10 +729,19 @@ export class MCPServer {
         throw error;
       }
 
-      // Otherwise, wrap it
+      // Check if it's a file not found error
+      if (errorMessage.includes("ENOENT") || errorMessage.includes("not found")) {
+        throw new MCPError(
+          MCPErrorCode.POLICY_NOT_FOUND,
+          `Policy file not found: ${errorMessage}`,
+          { policyPath }
+        );
+      }
+
+      // Otherwise, it's an invalid policy
       throw new MCPError(
-        MCPErrorCode.VALIDATION_POLICY_FAILED,
-        `Policy check failed: ${errorMessage}`,
+        MCPErrorCode.POLICY_INVALID,
+        `Policy validation failed: ${errorMessage}`,
         { policyPath }
       );
     }

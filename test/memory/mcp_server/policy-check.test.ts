@@ -108,8 +108,9 @@ describe("MCP Server - lex.policy_check", () => {
 
       // Should return an error for invalid JSON
       assert.ok(response.error, "Should return an error");
+      assert.strictEqual(response.error.code, "POLICY_INVALID", "Should use POLICY_INVALID error code");
       assert.ok(
-        response.error.message.includes("Policy check failed") ||
+        response.error.message.includes("Policy validation failed") ||
         response.error.message.includes("JSON"),
         "Error should indicate JSON parsing failure"
       );
@@ -133,8 +134,8 @@ describe("MCP Server - lex.policy_check", () => {
       });
 
       assert.ok(response.error, "Should return error");
+      assert.strictEqual(response.error.code, "POLICY_NOT_FOUND", "Should use POLICY_NOT_FOUND error code");
       assert.ok(
-        response.error.message.includes("Policy check failed") ||
         response.error.message.includes("not found") ||
         response.error.message.includes("ENOENT"),
         "Error should indicate policy file not found"

@@ -201,7 +201,6 @@ Orchestrators can branch on these codes without parsing error messages.
 | `VALIDATION_INVALID_STATUS` | Validation | status_snapshot structure is invalid |
 | `VALIDATION_INVALID_IMAGE` | Validation | Image data is malformed |
 | `VALIDATION_INVALID_PATH` | Validation | Path provided does not exist or is inaccessible |
-| `VALIDATION_POLICY_FAILED` | Validation | Policy validation failed |
 | `STORAGE_WRITE_FAILED` | Storage | Failed to save frame |
 | `STORAGE_READ_FAILED` | Storage | Failed to read from database |
 | `STORAGE_DELETE_FAILED` | Storage | Failed to delete from database |
