@@ -102,10 +102,7 @@ describe("MCP Server with MemoryFrameStore - Test Isolation", () => {
         assert.strictEqual(memoryStore.size(), 1, "Store should have exactly 1 frame");
 
         const frames = await memoryStore.listFrames();
-        assert.ok(
-          frames[0].reference_point.includes("test A"),
-          "Frame should be from test A"
-        );
+        assert.ok(frames[0].reference_point.includes("test A"), "Frame should be from test A");
       } finally {
         await server.close();
       }
@@ -137,10 +134,7 @@ describe("MCP Server with MemoryFrameStore - Test Isolation", () => {
         assert.strictEqual(memoryStore.size(), 1, "Store should have exactly 1 frame");
 
         const frames = await memoryStore.listFrames();
-        assert.ok(
-          frames[0].reference_point.includes("test B"),
-          "Frame should be from test B"
-        );
+        assert.ok(frames[0].reference_point.includes("test B"), "Frame should be from test B");
       } finally {
         await server.close();
       }
@@ -173,10 +167,7 @@ describe("MCP Server with MemoryFrameStore - Test Isolation", () => {
         });
 
         assert.ok(response.content, "Response should have content");
-        assert.ok(
-          response.content[0].text.includes("✅ Frame stored"),
-          "Should confirm storage"
-        );
+        assert.ok(response.content[0].text.includes("✅ Frame stored"), "Should confirm storage");
         assert.ok(
           response.content[0].text.includes("🌿 Branch: feature-branch"),
           "Should show branch"
@@ -220,10 +211,7 @@ describe("MCP Server with MemoryFrameStore - Test Isolation", () => {
         });
 
         assert.ok(response.content, "Response should have content");
-        assert.ok(
-          response.content[0].text.includes("Found 1 Frame"),
-          "Should find the frame"
-        );
+        assert.ok(response.content[0].text.includes("Found 1 Frame"), "Should find the frame");
         assert.ok(
           response.content[0].text.includes("searchable recall test"),
           "Should include reference point"
@@ -269,14 +257,8 @@ describe("MCP Server with MemoryFrameStore - Test Isolation", () => {
           response.content[0].text.includes("Recent Frames (3)"),
           "Should list all 3 frames"
         );
-        assert.ok(
-          response.content[0].text.includes("list frame 1"),
-          "Should include first frame"
-        );
-        assert.ok(
-          response.content[0].text.includes("list frame 3"),
-          "Should include third frame"
-        );
+        assert.ok(response.content[0].text.includes("list frame 1"), "Should include first frame");
+        assert.ok(response.content[0].text.includes("list frame 3"), "Should include third frame");
       } finally {
         await server.close();
       }
