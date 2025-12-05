@@ -99,22 +99,30 @@ describe("Turn Cost Schema Validation", () => {
   });
 
   test("should validate TurnCost with optional fields", () => {
+    const components = {
+      latency: 1500,
+      contextReset: 2000,
+      renegotiation: 3,
+      tokenBloat: 500,
+      attentionSwitch: 2,
+    };
+    
+    const weights = {
+      lambda: 0.15,
+      gamma: 0.25,
+      rho: 0.3,
+      tau: 0.1,
+      alpha: 0.2,
+    };
+    
+    // Calculate actual score: 0.15*1500 + 0.25*2000 + 0.3*3 + 0.1*500 + 0.2*2
+    // = 225 + 500 + 0.9 + 50 + 0.4 = 776.3
+    const expectedScore = 776.3;
+    
     const turnCost = {
-      components: {
-        latency: 1500,
-        contextReset: 2000,
-        renegotiation: 3,
-        tokenBloat: 500,
-        attentionSwitch: 2,
-      },
-      weights: {
-        lambda: 0.15,
-        gamma: 0.25,
-        rho: 0.3,
-        tau: 0.1,
-        alpha: 0.2,
-      },
-      weightedScore: 1234.5,
+      components,
+      weights,
+      weightedScore: expectedScore,
       sessionId: "session-123",
       timestamp: "2025-12-05T02:00:00Z",
     };

@@ -11,7 +11,7 @@ import { validateFrameMetadata, FRAME_SCHEMA_VERSION } from "@app/shared/types/f
 
 describe("Frame Type Validation", () => {
   test("should export FRAME_SCHEMA_VERSION", () => {
-    assert.strictEqual(FRAME_SCHEMA_VERSION, 3, "Schema version should be 3");
+    assert.strictEqual(FRAME_SCHEMA_VERSION, 4, "Schema version should be 4");
   });
 
   test("should validate a minimal Frame", () => {
