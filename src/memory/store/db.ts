@@ -46,6 +46,10 @@ export interface FrameRow {
   spend: string | null; // JSON stringified object
   // OAuth2/JWT user isolation (v3)
   user_id: string | null;
+  // Turn Cost and Tier metadata (v4 - Wave 2)
+  turn_cost: string | null; // JSON stringified TurnCost
+  capability_tier: string | null; // "senior" | "mid" | "junior"
+  task_complexity: string | null; // JSON stringified TaskComplexity
 }
 
 /**
@@ -351,6 +355,10 @@ export function initializeDatabase(db: Database.Database): void {
   if (currentVersion < 7) {
     applyMigrationV7(db);
     db.prepare("INSERT INTO schema_version (version) VALUES (?)").run(7);
+  }
+  if (currentVersion < 8) {
+    applyMigrationV8(db);
+    db.prepare("INSERT INTO schema_version (version) VALUES (?)").run(8);
   }
 }
 
@@ -700,6 +708,41 @@ function applyMigrationV7(db: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_lexsona_rules_frame_id
     ON lexsona_behavior_rules(frame_id)
     WHERE frame_id IS NOT NULL;
+  `);
+}
+
+/**
+ * Migration V8: Add Turn Cost and Capability Tier fields to frames
+ * 
+ * Wave 2 governance model integration:
+ * - turn_cost: JSON stringified TurnCost object
+ * - capability_tier: "senior" | "mid" | "junior"
+ * - task_complexity: JSON stringified TaskComplexity object
+ */
+function applyMigrationV8(db: Database.Database): void {
+  // Add Turn Cost tracking
+  db.exec(`
+    ALTER TABLE frames ADD COLUMN turn_cost TEXT;
+  `);
+
+  // Add capability tier classification
+  db.exec(`
+    ALTER TABLE frames ADD COLUMN capability_tier TEXT CHECK (
+      capability_tier IS NULL OR 
+      capability_tier IN ('senior', 'mid', 'junior')
+    );
+  `);
+
+  // Add task complexity metadata
+  db.exec(`
+    ALTER TABLE frames ADD COLUMN task_complexity TEXT;
+  `);
+
+  // Create index for capability tier queries
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_frames_capability_tier 
+    ON frames(capability_tier) 
+    WHERE capability_tier IS NOT NULL;
   `);
 }
 

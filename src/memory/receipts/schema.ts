@@ -9,6 +9,7 @@
  */
 
 import { z } from "zod";
+import { TurnCost } from "../frames/types.js";
 
 /**
  * Confidence level for an action taken under uncertainty
@@ -102,6 +103,9 @@ export const Receipt = z.object({
   agentId: z.string().optional().describe("ID of the agent that created this receipt"),
   sessionId: z.string().optional().describe("Session ID for tracking"),
   frameId: z.string().optional().describe("Link to associated Frame"),
+  
+  // Turn Cost attribution (Wave 2 integration)
+  turnCost: TurnCost.optional().describe("Turn Cost at time of receipt emission"),
 });
 export type Receipt = z.infer<typeof Receipt>;
 

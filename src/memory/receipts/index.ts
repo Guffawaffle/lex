@@ -14,6 +14,7 @@ import {
   Outcome,
   RECEIPT_SCHEMA_VERSION,
 } from "./schema.js";
+import type { TurnCost } from "../frames/types.js";
 
 /**
  * Parameters for creating a receipt
@@ -32,6 +33,7 @@ export interface CreateReceiptParams {
   agentId?: string;
   sessionId?: string;
   frameId?: string;
+  turnCost?: TurnCost;
 }
 
 /**
@@ -69,6 +71,7 @@ export function createReceipt(params: CreateReceiptParams): Receipt {
     agentId: params.agentId,
     sessionId: params.sessionId,
     frameId: params.frameId,
+    turnCost: params.turnCost,
   };
 
   return receipt;

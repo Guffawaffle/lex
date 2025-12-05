@@ -6,7 +6,7 @@
 
 import Database from "better-sqlite3-multiple-ciphers";
 import type { FrameRow } from "./db.js";
-import type { Frame, FrameStatusSnapshot, FrameSpendMetadata } from "../frames/types.js";
+import type { Frame, FrameStatusSnapshot, FrameSpendMetadata, TurnCost, CapabilityTier, TaskComplexity } from "../frames/types.js";
 import { getNDJSONLogger } from "../../shared/logger/index.js";
 import { normalizeFTS5Query } from "./fts5-utils.js";
 
@@ -35,6 +35,10 @@ function frameToRow(frame: Frame): FrameRow {
     spend: frame.spend ? JSON.stringify(frame.spend) : null,
     // OAuth2/JWT user isolation (v3)
     user_id: frame.userId || null,
+    // Turn Cost and Tier metadata (v4 - Wave 2)
+    turn_cost: frame.turnCost ? JSON.stringify(frame.turnCost) : null,
+    capability_tier: frame.capabilityTier || null,
+    task_complexity: frame.taskComplexity ? JSON.stringify(frame.taskComplexity) : null,
   };
 }
 
@@ -61,6 +65,10 @@ function rowToFrame(row: FrameRow): Frame {
     spend: row.spend ? (JSON.parse(row.spend) as FrameSpendMetadata) : undefined,
     // OAuth2/JWT user isolation (v3) - backward compatible, defaults to undefined
     userId: row.user_id || undefined,
+    // Turn Cost and Tier metadata (v4 - Wave 2) - backward compatible, defaults to undefined
+    turnCost: row.turn_cost ? JSON.parse(row.turn_cost) : undefined,
+    capabilityTier: (row.capability_tier as CapabilityTier) || undefined,
+    taskComplexity: row.task_complexity ? JSON.parse(row.task_complexity) : undefined,
   };
 }
 
@@ -75,8 +83,9 @@ export function saveFrame(db: Database.Database, frame: Frame): void {
     INSERT OR REPLACE INTO frames (
       id, timestamp, branch, jira, module_scope, summary_caption,
       reference_point, status_snapshot, keywords, atlas_frame_id,
-      feature_flags, permissions, run_id, plan_hash, spend, user_id
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      feature_flags, permissions, run_id, plan_hash, spend, user_id,
+      turn_cost, capability_tier, task_complexity
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   stmt.run(
@@ -95,7 +104,10 @@ export function saveFrame(db: Database.Database, frame: Frame): void {
     row.run_id,
     row.plan_hash,
     row.spend,
-    row.user_id
+    row.user_id,
+    row.turn_cost,
+    row.capability_tier,
+    row.task_complexity
   );
 
   const duration = Date.now() - startTime;
@@ -348,4 +360,136 @@ export function getFrameCount(db: Database.Database): number {
   const stmt = db.prepare("SELECT COUNT(*) as count FROM frames");
   const result = stmt.get() as { count: number };
   return result.count;
+}
+
+/**
+ * Query interface for tier-based Frame searches (Wave 2)
+ */
+export interface TierFrameQuery {
+  tier?: CapabilityTier;
+  minTurnCost?: number;
+  maxTurnCost?: number;
+  escalated?: boolean;
+  limit?: number;
+}
+
+/**
+ * Get Frames by capability tier
+ * 
+ * Wave 2 integration: enables queries like "Show all senior-tier frames with high Turn Cost"
+ * 
+ * @param db - Database connection
+ * @param query - Tier query parameters
+ * @returns Array of matching frames
+ * 
+ * @example
+ * ```typescript
+ * // Get all senior-tier frames with high Turn Cost
+ * const frames = getFramesByTier(db, {
+ *   tier: 'senior',
+ *   minTurnCost: 1000
+ * });
+ * 
+ * // Get escalated frames
+ * const escalated = getFramesByTier(db, {
+ *   escalated: true
+ * });
+ * ```
+ */
+export function getFramesByTier(db: Database.Database, query: TierFrameQuery): Frame[] {
+  const conditions: string[] = [];
+  const params: unknown[] = [];
+
+  if (query.tier) {
+    conditions.push("capability_tier = ?");
+    params.push(query.tier);
+  }
+
+  if (query.escalated !== undefined) {
+    conditions.push("json_extract(task_complexity, '$.escalated') = ?");
+    params.push(query.escalated ? 1 : 0);
+  }
+
+  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+  const limitClause = query.limit ? `LIMIT ${query.limit}` : "";
+
+  const stmt = db.prepare(`
+    SELECT * FROM frames
+    ${whereClause}
+    ORDER BY timestamp DESC
+    ${limitClause}
+  `);
+
+  const rows = stmt.all(...params) as FrameRow[];
+  let frames = rows.map(rowToFrame);
+
+  // Apply Turn Cost filters in JavaScript (since it's stored as JSON)
+  if (query.minTurnCost !== undefined) {
+    frames = frames.filter(
+      (f) => f.turnCost && (f.turnCost.weightedScore ?? 0) >= query.minTurnCost!
+    );
+  }
+
+  if (query.maxTurnCost !== undefined) {
+    frames = frames.filter(
+      (f) => f.turnCost && (f.turnCost.weightedScore ?? 0) <= query.maxTurnCost!
+    );
+  }
+
+  return frames;
+}
+
+/**
+ * Get tier escalation patterns
+ * 
+ * Returns frames where actual tier differed from assigned tier (tier mismatch)
+ * 
+ * @param db - Database connection
+ * @param limit - Maximum results to return
+ * @returns Array of frames with tier mismatches
+ */
+export function getTierEscalationPatterns(db: Database.Database, limit: number = 100): Frame[] {
+  const stmt = db.prepare(`
+    SELECT * FROM frames
+    WHERE json_extract(task_complexity, '$.tierMismatch') = 1
+    ORDER BY timestamp DESC
+    LIMIT ?
+  `);
+
+  const rows = stmt.all(limit) as FrameRow[];
+  return rows.map(rowToFrame);
+}
+
+/**
+ * Get Turn Cost statistics by tier
+ * 
+ * @param db - Database connection
+ * @returns Statistics showing average Turn Cost per tier
+ */
+export function getTurnCostStatsByTier(db: Database.Database): {
+  tier: CapabilityTier;
+  count: number;
+  avgTurnCost: number | null;
+}[] {
+  const tiers: CapabilityTier[] = ["senior", "mid", "junior"];
+  const results: { tier: CapabilityTier; count: number; avgTurnCost: number | null }[] = [];
+
+  for (const tier of tiers) {
+    const frames = getFramesByTier(db, { tier });
+    const framesWithTurnCost = frames.filter((f) => f.turnCost?.weightedScore !== undefined);
+
+    const avgTurnCost =
+      framesWithTurnCost.length > 0
+        ? framesWithTurnCost.reduce((sum, f) => sum + (f.turnCost!.weightedScore ?? 0), 0) /
+          framesWithTurnCost.length
+        : null;
+
+    results.push({
+      tier,
+      count: frames.length,
+      avgTurnCost,
+    });
+  }
+
+  return results;
 }
