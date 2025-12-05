@@ -25,6 +25,16 @@ import { randomUUID } from "crypto";
 import { join } from "path";
 import { existsSync } from "fs";
 import { AXErrorException, isAXErrorException } from "../../shared/errors/ax-error.js";
+// @ts-ignore - importing from compiled dist directories
+import {
+  buildTimeline,
+  filterTimeline,
+  renderTimelineText,
+  renderModuleScopeEvolution,
+  renderBlockerTracking,
+  renderTimelineJSON,
+  type TimelineOptions,
+} from "../renderer/timeline.js";
 
 const logger = getLogger("memory:mcp_server:server");
 
@@ -65,6 +75,13 @@ interface ListFramesArgs {
   module?: string;
   limit?: number;
   since?: string;
+}
+
+interface TimelineArgs {
+  ticketOrBranch: string;
+  since?: string;
+  until?: string;
+  format?: "text" | "json";
 }
 
 export interface MCPRequest {
@@ -303,10 +320,13 @@ export class MCPServer {
       case "lex.list_frames":
         return await this.handleListFrames(args);
 
+      case "lex.timeline":
+        return await this.handleTimeline(args);
+
       default:
         throw new MCPError(MCPErrorCode.INTERNAL_UNKNOWN_TOOL, `Unknown tool: ${name}`, {
           requestedTool: name,
-          availableTools: ["lex.remember", "lex.recall", "lex.list_frames"],
+          availableTools: ["lex.remember", "lex.recall", "lex.list_frames", "lex.timeline"],
         });
     }
   }
@@ -650,6 +670,125 @@ export class MCPServer {
         },
       ],
     };
+  }
+
+  /**
+   * Handle lex.timeline tool - show timeline of Frame evolution
+   */
+  private async handleTimeline(args: Record<string, unknown>): Promise<MCPResponse> {
+    const { ticketOrBranch, since, until, format = "text" } = args as unknown as TimelineArgs;
+
+    // Validate required parameter
+    if (!ticketOrBranch) {
+      throw new MCPError(
+        MCPErrorCode.VALIDATION_REQUIRED_FIELD,
+        "Missing required field: ticketOrBranch",
+        { missingFields: ["ticketOrBranch"] }
+      );
+    }
+
+    try {
+      // Get all frames and filter by Jira ticket or branch
+      const allFrames = await this.frameStore.listFrames();
+
+      let frames: Frame[] = [];
+      let title: string;
+
+      // Try to find frames by Jira ticket first
+      const framesByJira = allFrames.filter((f) => f.jira === ticketOrBranch);
+      if (framesByJira.length > 0) {
+        frames = framesByJira;
+        title = `${ticketOrBranch}: Timeline`;
+      } else {
+        // Try by branch name
+        const framesByBranch = allFrames.filter((f) => f.branch === ticketOrBranch);
+        if (framesByBranch.length > 0) {
+          frames = framesByBranch;
+          title = `Branch ${ticketOrBranch}: Timeline`;
+        } else {
+          // No frames found
+          title = `${ticketOrBranch}: Timeline`;
+        }
+      }
+
+      if (frames.length === 0) {
+        return {
+          content: [
+            {
+              type: "text",
+              text:
+                `🔍 No frames found for: "${ticketOrBranch}"\n\n` +
+                "Try using a Jira ticket ID (e.g., TICKET-123) or a branch name.\n" +
+                "Run 'lex.remember' to create a frame first.",
+            },
+          ],
+        };
+      }
+
+      // Build timeline
+      let timelineData = buildTimeline(frames);
+
+      // Apply filters
+      const timelineOptions: TimelineOptions = {
+        format: format as "text" | "json",
+      };
+
+      if (since) {
+        timelineOptions.since = new Date(since);
+      }
+
+      if (until) {
+        timelineOptions.until = new Date(until);
+      }
+
+      if (timelineOptions.since || timelineOptions.until) {
+        timelineData = filterTimeline(timelineData, timelineOptions);
+
+        if (timelineData.length === 0) {
+          return {
+            content: [
+              {
+                type: "text",
+                text:
+                  "🔍 No frames found in the specified date range.\n\n" +
+                  "Try widening the date range or remove date filters.",
+              },
+            ],
+          };
+        }
+      }
+
+      // Render timeline based on format
+      let result: string;
+
+      switch (format) {
+        case "json":
+          result = renderTimelineJSON(timelineData);
+          break;
+        case "text":
+        default:
+          result = renderTimelineText(timelineData, title);
+          result += renderModuleScopeEvolution(timelineData);
+          result += renderBlockerTracking(timelineData);
+          break;
+      }
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: result,
+          },
+        ],
+      };
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      throw new MCPError(
+        MCPErrorCode.INTERNAL_ERROR,
+        `Failed to generate timeline: ${errorMessage}`,
+        { ticketOrBranch, error: errorMessage }
+      );
+    }
   }
 
   /**
