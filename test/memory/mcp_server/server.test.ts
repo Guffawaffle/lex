@@ -44,12 +44,13 @@ describe("MCP Server - Protocol", () => {
       const response = await srv.handleRequest({ method: "tools/list" });
 
       assert.ok(response.tools, "Response should have tools array");
-      assert.strictEqual(response.tools.length, 3, "Should have 3 tools");
+      assert.strictEqual(response.tools.length, 4, "Should have 4 tools");
 
       const toolNames = response.tools.map((t) => t.name);
       assert.ok(toolNames.includes("lex.remember"), "Should include lex.remember");
       assert.ok(toolNames.includes("lex.recall"), "Should include lex.recall");
       assert.ok(toolNames.includes("lex.list_frames"), "Should include lex.list_frames");
+      assert.ok(toolNames.includes("lex.code_atlas"), "Should include lex.code_atlas");
     } finally {
       await teardown();
     }
@@ -710,6 +711,81 @@ describe("MCP Server - Protocol", () => {
       assert.ok(
         response.content[0].text.includes("🌿 Branch: custom-branch-name"),
         "Should use provided branch name"
+      );
+    } finally {
+      await teardown();
+    }
+  });
+
+  test("lex.code_atlas generates code structure analysis", async () => {
+    const srv = setup();
+    try {
+      // Create a temporary test directory with a TypeScript file
+      const fs = await import("fs");
+      const tmpDir = mkdtempSync(join(tmpdir(), "lex-code-atlas-test-"));
+      const srcDir = join(tmpDir, "src");
+      fs.mkdirSync(srcDir, { recursive: true });
+      
+      // Write a simple TypeScript file
+      const testFile = join(srcDir, "test.ts");
+      fs.writeFileSync(testFile, `
+export class TestClass {
+  method1() {
+    return "test";
+  }
+}
+
+export function testFunction() {
+  return 42;
+}
+`);
+
+      const response = await srv.handleRequest({
+        method: "tools/call",
+        params: {
+          name: "lex.code_atlas",
+          arguments: {
+            path: tmpDir,
+          },
+        },
+      });
+
+      assert.ok(response.content, "Response should have content");
+      assert.ok(
+        response.content[0].text.includes("🗺️  Code Atlas Generated"),
+        "Should confirm code atlas generation"
+      );
+      assert.ok(
+        response.content[0].text.includes("Units extracted"),
+        "Should include units count"
+      );
+      assert.ok(
+        response.content[0].text.includes("📦 Extracted Units"),
+        "Should include extracted units section"
+      );
+
+      // Cleanup
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    } finally {
+      await teardown();
+    }
+  });
+
+  test("lex.code_atlas uses current directory if no path provided", async () => {
+    const srv = setup();
+    try {
+      const response = await srv.handleRequest({
+        method: "tools/call",
+        params: {
+          name: "lex.code_atlas",
+          arguments: {},
+        },
+      });
+
+      assert.ok(response.content, "Response should have content");
+      assert.ok(
+        response.content[0].text.includes("🗺️  Code Atlas Generated"),
+        "Should confirm code atlas generation"
       );
     } finally {
       await teardown();

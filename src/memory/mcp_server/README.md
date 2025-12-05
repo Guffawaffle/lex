@@ -15,7 +15,7 @@ Provides two interfaces:
 - ✅ SQLite + FTS5 for fuzzy Frame recall
 - ✅ Atlas Frame generation (spatial neighborhood context)
 - ✅ Module ID validation with fuzzy suggestions (THE CRITICAL RULE)
-- ✅ Three MCP tools: `lex.remember`, `lex.recall`, `lex.list_frames`
+- ✅ Four MCP tools: `lex.remember`, `lex.recall`, `lex.list_frames`, `lex.code_atlas`
 - ✅ Local-first (no cloud sync, no telemetry)
 - ✅ Comprehensive test suite (integration + alias resolution + performance)
 
@@ -107,6 +107,40 @@ List recent Frames with optional filtering.
       "limit": 10
     }
   }
+}
+```
+
+### `lex.code_atlas`
+
+Generate Atlas Frame for code structure analysis. Scans repository files and extracts code units (classes, functions, methods) using static analysis.
+
+**Optional Parameters:**
+- `path` - Path to analyze (defaults to current directory)
+- `foldRadius` - Fold radius for neighborhood (default: 1, not currently used)
+- `maxTokens` - Maximum tokens for output (not currently used)
+
+**Example:**
+```json
+{
+  "method": "tools/call",
+  "params": {
+    "name": "lex.code_atlas",
+    "arguments": {
+      "path": "/path/to/repo"
+    }
+  }
+}
+```
+
+**Response Format:**
+```json
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "🗺️  Code Atlas Generated\n📍 Repository: my-repo\n📁 Files scanned: 42\n🔍 Units extracted: 128\n⚙️  Strategy: static\n📅 Created: 2024-01-01T00:00:00.000Z\n\n📦 Extracted Units:\n\n1. src/index.ts (3 units)\n   - function: main (lines 1-10)\n   - class: App (lines 12-50)\n   - method: App.run (lines 14-30)\n\n📄 Full Output (JSON):\n```json\n{...}\n```"
+    }
+  ]
 }
 ```
 

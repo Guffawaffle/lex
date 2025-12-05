@@ -144,4 +144,25 @@ export const MCP_TOOLS: MCPTool[] = [
       },
     },
   },
+  {
+    name: "lex.code_atlas",
+    description: "Generate Atlas Frame for code structure analysis. Scans repository files and extracts code units (classes, functions, methods) using static analysis.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        path: {
+          type: "string",
+          description: "Path to analyze (defaults to current directory)",
+        },
+        foldRadius: {
+          type: "number",
+          description: "Fold radius for neighborhood (default: 1)",
+        },
+        maxTokens: {
+          type: "number",
+          description: "Maximum tokens for output (not currently implemented)",
+        },
+      },
+    },
+  },
 ];

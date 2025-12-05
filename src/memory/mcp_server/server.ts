@@ -21,6 +21,8 @@ import { loadPolicy } from "../../shared/policy/loader.js";
 import type { Policy } from "../../shared/types/policy.js";
 // @ts-ignore - importing from compiled dist directories
 import { getCurrentBranch } from "../../shared/git/branch.js";
+// @ts-ignore - importing from compiled dist directories
+import { codeAtlas } from "../../shared/cli/code-atlas.js";
 import { randomUUID } from "crypto";
 import { join } from "path";
 import { existsSync } from "fs";
@@ -65,6 +67,12 @@ interface ListFramesArgs {
   module?: string;
   limit?: number;
   since?: string;
+}
+
+interface CodeAtlasArgs {
+  path?: string;
+  foldRadius?: number;
+  maxTokens?: number;
 }
 
 export interface MCPRequest {
@@ -303,10 +311,13 @@ export class MCPServer {
       case "lex.list_frames":
         return await this.handleListFrames(args);
 
+      case "lex.code_atlas":
+        return await this.handleCodeAtlas(args);
+
       default:
         throw new MCPError(MCPErrorCode.INTERNAL_UNKNOWN_TOOL, `Unknown tool: ${name}`, {
           requestedTool: name,
-          availableTools: ["lex.remember", "lex.recall", "lex.list_frames"],
+          availableTools: ["lex.remember", "lex.recall", "lex.list_frames", "lex.code_atlas"],
         });
     }
   }
@@ -650,6 +661,98 @@ export class MCPServer {
         },
       ],
     };
+  }
+
+  /**
+   * Handle lex.code_atlas tool - generate code structure analysis
+   */
+  private async handleCodeAtlas(args: Record<string, unknown>): Promise<MCPResponse> {
+    const { path, foldRadius, maxTokens } = args as unknown as CodeAtlasArgs;
+
+    // Use provided path or current directory
+    const repoPath = path || this.repoRoot || process.cwd();
+
+    // Set options for code atlas generation
+    const options = {
+      repo: repoPath,
+      json: true,
+      // foldRadius and maxTokens are noted but not currently used by the CLI command
+      // They are included in the schema for future enhancement
+    };
+
+    try {
+      const result = await codeAtlas(options);
+
+      if (!result.success || !result.output) {
+        const errorMsg = result.error || "Code atlas generation failed";
+        throw new MCPError(
+          MCPErrorCode.INTERNAL_ERROR,
+          `Code atlas generation failed: ${errorMsg}`,
+          { path: repoPath }
+        );
+      }
+
+      const { run, units } = result.output;
+
+      // Format the output for MCP response
+      const summary =
+        `🗺️  Code Atlas Generated\n` +
+        `📍 Repository: ${run.repoId}\n` +
+        `📁 Files scanned: ${run.filesScanned.length}${run.truncated ? ` (truncated from ${run.filesRequested.length})` : ""}\n` +
+        `🔍 Units extracted: ${run.unitsEmitted}\n` +
+        `⚙️  Strategy: ${run.strategy}\n` +
+        `📅 Created: ${run.createdAt}\n\n`;
+
+      // Group units by file for better readability
+      const unitsByFile = new Map<string, typeof units>();
+      for (const unit of units) {
+        const existing = unitsByFile.get(unit.filePath) || [];
+        existing.push(unit);
+        unitsByFile.set(unit.filePath, existing);
+      }
+
+      let unitsOutput = "📦 Extracted Units:\n";
+      let fileCount = 0;
+      for (const [filePath, fileUnits] of unitsByFile) {
+        fileCount++;
+        unitsOutput += `\n${fileCount}. ${filePath} (${fileUnits.length} units)\n`;
+        for (const unit of fileUnits) {
+          unitsOutput += `   - ${unit.kind}: ${unit.name} (lines ${unit.span.startLine}-${unit.span.endLine})\n`;
+        }
+        // Limit output to avoid overwhelming the response
+        if (fileCount >= 20) {
+          const remainingFiles = unitsByFile.size - fileCount;
+          if (remainingFiles > 0) {
+            unitsOutput += `\n... and ${remainingFiles} more files\n`;
+          }
+          break;
+        }
+      }
+
+      // Include raw data as JSON for programmatic access
+      const jsonOutput = `\n📄 Full Output (JSON):\n\`\`\`json\n${JSON.stringify(result.output, null, 2)}\n\`\`\``;
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: summary + unitsOutput + jsonOutput,
+          },
+        ],
+      };
+    } catch (error: unknown) {
+      // Handle errors from code atlas generation
+      if (error instanceof MCPError) {
+        throw error;
+      }
+
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      throw new MCPError(
+        MCPErrorCode.INTERNAL_ERROR,
+        `Code atlas generation failed: ${errorMessage}`,
+        { path: repoPath }
+      );
+    }
   }
 
   /**
