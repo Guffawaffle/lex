@@ -667,7 +667,7 @@ export class MCPServer {
    * Handle lex.code_atlas tool - generate code structure analysis
    */
   private async handleCodeAtlas(args: Record<string, unknown>): Promise<MCPResponse> {
-    const { path, foldRadius, maxTokens } = args as unknown as CodeAtlasArgs;
+    const { path, foldRadius: _foldRadius, maxTokens: _maxTokens } = args as unknown as CodeAtlasArgs;
 
     // Use provided path or current directory
     const repoPath = path || this.repoRoot || process.cwd();
