@@ -50,7 +50,7 @@ describe("MCP Server - Protocol", () => {
       assert.ok(toolNames.includes("lex.remember"), "Should include lex.remember");
       assert.ok(toolNames.includes("lex.recall"), "Should include lex.recall");
       assert.ok(toolNames.includes("lex.list_frames"), "Should include lex.list_frames");
-      assert.ok(toolNames.includes("lex.policy_check"), "Should include lex.policy_check");
+      assert.ok(toolNames.includes("lex.timeline"), "Should include lex.timeline");
     } finally {
       await teardown();
     }

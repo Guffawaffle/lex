@@ -596,7 +596,7 @@ describe("MCP Server Integration Tests", () => {
         assert.ok(toolNames.includes("lex.remember"));
         assert.ok(toolNames.includes("lex.recall"));
         assert.ok(toolNames.includes("lex.list_frames"));
-        assert.ok(toolNames.includes("lex.policy_check"));
+        assert.ok(toolNames.includes("lex.timeline"));
       } finally {
         await teardown();
       }

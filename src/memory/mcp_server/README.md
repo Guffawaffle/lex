@@ -15,7 +15,7 @@ Provides two interfaces:
 - ✅ SQLite + FTS5 for fuzzy Frame recall
 - ✅ Atlas Frame generation (spatial neighborhood context)
 - ✅ Module ID validation with fuzzy suggestions (THE CRITICAL RULE)
-- ✅ Four MCP tools: `lex.remember`, `lex.recall`, `lex.list_frames`, `lex.policy_check`
+- ✅ Six MCP tools: `lex.remember`, `lex.recall`, `lex.list_frames`, `lex.policy_check`, `lex.timeline`, `lex.code_atlas`
 - ✅ Local-first (no cloud sync, no telemetry)
 - ✅ Comprehensive test suite (integration + alias resolution + performance)
 
@@ -168,6 +168,65 @@ Validate code against policy rules from `lexmap.policy.json`.
   ]
 }
 ```
+
+### `lex.timeline`
+
+Show visual timeline of Frame evolution for a ticket or branch.
+
+**Required Parameters:**
+- `ticketOrBranch` - Jira ticket ID or branch name to show timeline for
+
+**Optional Parameters:**
+- `since` - Filter frames since this date (ISO 8601 timestamp)
+- `until` - Filter frames until this date (ISO 8601 timestamp)
+- `format` - Output format: `text` or `json` (default: `text`). HTML format not supported in MCP.
+
+**Example:**
+```json
+{
+  "method": "tools/call",
+  "params": {
+    "name": "lex.timeline",
+    "arguments": {
+      "ticketOrBranch": "TICKET-123",
+      "since": "2025-01-01T00:00:00Z",
+      "format": "text"
+    }
+  }
+}
+```
+
+**Response:**
+Returns a visual timeline showing:
+- Frame evolution over time
+- Module scope changes (additions/removals)
+- Blocker introduction and resolution tracking
+- Status updates
+
+### `lex.code_atlas`
+
+Analyze code structure and dependencies across modules.
+
+**Optional Parameters:**
+- `seedModules` - Array of module IDs to analyze
+- `foldRadius` - Neighborhood depth (default: 1)
+
+**Example:**
+```json
+{
+  "method": "tools/call",
+  "params": {
+    "name": "lex.code_atlas",
+    "arguments": {
+      "seedModules": ["auth/core", "ui/dashboard"],
+      "foldRadius": 2
+    }
+  }
+}
+```
+
+**Response:**
+Returns code structure visualization with dependency graphs and module relationships.
 
 ## Error Codes (1.0.0 Contract)
 

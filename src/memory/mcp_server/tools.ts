@@ -165,4 +165,50 @@ export const MCP_TOOLS: MCPTool[] = [
       },
     },
   },
+  {
+    name: "lex.timeline",
+    description: "Show visual timeline of Frame evolution for a ticket or branch",
+    inputSchema: {
+      type: "object",
+      required: ["ticketOrBranch"],
+      properties: {
+        ticketOrBranch: {
+          type: "string",
+          description: "Ticket ID or branch name to show timeline for",
+        },
+        since: {
+          type: "string",
+          description: "Filter frames since this date (ISO 8601)",
+        },
+        until: {
+          type: "string",
+          description: "Filter frames until this date (ISO 8601)",
+        },
+        format: {
+          type: "string",
+          enum: ["text", "json"],
+          description: "Output format (default: text). HTML not suitable for MCP.",
+          default: "text",
+        },
+      },
+    },
+  },
+  {
+    name: "lex.code_atlas",
+    description: "Analyze code structure and dependencies across modules",
+    inputSchema: {
+      type: "object",
+      properties: {
+        seedModules: {
+          type: "array",
+          items: { type: "string" },
+          description: "List of module IDs to analyze",
+        },
+        foldRadius: {
+          type: "number",
+          description: "Neighborhood depth (default: 1)",
+        },
+      },
+    },
+  },
 ];
