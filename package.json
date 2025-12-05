@@ -58,6 +58,14 @@
       "types": "./dist/memory/validation/index.d.ts",
       "import": "./dist/memory/validation/index.js"
     },
+    "./memory/receipts": {
+      "types": "./dist/memory/receipts/index.d.ts",
+      "import": "./dist/memory/receipts/index.js"
+    },
+    "./memory/receipts/validator": {
+      "types": "./dist/memory/receipts/validator.d.ts",
+      "import": "./dist/memory/receipts/validator.js"
+    },
     "./logger": {
       "types": "./dist/shared/logger/index.d.ts",
       "import": "./dist/shared/logger/index.js"
