@@ -21,6 +21,7 @@
     { "path": "../../shared/logger" },
     { "path": "../../shared/atlas" },
     { "path": "../store" },
+    { "path": "../renderer" },
     { "path": "../../shared/module_ids" },
     { "path": "../../shared/aliases" },
     { "path": "../../shared/errors" }

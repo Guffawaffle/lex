@@ -113,8 +113,8 @@ describe("MCP Server - Timeline Tool", () => {
       assert.ok(response.content[0].text, "Response should have text content");
       const text = response.content[0].text;
       assert.ok(text.includes("TICKET-123"), "Should include ticket ID in title");
-      assert.ok(text.includes("initial work"), "Should include first frame");
-      assert.ok(text.includes("added tests"), "Should include second frame");
+      assert.ok(text.includes("Started feature"), "Should include first frame summary");
+      assert.ok(text.includes("Added unit tests"), "Should include second frame summary");
     } finally {
       await teardown();
     }
@@ -170,8 +170,8 @@ describe("MCP Server - Timeline Tool", () => {
       assert.ok(response.content, "Response should have content");
       const text = response.content[0].text;
       assert.ok(text.includes("feature/timeline"), "Should include branch name");
-      assert.ok(text.includes("branch work 1"), "Should include first frame");
-      assert.ok(text.includes("branch work 2"), "Should include second frame");
+      assert.ok(text.includes("First commit"), "Should include first frame summary");
+      assert.ok(text.includes("Second commit"), "Should include second frame summary");
     } finally {
       await teardown();
     }
@@ -255,8 +255,8 @@ describe("MCP Server - Timeline Tool", () => {
 
       assert.ok(response.content, "Response should have content");
       const text = response.content[0].text;
-      assert.ok(text.includes("new work"), "Should include recent frame");
-      assert.ok(!text.includes("old work"), "Should not include old frame");
+      assert.ok(text.includes("New frame"), "Should include recent frame summary");
+      assert.ok(!text.includes("Old frame"), "Should not include old frame summary");
     } finally {
       await teardown();
     }
