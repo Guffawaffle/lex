@@ -144,4 +144,25 @@ export const MCP_TOOLS: MCPTool[] = [
       },
     },
   },
+  {
+    name: "lex.policy_check",
+    description: "Validate code against policy rules from lexmap.policy.json",
+    inputSchema: {
+      type: "object",
+      properties: {
+        path: {
+          type: "string",
+          description: "Path to check (defaults to current directory)",
+        },
+        policyPath: {
+          type: "string",
+          description: "Path to policy file (defaults to lexmap.policy.json)",
+        },
+        strict: {
+          type: "boolean",
+          description: "Fail on warnings (default: false)",
+        },
+      },
+    },
+  },
 ];

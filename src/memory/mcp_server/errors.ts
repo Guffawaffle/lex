@@ -44,6 +44,9 @@ export enum MCPErrorCode {
   /** Image data is malformed or unsupported */
   VALIDATION_INVALID_IMAGE = "VALIDATION_INVALID_IMAGE",
 
+  /** Path provided does not exist or is inaccessible */
+  VALIDATION_INVALID_PATH = "VALIDATION_INVALID_PATH",
+
   // =============================================================================
   // STORAGE ERRORS (5xx-style: server/storage problems)
   // =============================================================================

@@ -21,6 +21,8 @@ import { loadPolicy } from "../../shared/policy/loader.js";
 import type { Policy } from "../../shared/types/policy.js";
 // @ts-ignore - importing from compiled dist directories
 import { getCurrentBranch } from "../../shared/git/branch.js";
+// @ts-ignore - importing from compiled dist directories
+import { validatePolicySchema } from "../../shared/policy/schema.js";
 import { randomUUID } from "crypto";
 import { join } from "path";
 import { existsSync } from "fs";
@@ -65,6 +67,12 @@ interface ListFramesArgs {
   module?: string;
   limit?: number;
   since?: string;
+}
+
+interface PolicyCheckArgs {
+  path?: string;
+  policyPath?: string;
+  strict?: boolean;
 }
 
 export interface MCPRequest {
@@ -303,10 +311,13 @@ export class MCPServer {
       case "lex.list_frames":
         return await this.handleListFrames(args);
 
+      case "lex.policy_check":
+        return await this.handlePolicyCheck(args);
+
       default:
         throw new MCPError(MCPErrorCode.INTERNAL_UNKNOWN_TOOL, `Unknown tool: ${name}`, {
           requestedTool: name,
-          availableTools: ["lex.remember", "lex.recall", "lex.list_frames"],
+          availableTools: ["lex.remember", "lex.recall", "lex.list_frames", "lex.policy_check"],
         });
     }
   }
@@ -650,6 +661,90 @@ export class MCPServer {
         },
       ],
     };
+  }
+
+  /**
+   * Handle lex.policy_check tool - validate policy file
+   */
+  private async handlePolicyCheck(args: Record<string, unknown>): Promise<MCPResponse> {
+    const { path: checkPath, policyPath, strict = false } = args as unknown as PolicyCheckArgs;
+
+    try {
+      // Resolve policy path - if checkPath is provided, resolve policyPath relative to it
+      let resolvedPolicyPath: string | undefined = policyPath;
+      if (checkPath && policyPath) {
+        const { resolve, isAbsolute } = await import("path");
+        if (!isAbsolute(policyPath)) {
+          resolvedPolicyPath = resolve(checkPath, policyPath);
+        }
+      }
+
+      // Load policy file
+      const policy: Policy = loadPolicy(resolvedPolicyPath);
+
+      // Validate schema
+      const validation = validatePolicySchema(policy);
+
+      // Prepare result
+      const valid = strict ? validation.valid && validation.warnings.length === 0 : validation.valid;
+
+      // Format output
+      let output = "";
+      
+      if (valid) {
+        output += `✅ Policy valid: ${validation.moduleCount} modules defined\n`;
+      } else {
+        output += `❌ Policy invalid: ${validation.errors.length} error(s) found\n`;
+      }
+
+      // Add errors
+      if (validation.errors.length > 0) {
+        output += "\nErrors:\n";
+        for (const error of validation.errors) {
+          output += `  ❌ ${error.path}: ${error.message}\n`;
+        }
+      }
+
+      // Add warnings
+      if (validation.warnings.length > 0) {
+        output += "\nWarnings:\n";
+        for (const warning of validation.warnings) {
+          output += `  ⚠️  ${warning.path}: ${warning.message}\n`;
+        }
+      }
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: output,
+          },
+        ],
+      };
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      
+      // If it's already an MCPError, rethrow it
+      if (error instanceof MCPError) {
+        throw error;
+      }
+
+      // Check if it's a file not found error
+      if (errorMessage.includes("ENOENT") || errorMessage.includes("not found")) {
+        throw new MCPError(
+          MCPErrorCode.POLICY_NOT_FOUND,
+          `Policy file not found: ${errorMessage}`,
+          { policyPath }
+        );
+      }
+
+      // Otherwise, it's an invalid policy
+      throw new MCPError(
+        MCPErrorCode.POLICY_INVALID,
+        `Policy validation failed: ${errorMessage}`,
+        { policyPath }
+      );
+    }
   }
 
   /**
