@@ -20,7 +20,6 @@ import {
   isReversible,
   hasHighConfidence,
   hasUncertainty,
-  Receipt,
   UncertaintyMarker,
   RECEIPT_SCHEMA_VERSION,
   ReceiptSchema,
