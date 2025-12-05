@@ -20,6 +20,7 @@ import {
   isReversible,
   hasHighConfidence,
   hasUncertainty,
+  createFailureReceipt,
   UncertaintyMarker,
   RECEIPT_SCHEMA_VERSION,
   ReceiptSchema,
@@ -414,6 +415,141 @@ describe("Receipt Schema", () => {
 
       const result = UncertaintyMarkerSchema.safeParse(invalid);
       assert.strictEqual(result.success, false);
+    });
+  });
+
+  describe("Failure classification (Wave 2)", () => {
+    test("should create receipt with failure classification", () => {
+      const receipt = createReceipt({
+        action: "Attempted to process large file",
+        rationale: "User request",
+        confidence: "low",
+        reversibility: "reversible",
+        outcome: "failure",
+        failureClass: "context_overflow",
+        failureDetails: "File exceeded 100MB limit",
+        recoverySuggestion: "Chunk task into smaller units with focused context",
+      });
+
+      assert.strictEqual(receipt.outcome, "failure");
+      assert.strictEqual(receipt.failureClass, "context_overflow");
+      assert.strictEqual(receipt.failureDetails, "File exceeded 100MB limit");
+      assert.strictEqual(receipt.recoverySuggestion, "Chunk task into smaller units with focused context");
+    });
+
+    test("should validate all failure classes", () => {
+      const failureClasses = [
+        "timeout",
+        "resource_exhaustion",
+        "model_error",
+        "context_overflow",
+        "policy_violation",
+      ] as const;
+
+      for (const failureClass of failureClasses) {
+        const receipt = createReceipt({
+          action: "Test",
+          rationale: "Test",
+          confidence: "low",
+          reversibility: "reversible",
+          outcome: "failure",
+          failureClass,
+        });
+
+        const result = ReceiptSchema.safeParse(receipt);
+        assert.strictEqual(result.success, true, `Should accept failure class: ${failureClass}`);
+      }
+    });
+
+    test("should reject invalid failure class", () => {
+      const invalid = {
+        schemaVersion: "1.0.0",
+        kind: "Receipt",
+        action: "Test",
+        outcome: "failure",
+        rationale: "Test",
+        confidence: "low",
+        reversibility: "reversible",
+        escalationRequired: false,
+        timestamp: new Date().toISOString(),
+        failureClass: "invalid_class",
+      };
+
+      const result = ReceiptSchema.safeParse(invalid);
+      assert.strictEqual(result.success, false);
+    });
+
+    test("should allow optional failure fields for success receipts", () => {
+      const receipt = createReceipt({
+        action: "Completed task",
+        rationale: "User request",
+        confidence: "high",
+        reversibility: "reversible",
+        outcome: "success",
+      });
+
+      assert.strictEqual(receipt.failureClass, undefined);
+      assert.strictEqual(receipt.failureDetails, undefined);
+      assert.strictEqual(receipt.recoverySuggestion, undefined);
+
+      const result = ReceiptSchema.safeParse(receipt);
+      assert.strictEqual(result.success, true);
+    });
+  });
+
+  describe("createFailureReceipt helper", () => {
+    test("should create failure receipt with automatic recovery suggestion", () => {
+      const receipt = createFailureReceipt({
+        action: "Attempted to process large file",
+        rationale: "User request",
+        reversibility: "reversible",
+        failureClass: "context_overflow",
+        failureDetails: "File exceeded 100MB limit",
+      });
+
+      assert.strictEqual(receipt.outcome, "failure");
+      assert.strictEqual(receipt.confidence, "low");
+      assert.strictEqual(receipt.failureClass, "context_overflow");
+      assert.strictEqual(receipt.recoverySuggestion, "Chunk task into smaller units with focused context");
+    });
+
+    test("should allow custom confidence level", () => {
+      const receipt = createFailureReceipt({
+        action: "Failed to connect",
+        rationale: "Network issue",
+        reversibility: "reversible",
+        failureClass: "timeout",
+        confidence: "medium",
+      });
+
+      assert.strictEqual(receipt.confidence, "medium");
+      assert.strictEqual(receipt.outcome, "failure");
+    });
+
+    test("should generate appropriate suggestions for each failure class", () => {
+      const failureClasses = [
+        "timeout",
+        "resource_exhaustion",
+        "model_error",
+        "context_overflow",
+        "policy_violation",
+      ] as const;
+
+      for (const failureClass of failureClasses) {
+        const receipt = createFailureReceipt({
+          action: "Test",
+          rationale: "Test",
+          reversibility: "reversible",
+          failureClass,
+        });
+
+        assert.strictEqual(receipt.failureClass, failureClass);
+        assert.ok(receipt.recoverySuggestion, `Missing recovery suggestion for ${failureClass}`);
+        assert.ok(
+          receipt.recoverySuggestion.length > 0,
+          `Empty recovery suggestion for ${failureClass}`
+        );
+      }
     });
   });
 });

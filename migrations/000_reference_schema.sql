@@ -1,6 +1,6 @@
 -- ============================================================================
 -- Lex Database Reference Schema
--- Version: 7 (as of 0.6.0)
+-- Version: 8 (as of 0.6.0)
 --
 -- This file documents the complete current schema for reference.
 -- It is NOT executed — actual migrations are in src/memory/store/db.ts.
@@ -231,3 +231,64 @@ CREATE TABLE IF NOT EXISTS lexsona_behavior_rules (
 
 CREATE INDEX IF NOT EXISTS idx_lexsona_context ON lexsona_behavior_rules(context);
 CREATE INDEX IF NOT EXISTS idx_lexsona_updated ON lexsona_behavior_rules(updated_at);
+
+-- ============================================================================
+-- RECEIPTS (V8)
+-- Receipt Protocol: Operation tracking with failure classification
+-- @see src/memory/receipts/schema.ts for Receipt schema
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS receipts (
+  id TEXT PRIMARY KEY,
+  schema_version TEXT NOT NULL DEFAULT '1.0.0',
+  kind TEXT NOT NULL DEFAULT 'Receipt',
+  
+  -- What happened
+  action TEXT NOT NULL,
+  outcome TEXT NOT NULL CHECK(outcome IN ('success', 'failure', 'partial', 'deferred')),
+  rationale TEXT NOT NULL,
+  
+  -- Failure classification (Wave 2)
+  failure_class TEXT CHECK(failure_class IN (
+    'timeout', 'resource_exhaustion', 'model_error', 
+    'context_overflow', 'policy_violation'
+  )),
+  failure_details TEXT,
+  recovery_suggestion TEXT,
+  
+  -- Uncertainty handling
+  confidence TEXT NOT NULL CHECK(confidence IN ('high', 'medium', 'low', 'uncertain')),
+  uncertainty_notes TEXT, -- JSON array of UncertaintyMarker objects
+  
+  -- Reversibility
+  reversibility TEXT NOT NULL CHECK(reversibility IN (
+    'reversible', 'partially-reversible', 'irreversible'
+  )),
+  rollback_path TEXT,
+  rollback_tested INTEGER, -- SQLite boolean (0 or 1)
+  
+  -- Escalation
+  escalation_required INTEGER NOT NULL DEFAULT 0, -- SQLite boolean
+  escalation_reason TEXT,
+  escalated_to TEXT,
+  
+  -- Metadata
+  timestamp TEXT NOT NULL,
+  agent_id TEXT,
+  session_id TEXT,
+  frame_id TEXT,
+  
+  -- OAuth2/JWT user isolation
+  user_id TEXT,
+  
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_receipts_outcome ON receipts(outcome);
+CREATE INDEX IF NOT EXISTS idx_receipts_failure_class ON receipts(failure_class) WHERE failure_class IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_receipts_session ON receipts(session_id) WHERE session_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_receipts_timestamp ON receipts(timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_receipts_frame_id ON receipts(frame_id) WHERE frame_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_receipts_user_id ON receipts(user_id) WHERE user_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_receipts_session_failure ON receipts(session_id, failure_class, timestamp DESC) WHERE session_id IS NOT NULL AND failure_class IS NOT NULL;
+

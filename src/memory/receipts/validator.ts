@@ -64,6 +64,9 @@ const KNOWN_RECEIPT_FIELDS = new Set([
   "agentId",
   "sessionId",
   "frameId",
+  "failureClass",
+  "failureDetails",
+  "recoverySuggestion",
 ]);
 
 /**

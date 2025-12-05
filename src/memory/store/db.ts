@@ -352,6 +352,10 @@ export function initializeDatabase(db: Database.Database): void {
     applyMigrationV7(db);
     db.prepare("INSERT INTO schema_version (version) VALUES (?)").run(7);
   }
+  if (currentVersion < 8) {
+    applyMigrationV8(db);
+    db.prepare("INSERT INTO schema_version (version) VALUES (?)").run(8);
+  }
 }
 
 /**
@@ -700,6 +704,110 @@ function applyMigrationV7(db: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_lexsona_rules_frame_id
     ON lexsona_behavior_rules(frame_id)
     WHERE frame_id IS NOT NULL;
+  `);
+}
+
+/**
+ * Migration V8: Receipt storage for governance tracking
+ *
+ * Adds receipts table to track operation outcomes with failure classification,
+ * recovery suggestions, and aggregation support for governance queries.
+ */
+function applyMigrationV8(db: Database.Database): void {
+  // Create receipts table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS receipts (
+      id TEXT PRIMARY KEY,
+      schema_version TEXT NOT NULL DEFAULT '1.0.0',
+      kind TEXT NOT NULL DEFAULT 'Receipt',
+      
+      -- What happened
+      action TEXT NOT NULL,
+      outcome TEXT NOT NULL CHECK(outcome IN ('success', 'failure', 'partial', 'deferred')),
+      rationale TEXT NOT NULL,
+      
+      -- Failure classification (Wave 2)
+      failure_class TEXT CHECK(failure_class IN (
+        'timeout', 'resource_exhaustion', 'model_error', 
+        'context_overflow', 'policy_violation'
+      )),
+      failure_details TEXT,
+      recovery_suggestion TEXT,
+      
+      -- Uncertainty handling
+      confidence TEXT NOT NULL CHECK(confidence IN ('high', 'medium', 'low', 'uncertain')),
+      uncertainty_notes TEXT, -- JSON array of UncertaintyMarker objects
+      
+      -- Reversibility
+      reversibility TEXT NOT NULL CHECK(reversibility IN (
+        'reversible', 'partially-reversible', 'irreversible'
+      )),
+      rollback_path TEXT,
+      rollback_tested INTEGER, -- SQLite boolean (0 or 1)
+      
+      -- Escalation
+      escalation_required INTEGER NOT NULL DEFAULT 0, -- SQLite boolean
+      escalation_reason TEXT,
+      escalated_to TEXT,
+      
+      -- Metadata
+      timestamp TEXT NOT NULL,
+      agent_id TEXT,
+      session_id TEXT,
+      frame_id TEXT,
+      
+      -- OAuth2/JWT user isolation
+      user_id TEXT,
+      
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
+
+  // Index for outcome queries
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_receipts_outcome
+    ON receipts(outcome);
+  `);
+
+  // Index for failure classification queries
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_receipts_failure_class
+    ON receipts(failure_class)
+    WHERE failure_class IS NOT NULL;
+  `);
+
+  // Index for session-based queries
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_receipts_session
+    ON receipts(session_id)
+    WHERE session_id IS NOT NULL;
+  `);
+
+  // Index for timestamp-based queries (most recent failures, etc.)
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_receipts_timestamp
+    ON receipts(timestamp DESC);
+  `);
+
+  // Index for frame linkage
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_receipts_frame_id
+    ON receipts(frame_id)
+    WHERE frame_id IS NOT NULL;
+  `);
+
+  // Index for user isolation
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_receipts_user_id
+    ON receipts(user_id)
+    WHERE user_id IS NOT NULL;
+  `);
+
+  // Composite index for common governance queries (failure class by session)
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_receipts_session_failure
+    ON receipts(session_id, failure_class, timestamp DESC)
+    WHERE session_id IS NOT NULL AND failure_class IS NOT NULL;
   `);
 }
 

@@ -12,8 +12,10 @@ import {
   ConfidenceLevel,
   ReversibilityLevel,
   Outcome,
+  FailureClass,
   RECEIPT_SCHEMA_VERSION,
 } from "./schema.js";
+import { getRecoverySuggestion } from "./recovery.js";
 
 /**
  * Parameters for creating a receipt
@@ -32,6 +34,9 @@ export interface CreateReceiptParams {
   agentId?: string;
   sessionId?: string;
   frameId?: string;
+  failureClass?: FailureClass;
+  failureDetails?: string;
+  recoverySuggestion?: string;
 }
 
 /**
@@ -69,6 +74,9 @@ export function createReceipt(params: CreateReceiptParams): Receipt {
     agentId: params.agentId,
     sessionId: params.sessionId,
     frameId: params.frameId,
+    failureClass: params.failureClass,
+    failureDetails: params.failureDetails,
+    recoverySuggestion: params.recoverySuggestion,
   };
 
   return receipt;
@@ -154,6 +162,45 @@ export function hasUncertainty(receipt: Receipt): boolean {
   return (receipt.uncertaintyNotes?.length ?? 0) > 0;
 }
 
+/**
+ * Create a failure receipt with automatic recovery suggestion
+ *
+ * Convenience function that creates a receipt with outcome='failure',
+ * automatically generates a recovery suggestion based on the failure class,
+ * and sets confidence to 'low' by default.
+ *
+ * @param params - Failure receipt parameters
+ * @returns A Receipt with failure classification and recovery suggestion
+ *
+ * @example
+ * ```typescript
+ * const receipt = createFailureReceipt({
+ *   action: 'Attempted to process large file',
+ *   rationale: 'User requested file processing',
+ *   failureClass: 'context_overflow',
+ *   failureDetails: 'File exceeded 100MB limit',
+ *   reversibility: 'reversible',
+ * });
+ * console.log(receipt.recoverySuggestion);
+ * // => "Chunk task into smaller units with focused context"
+ * ```
+ */
+export function createFailureReceipt(
+  params: Omit<CreateReceiptParams, "outcome" | "confidence" | "recoverySuggestion"> & {
+    failureClass: FailureClass;
+    confidence?: ConfidenceLevel;
+  }
+): Receipt {
+  const suggestion = getRecoverySuggestion(params.failureClass, params.failureDetails);
+
+  return createReceipt({
+    ...params,
+    outcome: "failure",
+    confidence: params.confidence ?? "low",
+    recoverySuggestion: suggestion.action,
+  });
+}
+
 // Re-export schema types and validators
 export {
   Receipt,
@@ -161,7 +208,12 @@ export {
   ConfidenceLevel,
   ReversibilityLevel,
   Outcome,
+  FailureClass,
   RECEIPT_SCHEMA_VERSION,
   Receipt as ReceiptSchema,
   UncertaintyMarker as UncertaintyMarkerSchema,
 } from "./schema.js";
+
+// Re-export recovery suggestion engine
+export { getRecoverySuggestion, getAllRecoverySuggestions } from "./recovery.js";
+export type { RecoverySuggestion } from "./recovery.js";

@@ -29,6 +29,25 @@ export const Outcome = z.enum(["success", "failure", "partial", "deferred"]);
 export type Outcome = z.infer<typeof Outcome>;
 
 /**
+ * Failure classification for governance tracking
+ *
+ * Each class maps to specific recovery actions:
+ * - timeout: Operation exceeded time budget
+ * - resource_exhaustion: Ran out of tokens, memory, or other resources
+ * - model_error: LLM returned error or invalid response
+ * - context_overflow: Too much context for model to handle
+ * - policy_violation: Action blocked by policy rules
+ */
+export const FailureClass = z.enum([
+  "timeout",
+  "resource_exhaustion",
+  "model_error",
+  "context_overflow",
+  "policy_violation",
+]);
+export type FailureClass = z.infer<typeof FailureClass>;
+
+/**
  * Explicit marker for uncertainty in decision-making
  *
  * Records what was uncertain, what action was taken despite uncertainty,
@@ -82,6 +101,11 @@ export const Receipt = z.object({
   action: z.string().describe("What action was taken"),
   outcome: Outcome,
   rationale: z.string().describe("Why this action was chosen"),
+
+  // Failure classification (Wave 2)
+  failureClass: FailureClass.optional().describe("Classification of failure for governance"),
+  failureDetails: z.string().optional().describe("Additional context about the failure"),
+  recoverySuggestion: z.string().optional().describe("Suggested recovery action based on failure class"),
 
   // Uncertainty handling
   confidence: ConfidenceLevel,

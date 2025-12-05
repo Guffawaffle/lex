@@ -7,6 +7,7 @@
  * Curated SQL modules (allowed to use db.prepare):
  * - src/memory/store/queries.ts (Frame CRUD)
  * - src/memory/store/code-unit-queries.ts (CodeUnit CRUD)
+ * - src/memory/store/receipt-queries.ts (Receipt CRUD and aggregation)
  * - src/memory/store/db.ts (schema initialization)
  * - src/memory/store/backup.ts (backup utilities)
  * - src/memory/store/code-atlas-runs.ts (CodeAtlas run tracking)
@@ -28,6 +29,7 @@ const ALLOWED_PATTERNS = [
   "memory/store/queries.ts",
   "memory/store/code-unit-queries.ts",
   "memory/store/lexsona-queries.ts",
+  "memory/store/receipt-queries.ts",
   "memory/store/db.ts",
   "memory/store/backup.ts",
   "memory/store/code-atlas-runs.ts",

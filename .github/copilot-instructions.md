@@ -267,6 +267,7 @@ Only these files may contain `db.prepare()` calls:
 ```
 src/memory/store/queries.ts         # Frame CRUD
 src/memory/store/code-unit-queries.ts  # CodeUnit CRUD
+src/memory/store/receipt-queries.ts  # Receipt CRUD and aggregation
 src/memory/store/db.ts              # Schema initialization
 src/memory/store/backup.ts          # Backup utilities
 src/memory/store/code-atlas-runs.ts # CodeAtlas run tracking

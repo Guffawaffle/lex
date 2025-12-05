@@ -97,6 +97,23 @@ export {
   getCodeUnitCount,
 } from "./code-unit-queries.js";
 
+// Receipt storage exports
+export type {
+  ReceiptRow,
+  FailureStats,
+  ModuleFailureStats,
+  RecoverySuccessRate,
+} from "./receipt-queries.js";
+
+export {
+  storeReceipt,
+  getReceiptById,
+  getReceiptsBySession,
+  getMostCommonFailureMode,
+  getFailureModesBySession,
+  deleteReceiptsBySession,
+} from "./receipt-queries.js";
+
 // LexSona behavior rules exports
 export {
   saveBehaviorRule,
