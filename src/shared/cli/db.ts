@@ -772,3 +772,141 @@ function calculateDatabaseChecksum(dbPath: string): string {
 
   return createHash("sha256").update(dataString).digest("hex");
 }
+
+/**
+ * Receipt CLI command options
+ */
+export interface ReceiptCreateOptions {
+  action: string;
+  rationale: string;
+  confidence: "high" | "medium" | "low" | "uncertain";
+  reversibility: "reversible" | "partially-reversible" | "irreversible";
+  outcome?: "success" | "failure" | "partial" | "deferred";
+  rollbackPath?: string;
+  output?: string;
+  json?: boolean;
+}
+
+export interface ReceiptValidateOptions {
+  input: string;
+  json?: boolean;
+}
+
+/**
+ * Create a receipt and optionally save to file
+ */
+export async function receiptCreate(options: ReceiptCreateOptions): Promise<void> {
+  try {
+    // Lazy load receipt module to avoid circular dependencies
+    const { createReceipt } = await import("../../memory/receipts/index.js");
+
+    const receipt = createReceipt({
+      action: options.action,
+      rationale: options.rationale,
+      confidence: options.confidence,
+      reversibility: options.reversibility,
+      outcome: options.outcome,
+      rollbackPath: options.rollbackPath,
+    });
+
+    if (options.json) {
+      output.json(receipt);
+    } else {
+      output.success("Receipt created successfully");
+      output.info(`Action: ${receipt.action}`);
+      output.info(`Confidence: ${receipt.confidence}`);
+      output.info(`Reversibility: ${receipt.reversibility}`);
+      output.info(`Timestamp: ${receipt.timestamp}`);
+
+      if (receipt.rollbackPath) {
+        output.info(`Rollback path: ${receipt.rollbackPath}`);
+      }
+    }
+
+    // Save to file if output path specified
+    if (options.output) {
+      const { writeFileSync } = await import("fs");
+      writeFileSync(options.output, JSON.stringify(receipt, null, 2));
+
+      if (!options.json) {
+        output.success(`Receipt saved to ${options.output}`);
+      }
+    }
+  } catch (error) {
+    logger.error("Receipt creation failed", {
+      operation: "receiptCreate",
+      error: error instanceof Error ? error : new Error(String(error)),
+    });
+
+    if (options.json) {
+      output.json({
+        success: false,
+        operation: "receipt-create",
+        error: error instanceof Error ? error.message : String(error),
+      });
+    } else {
+      output.error(`Failed to create receipt: ${error instanceof Error ? error.message : String(error)}`);
+    }
+    process.exit(1);
+  }
+}
+
+/**
+ * Validate a receipt from file
+ */
+export async function receiptValidate(options: ReceiptValidateOptions): Promise<void> {
+  try {
+    // Lazy load receipt validation module
+    const { validateReceiptPayload } = await import("../../memory/receipts/validator.js");
+    const { readFileSync } = await import("fs");
+
+    // Read and parse the receipt file
+    const receiptData = JSON.parse(readFileSync(options.input, "utf-8"));
+
+    // Validate
+    const result = validateReceiptPayload(receiptData);
+
+    if (options.json) {
+      output.json(result);
+    } else {
+      if (result.valid) {
+        output.success("Receipt is valid");
+      } else {
+        output.error("Receipt validation failed");
+        output.info(`Errors: ${result.errors.length}`);
+
+        for (const err of result.errors) {
+          output.error(`  ${err.path}: ${err.message} (${err.code})`);
+        }
+      }
+
+      if (result.warnings.length > 0) {
+        output.warn(`\nWarnings: ${result.warnings.length}`);
+        for (const warn of result.warnings) {
+          output.warn(`  ${warn.path}: ${warn.message}`);
+        }
+      }
+    }
+
+    // Exit with error code if validation failed
+    if (!result.valid) {
+      process.exit(1);
+    }
+  } catch (error) {
+    logger.error("Receipt validation failed", {
+      operation: "receiptValidate",
+      error: error instanceof Error ? error : new Error(String(error)),
+    });
+
+    if (options.json) {
+      output.json({
+        success: false,
+        operation: "receipt-validate",
+        error: error instanceof Error ? error.message : String(error),
+      });
+    } else {
+      output.error(`Failed to validate receipt: ${error instanceof Error ? error.message : String(error)}`);
+    }
+    process.exit(1);
+  }
+}
