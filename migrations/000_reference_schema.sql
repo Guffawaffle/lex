@@ -1,6 +1,6 @@
 -- ============================================================================
 -- Lex Database Reference Schema
--- Version: 7 (as of 0.6.0)
+-- Version: 8 (as of 2.0.0)
 --
 -- This file documents the complete current schema for reference.
 -- It is NOT executed — actual migrations are in src/memory/store/db.ts.
@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS schema_version (
 );
 
 -- ============================================================================
--- FRAMES (V1)
+-- FRAMES (V1, V2, V3, V4)
 -- Core episodic memory records
 -- ============================================================================
 
@@ -35,7 +35,14 @@ CREATE TABLE IF NOT EXISTS frames (
   plan_hash TEXT,
   spend TEXT,                         -- JSON object
   -- V4: OAuth2/JWT user isolation
-  user_id TEXT
+  user_id TEXT,
+  -- V4: Turn Cost and Capability Tier (Wave 2)
+  turn_cost TEXT,                     -- JSON object (TurnCost)
+  capability_tier TEXT CHECK (
+    capability_tier IS NULL OR 
+    capability_tier IN ('senior', 'mid', 'junior')
+  ),
+  task_complexity TEXT                -- JSON object (TaskComplexity)
 );
 
 -- FTS5 virtual table for full-text search
@@ -71,6 +78,7 @@ CREATE INDEX IF NOT EXISTS idx_frames_branch ON frames(branch);
 CREATE INDEX IF NOT EXISTS idx_frames_jira ON frames(jira);
 CREATE INDEX IF NOT EXISTS idx_frames_atlas_frame_id ON frames(atlas_frame_id);
 CREATE INDEX IF NOT EXISTS idx_frames_user_id ON frames(user_id);
+CREATE INDEX IF NOT EXISTS idx_frames_capability_tier ON frames(capability_tier) WHERE capability_tier IS NOT NULL;
 
 -- ============================================================================
 -- IMAGES (V2)
