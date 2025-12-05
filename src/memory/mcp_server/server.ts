@@ -21,6 +21,8 @@ import { loadPolicy } from "../../shared/policy/loader.js";
 import type { Policy } from "../../shared/types/policy.js";
 // @ts-ignore - importing from compiled dist directories
 import { getCurrentBranch } from "../../shared/git/branch.js";
+// @ts-ignore - importing from compiled dist directories
+import { validatePolicySchema } from "../../shared/policy/schema.js";
 import { randomUUID } from "crypto";
 import { join } from "path";
 import { existsSync } from "fs";
@@ -65,6 +67,12 @@ interface ListFramesArgs {
   module?: string;
   limit?: number;
   since?: string;
+}
+
+interface PolicyCheckArgs {
+  path?: string;
+  policyPath?: string;
+  strict?: boolean;
 }
 
 export interface MCPRequest {
@@ -303,10 +311,13 @@ export class MCPServer {
       case "lex.list_frames":
         return await this.handleListFrames(args);
 
+      case "lex.policy_check":
+        return await this.handlePolicyCheck(args);
+
       default:
         throw new MCPError(MCPErrorCode.INTERNAL_UNKNOWN_TOOL, `Unknown tool: ${name}`, {
           requestedTool: name,
-          availableTools: ["lex.remember", "lex.recall", "lex.list_frames"],
+          availableTools: ["lex.remember", "lex.recall", "lex.list_frames", "lex.policy_check"],
         });
     }
   }
@@ -650,6 +661,100 @@ export class MCPServer {
         },
       ],
     };
+  }
+
+  /**
+   * Handle lex.policy_check tool - validate policy file
+   */
+  private async handlePolicyCheck(args: Record<string, unknown>): Promise<MCPResponse> {
+    const { path: checkPath, policyPath, strict = false } = args as unknown as PolicyCheckArgs;
+
+    try {
+      // Change directory if path is provided
+      const originalCwd = process.cwd();
+      if (checkPath) {
+        try {
+          process.chdir(checkPath);
+        } catch (error: unknown) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          throw new MCPError(
+            MCPErrorCode.VALIDATION_INVALID_PATH,
+            `Invalid path: ${errorMessage}`,
+            { path: checkPath }
+          );
+        }
+      }
+
+      try {
+        // Load policy file
+        const policy: Policy = loadPolicy(policyPath);
+
+        // Validate schema
+        const validation = validatePolicySchema(policy);
+
+        // Prepare result
+        const valid = strict ? validation.valid && validation.warnings.length === 0 : validation.valid;
+
+        // Format output
+        let output = "";
+        
+        if (valid) {
+          output += `✅ Policy valid: ${validation.moduleCount} modules defined\n`;
+        } else {
+          output += `❌ Policy invalid: ${validation.errors.length} error(s) found\n`;
+        }
+
+        // Add errors
+        if (validation.errors.length > 0) {
+          output += "\nErrors:\n";
+          for (const error of validation.errors) {
+            output += `  ❌ ${error.path}: ${error.message}\n`;
+          }
+        }
+
+        // Add warnings
+        if (validation.warnings.length > 0) {
+          output += "\nWarnings:\n";
+          for (const warning of validation.warnings) {
+            output += `  ⚠️  ${warning.path}: ${warning.message}\n`;
+          }
+        }
+
+        // Restore original directory
+        if (checkPath) {
+          process.chdir(originalCwd);
+        }
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: output,
+            },
+          ],
+        };
+      } catch (innerError: unknown) {
+        // Restore original directory on error
+        if (checkPath) {
+          process.chdir(originalCwd);
+        }
+        throw innerError;
+      }
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      
+      // If it's already an MCPError, rethrow it
+      if (error instanceof MCPError) {
+        throw error;
+      }
+
+      // Otherwise, wrap it
+      throw new MCPError(
+        MCPErrorCode.VALIDATION_POLICY_FAILED,
+        `Policy check failed: ${errorMessage}`,
+        { policyPath }
+      );
+    }
   }
 
   /**

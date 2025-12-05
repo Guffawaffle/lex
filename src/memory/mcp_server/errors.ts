@@ -44,6 +44,12 @@ export enum MCPErrorCode {
   /** Image data is malformed or unsupported */
   VALIDATION_INVALID_IMAGE = "VALIDATION_INVALID_IMAGE",
 
+  /** Path provided does not exist or is inaccessible */
+  VALIDATION_INVALID_PATH = "VALIDATION_INVALID_PATH",
+
+  /** Policy validation failed */
+  VALIDATION_POLICY_FAILED = "VALIDATION_POLICY_FAILED",
+
   // =============================================================================
   // STORAGE ERRORS (5xx-style: server/storage problems)
   // =============================================================================
