@@ -11,7 +11,7 @@ import { validateFrameMetadata, FRAME_SCHEMA_VERSION } from "@app/shared/types/f
 
 describe("Frame Type Validation", () => {
   test("should export FRAME_SCHEMA_VERSION", () => {
-    assert.strictEqual(FRAME_SCHEMA_VERSION, 3, "Schema version should be 3");
+    assert.strictEqual(FRAME_SCHEMA_VERSION, 4, "Schema version should be 4");
   });
 
   test("should validate a minimal Frame", () => {
@@ -354,6 +354,307 @@ describe("Frame Type Validation", () => {
       "Frame with invalid guardrailProfile should be rejected"
     );
   });
+
+  test("should validate Frame with capability tier (v4)", () => {
+    const v4Frame = {
+      id: "test-017",
+      timestamp: "2025-11-09T12:00:00Z",
+      branch: "main",
+      module_scope: ["core"],
+      summary_caption: "Test frame",
+      reference_point: "test",
+      status_snapshot: {
+        next_action: "test action",
+      },
+      capabilityTier: "mid",
+    };
+
+    assert.ok(validateFrameMetadata(v4Frame), "Frame with capabilityTier should be valid");
+  });
+
+  test("should validate Frame with all capability tier values", () => {
+    const tiers = ["senior", "mid", "junior"];
+    for (const tier of tiers) {
+      const frame = {
+        id: `test-tier-${tier}`,
+        timestamp: "2025-11-09T12:00:00Z",
+        branch: "main",
+        module_scope: ["core"],
+        summary_caption: "Test frame",
+        reference_point: "test",
+        status_snapshot: {
+          next_action: "test action",
+        },
+        capabilityTier: tier,
+      };
+
+      assert.ok(
+        validateFrameMetadata(frame),
+        `Frame with capabilityTier '${tier}' should be valid`
+      );
+    }
+  });
+
+  test("should reject invalid capabilityTier value", () => {
+    const invalidFrame = {
+      id: "test-018",
+      timestamp: "2025-11-09T12:00:00Z",
+      branch: "main",
+      module_scope: ["core"],
+      summary_caption: "Test frame",
+      reference_point: "test",
+      status_snapshot: {
+        next_action: "test action",
+      },
+      capabilityTier: "invalid",
+    };
+
+    assert.strictEqual(
+      validateFrameMetadata(invalidFrame),
+      false,
+      "Frame with invalid capabilityTier should be rejected"
+    );
+  });
+
+  test("should reject invalid capabilityTier type", () => {
+    const invalidFrame = {
+      id: "test-019",
+      timestamp: "2025-11-09T12:00:00Z",
+      branch: "main",
+      module_scope: ["core"],
+      summary_caption: "Test frame",
+      reference_point: "test",
+      status_snapshot: {
+        next_action: "test action",
+      },
+      capabilityTier: 123,
+    };
+
+    assert.strictEqual(
+      validateFrameMetadata(invalidFrame),
+      false,
+      "Frame with non-string capabilityTier should be rejected"
+    );
+  });
+
+  test("should validate Frame with taskComplexity (v4)", () => {
+    const v4Frame = {
+      id: "test-020",
+      timestamp: "2025-11-09T12:00:00Z",
+      branch: "main",
+      module_scope: ["core"],
+      summary_caption: "Test frame",
+      reference_point: "test",
+      status_snapshot: {
+        next_action: "test action",
+      },
+      taskComplexity: {
+        tier: "mid",
+        assignedModel: "claude-sonnet-4.5",
+        actualModel: "claude-sonnet-4.5",
+        escalated: false,
+        retryCount: 0,
+        tierMismatch: false,
+      },
+    };
+
+    assert.ok(validateFrameMetadata(v4Frame), "Frame with taskComplexity should be valid");
+  });
+
+  test("should validate Frame with minimal taskComplexity", () => {
+    const frame = {
+      id: "test-021",
+      timestamp: "2025-11-09T12:00:00Z",
+      branch: "main",
+      module_scope: ["core"],
+      summary_caption: "Test frame",
+      reference_point: "test",
+      status_snapshot: {
+        next_action: "test action",
+      },
+      taskComplexity: {
+        tier: "junior",
+      },
+    };
+
+    assert.ok(
+      validateFrameMetadata(frame),
+      "Frame with minimal taskComplexity should be valid"
+    );
+  });
+
+  test("should validate Frame with escalated taskComplexity", () => {
+    const frame = {
+      id: "test-022",
+      timestamp: "2025-11-09T12:00:00Z",
+      branch: "main",
+      module_scope: ["core"],
+      summary_caption: "Test frame",
+      reference_point: "test",
+      status_snapshot: {
+        next_action: "test action",
+      },
+      taskComplexity: {
+        tier: "mid",
+        assignedModel: "claude-haiku-4",
+        actualModel: "claude-sonnet-4.5",
+        escalated: true,
+        escalationReason: "Required architectural decision",
+        retryCount: 2,
+        tierMismatch: true,
+      },
+    };
+
+    assert.ok(
+      validateFrameMetadata(frame),
+      "Frame with escalated taskComplexity should be valid"
+    );
+  });
+
+  test("should reject taskComplexity with invalid tier", () => {
+    const invalidFrame = {
+      id: "test-023",
+      timestamp: "2025-11-09T12:00:00Z",
+      branch: "main",
+      module_scope: ["core"],
+      summary_caption: "Test frame",
+      reference_point: "test",
+      status_snapshot: {
+        next_action: "test action",
+      },
+      taskComplexity: {
+        tier: "expert",
+      },
+    };
+
+    assert.strictEqual(
+      validateFrameMetadata(invalidFrame),
+      false,
+      "Frame with invalid taskComplexity.tier should be rejected"
+    );
+  });
+
+  test("should reject taskComplexity without tier", () => {
+    const invalidFrame = {
+      id: "test-024",
+      timestamp: "2025-11-09T12:00:00Z",
+      branch: "main",
+      module_scope: ["core"],
+      summary_caption: "Test frame",
+      reference_point: "test",
+      status_snapshot: {
+        next_action: "test action",
+      },
+      taskComplexity: {
+        assignedModel: "claude-sonnet-4.5",
+      },
+    };
+
+    assert.strictEqual(
+      validateFrameMetadata(invalidFrame),
+      false,
+      "Frame with taskComplexity missing tier should be rejected"
+    );
+  });
+
+  test("should reject taskComplexity with invalid assignedModel type", () => {
+    const invalidFrame = {
+      id: "test-025",
+      timestamp: "2025-11-09T12:00:00Z",
+      branch: "main",
+      module_scope: ["core"],
+      summary_caption: "Test frame",
+      reference_point: "test",
+      status_snapshot: {
+        next_action: "test action",
+      },
+      taskComplexity: {
+        tier: "mid",
+        assignedModel: 123,
+      },
+    };
+
+    assert.strictEqual(
+      validateFrameMetadata(invalidFrame),
+      false,
+      "Frame with invalid assignedModel type should be rejected"
+    );
+  });
+
+  test("should reject taskComplexity with invalid escalated type", () => {
+    const invalidFrame = {
+      id: "test-026",
+      timestamp: "2025-11-09T12:00:00Z",
+      branch: "main",
+      module_scope: ["core"],
+      summary_caption: "Test frame",
+      reference_point: "test",
+      status_snapshot: {
+        next_action: "test action",
+      },
+      taskComplexity: {
+        tier: "mid",
+        escalated: "yes",
+      },
+    };
+
+    assert.strictEqual(
+      validateFrameMetadata(invalidFrame),
+      false,
+      "Frame with invalid escalated type should be rejected"
+    );
+  });
+
+  test("should reject taskComplexity with invalid retryCount type", () => {
+    const invalidFrame = {
+      id: "test-027",
+      timestamp: "2025-11-09T12:00:00Z",
+      branch: "main",
+      module_scope: ["core"],
+      summary_caption: "Test frame",
+      reference_point: "test",
+      status_snapshot: {
+        next_action: "test action",
+      },
+      taskComplexity: {
+        tier: "mid",
+        retryCount: "2",
+      },
+    };
+
+    assert.strictEqual(
+      validateFrameMetadata(invalidFrame),
+      false,
+      "Frame with invalid retryCount type should be rejected"
+    );
+  });
+
+  test("should validate Frame with both capabilityTier and taskComplexity", () => {
+    const frame = {
+      id: "test-028",
+      timestamp: "2025-11-09T12:00:00Z",
+      branch: "main",
+      module_scope: ["core"],
+      summary_caption: "Test frame",
+      reference_point: "test",
+      status_snapshot: {
+        next_action: "test action",
+      },
+      capabilityTier: "senior",
+      taskComplexity: {
+        tier: "senior",
+        assignedModel: "claude-opus-4",
+        actualModel: "claude-opus-4",
+        escalated: false,
+        retryCount: 0,
+      },
+    };
+
+    assert.ok(
+      validateFrameMetadata(frame),
+      "Frame with both capabilityTier and taskComplexity should be valid"
+    );
+  });
 });
 
-console.log("\n✅ Frame Type Validation Tests - covering v1, v2, and v3 schema validation\n");
+console.log("\n✅ Frame Type Validation Tests - covering v1, v2, v3, and v4 schema validation\n");

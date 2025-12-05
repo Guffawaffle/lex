@@ -15,6 +15,18 @@ export interface SpendMetadata {
   tokens_estimated?: number;
 }
 
+export type CapabilityTier = "senior" | "mid" | "junior";
+
+export interface TaskComplexity {
+  tier: CapabilityTier;
+  assignedModel?: string;
+  actualModel?: string; // What model actually did the work
+  escalated?: boolean;
+  escalationReason?: string;
+  retryCount?: number;
+  tierMismatch?: boolean; // Did actual tier differ from suggested?
+}
+
 export interface Frame {
   id: string;
   timestamp: string;
@@ -39,6 +51,9 @@ export interface Frame {
   executorRole?: string;
   toolCalls?: string[];
   guardrailProfile?: string;
+  // Capability tier classification (v4)
+  capabilityTier?: CapabilityTier;
+  taskComplexity?: TaskComplexity;
 }
 
 /**
@@ -46,8 +61,9 @@ export interface Frame {
  * v1: Initial schema (pre-0.4.0)
  * v2: Added runId, planHash, spend fields for execution provenance (0.4.0)
  * v3: Added executorRole, toolCalls, guardrailProfile for LexRunner (0.5.0)
+ * v4: Added capabilityTier, taskComplexity for governance model (2.0.0)
  */
-export const FRAME_SCHEMA_VERSION = 3;
+export const FRAME_SCHEMA_VERSION = 4;
 
 export function validateFrameMetadata(frame: unknown): frame is Frame {
   if (typeof frame !== "object" || frame === null) return false;
@@ -105,5 +121,23 @@ export function validateFrameMetadata(frame: unknown): frame is Frame {
     if (!f.toolCalls.every((t: unknown) => typeof t === "string")) return false;
   }
   if (f.guardrailProfile !== undefined && typeof f.guardrailProfile !== "string") return false;
+  // Validate v4 fields (optional, backward compatible)
+  if (f.capabilityTier !== undefined) {
+    if (typeof f.capabilityTier !== "string") return false;
+    if (!["senior", "mid", "junior"].includes(f.capabilityTier)) return false;
+  }
+  if (f.taskComplexity !== undefined) {
+    if (typeof f.taskComplexity !== "object" || f.taskComplexity === null) return false;
+    const tc = f.taskComplexity as Record<string, unknown>;
+    if (typeof tc.tier !== "string") return false;
+    if (!["senior", "mid", "junior"].includes(tc.tier)) return false;
+    if (tc.assignedModel !== undefined && typeof tc.assignedModel !== "string") return false;
+    if (tc.actualModel !== undefined && typeof tc.actualModel !== "string") return false;
+    if (tc.escalated !== undefined && typeof tc.escalated !== "boolean") return false;
+    if (tc.escalationReason !== undefined && typeof tc.escalationReason !== "string")
+      return false;
+    if (tc.retryCount !== undefined && typeof tc.retryCount !== "number") return false;
+    if (tc.tierMismatch !== undefined && typeof tc.tierMismatch !== "boolean") return false;
+  }
   return true;
 }

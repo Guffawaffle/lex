@@ -26,6 +26,30 @@ export const FrameStatusSnapshot = z.object({
 
 export type FrameStatusSnapshot = z.infer<typeof FrameStatusSnapshot>;
 
+/**
+ * Capability tier classification schema
+ * Represents the complexity level of a task based on governance model
+ */
+export const CapabilityTier = z.enum(["senior", "mid", "junior"]);
+
+export type CapabilityTier = z.infer<typeof CapabilityTier>;
+
+/**
+ * Task complexity metadata schema
+ * Tracks tier assignment, model allocation, and escalation details
+ */
+export const TaskComplexity = z.object({
+  tier: CapabilityTier,
+  assignedModel: z.string().optional(),
+  actualModel: z.string().optional(), // What model actually did the work
+  escalated: z.boolean().optional(),
+  escalationReason: z.string().optional(),
+  retryCount: z.number().optional(),
+  tierMismatch: z.boolean().optional(), // Did actual tier differ from suggested?
+});
+
+export type TaskComplexity = z.infer<typeof TaskComplexity>;
+
 export const Frame = z.object({
   id: z.string(),
   timestamp: z.string(), // ISO 8601
@@ -49,6 +73,9 @@ export const Frame = z.object({
   executorRole: z.string().optional(),
   toolCalls: z.array(z.string()).optional(),
   guardrailProfile: z.string().optional(),
+  // Capability tier classification (v4)
+  capabilityTier: CapabilityTier.optional(),
+  taskComplexity: TaskComplexity.optional(),
 });
 
 export type Frame = z.infer<typeof Frame>;
@@ -58,8 +85,9 @@ export type Frame = z.infer<typeof Frame>;
  * v1: Initial schema (pre-0.4.0)
  * v2: Added runId, planHash, spend fields for execution provenance (0.4.0)
  * v3: Added executorRole, toolCalls, guardrailProfile for LexRunner (0.5.0)
+ * v4: Added capabilityTier, taskComplexity for governance model (2.0.0)
  */
-export const FRAME_SCHEMA_VERSION = 3;
+export const FRAME_SCHEMA_VERSION = 4;
 
 /**
  * Frame search query interface

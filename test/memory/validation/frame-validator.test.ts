@@ -475,4 +475,134 @@ describe("Frame Payload Validation", () => {
       );
     });
   });
+
+  describe("Capability Tier Fields (v4)", () => {
+    test("should validate Frame with capabilityTier", () => {
+      const payload = {
+        id: "frame-016",
+        timestamp: "2025-12-05T10:00:00Z",
+        branch: "main",
+        module_scope: ["core"],
+        summary_caption: "Mid-tier task",
+        reference_point: "test",
+        status_snapshot: { next_action: "Test" },
+        capabilityTier: "mid",
+      };
+
+      const result = validateFramePayload(payload);
+
+      assert.strictEqual(result.valid, true, "Payload with capabilityTier should pass");
+      assert.deepStrictEqual(result.errors, [], "Should have no errors");
+    });
+
+    test("should validate all valid capabilityTier values", () => {
+      const tiers = ["senior", "mid", "junior"];
+      for (const tier of tiers) {
+        const payload = {
+          id: `frame-tier-${tier}`,
+          timestamp: "2025-12-05T10:00:00Z",
+          branch: "main",
+          module_scope: ["core"],
+          summary_caption: `${tier} tier task`,
+          reference_point: "test",
+          status_snapshot: { next_action: "Test" },
+          capabilityTier: tier,
+        };
+
+        const result = validateFramePayload(payload);
+        assert.strictEqual(result.valid, true, `Payload with '${tier}' tier should pass`);
+      }
+    });
+
+    test("should validate Frame with taskComplexity", () => {
+      const payload = {
+        id: "frame-017",
+        timestamp: "2025-12-05T10:00:00Z",
+        branch: "main",
+        module_scope: ["core"],
+        summary_caption: "Task with complexity tracking",
+        reference_point: "test",
+        status_snapshot: { next_action: "Test" },
+        taskComplexity: {
+          tier: "mid",
+          assignedModel: "claude-sonnet-4.5",
+          actualModel: "claude-sonnet-4.5",
+          escalated: false,
+          retryCount: 0,
+          tierMismatch: false,
+        },
+      };
+
+      const result = validateFramePayload(payload);
+
+      assert.strictEqual(result.valid, true, "Payload with taskComplexity should pass");
+      assert.deepStrictEqual(result.errors, [], "Should have no errors");
+    });
+
+    test("should validate Frame with minimal taskComplexity", () => {
+      const payload = {
+        id: "frame-018",
+        timestamp: "2025-12-05T10:00:00Z",
+        branch: "main",
+        module_scope: ["core"],
+        summary_caption: "Minimal complexity",
+        reference_point: "test",
+        status_snapshot: { next_action: "Test" },
+        taskComplexity: {
+          tier: "junior",
+        },
+      };
+
+      const result = validateFramePayload(payload);
+
+      assert.strictEqual(result.valid, true, "Payload with minimal taskComplexity should pass");
+    });
+
+    test("should validate Frame with escalated taskComplexity", () => {
+      const payload = {
+        id: "frame-019",
+        timestamp: "2025-12-05T10:00:00Z",
+        branch: "main",
+        module_scope: ["core"],
+        summary_caption: "Escalated task",
+        reference_point: "test",
+        status_snapshot: { next_action: "Test" },
+        taskComplexity: {
+          tier: "mid",
+          assignedModel: "claude-haiku-4",
+          actualModel: "claude-sonnet-4.5",
+          escalated: true,
+          escalationReason: "Required architectural decision",
+          retryCount: 2,
+          tierMismatch: true,
+        },
+      };
+
+      const result = validateFramePayload(payload);
+
+      assert.strictEqual(result.valid, true, "Payload with escalation should pass");
+    });
+
+    test("should validate Frame with both capabilityTier and taskComplexity", () => {
+      const payload = {
+        id: "frame-020",
+        timestamp: "2025-12-05T10:00:00Z",
+        branch: "main",
+        module_scope: ["core"],
+        summary_caption: "Complete v4 fields",
+        reference_point: "test",
+        status_snapshot: { next_action: "Test" },
+        capabilityTier: "senior",
+        taskComplexity: {
+          tier: "senior",
+          assignedModel: "claude-opus-4",
+          escalated: false,
+        },
+      };
+
+      const result = validateFramePayload(payload);
+
+      assert.strictEqual(result.valid, true, "Payload with both v4 fields should pass");
+    });
+  });
 });
