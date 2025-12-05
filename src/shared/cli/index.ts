@@ -359,6 +359,32 @@ export function createProgram(): Command {
       await codeAtlas(options);
     });
 
+  // lex turncost command (skeleton for future implementation)
+  program
+    .command("turncost")
+    .description("Measure and analyze Turn Cost metrics (governance coordination cost)")
+    .action(async () => {
+      const globalOptions = program.opts();
+      if (globalOptions.json) {
+        output.json({
+          success: false,
+          message: "Turn Cost measurement not yet implemented",
+          info: "This command is a placeholder for future Turn Cost tracking features",
+        });
+      } else {
+        output.info("⚠️  Turn Cost measurement not yet implemented");
+        output.info("");
+        output.info("This command will eventually support:");
+        output.info("  • Session-level Turn Cost tracking");
+        output.info("  • Historical Turn Cost analysis");
+        output.info("  • Turn Cost optimization recommendations");
+        output.info("");
+        output.info("Turn Cost formula: λL + γC + ρR + τT + αA");
+        output.info("  L = Latency, C = Context Reset, R = Renegotiation");
+        output.info("  T = Token Bloat, A = Attention Switch");
+      }
+    });
+
   return program;
 }
 
