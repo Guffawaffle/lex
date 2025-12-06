@@ -33,6 +33,15 @@ See: [`docs/attestation/Lex_Guff_Version_Contract_Pact_v1.0.0.md`](docs/attestat
 
 ### Added
 
+- **LexSona socket export** - `@smartergpt/lex/lexsona` subpath export (#519)
+  - External tools can now import `getRules`, `recordCorrection` and all types
+  - Enables LexSona package and other consumers to plug into Lex behavioral memory
+  - API is agnostic - any tool can use the socket
+
+- **Canonical lex.yaml template** - `lex.yaml.example` at repo root (#512)
+  - `lex.yaml` now gitignored (local config)
+  - Users copy template and customize
+
 - **Baseline constraints** - `canon/constraints/baseline.yaml` provides neutral behavioral constraints
   - LexSona hooks for persona-specific overrides
   - Core principles: transparency, determinism, auditability

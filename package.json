@@ -74,6 +74,10 @@
       "types": "./dist/shared/prompts/index.d.ts",
       "import": "./dist/shared/prompts/index.js"
     },
+    "./lexsona": {
+      "types": "./dist/shared/lexsona/index.d.ts",
+      "import": "./dist/shared/lexsona/index.js"
+    },
     "./schemas/cli-output.v1.schema.json": "./schemas/cli-output.v1.schema.json",
     "./schemas/feature-spec-v0.json": "./schemas/feature-spec-v0.json",
     "./schemas/profile.schema.json": "./schemas/profile.schema.json"
