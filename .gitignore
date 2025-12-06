@@ -11,6 +11,10 @@ build/
 tsconfig.tsbuildinfo
 *.tgz
 
+# Local config (copy lex.yaml.example to lex.yaml and customize)
+# lex.yaml.example is tracked; lex.yaml is your local config
+lex.yaml
+
 # Internal project directory
 project/
 

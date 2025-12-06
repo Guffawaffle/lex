@@ -30,7 +30,7 @@ See: [`docs/attestation/Lex_Guff_Version_Contract_Pact_v1.0.0.md`](docs/attestat
   - Removed `src/shared/schemas/persona.ts` (orphaned schema)
   - Removed `.smartergpt/personas/` directory
   - Lex retains the behavioral memory socket (`recordCorrection`, `getRules`)
-  
+
 ### Added
 
 - **Baseline constraints** - `canon/constraints/baseline.yaml` provides neutral behavioral constraints

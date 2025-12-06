@@ -1,0 +1,33 @@
+# Lex Configuration
+# =================
+# Copy this file to lex.yaml and customize for your environment.
+# See: docs/specs/lex-yaml-config-contract.md
+#
+# This file is installed by `npm run build` (copy-canon).
+# Your local lex.yaml is gitignored and should contain environment-specific settings.
+
+version: 1
+
+# Instructions Configuration
+# --------------------------
+# Controls how AI assistant instructions are generated and projected.
+instructions:
+  # Path to canonical instruction source (relative to repo root)
+  canonical: .smartergpt/instructions/lex.md
+
+  # Which hosts to project instructions to
+  # Set to false to disable a projection
+  projections:
+    copilot: true   # .github/copilot-instructions.md
+    cursor: true    # .cursorrules
+
+# Personas Configuration (Optional)
+# ----------------------------------
+# Configure AI agent personas for this workspace.
+# personas:
+#   # Default persona to activate when session starts (optional)
+#   default: senior-dev
+#
+#   # Directory containing persona definitions (optional)
+#   # Defaults to .smartergpt/personas/ if not specified
+#   dir: .smartergpt/personas/
