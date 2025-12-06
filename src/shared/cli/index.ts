@@ -451,3 +451,12 @@ export async function run(argv: string[] = process.argv): Promise<void> {
   const program = createProgram();
   await program.parseAsync(argv);
 }
+
+// Direct execution detection - guide users to correct entry point
+// This module is a library; use lex.js for CLI execution
+if (import.meta.url === `file://${process.argv[1]}`) {
+  output.error("This is the library module, not the CLI entry point.");
+  output.info("Use: node dist/shared/cli/lex.js <command>");
+  output.info("Or:  npx lex <command>");
+  process.exit(1);
+}
