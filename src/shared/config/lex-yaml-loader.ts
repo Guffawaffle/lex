@@ -8,6 +8,8 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { parse as parseYaml } from "yaml";
 import { LexYaml, validateLexYaml } from "./lex-yaml-schema.js";
+import { AXErrorException } from "../errors/ax-error.js";
+import { CONFIG_ERROR_CODES } from "../errors/error-codes.js";
 
 /**
  * Result of loading lex.yaml configuration
@@ -109,6 +111,72 @@ export function loadLexYaml(repoRoot: string): LoadResult {
     path: null,
     source: "auto-detect",
   };
+}
+
+/**
+ * Load lex.yaml configuration, throwing AXError if workspace is initialized but config missing.
+ *
+ * This is the "strict" version of loadLexYaml for use in CLI commands after `lex init`.
+ * If `.smartergpt/` directory exists but no lex.yaml is found, it throws an AXErrorException
+ * to guide the user to create the config file.
+ *
+ * @param repoRoot - Absolute path to the repository root
+ * @returns Load result with config (never null)
+ * @throws {AXErrorException} if workspace initialized but lex.yaml missing
+ *
+ * @example
+ * ```ts
+ * try {
+ *   const result = loadLexYamlStrict('/path/to/repo');
+ *   console.log("Config loaded from:", result.path ?? "auto-detect");
+ * } catch (err) {
+ *   if (err instanceof AXErrorException) {
+ *     console.log("Follow:", err.error.nextActions);
+ *   }
+ * }
+ * ```
+ */
+export function loadLexYamlStrict(repoRoot: string): LoadResult {
+  const result = loadLexYaml(repoRoot);
+
+  // If config loaded from file, return as-is
+  if (result.source === "file") {
+    return result;
+  }
+
+  // If auto-detected, check if workspace is initialized
+  const smartergptDir = path.join(repoRoot, ".smartergpt");
+  const smartergptExists = isDirectory(smartergptDir);
+
+  if (smartergptExists) {
+    // Workspace initialized but no lex.yaml found
+    throw new AXErrorException(
+      CONFIG_ERROR_CODES.CONFIG_NOT_FOUND,
+      "lex.yaml not found in initialized workspace",
+      [
+        "Create lex.yaml by copying the template: cp lex.yaml.example lex.yaml",
+        "Or run `lex init` to generate a new configuration",
+      ],
+      {
+        searchedPaths: [path.join(repoRoot, "lex.yaml"), path.join(smartergptDir, "lex.yaml")],
+        smartergptDir,
+      }
+    );
+  }
+
+  // Not initialized, return auto-detected defaults
+  return result;
+}
+
+/**
+ * Check if a path exists and is a directory
+ */
+function isDirectory(dirPath: string): boolean {
+  try {
+    return fs.statSync(dirPath).isDirectory();
+  } catch {
+    return false;
+  }
 }
 
 /**

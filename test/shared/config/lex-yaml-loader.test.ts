@@ -7,7 +7,13 @@ import * as assert from "node:assert";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
-import { loadLexYaml, getDefaultConfig } from "../../../src/shared/config/lex-yaml-loader.js";
+import {
+  loadLexYaml,
+  loadLexYamlStrict,
+  getDefaultConfig,
+} from "../../../src/shared/config/lex-yaml-loader.js";
+import { AXErrorException } from "../../../src/shared/errors/ax-error.js";
+import { CONFIG_ERROR_CODES } from "../../../src/shared/errors/error-codes.js";
 
 describe("Lex YAML Config Loader", () => {
   let tempDir: string;
@@ -143,6 +149,75 @@ instructions:
       assert.equal(config.instructions?.canonical, ".smartergpt/instructions/lex.md");
       assert.equal(config.instructions?.projections?.copilot, true);
       assert.equal(config.instructions?.projections?.cursor, true);
+    });
+  });
+
+  describe("loadLexYamlStrict", () => {
+    it("returns config when file exists", () => {
+      const repoRoot = path.join(tempDir, "strict-with-config");
+      fs.mkdirSync(path.join(repoRoot, ".smartergpt"), { recursive: true });
+      fs.writeFileSync(
+        path.join(repoRoot, "lex.yaml"),
+        `version: 1
+instructions:
+  canonical: strict-test.md
+`
+      );
+
+      const result = loadLexYamlStrict(repoRoot);
+
+      assert.equal(result.success, true);
+      assert.equal(result.source, "file");
+      assert.equal(result.config?.instructions?.canonical, "strict-test.md");
+    });
+
+    it("returns auto-detect defaults when workspace not initialized", () => {
+      const repoRoot = path.join(tempDir, "strict-no-workspace");
+      fs.mkdirSync(repoRoot, { recursive: true });
+      // No .smartergpt directory
+
+      const result = loadLexYamlStrict(repoRoot);
+
+      assert.equal(result.success, true);
+      assert.equal(result.source, "auto-detect");
+      assert.equal(result.path, null);
+    });
+
+    it("throws AXErrorException when .smartergpt exists but no lex.yaml", () => {
+      const repoRoot = path.join(tempDir, "strict-missing-config");
+      fs.mkdirSync(path.join(repoRoot, ".smartergpt"), { recursive: true });
+      // No lex.yaml files
+
+      assert.throws(
+        () => loadLexYamlStrict(repoRoot),
+        (err: unknown) => {
+          assert.ok(err instanceof AXErrorException, "Should throw AXErrorException");
+          const axErr = (err as AXErrorException).axError;
+          assert.equal(axErr.code, CONFIG_ERROR_CODES.CONFIG_NOT_FOUND);
+          assert.ok(axErr.message.includes("lex.yaml not found"));
+          assert.ok(axErr.nextActions.length >= 1);
+          assert.ok(
+            axErr.nextActions.some((a: string) => a.includes("cp lex.yaml.example")),
+            "Should suggest copying template"
+          );
+          return true;
+        }
+      );
+    });
+
+    it("includes searched paths in error context", () => {
+      const repoRoot = path.join(tempDir, "strict-error-context");
+      fs.mkdirSync(path.join(repoRoot, ".smartergpt"), { recursive: true });
+
+      try {
+        loadLexYamlStrict(repoRoot);
+        assert.fail("Should have thrown");
+      } catch (err) {
+        assert.ok(err instanceof AXErrorException);
+        const context = err.axError.context as { searchedPaths?: string[] };
+        assert.ok(Array.isArray(context?.searchedPaths));
+        assert.equal(context.searchedPaths.length, 2);
+      }
     });
   });
 });

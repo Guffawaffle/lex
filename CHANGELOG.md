@@ -48,6 +48,11 @@ See: [`docs/attestation/Lex_Guff_Version_Contract_Pact_v1.0.0.md`](docs/attestat
   - Structured errors with `code`, `message`, `nextActions[]`, and `context`
   - AI agents can programmatically handle and recover from errors
 
+- **Strict config loader** - `loadLexYamlStrict()` function (#514)
+  - Throws AXErrorException when `.smartergpt/` exists but no `lex.yaml` found
+  - Provides actionable nextAction: "cp lex.yaml.example lex.yaml"
+  - Silent fallback still works for pre-init repos (no `.smartergpt/` directory)
+
 - **Canonical lex.yaml template** - `lex.yaml.example` at repo root (#512)
   - `lex.yaml` now gitignored (local config)
   - Users copy template and customize
