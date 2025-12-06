@@ -24,6 +24,40 @@ See: [`docs/attestation/Lex_Guff_Version_Contract_Pact_v1.0.0.md`](docs/attestat
 
 ## [Unreleased]
 
+## [2.0.0] - 2025-12-05
+
+### 🚀 AX-Native Release (Stable)
+
+Lex 2.0.0 is the first stable release with **AX (Agent eXperience)** as a first-class design principle.
+This release graduates from alpha with all AX guarantees verified and documented.
+
+**Install:** `npm install @smartergpt/lex@latest`
+
+### What's New Since Alpha
+
+- **`lex instructions` CLI** - Full instruction management:
+  - `lex instructions init` - Scaffold canonical source, lex.yaml, and target files
+  - `lex instructions generate` - Generate host-specific projections
+  - `lex instructions check` - Verify projections are in sync
+- **Performance improvements** - Cached policy module ID lookups for O(1) resolution
+- **AX documentation in CONTRIBUTING.md** - PR review checklist for AX compliance
+- **PersonaSchema foundation** - Zod schema for persona validation
+
+### Contract Status
+
+This release freezes the following contracts:
+
+| Contract | Version | Document |
+|----------|---------|----------|
+| AX Guarantees | v0.1 | `docs/specs/AX-CONTRACT.md` |
+| Frame Schema | v3 | `docs/specs/FRAME-SCHEMA-V3.md` |
+| Error Schema | v1 | AXError in `src/shared/errors/` |
+| FrameStore | 1.0.0 | `src/memory/store/CONTRACT.md` |
+
+Breaking these contracts requires a major version bump and explicit changelog entry.
+
+---
+
 ## [2.0.0-alpha.1] - 2025-12-01
 
 ### 🚀 AX-Native Release (Alpha)
