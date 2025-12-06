@@ -3,6 +3,9 @@
   "compilerOptions": {
     "composite": true
   },
+  "references": [
+    { "path": "../errors" }
+  ],
   "include": ["*.ts"],
   "exclude": ["node_modules", "dist", "*.test.ts"]
 }

@@ -156,7 +156,7 @@ describe("Schema Loader Precedence", () => {
 
     assert.throws(() => {
       loadSchema("nonexistent.json");
-    }, /Schema file 'nonexistent\.json' not found/);
+    }, /Schema file 'nonexistent\.json' not found|SCHEMA_NOT_FOUND/);
   });
 
   test("error message shows all attempted paths", () => {
@@ -168,8 +168,11 @@ describe("Schema Loader Precedence", () => {
       assert.fail("Should have thrown an error");
     } catch (error: unknown) {
       if (error instanceof Error) {
-        assert.ok(error.message.includes("Tried:"));
-        assert.ok(error.message.includes(".smartergpt"));
+        // AXErrorException stores paths in context, message contains schema name
+        assert.ok(
+          error.message.includes("missing.json") || error.message.includes("SCHEMA_NOT_FOUND"),
+          `Expected "missing.json" or "SCHEMA_NOT_FOUND" in: ${error.message}`
+        );
       } else {
         assert.fail("Error should be an instance of Error");
       }

@@ -10,6 +10,8 @@ import { resolve, dirname, join } from "path";
 // @ts-ignore - importing from compiled dist directory
 import type { Policy } from "../../types/policy.js";
 import { getNDJSONLogger } from "../logger/index.js";
+import { AXErrorException } from "../errors/ax-error.js";
+import { POLICY_ERROR_CODES, STANDARD_NEXT_ACTIONS } from "../errors/error-codes.js";
 
 const logger = getNDJSONLogger("policy/loader");
 
@@ -147,12 +149,17 @@ export function loadPolicy(path?: string): Policy {
               metadata: { path: examplePath },
             });
           } else {
-            throw new Error(
-              `Policy file not found. Tried:\n` +
-                `  1. ${workingPath}\n` +
-                `  2. ${canonPath}\n` +
-                `  3. ${examplePath}\n\n` +
-                `Run 'npm run setup-local' to initialize working files.`
+            throw new AXErrorException(
+              POLICY_ERROR_CODES.POLICY_NOT_FOUND,
+              `Policy file not found`,
+              [
+                STANDARD_NEXT_ACTIONS.INIT_WORKSPACE,
+                'Run "npm run setup-local" to initialize working files',
+                "Set LEX_POLICY_PATH environment variable to custom path",
+              ],
+              {
+                searchedPaths: [workingPath, canonPath, examplePath],
+              }
             );
           }
         }
@@ -169,7 +176,16 @@ export function loadPolicy(path?: string): Policy {
 
     // Validate basic structure
     if (!policy.modules || typeof policy.modules !== "object") {
-      throw new Error('Invalid policy structure: missing or invalid "modules" field');
+      throw new AXErrorException(
+        POLICY_ERROR_CODES.POLICY_INVALID,
+        'Invalid policy structure: missing or invalid "modules" field',
+        [
+          "Check that policy file has a valid JSON structure",
+          'Ensure "modules" field is an object',
+          STANDARD_NEXT_ACTIONS.CHECK_POLICY,
+        ],
+        { path: resolvedPath }
+      );
     }
 
     const duration = Date.now() - startTime;
@@ -186,29 +202,65 @@ export function loadPolicy(path?: string): Policy {
 
     return policy;
   } catch (error: unknown) {
+    // Re-throw AXErrorException as-is
+    if (error instanceof AXErrorException) {
+      throw error;
+    }
+
     interface NodeError extends Error {
       code?: string;
     }
     const err = error as NodeError;
+    const policyPath = envPath || path || DEFAULT_POLICY_PATH;
+
     if (err.code === "ENOENT") {
       logger.error("Policy file not found", {
         operation: "loadPolicy",
         error: err,
-        metadata: { path: envPath || path || DEFAULT_POLICY_PATH },
+        metadata: { path: policyPath },
       });
-      throw new Error(
-        `Policy file not found: ${envPath || path || DEFAULT_POLICY_PATH}\n` +
-          `Run 'npm run setup-local' to initialize working files.`
+      throw new AXErrorException(
+        POLICY_ERROR_CODES.POLICY_NOT_FOUND,
+        `Policy file not found: ${policyPath}`,
+        [
+          STANDARD_NEXT_ACTIONS.INIT_WORKSPACE,
+          'Run "npm run setup-local" to initialize working files',
+          STANDARD_NEXT_ACTIONS.CHECK_FILE_PATH,
+        ],
+        { path: policyPath }
       );
     }
+
+    // Check for JSON parse errors
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    if (errorMessage.includes("JSON") || errorMessage.includes("Unexpected token")) {
+      logger.error("Policy parse error", {
+        operation: "loadPolicy",
+        error: err instanceof Error ? err : new Error(String(error)),
+        metadata: { path: policyPath },
+      });
+      throw new AXErrorException(
+        POLICY_ERROR_CODES.POLICY_PARSE_ERROR,
+        `Failed to parse policy JSON: ${errorMessage}`,
+        [
+          "Check policy file for valid JSON syntax",
+          "Use a JSON validator to find syntax errors",
+          STANDARD_NEXT_ACTIONS.CHECK_POLICY,
+        ],
+        { path: policyPath, parseError: errorMessage }
+      );
+    }
+
     logger.error("Failed to load policy", {
       operation: "loadPolicy",
       error: err instanceof Error ? err : new Error(String(error)),
-      metadata: { path: envPath || path || DEFAULT_POLICY_PATH },
+      metadata: { path: policyPath },
     });
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    throw new Error(
-      `Failed to load policy from ${envPath || path || DEFAULT_POLICY_PATH}: ${errorMessage}`
+    throw new AXErrorException(
+      POLICY_ERROR_CODES.POLICY_INVALID,
+      `Failed to load policy from ${policyPath}: ${errorMessage}`,
+      [STANDARD_NEXT_ACTIONS.CHECK_POLICY, STANDARD_NEXT_ACTIONS.CHECK_LOGS],
+      { path: policyPath, originalError: errorMessage }
     );
   }
 }

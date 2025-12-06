@@ -467,9 +467,12 @@ describe("Prompt Loader Edge Cases", () => {
       assert.fail("Should have thrown an error");
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
-      assert.ok(message.includes("missing.md"));
-      assert.ok(message.includes("not found"));
-      assert.ok(message.includes("Tried:"));
+      assert.ok(message.includes("missing.md"), `Expected "missing.md" in: ${message}`);
+      assert.ok(
+        message.includes("not found") || message.includes("PROMPT_NOT_FOUND"),
+        `Expected "not found" or "PROMPT_NOT_FOUND" in: ${message}`
+      );
+      // AXErrorException stores paths in context, not message
     }
   });
 });

@@ -13,6 +13,8 @@ import { resolve, dirname, join, normalize, relative } from "path";
 import { fileURLToPath } from "url";
 import { PromptTemplate, PromptMetadata, RenderError } from "./types.js";
 import { computeContentHash } from "./renderer.js";
+import { AXErrorException } from "../errors/ax-error.js";
+import { PROMPT_ERROR_CODES, STANDARD_NEXT_ACTIONS } from "../errors/error-codes.js";
 
 /**
  * Resolve package asset path for both dev and installed contexts
@@ -106,9 +108,18 @@ export function loadPrompt(promptName: string): string {
     return readFileSync(canonPath, "utf-8");
   }
 
-  throw new Error(
-    `Prompt file '${promptName}' not found. Tried:\n` +
-      attemptedPaths.map((p, i) => `  ${i + 1}. ${p}`).join("\n")
+  throw new AXErrorException(
+    PROMPT_ERROR_CODES.PROMPT_NOT_FOUND,
+    `Prompt file '${promptName}' not found`,
+    [
+      "Check that the prompt file exists in .smartergpt/prompts/",
+      "Set LEX_PROMPTS_DIR to a directory containing the prompt",
+      'Run "lex init" to create workspace with default prompts',
+    ],
+    {
+      promptName,
+      searchedPaths: attemptedPaths,
+    }
   );
 }
 

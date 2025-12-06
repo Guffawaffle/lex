@@ -17,3 +17,20 @@ export {
   AXErrorException,
   isAXErrorException,
 } from "./ax-error.js";
+
+// Error code catalog
+export {
+  LEX_ERROR_CODES,
+  CONFIG_ERROR_CODES,
+  POLICY_ERROR_CODES,
+  STORE_ERROR_CODES,
+  PROMPT_ERROR_CODES,
+  SCHEMA_ERROR_CODES,
+  INSTRUCTIONS_ERROR_CODES,
+  GIT_ERROR_CODES,
+  LEXSONA_ERROR_CODES,
+  VALIDATION_ERROR_CODES,
+  STANDARD_NEXT_ACTIONS,
+  isLexErrorCode,
+  type LexErrorCode,
+} from "./error-codes.js";

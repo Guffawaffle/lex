@@ -38,6 +38,16 @@ See: [`docs/attestation/Lex_Guff_Version_Contract_Pact_v1.0.0.md`](docs/attestat
   - Enables LexSona package and other consumers to plug into Lex behavioral memory
   - API is agnostic - any tool can use the socket
 
+- **Error code catalog** - `src/shared/errors/error-codes.ts` (#520)
+  - Stable error codes for AXError responses
+  - Codes organized by category: CONFIG, POLICY, STORE, PROMPT, SCHEMA, etc.
+  - Standard next actions for consistent recovery suggestions
+  - Per AX Contract v0.1 §2.3: Recoverable Errors
+
+- **AX errors in loaders** - Policy, prompt, and schema loaders now use AXErrorException (#520)
+  - Structured errors with `code`, `message`, `nextActions[]`, and `context`
+  - AI agents can programmatically handle and recover from errors
+
 - **Canonical lex.yaml template** - `lex.yaml.example` at repo root (#512)
   - `lex.yaml` now gitignored (local config)
   - Users copy template and customize

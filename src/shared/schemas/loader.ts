@@ -10,6 +10,8 @@
 import { readFileSync, existsSync, readdirSync } from "fs";
 import { resolve, dirname, join } from "path";
 import { fileURLToPath } from "url";
+import { AXErrorException } from "../errors/ax-error.js";
+import { SCHEMA_ERROR_CODES, STANDARD_NEXT_ACTIONS } from "../errors/error-codes.js";
 
 /**
  * Resolve package asset path for both dev and installed contexts
@@ -97,9 +99,18 @@ export function loadSchema(schemaName: string): object {
     return JSON.parse(readFileSync(canonPath, "utf-8")) as object;
   }
 
-  throw new Error(
-    `Schema file '${schemaName}' not found. Tried:\n` +
-      attemptedPaths.map((p, i) => `  ${i + 1}. ${p}`).join("\n")
+  throw new AXErrorException(
+    SCHEMA_ERROR_CODES.SCHEMA_NOT_FOUND,
+    `Schema file '${schemaName}' not found`,
+    [
+      "Check that the schema file exists in .smartergpt/schemas/",
+      "Set LEX_SCHEMAS_DIR to a directory containing the schema",
+      STANDARD_NEXT_ACTIONS.INIT_WORKSPACE,
+    ],
+    {
+      schemaName,
+      searchedPaths: attemptedPaths,
+    }
   );
 }
 

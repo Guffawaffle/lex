@@ -4,7 +4,8 @@
     "composite": true
   },
   "references": [
-    { "path": "../tokens" }
+    { "path": "../tokens" },
+    { "path": "../errors" }
   ],
   "include": ["*.ts"],
   "exclude": ["node_modules", "dist", "*.test.ts"]

@@ -161,10 +161,7 @@ describe("Policy Loader Precedence", () => {
     // Create canonical file
     const canonDir = join(repo, "canon", "policy");
     mkdirSync(canonDir, { recursive: true });
-    writeFileSync(
-      join(canonDir, "lexmap.policy.json"),
-      JSON.stringify(createTestPolicy("canon"))
-    );
+    writeFileSync(join(canonDir, "lexmap.policy.json"), JSON.stringify(createTestPolicy("canon")));
 
     process.env.LEX_WORKSPACE_ROOT = repo;
 
@@ -184,10 +181,7 @@ describe("Policy Loader Precedence", () => {
 
     const canonDir = join(repo, "canon", "policy");
     mkdirSync(canonDir, { recursive: true });
-    writeFileSync(
-      join(canonDir, "lexmap.policy.json"),
-      JSON.stringify(createTestPolicy("canon"))
-    );
+    writeFileSync(join(canonDir, "lexmap.policy.json"), JSON.stringify(createTestPolicy("canon")));
 
     process.env.LEX_WORKSPACE_ROOT = repo;
 
@@ -201,10 +195,7 @@ describe("Policy Loader Precedence", () => {
 
     const canonDir = join(repo, "canon", "policy");
     mkdirSync(canonDir, { recursive: true });
-    writeFileSync(
-      join(canonDir, "lexmap.policy.json"),
-      JSON.stringify(createTestPolicy("canon"))
-    );
+    writeFileSync(join(canonDir, "lexmap.policy.json"), JSON.stringify(createTestPolicy("canon")));
 
     const exampleDir = join(repo, "src", "policy", "policy_spec");
     mkdirSync(exampleDir, { recursive: true });
@@ -236,10 +227,7 @@ describe("Policy Loader Precedence", () => {
 
     const canonDir = join(repo, "canon", "policy");
     mkdirSync(canonDir, { recursive: true });
-    writeFileSync(
-      join(canonDir, "lexmap.policy.json"),
-      JSON.stringify(createTestPolicy("canon"))
-    );
+    writeFileSync(join(canonDir, "lexmap.policy.json"), JSON.stringify(createTestPolicy("canon")));
 
     const exampleDir = join(repo, "src", "policy", "policy_spec");
     mkdirSync(exampleDir, { recursive: true });
@@ -401,7 +389,7 @@ describe("Policy Loader Edge Cases", () => {
 
     assert.throws(() => {
       loadPolicy();
-    }, /Failed to load policy/);
+    }, /Failed to parse policy JSON|POLICY_PARSE_ERROR/);
   });
 
   test("handles missing modules field in policy", () => {
@@ -415,7 +403,7 @@ describe("Policy Loader Edge Cases", () => {
 
     assert.throws(() => {
       loadPolicy();
-    }, /Invalid policy structure/);
+    }, /Invalid policy structure|POLICY_INVALID/);
   });
 
   test("handles relative paths in LEX_POLICY_PATH", () => {
@@ -526,8 +514,11 @@ describe("Policy Loader Edge Cases", () => {
       assert.fail("Should have thrown an error");
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
-      assert.ok(message.includes("Policy file not found"));
-      assert.ok(message.includes("npm run setup-local"));
+      // AXErrorException includes next actions instead of inline setup instructions
+      assert.ok(
+        message.includes("Policy file not found") || message.includes("POLICY_NOT_FOUND"),
+        `Expected "Policy file not found" or "POLICY_NOT_FOUND" in: ${message}`
+      );
     }
   });
 
@@ -544,10 +535,7 @@ describe("Policy Loader Edge Cases", () => {
 
     const workingDir = join(repo, ".smartergpt", "lex");
     mkdirSync(workingDir, { recursive: true });
-    writeFileSync(
-      join(workingDir, "lexmap.policy.json"),
-      JSON.stringify(createTestPolicy("test"))
-    );
+    writeFileSync(join(workingDir, "lexmap.policy.json"), JSON.stringify(createTestPolicy("test")));
 
     process.env.LEX_WORKSPACE_ROOT = repo;
 
@@ -567,6 +555,6 @@ describe("Policy Loader Edge Cases", () => {
 
     assert.throws(() => {
       loadPolicyIfAvailable();
-    }, /Failed to load policy/);
+    }, /Failed to parse policy JSON|POLICY_PARSE_ERROR/);
   });
 });
