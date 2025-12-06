@@ -24,6 +24,28 @@ See: [`docs/attestation/Lex_Guff_Version_Contract_Pact_v1.0.0.md`](docs/attestat
 
 ## [Unreleased]
 
+### Changed
+
+- **Persona layer moved to LexSona** - Persona execution is now handled by the separate LexSona package
+  - Removed `src/shared/schemas/persona.ts` (orphaned schema)
+  - Removed `.smartergpt/personas/` directory
+  - Lex retains the behavioral memory socket (`recordCorrection`, `getRules`)
+  
+### Added
+
+- **Baseline constraints** - `canon/constraints/baseline.yaml` provides neutral behavioral constraints
+  - LexSona hooks for persona-specific overrides
+  - Core principles: transparency, determinism, auditability
+
+### Architecture
+
+This release clarifies the Lex/LexSona/LexRunner layering:
+- **Lex**: Memory + Policy + Rules + Behavioral socket
+- **LexSona**: Persona engine (consumes Lex socket)
+- **LexRunner**: Orchestration (consumes both)
+
+---
+
 ## [2.0.0] - 2025-12-05
 
 ### 🚀 AX-Native Release (Stable)
@@ -41,7 +63,7 @@ This release graduates from alpha with all AX guarantees verified and documented
   - `lex instructions check` - Verify projections are in sync
 - **Performance improvements** - Cached policy module ID lookups for O(1) resolution
 - **AX documentation in CONTRIBUTING.md** - PR review checklist for AX compliance
-- **PersonaSchema foundation** - Zod schema for persona validation
+- **LexSona behavioral memory socket** - `recordCorrection`/`getRules` API for persona integration
 
 ### Contract Status
 

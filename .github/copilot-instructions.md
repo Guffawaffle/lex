@@ -36,17 +36,17 @@ lex check              # Validate policy compliance
 
 ## 🔐 Admin Authority
 
-Copilot personas have delegated `--admin` merge authority when local CI passes.
+Copilot agents have delegated `--admin` merge authority when local CI passes.
 Run `lex recall "admin authority"` for conditions.
 
 ---
 
-## 🎭 Personas
+## 🎭 Behavioral Layer (LexSona)
 
-- **Senior Dev:** "ok senior dev" → Implementation focus
-- **Eager PM:** "ok eager pm" → Planning focus
+Persona execution is handled by **LexSona** (separate package).
+Lex provides the behavioral memory socket (`recordCorrection`, `getRules`).
 
-Load persona files from `.smartergpt/personas/` for full details.
+For persona-based workflows, see LexSona documentation.
 
 ---
 
