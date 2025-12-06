@@ -141,11 +141,14 @@ export async function remember(
           }
         }
 
-        // Always include the valid modules list and escape hatch
+        // Always include the valid modules list
         nextActions.push(
-          `Valid modules: ${validModules.slice(0, 10).join(", ")}${validModules.length > 10 ? ` (and ${validModules.length - 10} more)` : ""}`
+          `Available modules: ${validModules.slice(0, 10).join(", ")}${validModules.length > 10 ? ` (and ${validModules.length - 10} more)` : ""}`
         );
-        nextActions.push("Use --no-policy to bypass module validation");
+
+        // Add instructions for creating a new module
+        nextActions.push("To add a new module: edit .smartergpt/lex/lexmap.policy.json");
+        nextActions.push("Use --skip-policy to bypass validation");
 
         if (options.json) {
           const axError: AXError = createAXError(
@@ -160,9 +163,15 @@ export async function remember(
           );
           out.json({ level: "error", message: axError.message, data: axError, code: axError.code });
         } else {
+          // AX3: Show errors AND actionable next steps in plain text mode
           out.error("Module validation failed");
           for (const error of validationResult.errors || []) {
             out.error(`  - ${error.message}`);
+          }
+          out.info("");
+          out.info("Next steps:");
+          for (const action of nextActions) {
+            out.info(`  → ${action}`);
           }
         }
         process.exit(1);
