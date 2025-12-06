@@ -146,9 +146,11 @@ export async function remember(
           `Available modules: ${validModules.slice(0, 10).join(", ")}${validModules.length > 10 ? ` (and ${validModules.length - 10} more)` : ""}`
         );
 
-        // Add instructions for creating a new module
-        nextActions.push("To add a new module: edit .smartergpt/lex/lexmap.policy.json");
-        nextActions.push("Use --skip-policy to bypass validation");
+        // Escape hatches - prefer using existing modules over adding new ones
+        nextActions.push("Prefer using an existing module from the list above");
+        nextActions.push(
+          "Use --skip-policy to bypass validation (if module truly doesn't exist yet)"
+        );
 
         if (options.json) {
           const axError: AXError = createAXError(
