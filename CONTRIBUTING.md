@@ -581,6 +581,51 @@ npm run guard:no-js-src
 
 ---
 
+## AX (AI Experience) Considerations
+
+Lex treats **AX (AI Experience)** as a first-tier design consideration alongside UX and DX. AI agents are first-class consumers of our APIs, CLIs, and outputs.
+
+### The Five AX Principles
+
+1. **Deterministic First** — AI can't debug randomness
+2. **Structured Over Conversational** — JSON > prose, schemas > conventions
+3. **Fail Loud, Recover Clear** — Tell the AI what went wrong and what to try next
+4. **Memory is a Feature** — AI without context is expensive and error-prone
+5. **Teach Through Constraints** — Guardrails are the curriculum
+
+### PR Review Checklist (AX)
+
+When reviewing or submitting PRs, verify:
+
+- [ ] **`--json` flag**: New CLI commands include `--json` for structured output
+- [ ] **AXError format**: Errors include `code`, `message`, `context`, and `nextActions[]`
+- [ ] **Deterministic output**: Same inputs produce same outputs (no random ordering)
+- [ ] **Structured data**: Prefer Zod schemas over ad-hoc objects
+- [ ] **Clear failure modes**: Errors explain what to try next, not just what went wrong
+
+### AXError Example
+
+```typescript
+// ✅ Good - structured, recoverable
+{
+  code: "MODULE_NOT_FOUND",
+  message: "Module 'auth/core' not found in policy",
+  context: { providedModule: "auth/core", availableModules: ["memory/store", "cli"] },
+  nextActions: ["Check lexmap.policy.json for valid modules", "Use --skip-policy to bypass"]
+}
+
+// ❌ Bad - unstructured, no recovery path
+throw new Error("Module not found");
+```
+
+### Further Reading
+
+- [AX Contract](./docs/specs/AX-CONTRACT.md) — The AX guarantees Lex provides
+- [AX Implementation Plan](./docs/specs/AX-IMPLEMENTATION-PLAN.md) — Roadmap
+- [AX Governance Primitives](./docs/specs/AX-GOVERNANCE-PRIMITIVES.md) — Policy concepts
+
+---
+
 ## Getting Help
 
 - **Documentation**: See [docs/](./docs/) directory
