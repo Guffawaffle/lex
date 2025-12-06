@@ -4,15 +4,10 @@
  * Tests that MCP server error paths use AXErrorException with proper structure
  */
 
-import { describe, it, beforeEach } from "node:test";
+import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { generateKeyPair, loadKeyPair } from "@app/memory/mcp_server/auth/keys.js";
 import { verifyToken } from "@app/memory/mcp_server/auth/jwt.js";
-import {
-  exchangeGitHubCode,
-  getGitHubUser,
-  type GitHubOAuthConfig,
-} from "@app/memory/mcp_server/auth/github-provider.js";
 import { isAXErrorException } from "@app/shared/errors/ax-error.js";
 import { MCPServer } from "@app/memory/mcp_server/server.js";
 import { MemoryFrameStore } from "@app/memory/store/memory/index.js";
