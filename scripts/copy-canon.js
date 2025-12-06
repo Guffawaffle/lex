@@ -57,6 +57,25 @@ async function copyCanon() {
       } catch {
         console.log("⚠ No canon/policy/ found");
       }
+
+      // Copy config/lex.yaml.example to root (template for user config)
+      try {
+        await fs.access("canon/config/lex.yaml.example");
+        await fs.copyFile("canon/config/lex.yaml.example", "lex.yaml.example");
+        console.log("✓ Copied canon/config/lex.yaml.example → lex.yaml.example");
+      } catch {
+        // Optional - not an error if missing
+      }
+
+      // Copy constraints/ directory (baseline behavioral constraints)
+      try {
+        await fs.access("canon/constraints");
+        await fs.mkdir(".smartergpt/constraints", { recursive: true });
+        await fs.cp("canon/constraints", ".smartergpt/constraints", { recursive: true });
+        console.log("✓ Copied canon/constraints → .smartergpt/constraints/");
+      } catch {
+        // Optional - constraints are for LexSona integration
+      }
     }
 
     console.log("✓ Canon copy complete");
