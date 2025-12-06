@@ -10,6 +10,16 @@ This document describes the **storage socket** that Lex provides for LexSona.
 
 **Important boundary:** Lex stores and retrieves behavioral rules. It does **not** interpret, enforce, or resolve them. That's LexSona's job.
 
+### Disconnected-Mode Safety
+
+LexSona is designed to degrade gracefully when Lex's storage socket is unavailable:
+
+- **Offline-safe personas** can derive constraints without a database connection
+- **Connected personas** fail explicitly (no silent fallback) when memory is unavailable
+- The storage socket is optional for constraint derivation, required for learning
+
+This separation ensures that agents using LexSona can function in disconnected environments while maintaining explicit contract boundaries.
+
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │  Lex (OSS Core) — Storage Socket                            │
