@@ -6,7 +6,7 @@
 
 ## Overview
 
-This document describes the **storage socket** that Lex provides for LexSona. 
+This document describes the **storage socket** that Lex provides for LexSona.
 
 **Important boundary:** Lex stores and retrieves behavioral rules. It does **not** interpret, enforce, or resolve them. That's LexSona's job.
 
