@@ -334,7 +334,7 @@ closeDb(db);
 | `@smartergpt/lex/module-ids` | Module ID validation | [API Usage](./docs/API_USAGE.md) |
 | `@smartergpt/lex/memory` | Frame payload validation | [API Usage](./docs/API_USAGE.md) |
 | `@smartergpt/lex/logger` | NDJSON logging | [API Usage](./docs/API_USAGE.md) |
-| `@smartergpt/lex/lexsona` | Behavioral memory socket (v2.0+) | [LexSona Integration](./docs/control-stack/) |
+| `@smartergpt/lex/lexsona` | Behavioral memory socket (v2.0+) | [Control Stack](./docs/control-stack/index.md) |
 | `@smartergpt/lex/prompts` | Template system | [Canon Architecture](./docs/CANON_ARCHITECTURE.md) |
 
 [Full API Documentation →](./docs/API_USAGE.md)
@@ -434,7 +434,7 @@ We welcome contributions! Here's how to get started:
   - Consumes Lex behavioral memory socket (`@smartergpt/lex/lexsona`)
   - Offline-capable persona modes with constraint enforcement
   - High-level concept: persona-driven workflows without requiring Lex to embed persona logic
-  - See [docs/control-stack/](./docs/control-stack/) for research notes (public portions)
+  - See [Control Stack documentation](./docs/control-stack/index.md) for conceptual framework (public portions)
 
 ---
 
