@@ -367,7 +367,7 @@ Lex 2.0.0 is the first stable release with **AX (Agent eXperience)** as a first-
 - **Performance** — Cached policy module ID lookups for O(1) resolution
 
 **LexSona Integration:**
-Lex 2.0.0 provides a behavioral memory socket for persona-based workflows. **LexSona** is a separate private package (v0.2.0+) that consumes this socket to enable offline-capable persona modes. Lex remains persona-agnostic — the socket is a stable API for any behavioral engine.
+Lex 2.0.0 provides a **public behavioral memory socket** (`@smartergpt/lex/lexsona`) for persona-based workflows. **LexSona** is a separate private package (v0.2.0+) that consumes this socket to enable offline-capable persona modes. The socket API is stable and documented; LexSona implementation details remain private. Lex itself is persona-agnostic — the socket is a stable integration point for any behavioral engine.
 
 See [CHANGELOG v2.0.0](./CHANGELOG.md#200---2025-12-05) for full release notes.
 
@@ -430,11 +430,9 @@ We welcome contributions! Here's how to get started:
 ## 📦 Related Projects
 
 - **[LexRunner](https://github.com/Guffawaffle/lex-pr-runner)** — Orchestration for parallel PR workflows
-- **LexSona** — Behavioral persona engine (separate private package, v0.2.0+)
-  - Consumes Lex behavioral memory socket (`@smartergpt/lex/lexsona`)
-  - Offline-capable persona modes with constraint enforcement
-  - High-level concept: persona-driven workflows without requiring Lex to embed persona logic
-  - See [Control Stack documentation](./docs/control-stack/index.md) for conceptual framework (public portions)
+
+- **LexSona** (v0.2.0+) — Behavioral persona engine, separate private package  
+  Consumes Lex behavioral memory socket (`@smartergpt/lex/lexsona`) to enable offline-capable persona modes with constraint enforcement. High-level concept: persona-driven workflows without embedding persona logic in Lex core. See [Control Stack documentation](./docs/control-stack/index.md) for conceptual framework (public portions).
 
 ---
 
