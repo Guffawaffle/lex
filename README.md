@@ -144,6 +144,8 @@ npm install @smartergpt/lex
 
 **Requires Node.js 20+** (tested through Node.js 22, see `.nvmrc`)
 
+**Lex 2.0.0 is AX-native** with structured output (`--json`), recoverable errors (AXError), and Frame Schema v3 for orchestrator integration. All commands provide both human-readable and machine-parseable output.
+
 ### Initialize
 
 ```bash
@@ -323,6 +325,7 @@ closeDb(db);
 | `@smartergpt/lex/cli-output` | CLI JSON utilities | [CLI Output](./docs/CLI_OUTPUT.md) |
 | `@smartergpt/lex/store` | Direct database operations | [Store Contracts](./docs/STORE_CONTRACTS.md) |
 | `@smartergpt/lex/types` | All shared types | [API Usage](./docs/API_USAGE.md) |
+| `@smartergpt/lex/errors` | AXError schema and utilities (v2.0+) | [AX Contract](./docs/specs/AX-CONTRACT.md) |
 | `@smartergpt/lex/policy` | Policy loading & validation | [API Usage](./docs/API_USAGE.md) |
 | `@smartergpt/lex/atlas` | Atlas Frame generation | [Architecture](./docs/ARCHITECTURE.md) |
 | `@smartergpt/lex/atlas/code-unit` | Code unit schemas | [Atlas](./docs/atlas/README.md) |
@@ -331,6 +334,7 @@ closeDb(db);
 | `@smartergpt/lex/module-ids` | Module ID validation | [API Usage](./docs/API_USAGE.md) |
 | `@smartergpt/lex/memory` | Frame payload validation | [API Usage](./docs/API_USAGE.md) |
 | `@smartergpt/lex/logger` | NDJSON logging | [API Usage](./docs/API_USAGE.md) |
+| `@smartergpt/lex/lexsona` | Behavioral memory socket (v2.0+) | [Control Stack](./docs/control-stack/index.md) |
 | `@smartergpt/lex/prompts` | Template system | [Canon Architecture](./docs/CANON_ARCHITECTURE.md) |
 
 [Full API Documentation →](./docs/API_USAGE.md)
@@ -339,11 +343,11 @@ closeDb(db);
 
 ## 🎯 Project Status
 
-**Current Version:** `1.0.0` ([Changelog](./CHANGELOG.md))
+**Current Version:** `2.0.0` ([Changelog](./CHANGELOG.md))
 
-### 🎉 1.0.0 — First Stable Release
+### 🚀 2.0.0 — AX-Native Release
 
-Lex 1.0.0 marks the first stable API contract. All public exports have explicit subpaths, and the FrameStore interface is frozen for 1.0.x releases.
+Lex 2.0.0 is the first stable release with **AX (Agent eXperience)** as a first-class design principle. This release introduces structured output, recoverable errors, and Frame Schema v3 for AI agent integration.
 
 **Ready for:**
 - ✅ Personal projects and local dev tools
@@ -351,23 +355,21 @@ Lex 1.0.0 marks the first stable API contract. All public exports have explicit 
 - ✅ CI/CD policy enforcement
 - ✅ Multi-user deployments with OAuth2/JWT
 - ✅ Encrypted databases with SQLCipher
+- ✅ LexRunner and other orchestrator integrations
 
-**1.0.0 Highlights:**
-- **Stable API Contract** — All exports have explicit subpaths in `package.json`
-- **FrameStore Contract** — `FRAME_STORE_SCHEMA_VERSION = "1.0.0"` guarantees persistence compatibility
-- **Security** — SQLCipher database encryption + OAuth2/JWT authentication
-- **MCP Server** — Machine-readable error codes (`MCPErrorCode` enum) for orchestrators
-- **CLI** — JSON output mode with schema validation
-- **Policy Bootstrap** — `lex init --policy` generates starter policy from codebase
+**2.0.0 Highlights:**
+- **AX Guarantees (v0.1)** — Structured output, recoverable errors, reliable memory/recall ([AX Contract](./docs/specs/AX-CONTRACT.md))
+- **Frame Schema v3** — Runner fields (`runId`, `planHash`, `toolCalls`) for orchestration ([Schema Docs](./docs/specs/FRAME-SCHEMA-V3.md))
+- **AXError Schema** — Structured errors with `code`, `message`, `context`, and `nextActions[]` for programmatic recovery
+- **CLI JSON Output** — `lex remember --json` and `lex timeline --json` with machine-parseable event streams
+- **Instructions Management** — `lex instructions` CLI for syncing AI instructions across IDEs (Copilot, Cursor, etc.)
+- **LexSona Socket** — Behavioral memory API (`recordCorrection`/`getRules`) exported via `@smartergpt/lex/lexsona`
+- **Performance** — Cached policy module ID lookups for O(1) resolution
 
-### 🚧 Active Development: 1.1.0
+**LexSona Integration:**
+Lex 2.0.0 provides a **public behavioral memory socket** (`@smartergpt/lex/lexsona`) for persona-based workflows. **LexSona** is a separate private package (v0.2.0+) that consumes this socket to enable offline-capable persona modes. The socket API is stable and documented; LexSona implementation details remain private. Lex itself is persona-agnostic — the socket is a stable integration point for any behavioral engine.
 
-| Feature | Status | Target |
-|---------|--------|--------|
-| lex.yaml workflow config | 🟡 In Progress | Q1 2025 |
-| Control Stack (Gates/Receipts) | 🟡 In Progress | Q1 2025 |
-| LexSona behavioral rules | 🟡 Experimental | Q1 2025 |
-| Enhanced audit logging | 🟡 Planned | Q1 2025 |
+See [CHANGELOG v2.0.0](./CHANGELOG.md#200---2025-12-05) for full release notes.
 
 ### Quality Metrics
 
@@ -428,7 +430,9 @@ We welcome contributions! Here's how to get started:
 ## 📦 Related Projects
 
 - **[LexRunner](https://github.com/Guffawaffle/lex-pr-runner)** — Orchestration for parallel PR workflows
-- **LexSona** — Behavioral rules for AI agents *(coming soon)*
+
+- **LexSona** (v0.2.0+) — Behavioral persona engine, separate private package  
+  Consumes Lex behavioral memory socket (`@smartergpt/lex/lexsona`) to enable offline-capable persona modes with constraint enforcement. High-level concept: persona-driven workflows without embedding persona logic in Lex core. See [Control Stack documentation](./docs/control-stack/index.md) for conceptual framework (public portions).
 
 ---
 
