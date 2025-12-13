@@ -77,7 +77,7 @@ Lex exposes a contract surface that any runner or tool can target. This document
 **Invariants:**
 - Rules have Bayesian confidence (alpha/beta)
 - Rules decay over time (configurable tau)
-- Rules are scoped by `module_id` and `task_type`
+- Rules are scoped by **Scope Contract A+** (Lex-owned canonical base keys). See [`docs/LEXSONA.md`](./LEXSONA.md) for the authoritative definition, legacy alias handling, and normalization requirements.
 
 **Guarantee:** Rule confidence is computable from stored values. No hidden state.
 
