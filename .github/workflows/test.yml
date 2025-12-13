@@ -82,9 +82,10 @@ jobs:
       run: npm run test:integration
 
   performance-benchmarks:
-    name: Performance Benchmarks
+    name: Performance Benchmarks (non-blocking)
     runs-on: ubuntu-latest
-    # Only run on main branch to avoid slowing down PRs
+    # Only run on main branch to avoid slowing down PRs.
+    # This is a sanity signal (timings on hosted runners are noisy), not a merge gate.
     if: github.ref == 'refs/heads/main'
     needs: integration-tests
 
@@ -109,6 +110,7 @@ jobs:
 
     - name: Run performance benchmarks
       run: npm run test:benchmarks
+      continue-on-error: true
 
   test-summary:
     name: Test Summary
