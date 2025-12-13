@@ -90,7 +90,7 @@ jobs:
         uses: actions/upload-artifact@v5
         with:
           name: npm-package
-          path: lex-*.tgz
+          path: "*.tgz"
           retention-days: 7
           if-no-files-found: error
 
@@ -130,7 +130,7 @@ jobs:
       - name: Dry-run publish check
         run: |
           echo "Running dry-run publish check..."
-          npm publish lex-*.tgz --dry-run --provenance --access public
+          npm publish *.tgz --dry-run --provenance --access public
           echo "✅ Dry-run successful"
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
@@ -140,7 +140,7 @@ jobs:
         run: |
           set -e
           echo "Publishing package with npm provenance..."
-          npm publish lex-*.tgz --provenance --access public
+          npm publish *.tgz --provenance --access public
           echo "✅ Package published successfully"
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
