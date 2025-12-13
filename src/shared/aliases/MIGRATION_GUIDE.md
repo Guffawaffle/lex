@@ -153,8 +153,7 @@ Mark the alias as deprecated:
       "confidence": 1.0,
       "reason": "refactored 2025-10-15",
       "deprecated": true,
-      "deprecated_date": "2025-11-05",
-      "removal_planned": "2026-05-05"
+      "deprecated_date": "2025-11-05"
     }
   }
 }
@@ -165,7 +164,7 @@ Users typing the old name will see:
 ```
 ⚠️  Warning: Alias 'services/user-access-api' is deprecated.
    Use 'api/user-access' instead.
-   This alias will be removed on 2026-05-05.
+  This alias may be removed after the grace period if usage drops to near zero.
 ```
 
 ### Step 4: Remove (If Safe)

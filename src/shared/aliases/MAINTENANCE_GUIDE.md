@@ -224,7 +224,7 @@ After a grace period (e.g., 6 months):
 ```json
 {
   "added_date": "2025-11-05",
-  "deprecated_date": "2026-05-05"
+  "deprecated_date": "2025-12-01"
 }
 ```
 

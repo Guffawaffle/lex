@@ -287,7 +287,7 @@ On non-tag branches or manual dispatch:
 
 ## Catch-Up Releases (One-Time)
 
-As of 2025-11-27, there is drift between existing Git tags and GitHub releases:
+If `npm run check:release-drift` reports drift between existing Git tags and GitHub releases, use this one-time catch-up table:
 
 | Version | Git Tag | GitHub Release | Status |
 |---------|---------|----------------|--------|
