@@ -24,49 +24,23 @@ See: [`docs/attestation/Lex_Guff_Version_Contract_Pact_v1.0.0.md`](docs/attestat
 
 ## [Unreleased]
 
-### Changed
+_No unreleased changes._
 
-- **Persona layer moved to LexSona** - Persona execution is now handled by the separate LexSona package
-  - Removed `src/shared/schemas/persona.ts` (orphaned schema)
-  - Removed `.smartergpt/personas/` directory
-  - Lex retains the behavioral memory socket (`recordCorrection`, `getRules`)
+---
 
-### Added
+## [2.0.2] - 2025-12-13
 
-- **LexSona socket export** - `@smartergpt/lex/lexsona` subpath export (#519)
-  - External tools can now import `getRules`, `recordCorrection` and all types
-  - Enables LexSona package and other consumers to plug into Lex behavioral memory
-  - API is agnostic - any tool can use the socket
+### Fixed
 
-- **Error code catalog** - `src/shared/errors/error-codes.ts` (#520)
-  - Stable error codes for AXError responses
-  - Codes organized by category: CONFIG, POLICY, STORE, PROMPT, SCHEMA, etc.
-  - Standard next actions for consistent recovery suggestions
-  - Per AX Contract v0.1 §2.3: Recoverable Errors
+- **LexSona subpath export** - `@smartergpt/lex/lexsona` now correctly included in npm package
+  - Previous 2.0.1 was published from wrong branch without export
+  - Enables LexSona package to import `getRules`, `recordCorrection` APIs
 
-- **AX errors in loaders** - Policy, prompt, and schema loaders now use AXErrorException (#520)
-  - Structured errors with `code`, `message`, `nextActions[]`, and `context`
-  - AI agents can programmatically handle and recover from errors
+---
 
-- **Strict config loader** - `loadLexYamlStrict()` function (#514)
-  - Throws AXErrorException when `.smartergpt/` exists but no `lex.yaml` found
-  - Provides actionable nextAction: "cp lex.yaml.example lex.yaml"
-  - Silent fallback still works for pre-init repos (no `.smartergpt/` directory)
+## [2.0.1] - 2025-12-13 (yanked)
 
-- **Canonical lex.yaml template** - `lex.yaml.example` at repo root (#512)
-  - `lex.yaml` now gitignored (local config)
-  - Users copy template and customize
-
-- **Baseline constraints** - `canon/constraints/baseline.yaml` provides neutral behavioral constraints
-  - LexSona hooks for persona-specific overrides
-  - Core principles: transparency, determinism, auditability
-
-### Architecture
-
-This release clarifies the Lex/LexSona/LexRunner layering:
-- **Lex**: Memory + Policy + Rules + Behavioral socket
-- **LexSona**: Persona engine (consumes Lex socket)
-- **LexRunner**: Orchestration (consumes both)
+_Published from incorrect branch. Use 2.0.2 instead._
 
 ---
 
