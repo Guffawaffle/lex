@@ -73,7 +73,9 @@ jobs:
         run: npm ci --ignore-scripts
 
       - name: Build native dependencies
-        run: npm rebuild better-sqlite3
+        run: |
+          npm run rebuild-sqlite
+          npm run check-sqlite
 
       - name: Build package
         run: npm run build

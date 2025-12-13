@@ -24,6 +24,19 @@ See: [`docs/attestation/Lex_Guff_Version_Contract_Pact_v1.0.0.md`](docs/attestat
 
 ## [Unreleased]
 
+## [2.0.1] - 2025-12-13
+
+### Changed
+
+- Docs: lock down Scope Contract A+ canonicalization story (including the invariant: normalize before DB writes and before SQL predicates)
+- Docs: avoid stale/future-dated wording
+
+### CI
+
+- Benchmarks are explicitly non-blocking (treated as smoke/sanity, not a merge gate)
+- Release workflow rebuilds `better-sqlite3-multiple-ciphers` (and validates bindings) before running tests
+- Test scripts run `.test.mjs` files via `tsx` for Node 20 compatibility
+
 ## [2.0.0] - 2025-12-05
 
 ### 🚀 AX-Native Release (Stable)
