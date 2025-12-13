@@ -64,15 +64,38 @@ CREATE TABLE lexsona_behavior_rules (
 
 ### RuleScope (Context)
 
-Rules are scoped to prevent cross-domain contamination. The canonical scope fields are:
+Rules are scoped to prevent cross-domain contamination.
+
+Lex owns the canonical base keys (Scope Contract "A+"):
 
 | Field | Description | Example |
 |-------|-------------|---------|
-| `domain` | Project/repo namespace | `"lex"`, `"lex-pr-runner"` |
-| `moduleId` | Subsystem scope | `"cli/*"`, `"memory/store/*"` |
-| `taskType` | Optional task context | `"planning"`, `"implementation"` |
+| `environment` | Execution environment | `"github-copilot"`, `"local"` |
+| `project` | Project/repo namespace | `"lex"`, `"lex-pr-runner"` |
+| `agent_family` | Agent family | `"copilot"`, `"gpt"` |
+| `context_tags` | Tags for additional context | `["tools", "typescript"]` |
+| `module_id` | Module scope (exact match) | `"memory/store"` |
+| `task_type` | Optional task scope | `"review"`, `"implementation"` |
 
-**Note:** Older code may reference `environment`, `project`, `agent_family`, `context_tags`. These are deprecated in favor of the canonical `domain`/`moduleId`/`taskType` model from the LexSona paper.
+Extensibility:
+
+| Field | Description |
+|-------|-------------|
+| `v` | Scope contract version (missing = legacy) |
+| `extensions` | Namespaced extension blobs (objects only). Lex preserves but does not consult for base matching. |
+
+Legacy compatibility:
+- `moduleId` -> `module_id`
+- `taskType` -> `task_type`
+- `contextTags` -> `context_tags`
+
+Deprecated alias handling:
+- `domain` is a **deprecated input alias** that is only consulted **when `project` is absent**.
+  - If `project` is missing and `domain` is present, Lex copies `domain` into `project`, emits a warning, and preserves the original under `extensions.<namespace>.domain`.
+  - If `project` is present, `domain` is **not used for matching** and is only preserved under `extensions.<namespace>.domain`.
+
+Normalization invariant (critical):
+- Lex-normalized Scope Contract A+ MUST be applied **before DB writes** and **before SQL predicates** to prevent mixed-key storage/query mismatches.
 
 ## Storage Socket API
 
