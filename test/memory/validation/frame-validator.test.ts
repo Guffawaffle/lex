@@ -792,13 +792,19 @@ describe("Frame Payload Validation", () => {
   });
 
   describe("Size Validation", () => {
+    // Size limits from frame-validator.ts SIZE_LIMITS
+    const MAX_STRING_LENGTH = 10000;
+    const MAX_ARRAY_LENGTH = 1000;
+    const MAX_ARRAY_ITEM_LENGTH = 500;
+    const MAX_NESTED_OBJECT_SIZE = 50000;
+
     test("should reject payload with excessively long string field", () => {
       const payload = {
         id: "frame-026",
         timestamp: "2025-12-05T10:00:00Z",
         branch: "main",
         module_scope: ["core"],
-        summary_caption: "x".repeat(15000), // Exceeds MAX_STRING_LENGTH
+        summary_caption: "x".repeat(MAX_STRING_LENGTH + 5000), // Exceeds MAX_STRING_LENGTH
         reference_point: "test",
         status_snapshot: { next_action: "Test" },
       };
@@ -817,7 +823,7 @@ describe("Frame Payload Validation", () => {
         id: "frame-027",
         timestamp: "2025-12-05T10:00:00Z",
         branch: "main",
-        module_scope: Array(1500).fill("module"), // Exceeds MAX_ARRAY_LENGTH
+        module_scope: Array(MAX_ARRAY_LENGTH + 500).fill("module"), // Exceeds MAX_ARRAY_LENGTH
         summary_caption: "Large array test",
         reference_point: "test",
         status_snapshot: { next_action: "Test" },
@@ -841,7 +847,7 @@ describe("Frame Payload Validation", () => {
         summary_caption: "Large array items test",
         reference_point: "test",
         status_snapshot: { next_action: "Test" },
-        keywords: ["short", "x".repeat(600)], // Second item exceeds MAX_ARRAY_ITEM_LENGTH
+        keywords: ["short", "x".repeat(MAX_ARRAY_ITEM_LENGTH + 100)], // Second item exceeds MAX_ARRAY_ITEM_LENGTH
       };
 
       const result = validateFramePayload(payload);
@@ -862,7 +868,7 @@ describe("Frame Payload Validation", () => {
         tokenBloat: 30,
         attentionSwitch: 1,
         // Add a very large string to exceed MAX_NESTED_OBJECT_SIZE
-        extraData: "x".repeat(60000),
+        extraData: "x".repeat(MAX_NESTED_OBJECT_SIZE + 10000),
       };
 
       const payload = {
