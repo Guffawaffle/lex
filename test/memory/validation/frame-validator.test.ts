@@ -793,6 +793,7 @@ describe("Frame Payload Validation", () => {
 
   describe("Size Validation", () => {
     // Size limits from frame-validator.ts SIZE_LIMITS
+    // These are duplicated here to avoid exposing internal constants
     const MAX_STRING_LENGTH = 10000;
     const MAX_ARRAY_LENGTH = 1000;
     const MAX_ARRAY_ITEM_LENGTH = 500;
@@ -804,7 +805,7 @@ describe("Frame Payload Validation", () => {
         timestamp: "2025-12-05T10:00:00Z",
         branch: "main",
         module_scope: ["core"],
-        summary_caption: "x".repeat(MAX_STRING_LENGTH + 5000), // Exceeds MAX_STRING_LENGTH
+        summary_caption: "x".repeat(MAX_STRING_LENGTH + 100), // Exceeds MAX_STRING_LENGTH
         reference_point: "test",
         status_snapshot: { next_action: "Test" },
       };
@@ -867,8 +868,8 @@ describe("Frame Payload Validation", () => {
         renegotiation: 2,
         tokenBloat: 30,
         attentionSwitch: 1,
-        // Add a very large string to exceed MAX_NESTED_OBJECT_SIZE
-        extraData: "x".repeat(MAX_NESTED_OBJECT_SIZE + 10000),
+        // Add a large string to exceed MAX_NESTED_OBJECT_SIZE
+        extraData: "x".repeat(MAX_NESTED_OBJECT_SIZE + 1000),
       };
 
       const payload = {
