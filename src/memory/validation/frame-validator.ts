@@ -128,13 +128,7 @@ const KNOWN_TURN_COST_COMPONENT_FIELDS = new Set([
 /**
  * Known fields in turnCost.weights (for unknown field detection)
  */
-const KNOWN_TURN_COST_WEIGHTS_FIELDS = new Set([
-  "lambda",
-  "gamma",
-  "rho",
-  "tau",
-  "alpha",
-]);
+const KNOWN_TURN_COST_WEIGHTS_FIELDS = new Set(["lambda", "gamma", "rho", "tau", "alpha"]);
 
 /**
  * Known fields in taskComplexity (for unknown field detection)
@@ -279,9 +273,10 @@ function validateArrayItemSizes(
     return [];
   }
 
+  const items = value as unknown[];
   const errors: FrameValidationError[] = [];
-  for (let i = 0; i < value.length; i++) {
-    const item = value[i];
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
     if (typeof item === "string" && item.length > maxItemLength) {
       errors.push({
         path: `${path}[${i}]`,
@@ -371,7 +366,10 @@ export function validateFramePayload(data: unknown): FrameValidationResult {
       errors: [
         {
           path: "(root)",
-          message: data === null ? "Expected object, received null" : `Expected object, received ${typeof data}`,
+          message:
+            data === null
+              ? "Expected object, received null"
+              : `Expected object, received ${typeof data}`,
           code: "INVALID_TYPE",
         },
       ],
@@ -400,7 +398,11 @@ export function validateFramePayload(data: unknown): FrameValidationResult {
   const record = data as Record<string, unknown>;
   if (record.status_snapshot && typeof record.status_snapshot === "object") {
     warnings.push(
-      ...detectUnknownFields(record.status_snapshot, KNOWN_STATUS_SNAPSHOT_FIELDS, "status_snapshot")
+      ...detectUnknownFields(
+        record.status_snapshot,
+        KNOWN_STATUS_SNAPSHOT_FIELDS,
+        "status_snapshot"
+      )
     );
   }
 
@@ -412,16 +414,20 @@ export function validateFramePayload(data: unknown): FrameValidationResult {
   // Detect unknown fields in turnCost (v4)
   if (record.turnCost && typeof record.turnCost === "object") {
     warnings.push(...detectUnknownFields(record.turnCost, KNOWN_TURN_COST_FIELDS, "turnCost"));
-    
+
     const turnCost = record.turnCost as Record<string, unknown>;
-    
+
     // Detect unknown fields in turnCost.components
     if (turnCost.components && typeof turnCost.components === "object") {
       warnings.push(
-        ...detectUnknownFields(turnCost.components, KNOWN_TURN_COST_COMPONENT_FIELDS, "turnCost.components")
+        ...detectUnknownFields(
+          turnCost.components,
+          KNOWN_TURN_COST_COMPONENT_FIELDS,
+          "turnCost.components"
+        )
       );
     }
-    
+
     // Detect unknown fields in turnCost.weights
     if (turnCost.weights && typeof turnCost.weights === "object") {
       warnings.push(
@@ -432,7 +438,9 @@ export function validateFramePayload(data: unknown): FrameValidationResult {
 
   // Detect unknown fields in taskComplexity (v4)
   if (record.taskComplexity && typeof record.taskComplexity === "object") {
-    warnings.push(...detectUnknownFields(record.taskComplexity, KNOWN_TASK_COMPLEXITY_FIELDS, "taskComplexity"));
+    warnings.push(
+      ...detectUnknownFields(record.taskComplexity, KNOWN_TASK_COMPLEXITY_FIELDS, "taskComplexity")
+    );
   }
 
   // Size validation for string fields
@@ -468,7 +476,7 @@ export function validateFramePayload(data: unknown): FrameValidationResult {
   for (const { key, value } of arrayFields) {
     const arrayError = validateArraySize(value, key);
     if (arrayError) errors.push(arrayError);
-    
+
     // Also check individual array item sizes
     errors.push(...validateArrayItemSizes(value, key));
   }
