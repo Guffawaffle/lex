@@ -605,4 +605,189 @@ describe("Frame Payload Validation", () => {
       assert.strictEqual(result.valid, true, "Payload with both v4 fields should pass");
     });
   });
+
+  describe("v4 Fields - Unknown Field Warnings", () => {
+    test("should warn about unknown fields in turnCost", () => {
+      const payload = {
+        id: "frame-021",
+        timestamp: "2025-12-05T10:00:00Z",
+        branch: "main",
+        module_scope: ["core"],
+        summary_caption: "Unknown turnCost field",
+        reference_point: "test",
+        status_snapshot: { next_action: "Test" },
+        turnCost: {
+          components: {
+            latency: 100,
+            contextReset: 50,
+            renegotiation: 2,
+            tokenBloat: 30,
+            attentionSwitch: 1,
+          },
+          unknownTurnCostField: "extra",
+        },
+      };
+
+      const result = validateFramePayload(payload);
+
+      assert.strictEqual(
+        result.valid,
+        true,
+        "Payload with unknown turnCost fields should still be valid"
+      );
+      assert.ok(
+        result.warnings.some((w) => w.path === "turnCost.unknownTurnCostField"),
+        "Should warn about turnCost.unknownTurnCostField"
+      );
+    });
+
+    test("should warn about unknown fields in turnCost.components", () => {
+      const payload = {
+        id: "frame-022",
+        timestamp: "2025-12-05T10:00:00Z",
+        branch: "main",
+        module_scope: ["core"],
+        summary_caption: "Unknown component field",
+        reference_point: "test",
+        status_snapshot: { next_action: "Test" },
+        turnCost: {
+          components: {
+            latency: 100,
+            contextReset: 50,
+            renegotiation: 2,
+            tokenBloat: 30,
+            attentionSwitch: 1,
+            unknownComponent: 999,
+          },
+        },
+      };
+
+      const result = validateFramePayload(payload);
+
+      assert.strictEqual(
+        result.valid,
+        true,
+        "Payload with unknown component fields should still be valid"
+      );
+      assert.ok(
+        result.warnings.some((w) => w.path === "turnCost.components.unknownComponent"),
+        "Should warn about turnCost.components.unknownComponent"
+      );
+    });
+
+    test("should warn about unknown fields in turnCost.weights", () => {
+      const payload = {
+        id: "frame-023",
+        timestamp: "2025-12-05T10:00:00Z",
+        branch: "main",
+        module_scope: ["core"],
+        summary_caption: "Unknown weights field",
+        reference_point: "test",
+        status_snapshot: { next_action: "Test" },
+        turnCost: {
+          components: {
+            latency: 100,
+            contextReset: 50,
+            renegotiation: 2,
+            tokenBloat: 30,
+            attentionSwitch: 1,
+          },
+          weights: {
+            lambda: 0.1,
+            gamma: 0.2,
+            rho: 0.3,
+            tau: 0.1,
+            alpha: 0.3,
+            unknownWeight: 0.5,
+          },
+        },
+      };
+
+      const result = validateFramePayload(payload);
+
+      assert.strictEqual(
+        result.valid,
+        true,
+        "Payload with unknown weights fields should still be valid"
+      );
+      assert.ok(
+        result.warnings.some((w) => w.path === "turnCost.weights.unknownWeight"),
+        "Should warn about turnCost.weights.unknownWeight"
+      );
+    });
+
+    test("should warn about unknown fields in taskComplexity", () => {
+      const payload = {
+        id: "frame-024",
+        timestamp: "2025-12-05T10:00:00Z",
+        branch: "main",
+        module_scope: ["core"],
+        summary_caption: "Unknown complexity field",
+        reference_point: "test",
+        status_snapshot: { next_action: "Test" },
+        taskComplexity: {
+          tier: "mid",
+          assignedModel: "claude-sonnet-4.5",
+          unknownComplexityField: "extra",
+        },
+      };
+
+      const result = validateFramePayload(payload);
+
+      assert.strictEqual(
+        result.valid,
+        true,
+        "Payload with unknown taskComplexity fields should still be valid"
+      );
+      assert.ok(
+        result.warnings.some((w) => w.path === "taskComplexity.unknownComplexityField"),
+        "Should warn about taskComplexity.unknownComplexityField"
+      );
+    });
+
+    test("should not warn when v4 fields are valid without unknown fields", () => {
+      const payload = {
+        id: "frame-025",
+        timestamp: "2025-12-05T10:00:00Z",
+        branch: "main",
+        module_scope: ["core"],
+        summary_caption: "Clean v4 payload",
+        reference_point: "test",
+        status_snapshot: { next_action: "Test" },
+        turnCost: {
+          components: {
+            latency: 100,
+            contextReset: 50,
+            renegotiation: 2,
+            tokenBloat: 30,
+            attentionSwitch: 1,
+          },
+          weights: {
+            lambda: 0.1,
+            gamma: 0.2,
+            rho: 0.3,
+            tau: 0.1,
+            alpha: 0.3,
+          },
+          weightedScore: 50.5,
+        },
+        capabilityTier: "senior",
+        taskComplexity: {
+          tier: "senior",
+          assignedModel: "claude-opus-4",
+          actualModel: "claude-opus-4",
+          escalated: false,
+        },
+      };
+
+      const result = validateFramePayload(payload);
+
+      assert.strictEqual(result.valid, true, "Valid v4 payload should pass");
+      // Should not warn about v4 fields since they are all known
+      const v4Warnings = result.warnings.filter(
+        (w) => w.path.includes("turnCost") || w.path.includes("taskComplexity") || w.path.includes("capabilityTier")
+      );
+      assert.strictEqual(v4Warnings.length, 0, "Should have no warnings for known v4 fields");
+    });
+  });
 });

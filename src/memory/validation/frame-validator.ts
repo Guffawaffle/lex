@@ -68,6 +68,10 @@ const KNOWN_FRAME_FIELDS = new Set([
   "executorRole",
   "toolCalls",
   "guardrailProfile",
+  // v4 fields
+  "turnCost",
+  "capabilityTier",
+  "taskComplexity",
 ]);
 
 /**
@@ -84,6 +88,52 @@ const KNOWN_STATUS_SNAPSHOT_FIELDS = new Set([
  * Known fields in spend metadata (for unknown field detection)
  */
 const KNOWN_SPEND_FIELDS = new Set(["prompts", "tokens_estimated"]);
+
+/**
+ * Known fields in turnCost (for unknown field detection)
+ */
+const KNOWN_TURN_COST_FIELDS = new Set([
+  "components",
+  "weights",
+  "weightedScore",
+  "sessionId",
+  "timestamp",
+]);
+
+/**
+ * Known fields in turnCost.components (for unknown field detection)
+ */
+const KNOWN_TURN_COST_COMPONENT_FIELDS = new Set([
+  "latency",
+  "contextReset",
+  "renegotiation",
+  "tokenBloat",
+  "attentionSwitch",
+]);
+
+/**
+ * Known fields in turnCost.weights (for unknown field detection)
+ */
+const KNOWN_TURN_COST_WEIGHTS_FIELDS = new Set([
+  "lambda",
+  "gamma",
+  "rho",
+  "tau",
+  "alpha",
+]);
+
+/**
+ * Known fields in taskComplexity (for unknown field detection)
+ */
+const KNOWN_TASK_COMPLEXITY_FIELDS = new Set([
+  "tier",
+  "assignedModel",
+  "actualModel",
+  "escalated",
+  "escalationReason",
+  "retryCount",
+  "tierMismatch",
+]);
 
 /**
  * Convert Zod error path to dot-notation string
@@ -252,6 +302,32 @@ export function validateFramePayload(data: unknown): FrameValidationResult {
   // Detect unknown fields in spend
   if (record.spend && typeof record.spend === "object") {
     warnings.push(...detectUnknownFields(record.spend, KNOWN_SPEND_FIELDS, "spend"));
+  }
+
+  // Detect unknown fields in turnCost (v4)
+  if (record.turnCost && typeof record.turnCost === "object") {
+    warnings.push(...detectUnknownFields(record.turnCost, KNOWN_TURN_COST_FIELDS, "turnCost"));
+    
+    const turnCost = record.turnCost as Record<string, unknown>;
+    
+    // Detect unknown fields in turnCost.components
+    if (turnCost.components && typeof turnCost.components === "object") {
+      warnings.push(
+        ...detectUnknownFields(turnCost.components, KNOWN_TURN_COST_COMPONENT_FIELDS, "turnCost.components")
+      );
+    }
+    
+    // Detect unknown fields in turnCost.weights
+    if (turnCost.weights && typeof turnCost.weights === "object") {
+      warnings.push(
+        ...detectUnknownFields(turnCost.weights, KNOWN_TURN_COST_WEIGHTS_FIELDS, "turnCost.weights")
+      );
+    }
+  }
+
+  // Detect unknown fields in taskComplexity (v4)
+  if (record.taskComplexity && typeof record.taskComplexity === "object") {
+    warnings.push(...detectUnknownFields(record.taskComplexity, KNOWN_TASK_COMPLEXITY_FIELDS, "taskComplexity"));
   }
 
   return {
