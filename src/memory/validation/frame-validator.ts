@@ -11,6 +11,20 @@ import { z } from "zod";
 import { Frame as FrameSchema } from "../frames/types.js";
 
 /**
+ * Size limits for Frame fields to prevent excessively large payloads
+ */
+const SIZE_LIMITS = {
+  /** Maximum length for string fields (e.g., summary_caption, reference_point) */
+  MAX_STRING_LENGTH: 10000,
+  /** Maximum number of items in array fields (e.g., keywords, toolCalls) */
+  MAX_ARRAY_LENGTH: 1000,
+  /** Maximum length for individual array items (strings) */
+  MAX_ARRAY_ITEM_LENGTH: 500,
+  /** Maximum serialized JSON size for nested objects (in characters) */
+  MAX_NESTED_OBJECT_SIZE: 50000,
+} as const;
+
+/**
  * Validation error with field path information
  */
 export interface FrameValidationError {
@@ -218,6 +232,97 @@ function detectUnknownFields(
 }
 
 /**
+ * Check if a string field exceeds the maximum length
+ */
+function validateStringSize(
+  value: unknown,
+  path: string,
+  maxLength: number = SIZE_LIMITS.MAX_STRING_LENGTH
+): FrameValidationError | null {
+  if (typeof value === "string" && value.length > maxLength) {
+    return {
+      path,
+      message: `String exceeds maximum length of ${maxLength} characters (got ${value.length})`,
+      code: "TOO_BIG",
+    };
+  }
+  return null;
+}
+
+/**
+ * Check if an array field exceeds the maximum length
+ */
+function validateArraySize(
+  value: unknown,
+  path: string,
+  maxLength: number = SIZE_LIMITS.MAX_ARRAY_LENGTH
+): FrameValidationError | null {
+  if (Array.isArray(value) && value.length > maxLength) {
+    return {
+      path,
+      message: `Array exceeds maximum length of ${maxLength} items (got ${value.length})`,
+      code: "TOO_BIG",
+    };
+  }
+  return null;
+}
+
+/**
+ * Check if array items exceed the maximum length
+ */
+function validateArrayItemSizes(
+  value: unknown,
+  path: string,
+  maxItemLength: number = SIZE_LIMITS.MAX_ARRAY_ITEM_LENGTH
+): FrameValidationError[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  const errors: FrameValidationError[] = [];
+  for (let i = 0; i < value.length; i++) {
+    const item = value[i];
+    if (typeof item === "string" && item.length > maxItemLength) {
+      errors.push({
+        path: `${path}[${i}]`,
+        message: `Array item exceeds maximum length of ${maxItemLength} characters (got ${item.length})`,
+        code: "TOO_BIG",
+      });
+    }
+  }
+  return errors;
+}
+
+/**
+ * Check if a nested object exceeds the maximum serialized size
+ */
+function validateNestedObjectSize(
+  value: unknown,
+  path: string,
+  maxSize: number = SIZE_LIMITS.MAX_NESTED_OBJECT_SIZE
+): FrameValidationError | null {
+  if (typeof value === "object" && value !== null) {
+    try {
+      const serialized = JSON.stringify(value);
+      if (serialized.length > maxSize) {
+        return {
+          path,
+          message: `Nested object exceeds maximum size of ${maxSize} characters (got ${serialized.length})`,
+          code: "TOO_BIG",
+        };
+      }
+    } catch (err) {
+      return {
+        path,
+        message: `Failed to serialize nested object for size check: ${err instanceof Error ? err.message : String(err)}`,
+        code: "INVALID_VALUE",
+      };
+    }
+  }
+  return null;
+}
+
+/**
  * Validate a Frame payload before ingestion.
  *
  * This function provides external callers with a way to pre-validate Frame data
@@ -328,6 +433,57 @@ export function validateFramePayload(data: unknown): FrameValidationResult {
   // Detect unknown fields in taskComplexity (v4)
   if (record.taskComplexity && typeof record.taskComplexity === "object") {
     warnings.push(...detectUnknownFields(record.taskComplexity, KNOWN_TASK_COMPLEXITY_FIELDS, "taskComplexity"));
+  }
+
+  // Size validation for string fields
+  const stringFields = [
+    { key: "id", value: record.id },
+    { key: "summary_caption", value: record.summary_caption },
+    { key: "reference_point", value: record.reference_point },
+    { key: "branch", value: record.branch },
+    { key: "jira", value: record.jira },
+    { key: "atlas_frame_id", value: record.atlas_frame_id },
+    { key: "runId", value: record.runId },
+    { key: "planHash", value: record.planHash },
+    { key: "userId", value: record.userId },
+    { key: "executorRole", value: record.executorRole },
+    { key: "guardrailProfile", value: record.guardrailProfile },
+  ];
+
+  for (const { key, value } of stringFields) {
+    const error = validateStringSize(value, key);
+    if (error) errors.push(error);
+  }
+
+  // Size validation for array fields
+  const arrayFields = [
+    { key: "module_scope", value: record.module_scope },
+    { key: "keywords", value: record.keywords },
+    { key: "feature_flags", value: record.feature_flags },
+    { key: "permissions", value: record.permissions },
+    { key: "image_ids", value: record.image_ids },
+    { key: "toolCalls", value: record.toolCalls },
+  ];
+
+  for (const { key, value } of arrayFields) {
+    const arrayError = validateArraySize(value, key);
+    if (arrayError) errors.push(arrayError);
+    
+    // Also check individual array item sizes
+    errors.push(...validateArrayItemSizes(value, key));
+  }
+
+  // Size validation for nested objects
+  const nestedObjects = [
+    { key: "status_snapshot", value: record.status_snapshot },
+    { key: "spend", value: record.spend },
+    { key: "turnCost", value: record.turnCost },
+    { key: "taskComplexity", value: record.taskComplexity },
+  ];
+
+  for (const { key, value } of nestedObjects) {
+    const objError = validateNestedObjectSize(value, key);
+    if (objError) errors.push(objError);
   }
 
   return {

@@ -790,4 +790,137 @@ describe("Frame Payload Validation", () => {
       assert.strictEqual(v4Warnings.length, 0, "Should have no warnings for known v4 fields");
     });
   });
+
+  describe("Size Validation", () => {
+    test("should reject payload with excessively long string field", () => {
+      const payload = {
+        id: "frame-026",
+        timestamp: "2025-12-05T10:00:00Z",
+        branch: "main",
+        module_scope: ["core"],
+        summary_caption: "x".repeat(15000), // Exceeds MAX_STRING_LENGTH
+        reference_point: "test",
+        status_snapshot: { next_action: "Test" },
+      };
+
+      const result = validateFramePayload(payload);
+
+      assert.strictEqual(result.valid, false, "Payload with oversized string should fail");
+      assert.ok(
+        result.errors.some((e) => e.path === "summary_caption" && e.code === "TOO_BIG"),
+        "Should have TOO_BIG error for summary_caption"
+      );
+    });
+
+    test("should reject payload with excessively long array", () => {
+      const payload = {
+        id: "frame-027",
+        timestamp: "2025-12-05T10:00:00Z",
+        branch: "main",
+        module_scope: Array(1500).fill("module"), // Exceeds MAX_ARRAY_LENGTH
+        summary_caption: "Large array test",
+        reference_point: "test",
+        status_snapshot: { next_action: "Test" },
+      };
+
+      const result = validateFramePayload(payload);
+
+      assert.strictEqual(result.valid, false, "Payload with oversized array should fail");
+      assert.ok(
+        result.errors.some((e) => e.path === "module_scope" && e.code === "TOO_BIG"),
+        "Should have TOO_BIG error for module_scope"
+      );
+    });
+
+    test("should reject payload with excessively long array items", () => {
+      const payload = {
+        id: "frame-028",
+        timestamp: "2025-12-05T10:00:00Z",
+        branch: "main",
+        module_scope: ["core"],
+        summary_caption: "Large array items test",
+        reference_point: "test",
+        status_snapshot: { next_action: "Test" },
+        keywords: ["short", "x".repeat(600)], // Second item exceeds MAX_ARRAY_ITEM_LENGTH
+      };
+
+      const result = validateFramePayload(payload);
+
+      assert.strictEqual(result.valid, false, "Payload with oversized array item should fail");
+      assert.ok(
+        result.errors.some((e) => e.path === "keywords[1]" && e.code === "TOO_BIG"),
+        "Should have TOO_BIG error for keywords[1]"
+      );
+    });
+
+    test("should reject payload with excessively large nested object", () => {
+      // Create a very large turnCost object
+      const largeComponents = {
+        latency: 100,
+        contextReset: 50,
+        renegotiation: 2,
+        tokenBloat: 30,
+        attentionSwitch: 1,
+        // Add a very large string to exceed MAX_NESTED_OBJECT_SIZE
+        extraData: "x".repeat(60000),
+      };
+
+      const payload = {
+        id: "frame-029",
+        timestamp: "2025-12-05T10:00:00Z",
+        branch: "main",
+        module_scope: ["core"],
+        summary_caption: "Large nested object test",
+        reference_point: "test",
+        status_snapshot: { next_action: "Test" },
+        turnCost: {
+          components: largeComponents,
+        },
+      };
+
+      const result = validateFramePayload(payload);
+
+      assert.strictEqual(result.valid, false, "Payload with oversized nested object should fail");
+      assert.ok(
+        result.errors.some((e) => e.path === "turnCost" && e.code === "TOO_BIG"),
+        "Should have TOO_BIG error for turnCost"
+      );
+    });
+
+    test("should accept payload with reasonable sizes", () => {
+      const payload = {
+        id: "frame-030",
+        timestamp: "2025-12-05T10:00:00Z",
+        branch: "main",
+        module_scope: ["core", "api", "ui"],
+        summary_caption: "A reasonably sized summary caption",
+        reference_point: "test",
+        status_snapshot: { next_action: "Test" },
+        keywords: ["keyword1", "keyword2", "keyword3"],
+        toolCalls: ["tool1", "tool2"],
+      };
+
+      const result = validateFramePayload(payload);
+
+      assert.strictEqual(result.valid, true, "Payload with reasonable sizes should pass");
+      assert.deepStrictEqual(result.errors, [], "Should have no errors");
+    });
+
+    test("should accept payload at size boundaries", () => {
+      const payload = {
+        id: "frame-031",
+        timestamp: "2025-12-05T10:00:00Z",
+        branch: "main",
+        module_scope: Array(100).fill("module"), // Well within MAX_ARRAY_LENGTH
+        summary_caption: "x".repeat(1000), // Well within MAX_STRING_LENGTH
+        reference_point: "test",
+        status_snapshot: { next_action: "Test" },
+        keywords: ["x".repeat(400)], // Just within MAX_ARRAY_ITEM_LENGTH
+      };
+
+      const result = validateFramePayload(payload);
+
+      assert.strictEqual(result.valid, true, "Payload at reasonable boundaries should pass");
+    });
+  });
 });
