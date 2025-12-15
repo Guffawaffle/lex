@@ -2,7 +2,7 @@
 
 This directory contains Architecture Decision Records for Lex. Each ADR documents a significant decision, its context, and consequences.
 
-> **Public Spec Note:** ADRs in this directory document public, engine-agnostic decisions. Proprietary implementation details (e.g., merge-weave algorithms, persona system) live in [LexRunner's ADR directory](https://github.com/smartergpt/lex-pr-runner/docs/adr/).
+> **Public Spec Note:** ADRs in this directory document public, engine-agnostic decisions. Proprietary implementation details (e.g., merge-weave algorithms, persona system) live in [LexRunner's ADR directory](https://github.com/smartergpt/lexrunner/docs/adr/).
 
 ## Index
 

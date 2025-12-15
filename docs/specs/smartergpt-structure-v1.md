@@ -6,7 +6,7 @@
 
 ## Overview
 
-The `.smartergpt/` structure provides a standardized, portable workspace for Lex and lex-pr-runner tooling. This specification defines the directory layout, precedence chains, and environment variable expansion rules.
+The `.smartergpt/` structure provides a standardized, portable workspace for Lex and lexrunner tooling. This specification defines the directory layout, precedence chains, and environment variable expansion rules.
 
 **Key Change (v1.1.0):** Consolidated from `.smartergpt.local/` to `.smartergpt/` as the single canonical workspace directory (organization-level).
 
@@ -29,7 +29,7 @@ User workspace for local development, overrides, and runtime state:
 │   ├── logs/               # NDJSON logs
 │   ├── backups/            # Database backups
 │   └── frames.export/      # Exported frames
-└── runner/           # lex-pr-runner artifacts (if using lex-pr-runner)
+└── runner/           # lexrunner artifacts (if using lexrunner)
     ├── plan.json
     ├── cache/
     └── deliverables/
@@ -37,7 +37,7 @@ User workspace for local development, overrides, and runtime state:
 
 **Purpose:** Local development, working state, user customizations, tool-specific files
 **Git:** Ignored (`.gitignore`)
-**Scope:** Organization-level (shared between lex and lex-pr-runner in same workspace)
+**Scope:** Organization-level (shared between lex and lexrunner in same workspace)
 **Precedence:** High (overrides package defaults)
 
 ### Package Defaults (`canon/`, `prompts/`, `schemas/`, `rules/`)
@@ -163,7 +163,7 @@ lex remember ...
 │   ├── logs/
 │   ├── backups/
 │   └── frames.export/
-└── runner/           # lex-pr-runner artifacts
+└── runner/           # lexrunner artifacts
     └── plan.json
 ```
 

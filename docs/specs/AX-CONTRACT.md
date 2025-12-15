@@ -8,7 +8,7 @@ This document is not philosophy. It is a set of **concrete, testable guarantees*
 
 - Version: 0.1.0
 - Status: Draft, pending Guff adoption
-- Intended scope: `lex` (Lex) and `lex-pr-runner` (LexRunner)
+- Intended scope: `lex` (Lex) and `lexrunner` (LexRunner)
 - Target AX level: Level 3 – AI-Native (from AX spec)
 
 ---

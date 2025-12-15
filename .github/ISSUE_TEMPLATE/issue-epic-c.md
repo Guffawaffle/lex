@@ -128,7 +128,7 @@ See [MERGE_COMPLETE.md](../../MERGE_COMPLETE.md) for technical details on these 
 
 **This epic is specific to the `Guffawaffle/lex` repository.**
 
-Related work in `Guffawaffle/lex-pr-runner`:
+Related work in `Guffawaffle/lexrunner`:
 - (TBD - to be added when LexRunner integration is planned)
 
 ## 📊 Milestone

@@ -2,18 +2,18 @@
 
 ## Overview
 
-This policy establishes rules and automated gates to prevent intellectual property leaks across the Lex and lex-pr-runner repositories. It was created in response to Security Incident 2025-11-12 (see `SECURITY_INCIDENT_20251112.md`).
+This policy establishes rules and automated gates to prevent intellectual property leaks across the Lex and lexrunner repositories. It was created in response to Security Incident 2025-11-12 (see `SECURITY_INCIDENT_20251112.md`).
 
 ---
 
 ## Asset Ownership Classification
 
-### 🔴 lex-pr-runner Owned (NEVER in Lex repo)
+### 🔴 lexrunner Owned (NEVER in Lex repo)
 
 **Schemas:**
 - `runner.stack.schema.*` (all variants: .ts, .js, .d.ts, .json)
 - `runner.scope.schema.*` (all variants)
-- `execution-plan-v1.*` (canonical version in lex-pr-runner)
+- `execution-plan-v1.*` (canonical version in lexrunner)
 - Autopilot-related schemas
 - Plan schemas (`plan.schema.json`)
 
@@ -24,7 +24,7 @@ This policy establishes rules and automated gates to prevent intellectual proper
 - Runner-specific architecture docs
 
 **Source Code:**
-- Any `/src/` files from lex-pr-runner
+- Any `/src/` files from lexrunner
 - Runner CLI implementations
 - Merge orchestration logic
 - Gate execution engines
@@ -32,15 +32,15 @@ This policy establishes rules and automated gates to prevent intellectual proper
 **How to use in Lex:** Import via package exports:
 ```typescript
 // ✅ CORRECT
-import { ExecutionPlanSchema } from '@guffawaffle/lex-pr-runner/schemas/execution-plan-v1';
-import { GatesSchema } from '@guffawaffle/lex-pr-runner/schemas/gates';
+import { ExecutionPlanSchema } from '@guffawaffle/lexrunner/schemas/execution-plan-v1';
+import { GatesSchema } from '@guffawaffle/lexrunner/schemas/gates';
 
 // ❌ WRONG - DO NOT duplicate files
 ```
 
 ---
 
-### 🔵 Lex Owned (NEVER in lex-pr-runner repo)
+### 🔵 Lex Owned (NEVER in lexrunner repo)
 
 **Schemas:**
 - `feature-spec-v0.*` (Lex feature specifications)
@@ -59,7 +59,7 @@ import { GatesSchema } from '@guffawaffle/lex-pr-runner/schemas/gates';
 - Policy engines
 - Lex-specific utilities
 
-**How to use in lex-pr-runner:** Import via package exports:
+**How to use in lexrunner:** Import via package exports:
 ```typescript
 // ✅ CORRECT (when Epic #196 complete)
 import { ProfileSchema } from '@guffawaffle/lex/schemas/profile';
@@ -71,20 +71,20 @@ import { ProfileSchema } from '@guffawaffle/lex/schemas/profile';
 
 ### 🟢 Shared / Multi-Repo (Canonical in Lex)
 
-These schemas are **canonical in Lex** and **imported by lex-pr-runner**:
+These schemas are **canonical in Lex** and **imported by lexrunner**:
 
 **Schemas:**
-- `profile.schema.json` — Runtime profiles (Lex canonical, lex-pr-runner imports)
-- `gates.schema.json` — Safety gates (Lex canonical, lex-pr-runner imports)
+- `profile.schema.json` — Runtime profiles (Lex canonical, lexrunner imports)
+- `gates.schema.json` — Safety gates (Lex canonical, lexrunner imports)
 
 **Current State (during Epic #196 transition):**
-- ✅ lex-pr-runner temporarily has copies while Epic #196 completes
-- ✅ After Epic #196: lex-pr-runner imports from `@guffawaffle/lex` package
+- ✅ lexrunner temporarily has copies while Epic #196 completes
+- ✅ After Epic #196: lexrunner imports from `@guffawaffle/lex` package
 - ✅ Lex publishes `prompts/` and `schemas/` in npm package
 
 **Import Pattern (post-Epic #196):**
 ```typescript
-// In lex-pr-runner (after Epic #196):
+// In lexrunner (after Epic #196):
 import { ProfileSchema, GatesSchema } from '@guffawaffle/lex/schemas';
 ```
 
@@ -97,12 +97,12 @@ import { ProfileSchema, GatesSchema } from '@guffawaffle/lex/schemas';
 **Before Approval:**
 
 - [ ] **Ownership Verification:** Does this file belong in THIS repository?
-  - If `runner.*`, `execution-plan`, `autopilot`, or `merge-weave` → lex-pr-runner ONLY
+  - If `runner.*`, `execution-plan`, `autopilot`, or `merge-weave` → lexrunner ONLY
   - If `feature-spec`, `infrastructure`, prompts → Lex ONLY
-  - If `profile`, `gates` (shared) → Canonical in Lex, imported by lex-pr-runner
+  - If `profile`, `gates` (shared) → Canonical in Lex, imported by lexrunner
 
 - [ ] **No Duplicates:** Is this already canonical in another repository?
-  - Search other repo: `gh repo search-code <filename> --repo Guffawaffle/lex-pr-runner`
+  - Search other repo: `gh repo search-code <filename> --repo Guffawaffle/lexrunner`
   - If found: Use package import instead of duplication
 
 - [ ] **Import Pattern:** If owned elsewhere, use subpath export:
@@ -120,10 +120,10 @@ import { ProfileSchema, GatesSchema } from '@guffawaffle/lex/schemas';
   # Should be empty for Lex PRs
   ```
 
-- [ ] **No Lex-Specific Files in lex-pr-runner:**
+- [ ] **No Lex-Specific Files in lexrunner:**
   ```bash
   git diff --name-only origin/main | grep -E "feature-spec|infrastructure"
-  # Should be empty for lex-pr-runner PRs
+  # Should be empty for lexrunner PRs
   ```
 
 - [ ] **History Check (for deletions):**
@@ -155,15 +155,15 @@ if [ "$REPO_NAME" == "lex" ]; then
     echo "Detected files:"
     git diff --cached --name-only | grep -E "runner\.|execution-plan|merge-weave|autopilot"
     echo ""
-    echo "Solution: Import from @guffawaffle/lex-pr-runner/schemas/..."
+    echo "Solution: Import from @guffawaffle/lexrunner/schemas/..."
     exit 1
   fi
 fi
 
-# Prevent Lex schemas in lex-pr-runner repo
-if [ "$REPO_NAME" == "lex-pr-runner" ]; then
+# Prevent Lex schemas in lexrunner repo
+if [ "$REPO_NAME" == "lexrunner" ]; then
   if git diff --cached --name-only | grep -E "feature-spec|infrastructure" | grep -v node_modules; then
-    echo "⚠️  Warning: Lex-owned files detected in lex-pr-runner"
+    echo "⚠️  Warning: Lex-owned files detected in lexrunner"
     echo ""
     echo "Detected files:"
     git diff --cached --name-only | grep -E "feature-spec|infrastructure" | grep -v node_modules
@@ -219,24 +219,24 @@ jobs:
             echo "❌ ERROR: Runner-owned files detected in Lex repo:"
             echo "$VIOLATIONS"
             echo ""
-            echo "These files belong in lex-pr-runner. Import via:"
-            echo "  import { Schema } from '@guffawaffle/lex-pr-runner/schemas/...'"
+            echo "These files belong in lexrunner. Import via:"
+            echo "  import { Schema } from '@guffawaffle/lexrunner/schemas/...'"
             exit 1
           fi
 
           echo "✓ No ownership violations detected"
 
-      - name: Check file ownership (lex-pr-runner repo)
-        if: github.repository == 'Guffawaffle/lex-pr-runner'
+      - name: Check file ownership (lexrunner repo)
+        if: github.repository == 'Guffawaffle/lexrunner'
         run: |
-          echo "Checking for Lex-owned files in lex-pr-runner repo..."
+          echo "Checking for Lex-owned files in lexrunner repo..."
           FILES=$(git diff --name-only origin/main HEAD 2>/dev/null || git ls-files)
 
           # Check for Lex-specific files (excluding node_modules)
           VIOLATIONS=$(echo "$FILES" | grep -E "feature-spec|infrastructure" | grep -v node_modules || true)
 
           if [ -n "$VIOLATIONS" ]; then
-            echo "⚠️  WARNING: Lex-owned files detected in lex-pr-runner:"
+            echo "⚠️  WARNING: Lex-owned files detected in lexrunner:"
             echo "$VIOLATIONS"
             echo ""
             echo "These files should be imported from @guffawaffle/lex"
@@ -303,7 +303,7 @@ const forbiddenPatterns = {
     /merge-weave/,
     /autopilot.*\.schema/
   ],
-  'lex-pr-runner': [
+  'lexrunner': [
     /feature-spec.*\.(ts|js|json)$/,
     /infrastructure.*\.(ts|js|json)$/
   ]
@@ -377,11 +377,11 @@ console.log('✓ No IP ownership violations detected');
 ### ✅ CORRECT: Package Imports
 
 ```typescript
-// In Lex (importing from lex-pr-runner):
-import { ExecutionPlanSchema } from '@guffawaffle/lex-pr-runner/schemas/execution-plan-v1';
-import { RunnerStackSchema } from '@guffawaffle/lex-pr-runner/schemas/runner-stack';
+// In Lex (importing from lexrunner):
+import { ExecutionPlanSchema } from '@guffawaffle/lexrunner/schemas/execution-plan-v1';
+import { RunnerStackSchema } from '@guffawaffle/lexrunner/schemas/runner-stack';
 
-// In lex-pr-runner (importing from Lex - after Epic #196):
+// In lexrunner (importing from Lex - after Epic #196):
 import { ProfileSchema } from '@guffawaffle/lex/schemas/profile';
 import { GatesSchema } from '@guffawaffle/lex/schemas/gates';
 ```
@@ -390,7 +390,7 @@ import { GatesSchema } from '@guffawaffle/lex/schemas/gates';
 
 ```typescript
 // ❌ DO NOT copy files between repos:
-cp ../lex-pr-runner/schemas/execution-plan-v1.json ./schemas/
+cp ../lexrunner/schemas/execution-plan-v1.json ./schemas/
 
 // ❌ DO NOT commit duplicated files:
 git add .smartergpt/schemas/runner.stack.schema.ts
@@ -402,12 +402,12 @@ When moving files to their canonical repository:
 
 1. **Copy to canonical location:**
    ```bash
-   cp lex/schemas/runner.stack.schema.* lex-pr-runner/schemas/
+   cp lex/schemas/runner.stack.schema.* lexrunner/schemas/
    ```
 
 2. **Add package exports in canonical repo:**
    ```json
-   // lex-pr-runner/package.json
+   // lexrunner/package.json
    {
      "exports": {
        "./schemas/runner-stack": "./schemas/runner.stack.schema.js"
@@ -417,8 +417,8 @@ When moving files to their canonical repository:
 
 3. **Update imports in source repo:**
    ```typescript
-   // In lex (after lex-pr-runner publishes):
-   import { RunnerStackSchema } from '@guffawaffle/lex-pr-runner/schemas/runner-stack';
+   // In lex (after lexrunner publishes):
+   import { RunnerStackSchema } from '@guffawaffle/lexrunner/schemas/runner-stack';
    ```
 
 4. **Delete from source repo:**
@@ -505,9 +505,9 @@ cd ~/repos/lex
 find . -name "runner.*.schema.*" -o -name "execution-plan*" -o -name "merge-weave*" | \
   grep -v node_modules || echo "  ✓ No violations"
 
-# Check for Lex files in lex-pr-runner:
-echo "Checking lex-pr-runner repo..."
-cd ~/repos/lex-pr-runner
+# Check for Lex files in lexrunner:
+echo "Checking lexrunner repo..."
+cd ~/repos/lexrunner
 find . -name "feature-spec*" -o -name "infrastructure*" | \
   grep -v node_modules || echo "  ✓ No violations"
 

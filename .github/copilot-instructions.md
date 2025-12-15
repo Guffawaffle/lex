@@ -55,7 +55,7 @@ For persona-based workflows, see LexSona documentation.
 Run `lex recall` for detailed guidance on:
 - `lex recall "git tests"` — NO git commits in tests (GPG signing hangs)
 - `lex recall "sql safety"` — Curated query modules only
-- `lex recall "ip boundary"` — Lex never imports from lex-pr-runner
+- `lex recall "ip boundary"` — Lex never imports from lexrunner
 
 ---
 

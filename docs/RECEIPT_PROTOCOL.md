@@ -346,7 +346,7 @@ const policy = {
 ## References
 
 - **Thesis:** `docs/thesis/lex_governance-collab_systems_paper_draft.md` Section 3.4
-- **Related:** AXError with nextActions (lex-pr-runner issue #483)
+- **Related:** AXError with nextActions (lexrunner issue #483)
 - **Schema:** `src/memory/receipts/schema.ts`
 - **Validation:** `src/memory/receipts/validator.ts`
 
