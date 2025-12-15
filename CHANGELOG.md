@@ -230,9 +230,9 @@ and the FrameStore interface is frozen for 1.0.x releases.
   - Prevents dynamic SQL from models/prompts reaching the database layer
   - See `.github/copilot-instructions.md` SQL Safety section for rules
 
-- **IP Boundary Guardrail:** CI test ensuring Lex does not import from lex-pr-runner
-  - `test/ip-boundary.test.ts`: Fails if any source imports from lex-pr-runner
-  - Lex is a public MIT library; lex-pr-runner may import FROM Lex, never the reverse
+- **IP Boundary Guardrail:** CI test ensuring Lex does not import from lexrunner
+  - `test/ip-boundary.test.ts`: Fails if any source imports from lexrunner
+  - Lex is a public MIT library; lexrunner may import FROM Lex, never the reverse
 
 - **Migrations Directory:** Schema evolution infrastructure
   - `migrations/README.md`: Rules for numbered migration files
@@ -260,7 +260,7 @@ and the FrameStore interface is frozen for 1.0.x releases.
   - Forbidden patterns with examples
   - Migration workflow guidance
 - **IP Boundary Section:** Added to `.github/copilot-instructions.md`
-  - Lex → lex-pr-runner import forbidden
+  - Lex → lexrunner import forbidden
   - CI enforcement via `test/ip-boundary.test.ts`
 
 ## [0.4.7-alpha] - 2025-11-26

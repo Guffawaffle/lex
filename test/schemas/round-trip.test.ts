@@ -7,12 +7,12 @@ import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 
 import { ProfileSchema } from "../../canon/schemas/profile.schema.js";
-// NOTE: These schemas migrated to lex-pr-runner in PR #219
-// import { GatesSchema } from "lex-pr-runner/schemas/gates";
-// import { RunnerStackSchema } from "lex-pr-runner/schemas/runner-stack";
-// import { RunnerScopeSchema } from "lex-pr-runner/schemas/runner-scope";
+// NOTE: These schemas migrated to lexrunner in PR #219
+// import { GatesSchema } from "lexrunner/schemas/gates";
+// import { RunnerStackSchema } from "lexrunner/schemas/runner-stack";
+// import { RunnerScopeSchema } from "lexrunner/schemas/runner-scope";
 import { FeatureSpecV0Schema } from "../../canon/schemas/feature-spec-v0.js";
-// import { ExecutionPlanV1Schema } from "lex-pr-runner/schemas/execution-plan-v1";
+// import { ExecutionPlanV1Schema } from "lexrunner/schemas/execution-plan-v1";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -95,12 +95,12 @@ describe("Zod ↔ JSON Schema Round-Trip", () => {
     });
   });
 
-  // NOTE: GatesSchema migrated to lex-pr-runner in PR #219
-  // Uncomment when lex-pr-runner is published and added as dependency
+  // NOTE: GatesSchema migrated to lexrunner in PR #219
+  // Uncomment when lexrunner is published and added as dependency
   /*
   describe("GatesSchema round-trip", () => {
     const jsonSchemaPath = join(
-      dirname(require.resolve("lex-pr-runner/package.json")),
+      dirname(require.resolve("lexrunner/package.json")),
       ".smartergpt/schemas/gates.schema.json"
     );
     const jsonSchema = JSON.parse(readFileSync(jsonSchemaPath, "utf-8"));
@@ -156,11 +156,11 @@ describe("Zod ↔ JSON Schema Round-Trip", () => {
   });
   */
 
-  // NOTE: RunnerStackSchema migrated to lex-pr-runner in PR #219
+  // NOTE: RunnerStackSchema migrated to lexrunner in PR #219
   /*
   describe("RunnerStackSchema round-trip", () => {
     const jsonSchemaPath = join(
-      dirname(require.resolve("lex-pr-runner/package.json")),
+      dirname(require.resolve("lexrunner/package.json")),
       ".smartergpt/schemas/runner.stack.schema.json"
     );
     const jsonSchema = JSON.parse(readFileSync(jsonSchemaPath, "utf-8"));
@@ -194,11 +194,11 @@ describe("Zod ↔ JSON Schema Round-Trip", () => {
   });
   */
 
-  // NOTE: RunnerScopeSchema migrated to lex-pr-runner in PR #219
+  // NOTE: RunnerScopeSchema migrated to lexrunner in PR #219
   /*
   describe("RunnerScopeSchema round-trip", () => {
     const jsonSchemaPath = join(
-      dirname(require.resolve("lex-pr-runner/package.json")),
+      dirname(require.resolve("lexrunner/package.json")),
       ".smartergpt/schemas/runner.scope.schema.json"
     );
     const jsonSchema = JSON.parse(readFileSync(jsonSchemaPath, "utf-8"));
@@ -298,11 +298,11 @@ describe("Zod ↔ JSON Schema Round-Trip", () => {
     });
   });
 
-  // NOTE: ExecutionPlanV1Schema migrated to lex-pr-runner in PR #219
+  // NOTE: ExecutionPlanV1Schema migrated to lexrunner in PR #219
   /*
   describe("ExecutionPlanV1Schema round-trip", () => {
     const jsonSchemaPath = join(
-      dirname(require.resolve("lex-pr-runner/package.json")),
+      dirname(require.resolve("lexrunner/package.json")),
       ".smartergpt/schemas/execution-plan-v1.json"
     );
     const jsonSchema = JSON.parse(readFileSync(jsonSchemaPath, "utf-8"));

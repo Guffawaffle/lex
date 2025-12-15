@@ -4,7 +4,7 @@
 # For prose explanation, see AX-CONTRACT.md
 #
 # Status: Active
-# Applies To: lex, lex-pr-runner
+# Applies To: lex, lexrunner
 # AX Level: 3 (AI-Native)
 
 schemaVersion: "0.1.0"
@@ -13,7 +13,7 @@ appliesTo:
   - repo: lex
     minVersion: "2.0.0"
     description: "AX-native memory/policy core"
-  - repo: lex-pr-runner
+  - repo: lexrunner
     minVersion: "1.0.0"
     description: "AX-native orchestrator"
 
@@ -35,7 +35,7 @@ requirements:
         required: true
         milestone: "2.0.0"
         scope: "Core memory commands (remember, recall, timeline)"
-      lex-pr-runner:
+      lexrunner:
         required: true
         milestone: "1.0.0"
         scope: "All CLI commands, all MCP tools"
@@ -58,7 +58,7 @@ requirements:
         required: true
         milestone: "2.0.0"
         scope: "FTS5 search, query normalization"
-      lex-pr-runner:
+      lexrunner:
         required: false
         note: "Consumes lex recall via MCP; benefits from lex fix"
     acceptance:
@@ -81,7 +81,7 @@ requirements:
         required: true
         milestone: "2.0.0"
         scope: "Core memory/CLI errors"
-      lex-pr-runner:
+      lexrunner:
         required: true
         milestone: "1.0.0"
         scope: "All MCP tools, gate failures, merge errors"
@@ -107,7 +107,7 @@ requirements:
       lex:
         required: false
         note: "Documented non-goal for v0.1 except core memory commands"
-      lex-pr-runner:
+      lexrunner:
         required: true
         milestone: "1.0.0"
         scope: "All orchestration commands"
@@ -129,7 +129,7 @@ requirements:
         required: true
         milestone: "2.0.0"
         scope: "Frame schema ready for runner load"
-      lex-pr-runner:
+      lexrunner:
         required: true
         milestone: "1.0.0"
         scope: "merge-weave, executor runs, significant orchestrations"

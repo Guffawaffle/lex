@@ -169,7 +169,7 @@ export interface SpendMetadata {
   "runId": "run-abc123",
   "planHash": "sha256:def456...",
   "executorRole": "senior-dev",
-  "toolCalls": ["mcp_lex-pr-runner_plan_create", "mcp_lex-pr-runner_gates_run"],
+  "toolCalls": ["mcp_lexrunner_plan_create", "mcp_lexrunner_gates_run"],
   "guardrailProfile": "standard",
   "spend": {
     "prompts": 12,
@@ -309,7 +309,7 @@ Runners and consumers should **ignore unknown fields** to maintain forward compa
 
 ## Runner Integration Guide
 
-For LexRunner Frame emission specifications, see issue [lex-pr-runner#484](https://github.com/Guffawaffle/lex-pr-runner/issues/484).
+For LexRunner Frame emission specifications, see issue [lexrunner#484](https://github.com/Guffawaffle/lexrunner/issues/484).
 
 ### Emitting Frames from LexRunner
 

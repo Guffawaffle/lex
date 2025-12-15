@@ -71,7 +71,7 @@ Lex owns the canonical base keys (Scope Contract "A+"):
 | Field | Description | Example |
 |-------|-------------|---------|
 | `environment` | Execution environment | `"github-copilot"`, `"local"` |
-| `project` | Project/repo namespace | `"lex"`, `"lex-pr-runner"` |
+| `project` | Project/repo namespace | `"lex"`, `"lexrunner"` |
 | `agent_family` | Agent family | `"copilot"`, `"gpt"` |
 | `context_tags` | Tags for additional context | `["tools", "typescript"]` |
 | `module_id` | Module scope (exact match) | `"memory/store"` |
