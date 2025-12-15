@@ -97,11 +97,11 @@ describe("JSON Schema Validation", () => {
     });
   });
 
-  // NOTE: gates.schema.json migrated to lex-pr-runner in PR #219
+  // NOTE: gates.schema.json migrated to lexrunner in PR #219
   /*
   describe("gates.schema.json", () => {
     const schemaPath = join(
-      dirname(require.resolve("lex-pr-runner/package.json")),
+      dirname(require.resolve("lexrunner/package.json")),
       ".smartergpt/schemas/gates.schema.json"
     );
     const schema = JSON.parse(readFileSync(schemaPath, "utf-8"));
@@ -197,11 +197,11 @@ describe("JSON Schema Validation", () => {
   });
   */
 
-  // NOTE: runner.stack.schema.json migrated to lex-pr-runner in PR #219
+  // NOTE: runner.stack.schema.json migrated to lexrunner in PR #219
   /*
   describe("runner.stack.schema.json", () => {
     const schemaPath = join(
-      dirname(require.resolve("lex-pr-runner/package.json")),
+      dirname(require.resolve("lexrunner/package.json")),
       ".smartergpt/schemas/runner.stack.schema.json"
     );
     const schema = JSON.parse(readFileSync(schemaPath, "utf-8"));
@@ -284,11 +284,11 @@ describe("JSON Schema Validation", () => {
   });
   */
 
-  // NOTE: runner.scope.schema.json migrated to lex-pr-runner in PR #219
+  // NOTE: runner.scope.schema.json migrated to lexrunner in PR #219
   /*
   describe("runner.scope.schema.json", () => {
     const schemaPath = join(
-      dirname(require.resolve("lex-pr-runner/package.json")),
+      dirname(require.resolve("lexrunner/package.json")),
       ".smartergpt/schemas/runner.scope.schema.json"
     );
     const schema = JSON.parse(readFileSync(schemaPath, "utf-8"));
@@ -458,11 +458,11 @@ describe("JSON Schema Validation", () => {
     });
   });
 
-  // NOTE: execution-plan-v1.json migrated to lex-pr-runner in PR #219
+  // NOTE: execution-plan-v1.json migrated to lexrunner in PR #219
   /*
   describe("execution-plan-v1.json", () => {
     const schemaPath = join(
-      dirname(require.resolve("lex-pr-runner/package.json")),
+      dirname(require.resolve("lexrunner/package.json")),
       ".smartergpt/schemas/execution-plan-v1.json"
     );
     const schema = JSON.parse(readFileSync(schemaPath, "utf-8"));

@@ -1,6 +1,6 @@
 # Archived Personas
 
-These personas have been moved to **LexRunner** (Guffawaffle/lex-pr-runner).
+These personas have been moved to **LexRunner** (Guffawaffle/lexrunner).
 
 Lex provides the **foundation** (schema + example). Production personas live in LexRunner.
 

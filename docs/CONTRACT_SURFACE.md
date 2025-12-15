@@ -130,7 +130,7 @@ Runners are free to:
 
 ## Reference Implementation
 
-**LexRunner** (`lex-pr-runner`) is the reference runner. It demonstrates:
+**LexRunner** (`lexrunner`) is the reference runner. It demonstrates:
 - Gate execution (lint, typecheck, test)
 - Merge pyramid construction
 - PR fan-out and dependency ordering
