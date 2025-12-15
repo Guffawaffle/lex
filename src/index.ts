@@ -81,6 +81,19 @@ export type {
 } from "./memory/validation/index.js";
 
 // =============================================================================
+// BATCH FRAME INGESTION (1.0.0 Contract)
+// =============================================================================
+
+// Batch Frame ingestion for external orchestrators
+export { insertFramesBatch } from "./memory/batch.js";
+export type {
+  FrameInput,
+  BatchOptions,
+  BatchValidationError,
+  BatchIngestionResult,
+} from "./memory/batch.js";
+
+// =============================================================================
 // POLICY & ATLAS HELPERS (1.0.0 Contract)
 // =============================================================================
 
