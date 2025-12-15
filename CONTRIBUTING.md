@@ -488,6 +488,23 @@ Fixes #123
 3. All review comments addressed
 4. Squash merge preferred (clean history)
 
+### Conflict Resolution
+
+When your PR has conflicts with the base branch (or when merging concurrent PRs):
+
+- **Follow the documented strategy:** See [CONFLICT_RESOLUTION.md](./CONFLICT_RESOLUTION.md) for file-specific rules
+- **Test fixtures (YAML/JSON):** Merge both versions (prefer newer dates)
+- **Documentation (Markdown):** Take latest structure, manually merge content
+- **Package config:** Take `--theirs` (feature branch), validate unique additions
+- **Source code:** Always require manual resolution
+
+After resolving conflicts, verify:
+```bash
+npm ci && npm run build && npm test && npm run lint
+```
+
+For detailed examples and rationale, see the [Conflict Resolution Guide](./CONFLICT_RESOLUTION.md).
+
 ---
 
 ## Changesets
@@ -630,6 +647,7 @@ throw new Error("Module not found");
 
 - **Documentation**: See [docs/](./docs/) directory
 - **Quick Start**: [QUICK_START.md](./QUICK_START.md)
+- **Conflict Resolution**: [CONFLICT_RESOLUTION.md](./CONFLICT_RESOLUTION.md)
 - **Security Policy**: [SECURITY.md](./SECURITY.md)
 - **Release Process**: [RELEASE.md](./RELEASE.md)
 - **Issues**: [GitHub Issues](https://github.com/Guffawaffle/lex/issues)
