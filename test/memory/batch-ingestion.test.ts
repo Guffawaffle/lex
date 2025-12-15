@@ -16,7 +16,7 @@
 import { test, describe, beforeEach, afterEach } from "node:test";
 import assert from "node:assert";
 import { insertFramesBatch } from "@app/memory/batch.js";
-import type { FrameInput, BatchIngestionResult } from "@app/memory/batch.js";
+import type { FrameInput } from "@app/memory/batch.js";
 import { SqliteFrameStore } from "@app/memory/store/sqlite/index.js";
 import type { FrameStore } from "@app/memory/store/frame-store.js";
 
