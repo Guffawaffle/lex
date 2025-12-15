@@ -344,4 +344,120 @@ describe("Batch Frame Ingestion - External Orchestrator Pattern", () => {
       assert.strictEqual(retrieved.runId, "run-001");
     });
   });
+
+  describe("Atlas Rebuild Hooks (L-EXE-004)", () => {
+    test("should call onSuccess callback after successful batch ingestion", async () => {
+      const frames = [
+        createValidFrame("hook-success-1", 0),
+        createValidFrame("hook-success-2", 1),
+      ];
+
+      let callbackCalled = false;
+      let callbackResult: any = null;
+
+      const result = await insertFramesBatch(store, frames, {
+        onSuccess: (res) => {
+          callbackCalled = true;
+          callbackResult = res;
+        },
+      });
+
+      assert.strictEqual(result.success, true);
+      assert.strictEqual(result.count, 2);
+      assert.strictEqual(callbackCalled, true, "onSuccess callback should be called");
+      assert.ok(callbackResult, "callback should receive result");
+      assert.strictEqual(callbackResult.success, true);
+      assert.strictEqual(callbackResult.count, 2);
+    });
+
+    test("should NOT call onSuccess callback on validation failure", async () => {
+      const frames = [
+        createInvalidFrame("invalid-no-hook") as FrameInput,
+      ];
+
+      let callbackCalled = false;
+
+      const result = await insertFramesBatch(store, frames, {
+        onSuccess: () => {
+          callbackCalled = true;
+        },
+      });
+
+      assert.strictEqual(result.success, false);
+      assert.strictEqual(callbackCalled, false, "onSuccess should NOT be called on failure");
+    });
+
+    test("should NOT call onSuccess callback on store failure", async () => {
+      // Create a valid frame first to avoid validation errors
+      const frames = [createValidFrame("store-failure-test", 0)];
+
+      // Close the store to cause a store-level failure
+      await store.close();
+
+      let callbackCalled = false;
+
+      const result = await insertFramesBatch(store, frames, {
+        onSuccess: () => {
+          callbackCalled = true;
+        },
+      });
+
+      assert.strictEqual(result.success, false);
+      assert.strictEqual(callbackCalled, false, "onSuccess should NOT be called on store failure");
+      assert.ok(result.storeError, "should have store error");
+
+      // Reopen store for cleanup
+      store = new SqliteFrameStore(":memory:");
+    });
+
+    test("should support async onSuccess callbacks", async () => {
+      const frames = [createValidFrame("async-hook", 0)];
+
+      let asyncCallbackCompleted = false;
+
+      const result = await insertFramesBatch(store, frames, {
+        onSuccess: async () => {
+          // Simulate async operation (e.g., triggering Atlas rebuild)
+          await new Promise((resolve) => setTimeout(resolve, 10));
+          asyncCallbackCompleted = true;
+        },
+      });
+
+      assert.strictEqual(result.success, true);
+      assert.strictEqual(asyncCallbackCompleted, true, "async callback should complete");
+    });
+
+    test("should work without onSuccess callback (backward compatibility)", async () => {
+      const frames = [createValidFrame("no-callback", 0)];
+
+      // Should work exactly as before when no callback provided
+      const result = await insertFramesBatch(store, frames);
+
+      assert.strictEqual(result.success, true);
+      assert.strictEqual(result.count, 1);
+    });
+
+    test("onSuccess callback receives complete batch result", async () => {
+      const frames = [
+        createValidFrame("result-check-1", 0),
+        createValidFrame("result-check-2", 1),
+        createValidFrame("result-check-3", 2),
+      ];
+
+      let receivedResult: any = null;
+
+      await insertFramesBatch(store, frames, {
+        onSuccess: (res) => {
+          receivedResult = res;
+        },
+      });
+
+      assert.ok(receivedResult, "callback should receive result");
+      assert.strictEqual(receivedResult.success, true);
+      assert.strictEqual(receivedResult.count, 3);
+      assert.strictEqual(receivedResult.validationErrors.length, 0);
+      assert.strictEqual(receivedResult.results.length, 3);
+      assert.ok(receivedResult.results.every((r: any) => r.success), "all frame saves should succeed");
+    });
+  });
 });

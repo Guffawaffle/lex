@@ -36,6 +36,25 @@ export interface BatchOptions {
    * Set to false only if you've already validated the Frames externally.
    */
   preValidate?: boolean;
+
+  /**
+   * Optional callback to trigger after successful batch ingestion.
+   * This is commonly used to schedule Atlas rebuilds after external writes.
+   * The callback receives the batch result and is only called on success.
+   *
+   * @example
+   * ```typescript
+   * import { insertFramesBatch } from '@smartergpt/lex/memory';
+   * import { triggerAtlasRebuild } from '@smartergpt/lex/atlas';
+   *
+   * const result = await insertFramesBatch(store, frames, {
+   *   onSuccess: async () => {
+   *     await triggerAtlasRebuild();
+   *   }
+   * });
+   * ```
+   */
+  onSuccess?: (result: BatchIngestionResult) => void | Promise<void>;
 }
 
 /**
@@ -111,9 +130,10 @@ export async function insertFramesBatch(
   frames: FrameInput[],
   options?: BatchOptions
 ): Promise<BatchIngestionResult> {
-  const opts: Required<BatchOptions> = {
+  const opts = {
     failFast: options?.failFast ?? true,
     preValidate: options?.preValidate ?? true,
+    onSuccess: options?.onSuccess,
   };
 
   const validationErrors: BatchValidationError[] = [];
@@ -162,12 +182,19 @@ export async function insertFramesBatch(
     const allSuccess = results.every((r) => r.success);
 
     if (allSuccess) {
-      return {
+      const result: BatchIngestionResult = {
         success: true,
         count: results.length,
         validationErrors: [],
         results,
       };
+
+      // Trigger onSuccess callback if provided
+      if (opts.onSuccess) {
+        await Promise.resolve(opts.onSuccess(result));
+      }
+
+      return result;
     } else {
       // Some frames failed at the store level
       return {
