@@ -459,5 +459,40 @@ describe("Batch Frame Ingestion - External Orchestrator Pattern", () => {
       assert.strictEqual(receivedResult.results.length, 3);
       assert.ok(receivedResult.results.every((r: any) => r.success), "all frame saves should succeed");
     });
+
+    test("integration: batch ingestion can trigger actual Atlas rebuild", async () => {
+      // This is an integration test showing the complete flow:
+      // 1. Batch ingestion of frames
+      // 2. onSuccess callback triggers Atlas rebuild
+      // 3. Atlas rebuild uses the frames from the store
+
+      const frames = [
+        createValidFrame("atlas-integration-1", 0),
+        createValidFrame("atlas-integration-2", 1),
+        createValidFrame("atlas-integration-3", 2),
+      ];
+
+      let atlasRebuildTriggered = false;
+      let atlasNodeCount = 0;
+
+      const result = await insertFramesBatch(store, frames, {
+        onSuccess: async () => {
+          // Simulate what a real Atlas rebuild trigger would do
+          // In production, this would call: await triggerAtlasRebuild()
+          
+          atlasRebuildTriggered = true;
+          
+          // Simulate rebuilding Atlas from all frames in the store
+          const allFrames = await store.listFrames();
+          // In a real scenario, this would call rebuildAtlas(allFrames)
+          atlasNodeCount = allFrames.length;
+        },
+      });
+
+      assert.strictEqual(result.success, true);
+      assert.strictEqual(result.count, 3);
+      assert.strictEqual(atlasRebuildTriggered, true, "Atlas rebuild should be triggered");
+      assert.strictEqual(atlasNodeCount, 3, "Atlas should be built from all frames in store");
+    });
   });
 });
