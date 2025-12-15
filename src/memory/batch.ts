@@ -16,7 +16,7 @@ import { validateFramePayload, type FrameValidationResult } from "./validation/i
 
 /**
  * Input for a single Frame in a batch operation.
- * Can be either a complete Frame or a partial payload to validate.
+ * Must be a complete Frame object with all required fields.
  */
 export type FrameInput = Frame;
 
