@@ -322,7 +322,7 @@ This strategy is designed for eventual automation in merge-weave tooling:
 - **Phase 2 (future):** Semi-automated with conflict categorization
 - **Phase 3 (future):** Fully automated for fixtures and config, manual approval for code
 
-See tracking issue for tooling integration work.
+Tooling integration will be tracked in a separate issue (as noted in the original problem statement).
 
 ---
 
