@@ -73,12 +73,12 @@
 
 | Gate | Requirement | Issue | Status |
 |------|-------------|-------|--------|
-| AX-001 | `--json` on all data commands | [#482](https://github.com/Guffawaffle/lex-pr-runner/issues/482) | ❌ |
-| AX-001 | MCP tools return JSON, not prose | [#482](https://github.com/Guffawaffle/lex-pr-runner/issues/482) | ❌ |
-| AX-003 | AXError with nextActions[] everywhere | [#483](https://github.com/Guffawaffle/lex-pr-runner/issues/483) | ❌ |
-| AX-004 | MCP/CLI parity documented | [#485](https://github.com/Guffawaffle/lex-pr-runner/issues/485) | ❌ |
-| AX-005 | merge-weave emits Frame | [#484](https://github.com/Guffawaffle/lex-pr-runner/issues/484) | ❌ |
-| AX-005 | executor runs emit Frame | [#484](https://github.com/Guffawaffle/lex-pr-runner/issues/484) | ❌ |
+| AX-001 | `--json` on all data commands | [#482](https://github.com/Guffawaffle/lexrunner/issues/482) | ❌ |
+| AX-001 | MCP tools return JSON, not prose | [#482](https://github.com/Guffawaffle/lexrunner/issues/482) | ❌ |
+| AX-003 | AXError with nextActions[] everywhere | [#483](https://github.com/Guffawaffle/lexrunner/issues/483) | ❌ |
+| AX-004 | MCP/CLI parity documented | [#485](https://github.com/Guffawaffle/lexrunner/issues/485) | ❌ |
+| AX-005 | merge-weave emits Frame | [#484](https://github.com/Guffawaffle/lexrunner/issues/484) | ❌ |
+| AX-005 | executor runs emit Frame | [#484](https://github.com/Guffawaffle/lexrunner/issues/484) | ❌ |
 
 **LexRunner 1.0.0 is the first AX-native release. AX is the value prop.**
 
@@ -112,11 +112,11 @@
 
 | Task | Repo | Issue | Effort |
 |------|------|-------|--------|
-| Audit CLI commands for `--json` | lex-pr-runner | [#482](https://github.com/Guffawaffle/lex-pr-runner/issues/482) | M |
-| Audit MCP tools for JSON output | lex-pr-runner | [#482](https://github.com/Guffawaffle/lex-pr-runner/issues/482) | M |
-| Document MCP/CLI parity matrix | lex-pr-runner | [#485](https://github.com/Guffawaffle/lex-pr-runner/issues/485) | M |
-| Apply AXError to MCP tools | lex-pr-runner | [#483](https://github.com/Guffawaffle/lex-pr-runner/issues/483) | M |
-| Apply AXError to gate failures | lex-pr-runner | [#483](https://github.com/Guffawaffle/lex-pr-runner/issues/483) | M |
+| Audit CLI commands for `--json` | lexrunner | [#482](https://github.com/Guffawaffle/lexrunner/issues/482) | M |
+| Audit MCP tools for JSON output | lexrunner | [#482](https://github.com/Guffawaffle/lexrunner/issues/482) | M |
+| Document MCP/CLI parity matrix | lexrunner | [#485](https://github.com/Guffawaffle/lexrunner/issues/485) | M |
+| Apply AXError to MCP tools | lexrunner | [#483](https://github.com/Guffawaffle/lexrunner/issues/483) | M |
+| Apply AXError to gate failures | lexrunner | [#483](https://github.com/Guffawaffle/lexrunner/issues/483) | M |
 
 ### Wave 4: Frame Emission (Depends on Waves 1-3)
 
@@ -124,9 +124,9 @@
 
 | Task | Repo | Issue | Effort |
 |------|------|-------|--------|
-| merge-weave emits Frame on completion | lex-pr-runner | [#484](https://github.com/Guffawaffle/lex-pr-runner/issues/484) | M |
-| executor runs emit Frame | lex-pr-runner | [#484](https://github.com/Guffawaffle/lex-pr-runner/issues/484) | M |
-| Significant orchestrations emit Frame | lex-pr-runner | [#484](https://github.com/Guffawaffle/lex-pr-runner/issues/484) | L |
+| merge-weave emits Frame on completion | lexrunner | [#484](https://github.com/Guffawaffle/lexrunner/issues/484) | M |
+| executor runs emit Frame | lexrunner | [#484](https://github.com/Guffawaffle/lexrunner/issues/484) | M |
+| Significant orchestrations emit Frame | lexrunner | [#484](https://github.com/Guffawaffle/lexrunner/issues/484) | L |
 
 ---
 
@@ -136,10 +136,10 @@ These are valuable but **not release blockers**:
 
 | Improvement | Repo | Priority | Notes |
 |-------------|------|----------|-------|
-| Full CLI/MCP parity (not just docs) | lex-pr-runner | P2 | Audit first, then implement gaps |
+| Full CLI/MCP parity (not just docs) | lexrunner | P2 | Audit first, then implement gaps |
 | AXError in all error paths (not just core) | both | P2 | Gradual retrofit |
 | Recall scoring/ranking improvements | lex | P3 | FTS5 works; ranking can improve |
-| Frame emission for more workflows | lex-pr-runner | P3 | Core workflows first |
+| Frame emission for more workflows | lexrunner | P3 | Core workflows first |
 | AX level self-reporting | both | P3 | System can report its own AX level |
 
 ---

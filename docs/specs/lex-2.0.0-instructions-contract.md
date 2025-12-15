@@ -49,7 +49,7 @@ Generated instructions never reference specific models (GPT, Claude, Gemini, etc
 
 Generated instructions never reference personas or modes (Senior Dev, Eager PM, etc.).
 
-**Invariant:** Those belong in orchestrators (e.g., lex-pr-runner), not Lex core.
+**Invariant:** Those belong in orchestrators (e.g., lexrunner), not Lex core.
 
 ### 7. `lex.yaml` is Optional
 
@@ -65,7 +65,7 @@ These are **not** part of 2.0.0 scope:
 
 | Item | Reason |
 |------|--------|
-| Mode-aware generation | Belongs in orchestrators (lex-pr-runner) |
+| Mode-aware generation | Belongs in orchestrators (lexrunner) |
 | Sysenv-conditional projection | Acknowledged but not exploited yet |
 | Path-specific instructions | Adds complexity, defer to 2.1.0 |
 | `AGENTS.md` generation | Emerging standard, not stable enough |

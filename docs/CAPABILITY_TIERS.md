@@ -131,7 +131,7 @@ The capability tier fields are consumed by LexRunner to:
 3. **Detect escalation patterns** for optimization
 4. **Measure cost efficiency** of tier assignments
 
-See [LexRunner Executor Canonicalization](https://github.com/Guffawaffle/lex-pr-runner/issues/404) for implementation details.
+See [LexRunner Executor Canonicalization](https://github.com/Guffawaffle/lexrunner/issues/404) for implementation details.
 
 ## Schema Version
 

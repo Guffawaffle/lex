@@ -215,7 +215,7 @@ Orchestrate produces:
 Conceptually:
 
 ```bash
-lex-pr-runner execute plan.json --run-id $RUN_ID
+lexrunner execute plan.json --run-id $RUN_ID
 ```
 
 The Control Deck **does not wait** for completion. Track handles that.

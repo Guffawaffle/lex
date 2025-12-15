@@ -191,7 +191,7 @@ Phase 6: Final
 
 | Item | Reason | Future Version |
 |------|--------|----------------|
-| Mode-aware generation | Belongs in lex-pr-runner | See #479 |
+| Mode-aware generation | Belongs in lexrunner | See #479 |
 | Sysenv-conditional projection | Acknowledged but not exploited | 2.1.0 |
 | Path-specific instructions | Adds complexity | 2.1.0 |
 | `AGENTS.md` generation | Emerging standard | 2.1.0 |
@@ -204,4 +204,4 @@ Phase 6: Final
 ## Related Issues
 
 - **Lex #415**: `lex instructions generate` — IDE-aware instruction block generator (parent)
-- **lex-pr-runner #479**: Layer mode-specific instructions (future integration)
+- **lexrunner #479**: Layer mode-specific instructions (future integration)
