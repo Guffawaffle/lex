@@ -9,11 +9,12 @@
       "lex/logger/*": ["../../shared/logger/*"]
     }
   },
-  "include": ["./**/*.ts", "../frames/types.ts"],
+  "include": ["./**/*.ts", "../frames/types.ts", "../batch.ts"],
   "exclude": ["node_modules", "dist", "**/*.test.ts"],
   "references": [
     { "path": "../../shared/logger" },
     { "path": "../../atlas/schemas" },
-    { "path": "../receipts" }
+    { "path": "../receipts" },
+    { "path": "../validation" }
   ]
 }
