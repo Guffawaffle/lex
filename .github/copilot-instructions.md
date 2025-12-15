@@ -59,6 +59,27 @@ Run `lex recall` for detailed guidance on:
 
 ---
 
+## 🏗️ TypeScript Composite Projects
+
+This repo uses TypeScript **project references** (composite projects). When adding new `.ts` files:
+
+1. **Check the nearest `tsconfig.json`** in parent directories
+2. **Add new files to the `include` array** if not covered by existing patterns
+3. **Add `references`** if importing from other subdirectories
+
+Example: Adding `src/memory/newfile.ts`:
+```bash
+# Check which tsconfig owns this directory
+cat src/memory/store/tsconfig.json
+
+# Add to include if needed:
+# "include": ["*.ts", "**/*.ts", "../newfile.ts"]
+```
+
+**Why?** Without this, builds fail with TS6307: "File not listed within project".
+
+---
+
 ## Build & Test
 
 ```bash

@@ -32,6 +32,10 @@ npm run check-sqlite
 if npm run | rg -q '^  lint';   then echo "==> npm run lint"; npm run lint; fi
 if npm run | rg -q '^  type-check'; then echo "==> npm run type-check"; npm run type-check; fi
 
+# Check for orphaned TypeScript files (composite project validation)
+echo "==> checking for orphaned TypeScript files"
+./scripts/check-ts-orphans.sh
+
 # Build + tests
 # NOTE: Git tests are EXCLUDED from npm test and test:integration
 # Git tests require interactive GPG signing and are run via npm run test:git only
