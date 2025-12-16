@@ -20,6 +20,7 @@ import {
   type DbEncryptOptions,
 } from "./db.js";
 import { policyCheck, type PolicyCheckOptions } from "./policy-check.js";
+import { policyAddModule, type PolicyAddModuleOptions } from "./policy-add-module.js";
 import { codeAtlas, type CodeAtlasOptions } from "./code-atlas.js";
 import {
   instructionsInit,
@@ -310,6 +311,20 @@ export function createProgram(): Command {
         srcDir: cmdOptions.srcDir,
       };
       await policyCheck(options);
+    });
+
+  // lex policy add-module
+  policyCommand
+    .command("add-module <moduleId>")
+    .description("Add a new module to the policy file")
+    .option("--policy <path>", "Custom policy file path")
+    .action(async (moduleId, cmdOptions) => {
+      const globalOptions = program.opts();
+      const options: PolicyAddModuleOptions = {
+        json: globalOptions.json || false,
+        policyPath: cmdOptions.policy,
+      };
+      await policyAddModule(moduleId, options);
     });
 
   // lex instructions command group
