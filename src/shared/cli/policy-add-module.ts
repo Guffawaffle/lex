@@ -16,7 +16,11 @@ import { validatePolicySchema } from "../policy/schema.js";
 import type { Policy } from "../types/policy.js";
 import * as output from "./output.js";
 import { AXErrorException } from "../errors/ax-error.js";
-import { POLICY_ERROR_CODES, STANDARD_NEXT_ACTIONS } from "../errors/error-codes.js";
+import {
+  POLICY_ERROR_CODES,
+  VALIDATION_ERROR_CODES,
+  STANDARD_NEXT_ACTIONS,
+} from "../errors/error-codes.js";
 
 export interface PolicyAddModuleOptions {
   /** Custom policy file path */
@@ -127,10 +131,10 @@ export async function policyAddModule(
     // Validate moduleId format
     if (!moduleId || moduleId.trim() === "") {
       throw new AXErrorException(
-        POLICY_ERROR_CODES.POLICY_INVALID,
+        VALIDATION_ERROR_CODES.VALIDATION_REQUIRED_FIELD,
         "Module ID cannot be empty",
         ["Provide a valid module ID (e.g., cli/new-feature)"],
-        {}
+        { field: "moduleId" }
       );
     }
 
@@ -138,7 +142,7 @@ export async function policyAddModule(
 
     if (!MODULE_ID_PATTERN.test(trimmedModuleId)) {
       throw new AXErrorException(
-        POLICY_ERROR_CODES.POLICY_INVALID,
+        VALIDATION_ERROR_CODES.VALIDATION_INVALID_MODULE_ID,
         `Invalid module ID format: "${trimmedModuleId}"`,
         [
           `Module IDs must match pattern: ${MODULE_ID_PATTERN}`,
@@ -219,30 +223,13 @@ export async function policyAddModule(
 
     return result;
   } catch (error: unknown) {
-    // Re-throw AXErrorException as-is
+    // Re-throw AXErrorException as-is (it has proper error codes and next actions)
     if (error instanceof AXErrorException) {
       throw error;
     }
 
+    // Generic error fallback for unexpected errors
     const errorMessage = error instanceof Error ? error.message : String(error);
-
-    // Check if it's a file not found error suggesting init
-    if (errorMessage.includes("Policy file not found")) {
-      if (options.json) {
-        output.json({
-          success: false,
-          error: errorMessage,
-          suggestion: "Run 'lex init' to initialize workspace",
-        });
-      } else {
-        output.error("Policy file not found");
-        output.info("");
-        output.info("Run 'lex init' to initialize workspace with policy file");
-      }
-      process.exit(1);
-    }
-
-    // Generic error
     const result: PolicyAddModuleResult = {
       success: false,
       moduleId: moduleId || "",
