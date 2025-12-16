@@ -38,7 +38,7 @@ describe("MCP Server with MemoryFrameStore - Test Isolation", () => {
         const rememberResponse = await server.handleRequest({
           method: "tools/call",
           params: {
-            name: "lex.remember",
+            name: "remember",
             arguments: {
               reference_point: "memory store test",
               summary_caption: "Testing with MemoryFrameStore",
@@ -62,7 +62,7 @@ describe("MCP Server with MemoryFrameStore - Test Isolation", () => {
         const recallResponse = await server.handleRequest({
           method: "tools/call",
           params: {
-            name: "lex.recall",
+            name: "recall",
             arguments: { reference_point: "memory store" },
           },
         });
@@ -87,7 +87,7 @@ describe("MCP Server with MemoryFrameStore - Test Isolation", () => {
         await server.handleRequest({
           method: "tools/call",
           params: {
-            name: "lex.remember",
+            name: "remember",
             arguments: {
               reference_point: "test A unique frame",
               summary_caption: "Frame for test A",
@@ -119,7 +119,7 @@ describe("MCP Server with MemoryFrameStore - Test Isolation", () => {
         await server.handleRequest({
           method: "tools/call",
           params: {
-            name: "lex.remember",
+            name: "remember",
             arguments: {
               reference_point: "test B unique frame",
               summary_caption: "Frame for test B",
@@ -150,7 +150,7 @@ describe("MCP Server with MemoryFrameStore - Test Isolation", () => {
         const response = await server.handleRequest({
           method: "tools/call",
           params: {
-            name: "lex.remember",
+            name: "remember",
             arguments: {
               reference_point: "remember test",
               summary_caption: "Testing remember with MemoryFrameStore",
@@ -190,7 +190,7 @@ describe("MCP Server with MemoryFrameStore - Test Isolation", () => {
         await server.handleRequest({
           method: "tools/call",
           params: {
-            name: "lex.remember",
+            name: "remember",
             arguments: {
               reference_point: "searchable recall test",
               summary_caption: "Frame to recall",
@@ -205,7 +205,7 @@ describe("MCP Server with MemoryFrameStore - Test Isolation", () => {
         const response = await server.handleRequest({
           method: "tools/call",
           params: {
-            name: "lex.recall",
+            name: "recall",
             arguments: { reference_point: "searchable recall" },
           },
         });
@@ -231,7 +231,7 @@ describe("MCP Server with MemoryFrameStore - Test Isolation", () => {
           await server.handleRequest({
             method: "tools/call",
             params: {
-              name: "lex.remember",
+              name: "remember",
               arguments: {
                 reference_point: `list frame ${i}`,
                 summary_caption: `Frame number ${i}`,
@@ -247,7 +247,7 @@ describe("MCP Server with MemoryFrameStore - Test Isolation", () => {
         const response = await server.handleRequest({
           method: "tools/call",
           params: {
-            name: "lex.list_frames",
+            name: "list_frames",
             arguments: { limit: 10 },
           },
         });
@@ -273,7 +273,7 @@ describe("MCP Server with MemoryFrameStore - Test Isolation", () => {
         await server.handleRequest({
           method: "tools/call",
           params: {
-            name: "lex.remember",
+            name: "remember",
             arguments: {
               reference_point: "auth module frame",
               summary_caption: "Auth work",
@@ -287,7 +287,7 @@ describe("MCP Server with MemoryFrameStore - Test Isolation", () => {
         await server.handleRequest({
           method: "tools/call",
           params: {
-            name: "lex.remember",
+            name: "remember",
             arguments: {
               reference_point: "ui module frame",
               summary_caption: "UI work",
@@ -302,7 +302,7 @@ describe("MCP Server with MemoryFrameStore - Test Isolation", () => {
         const response = await server.handleRequest({
           method: "tools/call",
           params: {
-            name: "lex.list_frames",
+            name: "list_frames",
             arguments: { module: "policy/scanners", limit: 10 },
           },
         });
@@ -348,7 +348,7 @@ describe("MCP Server with MemoryFrameStore - Test Isolation", () => {
         const response = await server.handleRequest({
           method: "tools/call",
           params: {
-            name: "lex.recall",
+            name: "recall",
             arguments: { reference_point: "pre-existing" },
           },
         });
@@ -373,7 +373,7 @@ describe("MCP Server with MemoryFrameStore - Test Isolation", () => {
         const response = await server.handleRequest({
           method: "tools/call",
           params: {
-            name: "lex.remember",
+            name: "remember",
             arguments: {
               reference_point: "image test",
               summary_caption: "Testing image with MemoryFrameStore",

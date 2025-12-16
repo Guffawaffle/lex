@@ -20,7 +20,7 @@ export interface MCPTool {
  */
 export const MCP_TOOLS: MCPTool[] = [
   {
-    name: "lex_remember",
+    name: "remember",
     description: "Store a Frame (episodic memory snapshot)",
     inputSchema: {
       type: "object",
@@ -91,7 +91,7 @@ export const MCP_TOOLS: MCPTool[] = [
     },
   },
   {
-    name: "lex_recall",
+    name: "recall",
     description:
       "Search Frames by reference point, branch, or Jira ticket. Returns Frame + Atlas Frame neighborhood.",
     inputSchema: {
@@ -118,7 +118,7 @@ export const MCP_TOOLS: MCPTool[] = [
     },
   },
   {
-    name: "lex_list_frames",
+    name: "list_frames",
     description:
       "List recent Frames, optionally filtered by branch or module. Returns Frame + Atlas Frame for each result.",
     inputSchema: {
@@ -145,7 +145,7 @@ export const MCP_TOOLS: MCPTool[] = [
     },
   },
   {
-    name: "lex_policy_check",
+    name: "policy_check",
     description: "Validate code against policy rules from lexmap.policy.json",
     inputSchema: {
       type: "object",
@@ -166,7 +166,7 @@ export const MCP_TOOLS: MCPTool[] = [
     },
   },
   {
-    name: "lex_timeline",
+    name: "timeline",
     description: "Show visual timeline of Frame evolution for a ticket or branch",
     inputSchema: {
       type: "object",
@@ -194,7 +194,7 @@ export const MCP_TOOLS: MCPTool[] = [
     },
   },
   {
-    name: "lex_code_atlas",
+    name: "code_atlas",
     description: "Analyze code structure and dependencies across modules",
     inputSchema: {
       type: "object",

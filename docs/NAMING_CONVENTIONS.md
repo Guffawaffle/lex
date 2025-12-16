@@ -10,29 +10,46 @@ This document defines the naming conventions for all tools, commands, and identi
 
 ## MCP Tool Names
 
+### Key Insight: VS Code Prefix Behavior
+
+**VS Code automatically adds `mcp_{servername}_` prefix to ALL tool names.**
+
+This means tool names in source code should **NOT include a namespace prefix**. The prefix is added by VS Code at display time.
+
 ### Pattern (in source code)
 
 ```
-{namespace}_{category}_{action}
+{action}              # Simple action
+{category}_{action}   # Categorized action (when disambiguation needed)
 ```
-
-VS Code's MCP client automatically adds the `mcp_{servername}_` prefix when exposing tools.
-So a tool named `lex_remember` in code appears as `mcp_lex_lex_remember` in VS Code.
-
-**Important:** To avoid duplication, tool names in code should use just `{namespace}_{action}` without the `mcp_` prefix.
 
 | Component | Description | Constraints |
 |-----------|-------------|-------------|
-| `namespace` | Tool owner | Required. One of: `lex`, `lexsona`, `lexrunner` |
 | `category` | Domain/subsystem | Optional. Use when disambiguation needed |
-| `action` | Verb describing operation | Required. Lowercase, no separators |
+| `action` | Verb describing operation | Required. Lowercase snake_case |
+
+### How It Works
+
+| Source Name | Server | VS Code Display |
+|-------------|--------|-----------------|
+| `remember` | `lex` | `mcp_lex_remember` |
+| `start_run` | `lexrunner` | `mcp_lexrunner_start_run` |
+| `persona_activate` | `lexsona` | `mcp_lexsona_persona_activate` |
+
+### Reference: GitHub MCP Pattern
+
+GitHub's MCP server defines tools like `create_pull_request` (not `github_create_pull_request`).
+VS Code displays these as `mcp_github_create_pull_request`.
+
+**We follow this same pattern.**
 
 ### Rules
 
-1. **All lowercase** — no camelCase, no PascalCase
-2. **Underscore only** — no hyphens, no dots
-3. **No abbreviations** — prefer `discover` over `disc`
-4. **Verb last** — `gate_run` not `run_gate`
+1. **No namespace prefix** — VS Code adds `mcp_{server}_` automatically
+2. **All lowercase** — no camelCase, no PascalCase
+3. **Underscore only** — no hyphens, no dots (snake_case)
+4. **No abbreviations** — prefer `discover` over `disc`
+5. **Action-oriented** — name should describe what the tool does
 
 ### Rationale
 
@@ -48,55 +65,45 @@ Keep the category set **small and stable**:
 
 | Category | Domain | Examples |
 |----------|--------|----------|
-| `core` | Cross-cutting / no clear domain | `mcp_lexrunner_core_health` |
-| `weave` | Merge-weave orchestration | `mcp_lexrunner_weave_discover` |
-| `gate` | CI/gate execution | `mcp_lexrunner_gate_run` |
-| `plan` | Plan creation/validation | `mcp_lexrunner_plan_create` |
-| `workspace` | Local workspace management | `mcp_lexrunner_workspace_init` |
-| `run` | Run lifecycle management | `mcp_lexrunner_run_start` |
-| `persona` | Persona management | `mcp_lexsona_persona_activate` |
-| `rules` | Behavioral rules | `mcp_lexsona_rules_learn` |
-| `constraints` | Constraint derivation | `mcp_lexsona_constraints_derive` |
-| `memory` | Frame/memory operations | `mcp_lex_memory_recall` |
-| `policy` | Policy validation | `mcp_lex_policy_check` |
+| `run` | Run lifecycle management | `start_run`, `get_status` |
+| `gate` | CI/gate execution | `gates_run` |
+| `plan` | Plan creation/validation | `plan_create` |
+| `persona` | Persona management | `persona_activate` |
+| `rules` | Behavioral rules | `rules_learn` |
+| `constraints` | Constraint derivation | `constraints_derive` |
 
 New categories require justification and should be added sparingly.
 
 ### Examples
 
-**LexRunner:**
+**Lex (displayed as `mcp_lex_{name}`):**
 ```
-lexrunner_weave_discover
-lexrunner_weave_plan
-lexrunner_weave_status
-lexrunner_gate_run
-lexrunner_plan_create
-lexrunner_plan_validate
-lexrunner_workspace_init
-lexrunner_workspace_doctor
-lexrunner_run_start
-lexrunner_run_status
-lexrunner_core_health
+remember           → mcp_lex_remember
+recall             → mcp_lex_recall
+list_frames        → mcp_lex_list_frames
+timeline           → mcp_lex_timeline
+policy_check       → mcp_lex_policy_check
+code_atlas         → mcp_lex_code_atlas
 ```
 
-**LexSona:**
+**LexRunner (displayed as `mcp_lexrunner_{name}`):**
 ```
-lexsona_persona_activate
-lexsona_persona_list
-lexsona_persona_show
-lexsona_rules_learn
-lexsona_rules_list
-lexsona_constraints_derive
+discover           → mcp_lexrunner_discover
+doctor             → mcp_lexrunner_doctor
+local_init         → mcp_lexrunner_local_init
+start_run          → mcp_lexrunner_start_run
+list_artifacts     → mcp_lexrunner_list_artifacts
+get_status         → mcp_lexrunner_get_status
+gates_run          → mcp_lexrunner_gates_run
+plan_create        → mcp_lexrunner_plan_create
 ```
 
-**Lex:**
+**LexSona (displayed as `mcp_lexsona_{name}`):**
 ```
-lex_remember
-lex_recall
-lex_list_frames
-lex_timeline
-lex_policy_check
-lex_code_atlas
+persona_activate   → mcp_lexsona_persona_activate
+persona_list       → mcp_lexsona_persona_list
+rules_learn        → mcp_lexsona_rules_learn
+constraints_derive → mcp_lexsona_constraints_derive
 ```
 
 ---

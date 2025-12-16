@@ -45,10 +45,10 @@ describe("MCP Server - Timeline Tool", () => {
 
       assert.ok(response.tools, "Response should have tools array");
       const toolNames = response.tools.map((t: { name: string }) => t.name);
-      assert.ok(toolNames.includes("lex_timeline"), "Should include lex_timeline");
+      assert.ok(toolNames.includes("timeline"), "Should include lex_timeline");
 
       // Find the timeline tool and check its schema
-      const timelineTool = response.tools.find((t: { name: string }) => t.name === "lex_timeline");
+      const timelineTool = response.tools.find((t: { name: string }) => t.name === "timeline");
       assert.ok(timelineTool, "Timeline tool should exist");
       assert.ok(timelineTool.inputSchema, "Timeline tool should have inputSchema");
       assert.ok(
@@ -67,7 +67,7 @@ describe("MCP Server - Timeline Tool", () => {
       await srv.handleRequest({
         method: "tools/call",
         params: {
-          name: "lex.remember",
+          name: "remember",
           arguments: {
             reference_point: "initial work",
             summary_caption: "Started feature",
@@ -84,7 +84,7 @@ describe("MCP Server - Timeline Tool", () => {
       await srv.handleRequest({
         method: "tools/call",
         params: {
-          name: "lex.remember",
+          name: "remember",
           arguments: {
             reference_point: "added tests",
             summary_caption: "Added unit tests",
@@ -102,7 +102,7 @@ describe("MCP Server - Timeline Tool", () => {
       const response = await srv.handleRequest({
         method: "tools/call",
         params: {
-          name: "lex.timeline",
+          name: "timeline",
           arguments: {
             ticketOrBranch: "TICKET-123",
           },
@@ -127,7 +127,7 @@ describe("MCP Server - Timeline Tool", () => {
       await srv.handleRequest({
         method: "tools/call",
         params: {
-          name: "lex.remember",
+          name: "remember",
           arguments: {
             reference_point: "branch work 1",
             summary_caption: "First commit",
@@ -143,7 +143,7 @@ describe("MCP Server - Timeline Tool", () => {
       await srv.handleRequest({
         method: "tools/call",
         params: {
-          name: "lex.remember",
+          name: "remember",
           arguments: {
             reference_point: "branch work 2",
             summary_caption: "Second commit",
@@ -160,7 +160,7 @@ describe("MCP Server - Timeline Tool", () => {
       const response = await srv.handleRequest({
         method: "tools/call",
         params: {
-          name: "lex.timeline",
+          name: "timeline",
           arguments: {
             ticketOrBranch: "feature/timeline",
           },
@@ -183,7 +183,7 @@ describe("MCP Server - Timeline Tool", () => {
       const response = await srv.handleRequest({
         method: "tools/call",
         params: {
-          name: "lex.timeline",
+          name: "timeline",
           arguments: {
             ticketOrBranch: "NONEXISTENT-999",
           },
@@ -206,7 +206,7 @@ describe("MCP Server - Timeline Tool", () => {
       await srv.handleRequest({
         method: "tools/call",
         params: {
-          name: "lex.remember",
+          name: "remember",
           arguments: {
             reference_point: "old work",
             summary_caption: "Old frame",
@@ -228,7 +228,7 @@ describe("MCP Server - Timeline Tool", () => {
       await srv.handleRequest({
         method: "tools/call",
         params: {
-          name: "lex.remember",
+          name: "remember",
           arguments: {
             reference_point: "new work",
             summary_caption: "New frame",
@@ -245,7 +245,7 @@ describe("MCP Server - Timeline Tool", () => {
       const response = await srv.handleRequest({
         method: "tools/call",
         params: {
-          name: "lex.timeline",
+          name: "timeline",
           arguments: {
             ticketOrBranch: "TICKET-456",
             since: sinceDate,
@@ -268,7 +268,7 @@ describe("MCP Server - Timeline Tool", () => {
       await srv.handleRequest({
         method: "tools/call",
         params: {
-          name: "lex.remember",
+          name: "remember",
           arguments: {
             reference_point: "json test",
             summary_caption: "JSON format test",
@@ -284,7 +284,7 @@ describe("MCP Server - Timeline Tool", () => {
       const response = await srv.handleRequest({
         method: "tools/call",
         params: {
-          name: "lex.timeline",
+          name: "timeline",
           arguments: {
             ticketOrBranch: "TICKET-JSON",
             format: "json",
@@ -314,7 +314,7 @@ describe("MCP Server - Timeline Tool", () => {
       const response = await srv.handleRequest({
         method: "tools/call",
         params: {
-          name: "lex.timeline",
+          name: "timeline",
           arguments: {},
         },
       });
@@ -335,7 +335,7 @@ describe("MCP Server - Timeline Tool", () => {
       await srv.handleRequest({
         method: "tools/call",
         params: {
-          name: "lex.remember",
+          name: "remember",
           arguments: {
             reference_point: "filtered out",
             summary_caption: "Old frame",
@@ -354,7 +354,7 @@ describe("MCP Server - Timeline Tool", () => {
       const response = await srv.handleRequest({
         method: "tools/call",
         params: {
-          name: "lex.timeline",
+          name: "timeline",
           arguments: {
             ticketOrBranch: "TICKET-FILTER",
             since: futureDate,

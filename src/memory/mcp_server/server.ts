@@ -325,41 +325,41 @@ export class MCPServer {
     const { name, arguments: args } = params;
 
     switch (name) {
-      // Canonical names (lex_{action} - VS Code adds mcp_lex_ prefix)
-      case "lex_remember":
-      case "lex.remember": // Deprecated alias
+      // Canonical names - VS Code adds mcp_lex_ prefix automatically
+      case "remember":
+      case "lex_remember": // Deprecated alias (v2.0.x)
         return await this.handleRemember(args);
 
-      case "lex_recall":
-      case "lex.recall": // Deprecated alias
+      case "recall":
+      case "lex_recall": // Deprecated alias (v2.0.x)
         return await this.handleRecall(args);
 
-      case "lex_list_frames":
-      case "lex.list_frames": // Deprecated alias
+      case "list_frames":
+      case "lex_list_frames": // Deprecated alias (v2.0.x)
         return await this.handleListFrames(args);
 
-      case "lex_policy_check":
-      case "lex.policy_check": // Deprecated alias
+      case "policy_check":
+      case "lex_policy_check": // Deprecated alias (v2.0.x)
         return await this.handlePolicyCheck(args);
 
-      case "lex_timeline":
-      case "lex.timeline": // Deprecated alias
+      case "timeline":
+      case "lex_timeline": // Deprecated alias (v2.0.x)
         return await this.handleTimeline(args);
 
-      case "lex_code_atlas":
-      case "lex.code_atlas": // Deprecated alias
+      case "code_atlas":
+      case "lex_code_atlas": // Deprecated alias (v2.0.x)
         return await this.handleCodeAtlas(args);
 
       default:
         throw new MCPError(MCPErrorCode.INTERNAL_UNKNOWN_TOOL, `Unknown tool: ${name}`, {
           requestedTool: name,
           availableTools: [
-            "lex_remember",
-            "lex_recall",
-            "lex_list_frames",
-            "lex_policy_check",
-            "lex_timeline",
-            "lex_code_atlas",
+            "remember",
+            "recall",
+            "list_frames",
+            "policy_check",
+            "timeline",
+            "code_atlas",
           ],
         });
     }

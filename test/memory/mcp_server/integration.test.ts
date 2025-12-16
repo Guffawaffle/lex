@@ -61,7 +61,7 @@ describe("MCP Server Integration Tests", () => {
         const rememberResponse = await srv.handleRequest({
           method: "tools/call",
           params: {
-            name: "lex.remember",
+            name: "remember",
             arguments: rememberArgs,
           },
         });
@@ -76,7 +76,7 @@ describe("MCP Server Integration Tests", () => {
         const recallResponse = await srv.handleRequest({
           method: "tools/call",
           params: {
-            name: "lex.recall",
+            name: "recall",
             arguments: {
               reference_point: "integration cycle",
             },
@@ -120,7 +120,7 @@ describe("MCP Server Integration Tests", () => {
           await srv.handleRequest({
             method: "tools/call",
             params: {
-              name: "lex.remember",
+              name: "remember",
               arguments: frame,
             },
           });
@@ -130,7 +130,7 @@ describe("MCP Server Integration Tests", () => {
         const listResponse = await srv.handleRequest({
           method: "tools/call",
           params: {
-            name: "lex.list_frames",
+            name: "list_frames",
             arguments: { limit: 10 },
           },
         });
@@ -145,7 +145,7 @@ describe("MCP Server Integration Tests", () => {
         const recallResponse = await srv.handleRequest({
           method: "tools/call",
           params: {
-            name: "lex.recall",
+            name: "recall",
             arguments: {
               reference_point: "first frame",
             },
@@ -170,7 +170,7 @@ describe("MCP Server Integration Tests", () => {
         const response = await srv.handleRequest({
           method: "tools/call",
           params: {
-            name: "lex.remember",
+            name: "remember",
             arguments: {
               reference_point: "invalid module test",
               summary_caption: "Testing validation",
@@ -204,7 +204,7 @@ describe("MCP Server Integration Tests", () => {
         const response = await srv.handleRequest({
           method: "tools/call",
           params: {
-            name: "lex.remember",
+            name: "remember",
             arguments: {
               reference_point: "typo test",
               summary_caption: "Testing fuzzy matching",
@@ -227,7 +227,7 @@ describe("MCP Server Integration Tests", () => {
         const response = await srv.handleRequest({
           method: "tools/call",
           params: {
-            name: "lex.remember",
+            name: "remember",
             arguments: {
               reference_point: "all valid modules",
               summary_caption: "Testing with all valid modules",
@@ -253,7 +253,7 @@ describe("MCP Server Integration Tests", () => {
         await srv.handleRequest({
           method: "tools/call",
           params: {
-            name: "lex.remember",
+            name: "remember",
             arguments: {
               reference_point: "authentication refactoring work",
               summary_caption: "Refactored auth system",
@@ -267,7 +267,7 @@ describe("MCP Server Integration Tests", () => {
         const searchResponse = await srv.handleRequest({
           method: "tools/call",
           params: {
-            name: "lex.recall",
+            name: "recall",
             arguments: {
               reference_point: "authentication refactoring",
             },
@@ -290,7 +290,7 @@ describe("MCP Server Integration Tests", () => {
         await srv.handleRequest({
           method: "tools/call",
           params: {
-            name: "lex.remember",
+            name: "remember",
             arguments: {
               reference_point: "payment system",
               summary_caption: "Stripe integration for payment processing",
@@ -305,7 +305,7 @@ describe("MCP Server Integration Tests", () => {
         const keywordSearch = await srv.handleRequest({
           method: "tools/call",
           params: {
-            name: "lex.recall",
+            name: "recall",
             arguments: {
               reference_point: "stripe",
             },
@@ -322,7 +322,7 @@ describe("MCP Server Integration Tests", () => {
         const summarySearch = await srv.handleRequest({
           method: "tools/call",
           params: {
-            name: "lex.recall",
+            name: "recall",
             arguments: {
               reference_point: "integration processing",
             },
@@ -345,7 +345,7 @@ describe("MCP Server Integration Tests", () => {
         await srv.handleRequest({
           method: "tools/call",
           params: {
-            name: "lex.remember",
+            name: "remember",
             arguments: {
               reference_point: "database optimization",
               summary_caption: "Optimized database queries",
@@ -360,7 +360,7 @@ describe("MCP Server Integration Tests", () => {
         const wildcardSearch = await srv.handleRequest({
           method: "tools/call",
           params: {
-            name: "lex.recall",
+            name: "recall",
             arguments: {
               reference_point: "datab*",
             },
@@ -386,7 +386,7 @@ describe("MCP Server Integration Tests", () => {
         await srv.handleRequest({
           method: "tools/call",
           params: {
-            name: "lex.remember",
+            name: "remember",
             arguments: {
               reference_point: "indexer work",
               summary_caption: "Indexer module",
@@ -399,7 +399,7 @@ describe("MCP Server Integration Tests", () => {
         await srv.handleRequest({
           method: "tools/call",
           params: {
-            name: "lex.remember",
+            name: "remember",
             arguments: {
               reference_point: "typescript work",
               summary_caption: "TS module",
@@ -413,7 +413,7 @@ describe("MCP Server Integration Tests", () => {
         const filterResponse = await srv.handleRequest({
           method: "tools/call",
           params: {
-            name: "lex.list_frames",
+            name: "list_frames",
             arguments: {
               module: "policy/scanners",
               limit: 10,
@@ -443,7 +443,7 @@ describe("MCP Server Integration Tests", () => {
           await srv.handleRequest({
             method: "tools/call",
             params: {
-              name: "lex.remember",
+              name: "remember",
               arguments: {
                 reference_point: `frame ${i}`,
                 summary_caption: `Frame ${i}`,
@@ -458,7 +458,7 @@ describe("MCP Server Integration Tests", () => {
         const limitedResponse = await srv.handleRequest({
           method: "tools/call",
           params: {
-            name: "lex.list_frames",
+            name: "list_frames",
             arguments: {
               limit: 3,
             },
@@ -483,7 +483,7 @@ describe("MCP Server Integration Tests", () => {
         const response = await srv.handleRequest({
           method: "tools/call",
           params: {
-            name: "lex.remember",
+            name: "remember",
             arguments: {
               reference_point: "incomplete",
               // Missing: summary_caption, status_snapshot, module_scope
@@ -507,7 +507,7 @@ describe("MCP Server Integration Tests", () => {
         const response = await srv.handleRequest({
           method: "tools/call",
           params: {
-            name: "lex.recall",
+            name: "recall",
             arguments: {
               reference_point: "zzz-nonexistent-query-zzz",
             },
@@ -530,7 +530,7 @@ describe("MCP Server Integration Tests", () => {
         const response = await srv.handleRequest({
           method: "tools/call",
           params: {
-            name: "lex.recall",
+            name: "recall",
             arguments: {},
           },
         });
@@ -593,12 +593,12 @@ describe("MCP Server Integration Tests", () => {
         assert.strictEqual(response.tools.length, 6, "Should have 6 tools");
 
         const toolNames = response.tools.map((t) => t.name);
-        assert.ok(toolNames.includes("lex_remember"));
-        assert.ok(toolNames.includes("lex_recall"));
-        assert.ok(toolNames.includes("lex_list_frames"));
-        assert.ok(toolNames.includes("lex_policy_check"));
-        assert.ok(toolNames.includes("lex_timeline"));
-        assert.ok(toolNames.includes("lex_code_atlas"));
+        assert.ok(toolNames.includes("remember"));
+        assert.ok(toolNames.includes("recall"));
+        assert.ok(toolNames.includes("list_frames"));
+        assert.ok(toolNames.includes("policy_check"));
+        assert.ok(toolNames.includes("timeline"));
+        assert.ok(toolNames.includes("code_atlas"));
       } finally {
         await teardown();
       }
@@ -611,7 +611,7 @@ describe("MCP Server Integration Tests", () => {
           method: "tools/list",
         });
 
-        const rememberTool = response.tools?.find((t) => t.name === "lex_remember");
+        const rememberTool = response.tools?.find((t) => t.name === "remember");
         assert.ok(rememberTool, "Should include lex_remember");
         assert.ok(rememberTool.inputSchema, "Should include input schema");
         assert.ok(rememberTool.inputSchema.properties, "Schema should have properties");

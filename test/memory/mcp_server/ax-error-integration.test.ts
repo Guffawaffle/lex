@@ -95,7 +95,7 @@ describe("AXError Integration - MCP Server", () => {
         const request = {
           method: "tools/call",
           params: {
-            name: "lex.recall",
+            name: "recall",
             arguments: {
               // No search parameters provided
             },
