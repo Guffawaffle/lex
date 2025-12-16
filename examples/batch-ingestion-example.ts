@@ -2,7 +2,8 @@
  * Example: External Orchestrator Batch Frame Ingestion
  *
  * This example demonstrates how an external orchestrator can use the
- * batch Frame ingestion API to record multi-step workflows atomically.
+ * batch Frame ingestion API to record multi-step workflows atomically,
+ * and optionally trigger Atlas rebuilds after successful ingestion.
  *
  * Usage:
  *   npx tsx examples/batch-ingestion-example.ts
@@ -108,6 +109,54 @@ async function runFailingWorkflow() {
 }
 
 /**
+ * Example: Batch ingestion with Atlas rebuild hook
+ * 
+ * Demonstrates using the onSuccess callback to trigger Atlas rebuilds
+ * after successful batch ingestion.
+ */
+async function runWorkflowWithAtlasRebuild(workflowId: string, steps: string[]) {
+  console.log(`\n🔄 Running workflow with Atlas rebuild hook: ${workflowId}`);
+  console.log(`   Steps: ${steps.join(' → ')}\n`);
+
+  const store = createFrameStore(":memory:");
+
+  const frames: FrameInput[] = steps.map((step, index) => ({
+    id: `${workflowId}-step-${index + 1}`,
+    timestamp: new Date(Date.now() + index * 1000).toISOString(),
+    branch: "main",
+    module_scope: ["atlas-demo"],
+    summary_caption: `Completed: ${step}`,
+    reference_point: step,
+    status_snapshot: {
+      next_action: index < steps.length - 1 ? steps[index + 1] : "Workflow complete",
+    },
+    runId: workflowId,
+  }));
+
+  console.log(`📦 Ingesting ${frames.length} Frames with rebuild hook...`);
+  
+  const result = await insertFramesBatch(store, frames, {
+    // Hook to trigger after successful batch ingestion
+    onSuccess: async (batchResult) => {
+      console.log(`   🔄 onSuccess hook triggered!`);
+      console.log(`   📊 Batch result: ${batchResult.count} frames ingested`);
+      
+      // In a real application, you would trigger Atlas rebuild here:
+      // import { triggerAtlasRebuild } from '@smartergpt/lex/atlas';
+      // await triggerAtlasRebuild();
+      
+      console.log(`   ✨ Simulated Atlas rebuild scheduling`);
+    },
+  });
+
+  if (result.success) {
+    console.log(`✅ Workflow complete with ${result.count} Frames`);
+  }
+
+  await store.close();
+}
+
+/**
  * Main example runner
  */
 async function main() {
@@ -133,7 +182,14 @@ async function main() {
     "Generate report",
   ]);
 
-  // Example 3: Failure scenario (validation error)
+  // Example 3: Workflow with Atlas rebuild hook (L-EXE-004)
+  await runWorkflowWithAtlasRebuild("atlas-workflow-001", [
+    "Initialize system",
+    "Process data",
+    "Generate insights",
+  ]);
+
+  // Example 4: Failure scenario (validation error)
   await runFailingWorkflow();
 
   console.log("\n=================================================");
