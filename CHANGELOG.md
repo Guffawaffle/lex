@@ -32,17 +32,17 @@ _No unreleased changes._
 
 ### Added
 
-- **MCP tool naming convention** - All MCP tools renamed to `mcp_lex_{category}_{action}` pattern
-  - `lex.remember` → `mcp_lex_frame_remember`
-  - `lex.recall` → `mcp_lex_frame_recall`
-  - `lex.list_frames` → `mcp_lex_frame_list`
-  - `lex.timeline` → `mcp_lex_frame_timeline`
-  - `lex.policy_check` → `mcp_lex_policy_check`
-  - `lex.code_atlas` → `mcp_lex_atlas_analyze`
+- **MCP tool naming convention** - All MCP tools renamed to `lex_{action}` pattern (VS Code adds `mcp_lex_` prefix)
+  - `lex.remember` → `lex_remember`
+  - `lex.recall` → `lex_recall`
+  - `lex.list_frames` → `lex_list_frames`
+  - `lex.timeline` → `lex_timeline`
+  - `lex.policy_check` → `lex_policy_check`
+  - `lex.code_atlas` → `lex_code_atlas`
   - Old names preserved as deprecated aliases for backwards compatibility
 
 - **Ecosystem naming conventions** - Added `docs/NAMING_CONVENTIONS.md` as canonical spec for:
-  - MCP tool names: `mcp_{namespace}_{category}_{action}`
+  - MCP tool names: `{namespace}_{action}` (VS Code adds `mcp_{server}_` prefix)
   - CLI commands: `{cli} {category} {action}`
   - File names, TypeScript identifiers, persona IDs
 

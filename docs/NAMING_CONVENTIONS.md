@@ -10,17 +10,21 @@ This document defines the naming conventions for all tools, commands, and identi
 
 ## MCP Tool Names
 
-### Pattern
+### Pattern (in source code)
 
 ```
-mcp_{namespace}_{category}_{action}
+{namespace}_{category}_{action}
 ```
+
+VS Code's MCP client automatically adds the `mcp_{servername}_` prefix when exposing tools.
+So a tool named `lex_remember` in code appears as `mcp_lex_lex_remember` in VS Code.
+
+**Important:** To avoid duplication, tool names in code should use just `{namespace}_{action}` without the `mcp_` prefix.
 
 | Component | Description | Constraints |
 |-----------|-------------|-------------|
-| `mcp_` | Global prefix | Required. Matches ecosystem convention (GitHub MCP, etc.) |
 | `namespace` | Tool owner | Required. One of: `lex`, `lexsona`, `lexrunner` |
-| `category` | Domain/subsystem | Required. Use `core` if no domain fits cleanly |
+| `category` | Domain/subsystem | Optional. Use when disambiguation needed |
 | `action` | Verb describing operation | Required. Lowercase, no separators |
 
 ### Rules
@@ -28,7 +32,7 @@ mcp_{namespace}_{category}_{action}
 1. **All lowercase** — no camelCase, no PascalCase
 2. **Underscore only** — no hyphens, no dots
 3. **No abbreviations** — prefer `discover` over `disc`
-4. **Verb last** — `mcp_lexrunner_gate_run` not `mcp_lexrunner_run_gate`
+4. **Verb last** — `gate_run` not `run_gate`
 
 ### Rationale
 
@@ -62,36 +66,37 @@ New categories require justification and should be added sparingly.
 
 **LexRunner:**
 ```
-mcp_lexrunner_weave_discover
-mcp_lexrunner_weave_plan
-mcp_lexrunner_weave_status
-mcp_lexrunner_gate_run
-mcp_lexrunner_plan_create
-mcp_lexrunner_plan_validate
-mcp_lexrunner_workspace_init
-mcp_lexrunner_workspace_doctor
-mcp_lexrunner_run_start
-mcp_lexrunner_run_status
-mcp_lexrunner_core_health
+lexrunner_weave_discover
+lexrunner_weave_plan
+lexrunner_weave_status
+lexrunner_gate_run
+lexrunner_plan_create
+lexrunner_plan_validate
+lexrunner_workspace_init
+lexrunner_workspace_doctor
+lexrunner_run_start
+lexrunner_run_status
+lexrunner_core_health
 ```
 
 **LexSona:**
 ```
-mcp_lexsona_persona_activate
-mcp_lexsona_persona_list
-mcp_lexsona_persona_show
-mcp_lexsona_rules_learn
-mcp_lexsona_rules_list
-mcp_lexsona_constraints_derive
+lexsona_persona_activate
+lexsona_persona_list
+lexsona_persona_show
+lexsona_rules_learn
+lexsona_rules_list
+lexsona_constraints_derive
 ```
 
 **Lex:**
 ```
-mcp_lex_memory_recall
-mcp_lex_memory_remember
-mcp_lex_memory_timeline
-mcp_lex_policy_check
-mcp_lex_atlas_generate
+lex_remember
+lex_recall
+lex_list_frames
+lex_timeline
+lex_policy_check
+lex_code_atlas
 ```
 
 ---

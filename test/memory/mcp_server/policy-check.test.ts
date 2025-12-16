@@ -213,7 +213,7 @@ describe("MCP Server - lex.policy_check", () => {
     }
   });
 
-  test("tools/list includes mcp_lex_policy_check", async () => {
+  test("tools/list includes lex_policy_check", async () => {
     const srv = setup();
     try {
       const response = await srv.handleRequest({ method: "tools/list" });
@@ -221,12 +221,12 @@ describe("MCP Server - lex.policy_check", () => {
       assert.ok(response.tools, "Response should have tools array");
       const toolNames = response.tools.map((t: any) => t.name);
       assert.ok(
-        toolNames.includes("mcp_lex_policy_check"),
-        "Should include mcp_lex_policy_check tool"
+        toolNames.includes("lex_policy_check"),
+        "Should include lex_policy_check tool"
       );
 
       // Find the policy_check tool and verify its schema
-      const policyCheckTool = response.tools.find((t: any) => t.name === "mcp_lex_policy_check");
+      const policyCheckTool = response.tools.find((t: any) => t.name === "lex_policy_check");
       assert.ok(policyCheckTool, "Should find policy_check tool");
       assert.ok(policyCheckTool.description, "Tool should have description");
       assert.ok(policyCheckTool.inputSchema, "Tool should have input schema");

@@ -325,28 +325,28 @@ export class MCPServer {
     const { name, arguments: args } = params;
 
     switch (name) {
-      // Canonical names (mcp_lex_{category}_{action})
-      case "mcp_lex_frame_remember":
+      // Canonical names (lex_{action} - VS Code adds mcp_lex_ prefix)
+      case "lex_remember":
       case "lex.remember": // Deprecated alias
         return await this.handleRemember(args);
 
-      case "mcp_lex_frame_recall":
+      case "lex_recall":
       case "lex.recall": // Deprecated alias
         return await this.handleRecall(args);
 
-      case "mcp_lex_frame_list":
+      case "lex_list_frames":
       case "lex.list_frames": // Deprecated alias
         return await this.handleListFrames(args);
 
-      case "mcp_lex_policy_check":
+      case "lex_policy_check":
       case "lex.policy_check": // Deprecated alias
         return await this.handlePolicyCheck(args);
 
-      case "mcp_lex_frame_timeline":
+      case "lex_timeline":
       case "lex.timeline": // Deprecated alias
         return await this.handleTimeline(args);
 
-      case "mcp_lex_atlas_analyze":
+      case "lex_code_atlas":
       case "lex.code_atlas": // Deprecated alias
         return await this.handleCodeAtlas(args);
 
@@ -354,12 +354,12 @@ export class MCPServer {
         throw new MCPError(MCPErrorCode.INTERNAL_UNKNOWN_TOOL, `Unknown tool: ${name}`, {
           requestedTool: name,
           availableTools: [
-            "mcp_lex_frame_remember",
-            "mcp_lex_frame_recall",
-            "mcp_lex_frame_list",
-            "mcp_lex_policy_check",
-            "mcp_lex_frame_timeline",
-            "mcp_lex_atlas_analyze",
+            "lex_remember",
+            "lex_recall",
+            "lex_list_frames",
+            "lex_policy_check",
+            "lex_timeline",
+            "lex_code_atlas",
           ],
         });
     }
