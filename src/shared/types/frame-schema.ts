@@ -12,6 +12,35 @@
 import { z } from "zod";
 
 /**
+ * Capability tier enum - classifies task complexity
+ */
+export const CapabilityTierSchema = z.enum(["senior", "mid", "junior"]);
+
+export type CapabilityTier = z.infer<typeof CapabilityTierSchema>;
+
+/**
+ * Task complexity metadata
+ */
+export const TaskComplexitySchema = z.object({
+  /** Capability tier required for this task */
+  tier: CapabilityTierSchema,
+
+  /** Model/executor assigned to the task */
+  assignedModel: z.string().optional(),
+
+  /** Whether task was escalated */
+  escalated: z.boolean().optional(),
+
+  /** Reason for escalation */
+  escalationReason: z.string().optional(),
+
+  /** Number of retry attempts */
+  retryCount: z.number().int().nonnegative().optional(),
+});
+
+export type TaskComplexity = z.infer<typeof TaskComplexitySchema>;
+
+/**
  * SpendMetadata schema - tracks LLM usage
  */
 export const SpendMetadataSchema = z.object({
@@ -171,6 +200,12 @@ export const FrameSchema = z.object({
 
   /** Turn Cost coordination metrics */
   turnCost: TurnCostSchema.optional(),
+
+  /** Capability tier classification (governance) */
+  capabilityTier: CapabilityTierSchema.optional(),
+
+  /** Task complexity metadata (governance) */
+  taskComplexity: TaskComplexitySchema.optional(),
 });
 
 export type Frame = z.infer<typeof FrameSchema>;
