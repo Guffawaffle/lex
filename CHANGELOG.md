@@ -28,6 +28,38 @@ _No unreleased changes._
 
 ---
 
+## [2.1.0] - 2025-12-16
+
+### ⚠️ BREAKING CHANGE: MCP Tool Names
+
+**VS Code automatically adds `mcp_{servername}_` prefix to all tool names.** Our previous naming included redundant prefixes, causing tools to appear as `mcp_lex_lex_remember` instead of `mcp_lex_remember`.
+
+This release removes the namespace prefix from tool definitions to match the GitHub MCP pattern.
+
+#### Migration Guide
+
+| v2.0.x Tool Name | v2.1.x Tool Name | VS Code Display |
+|------------------|------------------|-----------------|
+| `lex_remember` | `remember` | `mcp_lex_remember` |
+| `lex_recall` | `recall` | `mcp_lex_recall` |
+| `lex_list_frames` | `list_frames` | `mcp_lex_list_frames` |
+| `lex_timeline` | `timeline` | `mcp_lex_timeline` |
+| `lex_policy_check` | `policy_check` | `mcp_lex_policy_check` |
+| `lex_code_atlas` | `code_atlas` | `mcp_lex_code_atlas` |
+
+**Backwards Compatibility:** The old `lex_*` names are preserved as deprecated aliases and will continue to work. They will be removed in v3.0.0.
+
+### Changed
+
+- MCP tool names no longer include namespace prefix (GitHub MCP pattern)
+- Updated `docs/NAMING_CONVENTIONS.md` with correct VS Code prefix behavior
+
+### Fixed
+
+- Tools now display correctly in VS Code as `mcp_lex_{action}` instead of `mcp_lex_lex_{action}`
+
+---
+
 ## [2.0.3] - 2025-12-16
 
 ### Added

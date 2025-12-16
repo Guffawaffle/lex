@@ -70,7 +70,7 @@ describe("MCP Server Alias Resolution Integration Tests", () => {
         const response = await srv.handleRequest({
           method: "tools/call",
           params: {
-            name: "lex.remember",
+            name: "remember",
             arguments: {
               reference_point: "Testing exact match",
               summary_caption: "Exact module ID match test",
@@ -101,7 +101,7 @@ describe("MCP Server Alias Resolution Integration Tests", () => {
         const response = await srv.handleRequest({
           method: "tools/call",
           params: {
-            name: "lex.remember",
+            name: "remember",
             arguments: {
               reference_point: "Multiple exact modules",
               summary_caption: "Testing multiple exact matches",
@@ -128,7 +128,7 @@ describe("MCP Server Alias Resolution Integration Tests", () => {
         const response = await srv.handleRequest({
           method: "tools/call",
           params: {
-            name: "lex.remember",
+            name: "remember",
             arguments: {
               reference_point: "Testing typo correction",
               summary_caption: "Typo in module ID",
@@ -158,7 +158,7 @@ describe("MCP Server Alias Resolution Integration Tests", () => {
         const response = await srv.handleRequest({
           method: "tools/call",
           params: {
-            name: "lex.remember",
+            name: "remember",
             arguments: {
               reference_point: "Testing fuzzy matching",
               summary_caption: "Common typo test",
@@ -189,7 +189,7 @@ describe("MCP Server Alias Resolution Integration Tests", () => {
         const response = await srv.handleRequest({
           method: "tools/call",
           params: {
-            name: "lex.remember",
+            name: "remember",
             arguments: {
               reference_point: "Testing substring",
               summary_caption: "Substring module reference",
@@ -215,7 +215,7 @@ describe("MCP Server Alias Resolution Integration Tests", () => {
         const response = await srv.handleRequest({
           method: "tools/call",
           params: {
-            name: "lex.remember",
+            name: "remember",
             arguments: {
               reference_point: "Testing shorthand",
               summary_caption: "Shorthand module ID",
@@ -246,7 +246,7 @@ describe("MCP Server Alias Resolution Integration Tests", () => {
         const response = await srv.handleRequest({
           method: "tools/call",
           params: {
-            name: "lex.remember",
+            name: "remember",
             arguments: {
               reference_point: "Testing ambiguous input",
               summary_caption: "Ambiguous module reference",
@@ -274,7 +274,7 @@ describe("MCP Server Alias Resolution Integration Tests", () => {
         const response = await srv.handleRequest({
           method: "tools/call",
           params: {
-            name: "lex.remember",
+            name: "remember",
             arguments: {
               reference_point: "Testing module list",
               summary_caption: "Invalid module test",
@@ -312,7 +312,7 @@ describe("MCP Server Alias Resolution Integration Tests", () => {
         const response = await srv.handleRequest({
           method: "tools/call",
           params: {
-            name: "lex.remember",
+            name: "remember",
             arguments: {
               reference_point: "Testing mixed modules",
               summary_caption: "Mix of valid and invalid",
@@ -347,7 +347,7 @@ describe("MCP Server Alias Resolution Integration Tests", () => {
         await srv.handleRequest({
           method: "tools/call",
           params: {
-            name: "lex.remember",
+            name: "remember",
             arguments: {
               reference_point: "Warmup",
               summary_caption: "JIT warmup",
@@ -362,7 +362,7 @@ describe("MCP Server Alias Resolution Integration Tests", () => {
         await srv.handleRequest({
           method: "tools/call",
           params: {
-            name: "lex.remember",
+            name: "remember",
             arguments: {
               reference_point: "Performance test",
               summary_caption: "Testing validation performance",
@@ -392,7 +392,7 @@ describe("MCP Server Alias Resolution Integration Tests", () => {
         await srv.handleRequest({
           method: "tools/call",
           params: {
-            name: "lex.remember",
+            name: "remember",
             arguments: {
               reference_point: "Warmup",
               summary_caption: "JIT warmup",
@@ -407,7 +407,7 @@ describe("MCP Server Alias Resolution Integration Tests", () => {
         await srv.handleRequest({
           method: "tools/call",
           params: {
-            name: "lex.remember",
+            name: "remember",
             arguments: {
               reference_point: "Small scope",
               summary_caption: "2 modules",
@@ -423,7 +423,7 @@ describe("MCP Server Alias Resolution Integration Tests", () => {
         await srv.handleRequest({
           method: "tools/call",
           params: {
-            name: "lex.remember",
+            name: "remember",
             arguments: {
               reference_point: "Large scope test",
               summary_caption: "6 modules",
@@ -476,7 +476,7 @@ describe("MCP Server Alias Resolution Integration Tests", () => {
         const rememberResponse = await srv.handleRequest({
           method: "tools/call",
           params: {
-            name: "lex.remember",
+            name: "remember",
             arguments: {
               reference_point: "E2E test with validation",
               summary_caption: "End-to-end alias flow",
@@ -495,7 +495,7 @@ describe("MCP Server Alias Resolution Integration Tests", () => {
         const recallResponse = await srv.handleRequest({
           method: "tools/call",
           params: {
-            name: "lex.recall",
+            name: "recall",
             arguments: {
               reference_point: "E2E test",
             },

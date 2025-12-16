@@ -48,18 +48,18 @@ describe("MCP Server - Protocol", () => {
 
       const toolNames = response.tools.map((t) => t.name);
       assert.ok(
-        toolNames.includes("lex_remember"),
+        toolNames.includes("remember"),
         "Should include lex_remember"
       );
-      assert.ok(toolNames.includes("lex_recall"), "Should include lex_recall");
-      assert.ok(toolNames.includes("lex_list_frames"), "Should include lex_list_frames");
-      assert.ok(toolNames.includes("lex_policy_check"), "Should include lex_policy_check");
+      assert.ok(toolNames.includes("recall"), "Should include lex_recall");
+      assert.ok(toolNames.includes("list_frames"), "Should include lex_list_frames");
+      assert.ok(toolNames.includes("policy_check"), "Should include lex_policy_check");
       assert.ok(
-        toolNames.includes("lex_timeline"),
+        toolNames.includes("timeline"),
         "Should include lex_timeline"
       );
       assert.ok(
-        toolNames.includes("lex_code_atlas"),
+        toolNames.includes("code_atlas"),
         "Should include lex_code_atlas"
       );
     } finally {
@@ -83,7 +83,7 @@ describe("MCP Server - Protocol", () => {
       const response = await srv.handleRequest({
         method: "tools/call",
         params: {
-          name: "lex.remember",
+          name: "remember",
           arguments: args,
         },
       });
@@ -106,7 +106,7 @@ describe("MCP Server - Protocol", () => {
       const response = await srv.handleRequest({
         method: "tools/call",
         params: {
-          name: "lex.remember",
+          name: "remember",
           arguments: {
             reference_point: "incomplete data",
             // Missing: summary_caption, status_snapshot, module_scope
@@ -131,7 +131,7 @@ describe("MCP Server - Protocol", () => {
       await srv.handleRequest({
         method: "tools/call",
         params: {
-          name: "lex.remember",
+          name: "remember",
           arguments: {
             reference_point: "authentication refactoring",
             summary_caption: "Extracted password validation",
@@ -148,7 +148,7 @@ describe("MCP Server - Protocol", () => {
       const response = await srv.handleRequest({
         method: "tools/call",
         params: {
-          name: "lex.recall",
+          name: "recall",
           arguments: {
             reference_point: "authentication",
           },
@@ -173,7 +173,7 @@ describe("MCP Server - Protocol", () => {
       const response = await srv.handleRequest({
         method: "tools/call",
         params: {
-          name: "lex.recall",
+          name: "recall",
           arguments: {
             reference_point: "nonexistent work",
           },
@@ -196,7 +196,7 @@ describe("MCP Server - Protocol", () => {
       const response = await srv.handleRequest({
         method: "tools/call",
         params: {
-          name: "lex.recall",
+          name: "recall",
           arguments: {}, // No search parameters
         },
       });
@@ -218,7 +218,7 @@ describe("MCP Server - Protocol", () => {
       await srv.handleRequest({
         method: "tools/call",
         params: {
-          name: "lex.remember",
+          name: "remember",
           arguments: {
             reference_point: "frame one",
             summary_caption: "First test frame",
@@ -231,7 +231,7 @@ describe("MCP Server - Protocol", () => {
       await srv.handleRequest({
         method: "tools/call",
         params: {
-          name: "lex.remember",
+          name: "remember",
           arguments: {
             reference_point: "frame two",
             summary_caption: "Second test frame",
@@ -245,7 +245,7 @@ describe("MCP Server - Protocol", () => {
       const response = await srv.handleRequest({
         method: "tools/call",
         params: {
-          name: "lex.list_frames",
+          name: "list_frames",
           arguments: { limit: 10 },
         },
       });
@@ -267,7 +267,7 @@ describe("MCP Server - Protocol", () => {
       await srv.handleRequest({
         method: "tools/call",
         params: {
-          name: "lex.remember",
+          name: "remember",
           arguments: {
             reference_point: "auth work",
             summary_caption: "Auth module work",
@@ -280,7 +280,7 @@ describe("MCP Server - Protocol", () => {
       await srv.handleRequest({
         method: "tools/call",
         params: {
-          name: "lex.remember",
+          name: "remember",
           arguments: {
             reference_point: "ui work",
             summary_caption: "UI module work",
@@ -294,7 +294,7 @@ describe("MCP Server - Protocol", () => {
       const response = await srv.handleRequest({
         method: "tools/call",
         params: {
-          name: "lex.list_frames",
+          name: "list_frames",
           arguments: { module: "policy/scanners", limit: 10 },
         },
       });
@@ -371,7 +371,7 @@ describe("MCP Server - Protocol", () => {
       const response = await srv.handleRequest({
         method: "tools/call",
         params: {
-          name: "lex.remember",
+          name: "remember",
           arguments: args,
         },
       });
@@ -412,7 +412,7 @@ describe("MCP Server - Protocol", () => {
       const response = await srv.handleRequest({
         method: "tools/call",
         params: {
-          name: "lex.remember",
+          name: "remember",
           arguments: args,
         },
       });
@@ -450,7 +450,7 @@ describe("MCP Server - Protocol", () => {
       const response = await srv.handleRequest({
         method: "tools/call",
         params: {
-          name: "lex.remember",
+          name: "remember",
           arguments: args,
         },
       });
@@ -490,7 +490,7 @@ describe("MCP Server - Protocol", () => {
       const response = await srv.handleRequest({
         method: "tools/call",
         params: {
-          name: "lex.remember",
+          name: "remember",
           arguments: args,
         },
       });
@@ -512,7 +512,7 @@ describe("MCP Server - Protocol", () => {
       const response = await srv.handleRequest({
         method: "tools/call",
         params: {
-          name: "lex.remember",
+          name: "remember",
           arguments: {
             reference_point: "invalid module test",
             summary_caption: "Testing validation",
@@ -546,7 +546,7 @@ describe("MCP Server - Protocol", () => {
       const response = await srv.handleRequest({
         method: "tools/call",
         params: {
-          name: "lex.remember",
+          name: "remember",
           arguments: {
             reference_point: "typo test",
             summary_caption: "Testing fuzzy matching",
@@ -573,7 +573,7 @@ describe("MCP Server - Protocol", () => {
       const response = await srv.handleRequest({
         method: "tools/call",
         params: {
-          name: "lex.remember",
+          name: "remember",
           arguments: {
             reference_point: "multiple errors test",
             summary_caption: "Testing multiple validation errors",
@@ -607,7 +607,7 @@ describe("MCP Server - Protocol", () => {
       const response = await srv.handleRequest({
         method: "tools/call",
         params: {
-          name: "lex.remember",
+          name: "remember",
           arguments: {
             reference_point: "mixed validity test",
             summary_caption: "Testing mixed valid/invalid modules",
@@ -639,7 +639,7 @@ describe("MCP Server - Protocol", () => {
       const response = await srv.handleRequest({
         method: "tools/call",
         params: {
-          name: "lex.remember",
+          name: "remember",
           arguments: {
             reference_point: "all valid modules",
             summary_caption: "Testing with all policy modules",
@@ -682,7 +682,7 @@ describe("MCP Server - Protocol", () => {
       const response = await srv.handleRequest({
         method: "tools/call",
         params: {
-          name: "lex.remember",
+          name: "remember",
           arguments: args,
         },
       });
@@ -713,7 +713,7 @@ describe("MCP Server - Protocol", () => {
       const response = await srv.handleRequest({
         method: "tools/call",
         params: {
-          name: "lex.remember",
+          name: "remember",
           arguments: args,
         },
       });
