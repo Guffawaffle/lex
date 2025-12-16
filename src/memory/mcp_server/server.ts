@@ -325,41 +325,48 @@ export class MCPServer {
     const { name, arguments: args } = params;
 
     switch (name) {
-      case "lex.remember":
+      // Canonical names (mcp_lex_{category}_{action})
+      case "mcp_lex_frame_remember":
+      case "lex.remember": // Deprecated alias
         return await this.handleRemember(args);
 
-      case "lex.recall":
+      case "mcp_lex_frame_recall":
+      case "lex.recall": // Deprecated alias
         return await this.handleRecall(args);
 
-      case "lex.list_frames":
+      case "mcp_lex_frame_list":
+      case "lex.list_frames": // Deprecated alias
         return await this.handleListFrames(args);
 
-      case "lex.policy_check":
+      case "mcp_lex_policy_check":
+      case "lex.policy_check": // Deprecated alias
         return await this.handlePolicyCheck(args);
 
-      case "lex.timeline":
+      case "mcp_lex_frame_timeline":
+      case "lex.timeline": // Deprecated alias
         return await this.handleTimeline(args);
 
-      case "lex.code_atlas":
+      case "mcp_lex_atlas_analyze":
+      case "lex.code_atlas": // Deprecated alias
         return await this.handleCodeAtlas(args);
 
       default:
         throw new MCPError(MCPErrorCode.INTERNAL_UNKNOWN_TOOL, `Unknown tool: ${name}`, {
           requestedTool: name,
           availableTools: [
-            "lex.remember",
-            "lex.recall",
-            "lex.list_frames",
-            "lex.policy_check",
-            "lex.timeline",
-            "lex.code_atlas",
+            "mcp_lex_frame_remember",
+            "mcp_lex_frame_recall",
+            "mcp_lex_frame_list",
+            "mcp_lex_policy_check",
+            "mcp_lex_frame_timeline",
+            "mcp_lex_atlas_analyze",
           ],
         });
     }
   }
 
   /**
-   * Handle lex.remember tool - create new Frame
+   * Handle mcp_lex_frame_remember tool - create new Frame
    *
    * Validates module IDs against policy with alias resolution before creating Frame (THE CRITICAL RULE)
    */
@@ -442,7 +449,7 @@ export class MCPServer {
     } else if (this.repoRoot || process.env.LEX_DEFAULT_BRANCH) {
       frameBranch = getCurrentBranch();
       // Log branch detection for debugging
-      logger.info(`[lex.remember] Auto-detected branch: ${frameBranch}`);
+      logger.info(`[mcp_lex_frame_remember] Auto-detected branch: ${frameBranch}`);
     } else {
       // When no repoRoot is provided and no env override, avoid auto-detecting
       // from the runner's repository; use 'unknown' to indicate no branch context.
@@ -524,7 +531,7 @@ export class MCPServer {
   }
 
   /**
-   * Handle lex.recall tool - search Frames with Atlas Frame
+   * Handle mcp_lex_frame_recall tool - search Frames with Atlas Frame
    */
   private async handleRecall(args: Record<string, unknown>): Promise<MCPResponse> {
     const { reference_point, jira, branch, limit = 10 } = args as unknown as RecallArgs;
@@ -633,7 +640,7 @@ export class MCPServer {
   }
 
   /**
-   * Handle lex.list_frames tool - list recent Frames
+   * Handle mcp_lex_frame_list tool - list recent Frames
    */
   private async handleListFrames(args: Record<string, unknown>): Promise<MCPResponse> {
     const { branch, module, limit = 10, since } = args as unknown as ListFramesArgs;
@@ -700,7 +707,7 @@ export class MCPServer {
   }
 
   /**
-   * Handle lex.policy_check tool - validate policy file
+   * Handle mcp_lex_policy_check tool - validate policy file
    */
   private async handlePolicyCheck(args: Record<string, unknown>): Promise<MCPResponse> {
     const { path: checkPath, policyPath, strict = false } = args as unknown as PolicyCheckArgs;
@@ -784,7 +791,7 @@ export class MCPServer {
   }
 
   /**
-   * Handle lex.timeline tool - show timeline of Frame evolution
+   * Handle mcp_lex_frame_timeline tool - show timeline of Frame evolution
    */
   private async handleTimeline(args: Record<string, unknown>): Promise<MCPResponse> {
     const { ticketOrBranch, since, until, format = "text" } = args as unknown as TimelineArgs;
@@ -830,7 +837,7 @@ export class MCPServer {
               text:
                 `🔍 No frames found for: "${ticketOrBranch}"\n\n` +
                 "Try using a Jira ticket ID (e.g., TICKET-123) or a branch name.\n" +
-                "Run 'lex.remember' to create a frame first.",
+                "Run 'mcp_lex_frame_remember' to create a frame first.",
             },
           ],
         };
@@ -903,7 +910,7 @@ export class MCPServer {
   }
 
   /**
-   * Handle lex.code_atlas tool - analyze code structure and dependencies
+   * Handle mcp_lex_atlas_analyze tool - analyze code structure and dependencies
    */
   private async handleCodeAtlas(args: Record<string, unknown>): Promise<MCPResponse> {
     const {
