@@ -9,6 +9,7 @@ import { test, describe, beforeEach, afterEach } from "node:test";
 import { tmpdir } from "os";
 import { mkdtempSync, writeFileSync, rmSync, readFileSync } from "fs";
 import { join } from "path";
+import { policyAddModule } from "@app/shared/cli/policy-add-module.js";
 
 describe("lex policy add-module command", () => {
   let testDir: string | undefined;
@@ -70,8 +71,6 @@ describe("lex policy add-module command", () => {
       const dir = createTestDir();
       const policyPath = createTestPolicy(dir);
 
-      const { policyAddModule } = await import("@app/shared/cli/policy-add-module.js");
-
       const result = await policyAddModule("cli/new-feature", { policyPath });
 
       assert.equal(result.success, true);
@@ -92,8 +91,6 @@ describe("lex policy add-module command", () => {
         },
       });
 
-      const { policyAddModule } = await import("@app/shared/cli/policy-add-module.js");
-
       const result = await policyAddModule("new/module", { policyPath });
 
       assert.equal(result.success, true);
@@ -110,8 +107,6 @@ describe("lex policy add-module command", () => {
       const dir = createTestDir();
       const policyPath = createTestPolicy(dir);
 
-      const { policyAddModule } = await import("@app/shared/cli/policy-add-module.js");
-
       await policyAddModule("test/module", { policyPath });
 
       const content = readFileSync(policyPath, "utf-8");
@@ -127,8 +122,6 @@ describe("lex policy add-module command", () => {
       const dir = createTestDir();
       const policyPath = createTestPolicy(dir);
 
-      const { policyAddModule } = await import("@app/shared/cli/policy-add-module.js");
-
       const result = await policyAddModule("cli/new-feature", { policyPath });
       assert.equal(result.success, true);
     });
@@ -136,8 +129,6 @@ describe("lex policy add-module command", () => {
     test("accepts valid module IDs with underscores", async () => {
       const dir = createTestDir();
       const policyPath = createTestPolicy(dir);
-
-      const { policyAddModule } = await import("@app/shared/cli/policy-add-module.js");
 
       const result = await policyAddModule("test_module", { policyPath });
       assert.equal(result.success, true);
@@ -147,8 +138,6 @@ describe("lex policy add-module command", () => {
       const dir = createTestDir();
       const policyPath = createTestPolicy(dir);
 
-      const { policyAddModule } = await import("@app/shared/cli/policy-add-module.js");
-
       const result = await policyAddModule("test-module", { policyPath });
       assert.equal(result.success, true);
     });
@@ -157,8 +146,6 @@ describe("lex policy add-module command", () => {
       const dir = createTestDir();
       const policyPath = createTestPolicy(dir);
 
-      const { policyAddModule } = await import("@app/shared/cli/policy-add-module.js");
-
       const result = await policyAddModule("module123", { policyPath });
       assert.equal(result.success, true);
     });
@@ -166,8 +153,6 @@ describe("lex policy add-module command", () => {
     test("rejects module IDs with uppercase letters", async () => {
       const dir = createTestDir();
       const policyPath = createTestPolicy(dir);
-
-      const { policyAddModule } = await import("@app/shared/cli/policy-add-module.js");
 
       await assert.rejects(
         async () => {
@@ -184,8 +169,6 @@ describe("lex policy add-module command", () => {
       const dir = createTestDir();
       const policyPath = createTestPolicy(dir);
 
-      const { policyAddModule } = await import("@app/shared/cli/policy-add-module.js");
-
       await assert.rejects(
         async () => {
           await policyAddModule("invalid module", { policyPath });
@@ -200,8 +183,6 @@ describe("lex policy add-module command", () => {
     test("rejects module IDs with special characters", async () => {
       const dir = createTestDir();
       const policyPath = createTestPolicy(dir);
-
-      const { policyAddModule } = await import("@app/shared/cli/policy-add-module.js");
 
       await assert.rejects(
         async () => {
@@ -218,8 +199,6 @@ describe("lex policy add-module command", () => {
       const dir = createTestDir();
       const policyPath = createTestPolicy(dir);
 
-      const { policyAddModule } = await import("@app/shared/cli/policy-add-module.js");
-
       await assert.rejects(
         async () => {
           await policyAddModule("", { policyPath });
@@ -234,8 +213,6 @@ describe("lex policy add-module command", () => {
     test("trims whitespace from module ID", async () => {
       const dir = createTestDir();
       const policyPath = createTestPolicy(dir);
-
-      const { policyAddModule } = await import("@app/shared/cli/policy-add-module.js");
 
       const result = await policyAddModule("  test/module  ", { policyPath });
 
@@ -257,8 +234,6 @@ describe("lex policy add-module command", () => {
         },
       });
 
-      const { policyAddModule } = await import("@app/shared/cli/policy-add-module.js");
-
       const result = await policyAddModule("existing/module", { policyPath });
 
       assert.equal(result.success, true);
@@ -277,8 +252,6 @@ describe("lex policy add-module command", () => {
 
       const originalContent = readFileSync(policyPath, "utf-8");
 
-      const { policyAddModule } = await import("@app/shared/cli/policy-add-module.js");
-
       await policyAddModule("existing/module", { policyPath });
 
       const updatedContent = readFileSync(policyPath, "utf-8");
@@ -290,8 +263,6 @@ describe("lex policy add-module command", () => {
     test("throws error when policy file doesn't exist", async () => {
       const dir = createTestDir();
       const nonExistentPath = join(dir, "nonexistent.json");
-
-      const { policyAddModule } = await import("@app/shared/cli/policy-add-module.js");
 
       await assert.rejects(
         async () => {
@@ -309,8 +280,6 @@ describe("lex policy add-module command", () => {
       const policyPath = join(dir, "invalid.json");
       writeFileSync(policyPath, "{ invalid json ");
 
-      const { policyAddModule } = await import("@app/shared/cli/policy-add-module.js");
-
       await assert.rejects(
         async () => {
           await policyAddModule("test/module", { policyPath });
@@ -326,8 +295,6 @@ describe("lex policy add-module command", () => {
       const dir = createTestDir();
       const policyPath = join(dir, "invalid.json");
       writeFileSync(policyPath, JSON.stringify({ noModulesField: {} }));
-
-      const { policyAddModule } = await import("@app/shared/cli/policy-add-module.js");
 
       await assert.rejects(
         async () => {
@@ -346,8 +313,6 @@ describe("lex policy add-module command", () => {
       const dir = createTestDir();
       const policyPath = createTestPolicy(dir);
 
-      const { policyAddModule } = await import("@app/shared/cli/policy-add-module.js");
-
       const result = await policyAddModule("test/module", { policyPath, json: true });
 
       assert.ok("success" in result);
@@ -363,8 +328,6 @@ describe("lex policy add-module command", () => {
       const policyPath = createTestPolicy(dir, {
         "existing/module": { owns_paths: [] },
       });
-
-      const { policyAddModule } = await import("@app/shared/cli/policy-add-module.js");
 
       const result = await policyAddModule("existing/module", { policyPath, json: true });
 
