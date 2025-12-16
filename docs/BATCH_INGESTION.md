@@ -86,6 +86,13 @@ interface BatchOptions {
    * Set to false only if you've already validated the Frames externally.
    */
   preValidate?: boolean;
+
+  /**
+   * Optional callback to trigger after successful batch ingestion.
+   * This is commonly used to schedule Atlas rebuilds after external writes.
+   * The callback receives the batch result and is only called on success.
+   */
+  onSuccess?: (result: BatchIngestionResult) => void | Promise<void>;
 }
 ```
 
@@ -327,7 +334,40 @@ const result = await insertFramesBatch(store, validatedFrames, {
 });
 ```
 
-### 5. Always Close the Store
+### 5. Trigger Atlas Rebuild After Batch Ingestion (L-EXE-004)
+
+Use the `onSuccess` callback to schedule Atlas rebuilds after successful batch writes:
+
+```typescript
+import { insertFramesBatch } from '@smartergpt/lex/memory';
+import { triggerAtlasRebuild } from '@smartergpt/lex/atlas';
+
+const result = await insertFramesBatch(store, frames, {
+  onSuccess: async (batchResult) => {
+    console.log(`Batch ingested ${batchResult.count} frames, triggering Atlas rebuild...`);
+    
+    // Schedule Atlas rebuild (non-blocking, debounced)
+    await triggerAtlasRebuild();
+  }
+});
+```
+
+**Key points:**
+- The callback is **only called on successful ingestion** (not on validation or store errors)
+- The callback receives the full `BatchIngestionResult`
+- Supports both sync and async callbacks
+- The batch operation waits for the callback to complete
+
+**When to use:**
+- After bulk Frame imports that should update derived views
+- When external orchestrators need to trigger downstream processing
+- For high-volume data ingestion that requires periodic Atlas updates
+
+**When NOT to use:**
+- For individual Frame writes (use `notifyFrameIngested()` instead)
+- When Atlas rebuild should happen independently of Frame writes
+
+### 6. Always Close the Store
 
 ```typescript
 const store = createFrameStore();
@@ -355,6 +395,32 @@ try {
 
 - `validateFramePayload()`: Standalone validation (no persistence)
 - `insertFramesBatch()`: Combines validation + persistence in one call
+
+### vs. Atlas Rebuild APIs
+
+Batch ingestion writes Frames to storage. Atlas rebuilding creates derived views from those Frames:
+
+- **Writing Frames**: Use `insertFramesBatch()` to persist Frame data
+- **Rebuilding Atlas**: Use `triggerAtlasRebuild()` to update derived views from Frames
+- **Integration**: Use `onSuccess` callback to automatically trigger rebuilds after batch writes
+
+**Key distinction:**
+```typescript
+// Writing Frames (primary data)
+const result = await insertFramesBatch(store, frames);
+
+// Rebuilding Atlas (derived views from all Frames in store)
+await triggerAtlasRebuild();
+
+// Combined: Write Frames + trigger rebuild
+const result = await insertFramesBatch(store, frames, {
+  onSuccess: async () => {
+    await triggerAtlasRebuild();
+  }
+});
+```
+
+See the [Atlas Rebuild documentation](./ATLAS_REBUILD.md) for details on rebuild scheduling and debouncing.
 
 ## Migration Guide
 
