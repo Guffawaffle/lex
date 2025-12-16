@@ -343,7 +343,7 @@ closeDb(db);
 
 ## 🎯 Project Status
 
-**Current Version:** `2.0.0` ([Changelog](./CHANGELOG.md))
+**Current Version:** `2.0.3` ([Changelog](./CHANGELOG.md))
 
 ### 🚀 2.0.0 — AX-Native Release
 
@@ -431,7 +431,7 @@ We welcome contributions! Here's how to get started:
 
 - **[LexRunner](https://github.com/Guffawaffle/lexrunner)** — Orchestration for parallel PR workflows
 
-- **LexSona** (v0.2.0+) — Behavioral persona engine, separate private package  
+- **LexSona** (v0.2.0+) — Behavioral persona engine, separate private package
   Consumes Lex behavioral memory socket (`@smartergpt/lex/lexsona`) to enable offline-capable persona modes with constraint enforcement. High-level concept: persona-driven workflows without embedding persona logic in Lex core. See [Control Stack documentation](./docs/control-stack/index.md) for conceptual framework (public portions).
 
 ---

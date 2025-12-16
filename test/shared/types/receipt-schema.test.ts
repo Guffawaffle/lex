@@ -104,7 +104,7 @@ describe("Receipt Schema Tests", () => {
     it("should validate Receipt with frameId", () => {
       const withFrame = {
         ...validReceipt,
-        frameId: "f-550e8400-e29b-41d4-a716-446655440001",
+        frameId: "550e8400-e29b-41d4-a716-446655440001",
       };
       assert.doesNotThrow(() => ReceiptSchema.parse(withFrame));
     });
@@ -243,14 +243,14 @@ describe("Receipt Schema Tests", () => {
           result: "in-progress",
           blockers: ["blocker-1"],
         },
-        frameId: "f-550e8400-e29b-41d4-a716-446655440001",
+        frameId: "550e8400-e29b-41d4-a716-446655440001",
         metadata: {
           durationMs: 5000,
           retryCount: 2,
           escalated: true,
         },
       });
-      assert.strictEqual(receipt.frameId, "f-550e8400-e29b-41d4-a716-446655440001");
+      assert.strictEqual(receipt.frameId, "550e8400-e29b-41d4-a716-446655440001");
       assert.strictEqual(receipt.metadata?.durationMs, 5000);
       assert.strictEqual(receipt.metadata?.escalated, true);
     });
