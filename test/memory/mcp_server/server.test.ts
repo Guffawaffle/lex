@@ -47,12 +47,21 @@ describe("MCP Server - Protocol", () => {
       assert.strictEqual(response.tools.length, 6, "Should have 6 tools");
 
       const toolNames = response.tools.map((t) => t.name);
-      assert.ok(toolNames.includes("lex.remember"), "Should include lex.remember");
-      assert.ok(toolNames.includes("lex.recall"), "Should include lex.recall");
-      assert.ok(toolNames.includes("lex.list_frames"), "Should include lex.list_frames");
-      assert.ok(toolNames.includes("lex.policy_check"), "Should include lex.policy_check");
-      assert.ok(toolNames.includes("lex.timeline"), "Should include lex.timeline");
-      assert.ok(toolNames.includes("lex.code_atlas"), "Should include lex.code_atlas");
+      assert.ok(
+        toolNames.includes("mcp_lex_frame_remember"),
+        "Should include mcp_lex_frame_remember"
+      );
+      assert.ok(toolNames.includes("mcp_lex_frame_recall"), "Should include mcp_lex_frame_recall");
+      assert.ok(toolNames.includes("mcp_lex_frame_list"), "Should include mcp_lex_frame_list");
+      assert.ok(toolNames.includes("mcp_lex_policy_check"), "Should include mcp_lex_policy_check");
+      assert.ok(
+        toolNames.includes("mcp_lex_frame_timeline"),
+        "Should include mcp_lex_frame_timeline"
+      );
+      assert.ok(
+        toolNames.includes("mcp_lex_atlas_analyze"),
+        "Should include mcp_lex_atlas_analyze"
+      );
     } finally {
       await teardown();
     }

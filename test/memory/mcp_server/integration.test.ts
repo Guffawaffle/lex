@@ -593,12 +593,12 @@ describe("MCP Server Integration Tests", () => {
         assert.strictEqual(response.tools.length, 6, "Should have 6 tools");
 
         const toolNames = response.tools.map((t) => t.name);
-        assert.ok(toolNames.includes("lex.remember"));
-        assert.ok(toolNames.includes("lex.recall"));
-        assert.ok(toolNames.includes("lex.list_frames"));
-        assert.ok(toolNames.includes("lex.policy_check"));
-        assert.ok(toolNames.includes("lex.timeline"));
-        assert.ok(toolNames.includes("lex.code_atlas"));
+        assert.ok(toolNames.includes("mcp_lex_frame_remember"));
+        assert.ok(toolNames.includes("mcp_lex_frame_recall"));
+        assert.ok(toolNames.includes("mcp_lex_frame_list"));
+        assert.ok(toolNames.includes("mcp_lex_policy_check"));
+        assert.ok(toolNames.includes("mcp_lex_frame_timeline"));
+        assert.ok(toolNames.includes("mcp_lex_atlas_analyze"));
       } finally {
         await teardown();
       }
@@ -611,8 +611,8 @@ describe("MCP Server Integration Tests", () => {
           method: "tools/list",
         });
 
-        const rememberTool = response.tools?.find((t) => t.name === "lex.remember");
-        assert.ok(rememberTool, "Should include lex.remember");
+        const rememberTool = response.tools?.find((t) => t.name === "mcp_lex_frame_remember");
+        assert.ok(rememberTool, "Should include mcp_lex_frame_remember");
         assert.ok(rememberTool.inputSchema, "Should include input schema");
         assert.ok(rememberTool.inputSchema.properties, "Schema should have properties");
       } finally {
