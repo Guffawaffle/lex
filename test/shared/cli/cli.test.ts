@@ -172,8 +172,9 @@ test("CLI: lex remember with --json outputs JSON", () => {
     assert.equal(event.v, 1, "CliEvent should have version 1");
     assert.ok(event.ts, "CliEvent should have timestamp");
     assert.equal(event.level, "success", "Should be success level");
-    assert.ok(event.data?.frameId, "data should contain frameId");
-    assert.ok(event.data?.timestamp, "data should contain timestamp");
+    assert.ok(event.data?.frame_id, "data should contain frame_id");
+    assert.ok(event.data?.created_at, "data should contain created_at");
+    assert.equal(event.data?.success, true, "data should contain success: true");
   } finally {
     cleanup();
   }
