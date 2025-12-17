@@ -547,10 +547,10 @@ export class MCPServer {
       summary_caption,
       status_snapshot,
       module_scope,
-      branch,
+      branch: _branch,
       jira,
-      keywords,
-      atlas_frame_id,
+      keywords: _keywords,
+      atlas_frame_id: _atlas_frame_id,
       images,
     } = args as unknown as RememberArgs;
 
