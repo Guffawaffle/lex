@@ -97,6 +97,100 @@ describe("MCP Server Integration Tests", () => {
       }
     });
 
+    test("should return frame_id, created_at in remember response (AX-002)", async () => {
+      const srv = setup();
+      try {
+        // Create a Frame with remember
+        const rememberArgs = {
+          reference_point: "AX-002 test",
+          summary_caption: "Testing structured response",
+          status_snapshot: {
+            next_action: "Verify response structure",
+          },
+          module_scope: ["policy/scanners"],
+        };
+
+        const rememberResponse = await srv.handleRequest({
+          method: "tools/call",
+          params: {
+            name: "remember",
+            arguments: rememberArgs,
+          },
+        });
+
+        // Verify response has content
+        assert.ok(rememberResponse.content, "Remember should return content");
+        assert.ok(
+          rememberResponse.content[0].text.includes("✅ Frame stored"),
+          "Should confirm storage"
+        );
+
+        // Verify structured data is returned (AX-002)
+        assert.ok(rememberResponse.data, "Remember should return structured data");
+        assert.strictEqual(
+          rememberResponse.data.success,
+          true,
+          "Response should include success: true"
+        );
+        assert.ok(rememberResponse.data.frame_id, "Response should include frame_id");
+        assert.ok(
+          typeof rememberResponse.data.frame_id === "string",
+          "frame_id should be a string"
+        );
+        assert.ok(
+          rememberResponse.data.frame_id.startsWith("frame-"),
+          "frame_id should have 'frame-' prefix"
+        );
+        assert.ok(rememberResponse.data.created_at, "Response should include created_at");
+        assert.ok(
+          typeof rememberResponse.data.created_at === "string",
+          "created_at should be a string"
+        );
+        
+        // Verify timestamp is valid ISO 8601
+        const timestamp = new Date(rememberResponse.data.created_at as string);
+        assert.ok(!isNaN(timestamp.getTime()), "created_at should be valid ISO 8601 timestamp");
+      } finally {
+        await teardown();
+      }
+    });
+
+    test("should return atlas_frame_id when provided (AX-002)", async () => {
+      const srv = setup();
+      try {
+        const testAtlasFrameId = "atlas_test_123";
+        
+        // Create a Frame with atlas_frame_id
+        const rememberArgs = {
+          reference_point: "AX-002 atlas test",
+          summary_caption: "Testing atlas_frame_id in response",
+          status_snapshot: {
+            next_action: "Verify atlas_frame_id is returned",
+          },
+          module_scope: ["policy/scanners"],
+          atlas_frame_id: testAtlasFrameId,
+        };
+
+        const rememberResponse = await srv.handleRequest({
+          method: "tools/call",
+          params: {
+            name: "remember",
+            arguments: rememberArgs,
+          },
+        });
+
+        // Verify structured data includes atlas_frame_id
+        assert.ok(rememberResponse.data, "Remember should return structured data");
+        assert.strictEqual(
+          rememberResponse.data.atlas_frame_id,
+          testAtlasFrameId,
+          "Response should include the provided atlas_frame_id"
+        );
+      } finally {
+        await teardown();
+      }
+    });
+
     test("should handle create → list → recall → delete cycle", async () => {
       const srv = setup();
       try {

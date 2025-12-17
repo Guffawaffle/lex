@@ -118,6 +118,8 @@ export interface MCPResponse {
     context?: Record<string, unknown>; // Structured context (from AXError or MCPError metadata)
     nextActions?: string[]; // Recovery suggestions (from AXError)
   };
+  // Structured data for tool responses (e.g., frame_id from remember)
+  data?: Record<string, unknown>;
 }
 
 export interface ToolCallParams {
@@ -511,6 +513,18 @@ export class MCPServer {
 
     const imageInfo = imageIds.length > 0 ? `🖼️  Images: ${imageIds.length} attached\n` : "";
 
+    // Build structured response data (AX-002)
+    const responseData: Record<string, unknown> = {
+      success: true,
+      frame_id: frameId,
+      created_at: timestamp,
+    };
+    
+    // Include atlas_frame_id if one was provided or stored
+    if (frame.atlas_frame_id) {
+      responseData.atlas_frame_id = frame.atlas_frame_id;
+    }
+
     return {
       content: [
         {
@@ -527,6 +541,7 @@ export class MCPServer {
             atlasOutput,
         },
       ],
+      data: responseData,
     };
   }
 
