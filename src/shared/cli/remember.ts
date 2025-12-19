@@ -213,8 +213,10 @@ export async function remember(
         message: "Frame stored",
         code: "FRAME_CREATED",
         data: {
-          frameId: frame.id,
-          timestamp: frame.timestamp,
+          success: true,
+          frame_id: frame.id,
+          created_at: frame.timestamp,
+          // Additional context fields
           branch: frame.branch,
           modules: frame.module_scope,
           referencePoint: frame.reference_point,
