@@ -91,6 +91,77 @@ export const MCP_TOOLS: MCPTool[] = [
     },
   },
   {
+    name: "validate_remember",
+    description: "Validate remember input without storing (dry-run validation)",
+    inputSchema: {
+      type: "object",
+      required: ["reference_point", "summary_caption", "status_snapshot", "module_scope"],
+      properties: {
+        reference_point: {
+          type: "string",
+          description: 'What you were working on (e.g., "refactoring UserAuth module")',
+        },
+        summary_caption: {
+          type: "string",
+          description:
+            'One-line summary of progress (e.g., "Extracted password validation to separate function")',
+        },
+        status_snapshot: {
+          type: "object",
+          description:
+            "Current state: {next_action: string, blockers?: [], merge_blockers?: [], tests_failing?: []}",
+          properties: {
+            next_action: { type: "string" },
+            blockers: { type: "array", items: { type: "string" } },
+            merge_blockers: { type: "array", items: { type: "string" } },
+            tests_failing: { type: "array", items: { type: "string" } },
+          },
+          required: ["next_action"],
+        },
+        module_scope: {
+          type: "array",
+          items: { type: "string" },
+          description: 'Module IDs from lexmap.policy.json (e.g., ["auth/core", "auth/password"])',
+        },
+        branch: {
+          type: "string",
+          description: "Git branch (defaults to current branch)",
+        },
+        jira: {
+          type: "string",
+          description: 'Optional Jira/issue ticket (e.g., "PROJ-123")',
+        },
+        keywords: {
+          type: "array",
+          items: { type: "string" },
+          description: 'Optional search tags (e.g., ["refactoring", "authentication"])',
+        },
+        atlas_frame_id: {
+          type: "string",
+          description: "Reference to Atlas Frame (fold radius snapshot)",
+        },
+        images: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              data: {
+                type: "string",
+                description: "Base64-encoded image data",
+              },
+              mime_type: {
+                type: "string",
+                description: 'MIME type (e.g., "image/png", "image/jpeg")',
+              },
+            },
+            required: ["data", "mime_type"],
+          },
+          description: "Optional array of image attachments (base64-encoded with MIME type)",
+        },
+      },
+    },
+  },
+  {
     name: "recall",
     description:
       "Search Frames by reference point, branch, or Jira ticket. Returns Frame + Atlas Frame neighborhood.",

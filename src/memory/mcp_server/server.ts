@@ -332,6 +332,10 @@ export class MCPServer {
       case "lex_remember": // Deprecated alias (v2.0.x)
         return await this.handleRemember(args);
 
+      case "validate_remember":
+      case "lex_validate_remember": // Deprecated alias (v2.0.x)
+        return await this.handleValidateRemember(args);
+
       case "recall":
       case "lex_recall": // Deprecated alias (v2.0.x)
         return await this.handleRecall(args);
@@ -357,6 +361,7 @@ export class MCPServer {
           requestedTool: name,
           availableTools: [
             "remember",
+            "validate_remember",
             "recall",
             "list_frames",
             "policy_check",
@@ -543,6 +548,196 @@ export class MCPServer {
       ],
       data: responseData,
     };
+  }
+
+  /**
+   * Handle validate_remember tool - validate Frame input without storage (dry-run)
+   *
+   * Performs the same validation as handleRemember but returns a structured validation result
+   * without creating or storing a Frame. This enables agents to verify inputs incrementally.
+   */
+  private async handleValidateRemember(args: Record<string, unknown>): Promise<MCPResponse> {
+    const {
+      reference_point,
+      summary_caption,
+      status_snapshot,
+      module_scope,
+      branch: _branch,
+      jira,
+      keywords: _keywords,
+      atlas_frame_id: _atlas_frame_id,
+      images,
+    } = args as unknown as RememberArgs;
+
+    const errors: Array<{ field: string; code: string; message: string; suggestions?: string[] }> =
+      [];
+    const warnings: Array<{ field: string; message: string }> = [];
+
+    // Validate required fields
+    if (!reference_point) {
+      errors.push({
+        field: "reference_point",
+        code: MCPErrorCode.VALIDATION_REQUIRED_FIELD,
+        message: "reference_point is required",
+      });
+    }
+    if (!summary_caption) {
+      errors.push({
+        field: "summary_caption",
+        code: MCPErrorCode.VALIDATION_REQUIRED_FIELD,
+        message: "summary_caption is required",
+      });
+    }
+    if (!status_snapshot) {
+      errors.push({
+        field: "status_snapshot",
+        code: MCPErrorCode.VALIDATION_REQUIRED_FIELD,
+        message: "status_snapshot is required",
+      });
+    } else if (!status_snapshot.next_action) {
+      errors.push({
+        field: "status_snapshot.next_action",
+        code: MCPErrorCode.VALIDATION_INVALID_STATUS,
+        message: "status_snapshot.next_action is required",
+      });
+    }
+    if (!module_scope) {
+      errors.push({
+        field: "module_scope",
+        code: MCPErrorCode.VALIDATION_REQUIRED_FIELD,
+        message: "module_scope is required",
+      });
+    } else if (!Array.isArray(module_scope) || module_scope.length === 0) {
+      errors.push({
+        field: "module_scope",
+        code: MCPErrorCode.VALIDATION_EMPTY_MODULE_SCOPE,
+        message: "module_scope must be a non-empty array of module IDs",
+      });
+    }
+
+    // Check for Jira ID format (warning only, not blocking)
+    if (jira && typeof jira === "string") {
+      // Basic check: should look like PROJECT-123 or similar
+      if (!/^[A-Z][A-Z0-9]+-\d+$/i.test(jira)) {
+        warnings.push({
+          field: "jira",
+          message: `Jira ID format not recognized. Expected format: PROJECT-123 (got: "${jira}")`,
+        });
+      }
+    }
+
+    // Validate module IDs against policy (if available and module_scope is valid)
+    if (
+      this.policy &&
+      module_scope &&
+      Array.isArray(module_scope) &&
+      module_scope.length > 0
+    ) {
+      try {
+        const validationResult = await validateModuleIds(module_scope, this.policy);
+
+        if (!validationResult.valid && validationResult.errors) {
+          // Convert ModuleIdError to our error format
+          for (const err of validationResult.errors) {
+            errors.push({
+              field: "module_scope",
+              code: MCPErrorCode.VALIDATION_INVALID_MODULE_ID,
+              message: err.message,
+              suggestions: err.suggestions,
+            });
+          }
+        }
+      } catch (error: unknown) {
+        // If module validation fails unexpectedly, add it as an error
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        errors.push({
+          field: "module_scope",
+          code: MCPErrorCode.VALIDATION_INVALID_MODULE_ID,
+          message: `Module validation failed: ${errorMessage}`,
+        });
+      }
+    } else if (!this.policy && module_scope && Array.isArray(module_scope)) {
+      // No policy loaded - add a warning
+      warnings.push({
+        field: "module_scope",
+        message: "Policy not loaded - module IDs cannot be validated",
+      });
+    }
+
+    // Check image format (basic validation without decoding)
+    if (images && Array.isArray(images)) {
+      for (let i = 0; i < images.length; i++) {
+        const img = images[i];
+        if (!img.data || typeof img.data !== "string") {
+          errors.push({
+            field: `images[${i}].data`,
+            code: MCPErrorCode.VALIDATION_INVALID_IMAGE,
+            message: "Image data must be a base64-encoded string",
+          });
+        }
+        if (!img.mime_type || typeof img.mime_type !== "string") {
+          errors.push({
+            field: `images[${i}].mime_type`,
+            code: MCPErrorCode.VALIDATION_INVALID_IMAGE,
+            message: "Image mime_type is required",
+          });
+        } else if (!["image/png", "image/jpeg", "image/jpg", "image/gif", "image/webp"].includes(img.mime_type)) {
+          warnings.push({
+            field: `images[${i}].mime_type`,
+            message: `Uncommon MIME type: ${img.mime_type}. Supported types: image/png, image/jpeg, image/jpg, image/gif, image/webp`,
+          });
+        }
+      }
+    }
+
+    // Build response
+    const valid = errors.length === 0;
+
+    if (valid) {
+      // Success response with warnings if any
+      let text = "✅ Validation passed - input is valid for remember\n";
+      if (warnings.length > 0) {
+        text += "\n⚠️  Warnings:\n";
+        for (const warning of warnings) {
+          text += `  - ${warning.field}: ${warning.message}\n`;
+        }
+      }
+
+      return {
+        content: [
+          {
+            type: "text",
+            text,
+          },
+        ],
+      };
+    } else {
+      // Error response with structured errors
+      let text = "❌ Validation failed\n\n";
+      text += "Errors:\n";
+      for (const error of errors) {
+        text += `  - ${error.field}: ${error.message}\n`;
+        if (error.suggestions && error.suggestions.length > 0) {
+          text += `    Suggestions: ${error.suggestions.join(", ")}\n`;
+        }
+      }
+
+      if (warnings.length > 0) {
+        text += "\nWarnings:\n";
+        for (const warning of warnings) {
+          text += `  - ${warning.field}: ${warning.message}\n`;
+        }
+      }
+
+      return {
+        content: [
+          {
+            type: "text",
+            text,
+          },
+        ],
+      };
+    }
   }
 
   /**
