@@ -23,7 +23,7 @@ describe("MCP Server with MemoryFrameStore - Test Isolation", () => {
       try {
         const response = await server.handleRequest({ method: "tools/list" });
         assert.ok(response.tools, "Response should have tools array");
-        assert.strictEqual(response.tools.length, 6, "Should have 6 tools");
+        assert.strictEqual(response.tools.length, 7, "Should have 7 tools");
       } finally {
         await server.close();
       }
