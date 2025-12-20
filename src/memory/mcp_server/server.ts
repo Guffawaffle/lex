@@ -1260,8 +1260,7 @@ export class MCPServer {
         const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf-8"));
         version = packageJson.version || "unknown";
       } catch {
-        // If we can't read package.json, use a fallback
-        version = "2.1.0";
+        // If we can't read package.json, version stays "unknown"
       }
 
       // Get policy information
@@ -1387,16 +1386,21 @@ export class MCPServer {
 
   /**
    * Abbreviate error code for compact format
-   * Example: VALIDATION_REQUIRED_FIELD -> VAL_REQ
+   * Uses a deterministic mapping to avoid collisions
+   * Example: VALIDATION_REQUIRED_FIELD -> VAL_REQ_FIE
    */
   private abbreviateErrorCode(code: string): string {
     const parts = code.split("_");
     if (parts.length === 1) return code.substring(0, 3).toUpperCase();
-
-    // Take first 3 letters of first word and first 3 of last word
+    if (parts.length === 2) {
+      // Two parts: use first 3 of each
+      return `${parts[0].substring(0, 3)}_${parts[1].substring(0, 3)}`.toUpperCase();
+    }
+    // Three or more parts: use first 3 of first, middle, and last
     const first = parts[0].substring(0, 3).toUpperCase();
+    const middle = parts[Math.floor(parts.length / 2)].substring(0, 3).toUpperCase();
     const last = parts[parts.length - 1].substring(0, 3).toUpperCase();
-    return `${first}_${last}`;
+    return `${first}_${middle}_${last}`;
   }
 
   /**
@@ -1404,8 +1408,16 @@ export class MCPServer {
    */
   private async getFrameCount(): Promise<number> {
     try {
-      // Get all frames and count them
-      // FrameStore doesn't have a count method, so we list and count
+      // Use direct SQL count for efficiency if we have a SQLite store
+      if (this.db) {
+        const result = this.db.prepare("SELECT COUNT(*) as count FROM frames").get() as {
+          count: number;
+        };
+        return result.count;
+      }
+      
+      // Fallback for non-SQLite stores: list and count
+      // Note: This may not return the complete count for very large stores
       const allFrames = await this.frameStore.listFrames({ limit: 10000 });
       return allFrames.length;
     } catch {
