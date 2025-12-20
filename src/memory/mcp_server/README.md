@@ -292,7 +292,7 @@ Discover the current state of Lex for agent self-discovery.
   "content": [
     {
       "type": "text",
-      "text": "{\n  \"v\": \"2.1.0\",\n  \"caps\": [\"enc\", \"img\"],\n  \"state\": { \"frames\": 42, \"branch\": \"main\" },\n  \"mods\": 14,\n  \"errs\": [\"VAL_FIE\", \"VAL_FOR\", \"VAL_ID\", ...]\n}"
+      "text": "{\n  \"v\": \"2.1.0\",\n  \"caps\": [\"enc\", \"img\"],\n  \"state\": { \"frames\": 42, \"branch\": \"main\" },\n  \"mods\": 14,\n  \"errs\": [\"VAL_REQ_FIE\", \"VAL_INV_FOR\", \"VAL_INV_ID\", ...]\n}"
     }
   ],
   "data": {
@@ -300,7 +300,7 @@ Discover the current state of Lex for agent self-discovery.
     "caps": ["enc", "img"],
     "state": { "frames": 42, "branch": "main" },
     "mods": 14,
-    "errs": ["VAL_FIE", "VAL_FOR", "VAL_ID", ...]
+    "errs": ["VAL_REQ_FIE", "VAL_INV_FOR", "VAL_INV_ID", ...]
   }
 }
 ```
@@ -308,7 +308,7 @@ Discover the current state of Lex for agent self-discovery.
 The compact format is optimized for agents with limited token windows:
 - Short field names (`v`, `caps`, `mods`, `errs`)
 - Module count instead of full array
-- Error code abbreviations (stable, cacheable)
+- Error code abbreviations: 3-part scheme using first, second, and last word parts (e.g., VALIDATION_REQUIRED_FIELD → VAL_REQ_FIE)
 - Capability abbreviations (`enc` for encryption, `img` for images)
 
 ## Error Codes (1.0.0 Contract)
