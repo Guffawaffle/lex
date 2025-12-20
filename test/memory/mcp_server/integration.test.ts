@@ -690,6 +690,7 @@ describe("MCP Server Integration Tests", () => {
         assert.ok(toolNames.includes("remember"));
         assert.ok(toolNames.includes("validate_remember"));
         assert.ok(toolNames.includes("recall"));
+        assert.ok(toolNames.includes("get_frame"));
         assert.ok(toolNames.includes("list_frames"));
         assert.ok(toolNames.includes("policy_check"));
         assert.ok(toolNames.includes("timeline"));
