@@ -1,7 +1,7 @@
 import { getLogger } from "@smartergpt/lex/logger";
 import { SqliteFrameStore } from "../store/sqlite/index.js";
 import type { FrameStore, FrameSearchCriteria } from "../store/frame-store.js";
-import { deleteFrame } from "../store/queries.js";
+import { deleteFrame, getFrameCount as getFrameCountQuery } from "../store/queries.js";
 import type Database from "better-sqlite3-multiple-ciphers";
 // @ts-ignore - importing from compiled dist directories
 import { ImageManager } from "../store/images.js";
@@ -1492,12 +1492,9 @@ export class MCPServer {
    */
   private async getFrameCount(): Promise<number> {
     try {
-      // Use direct SQL count for efficiency if we have a SQLite store
+      // Use curated query module for efficiency if we have a SQLite store
       if (this.db) {
-        const result = this.db.prepare("SELECT COUNT(*) as count FROM frames").get() as {
-          count: number;
-        };
-        return result.count;
+        return getFrameCountQuery(this.db);
       }
       
       // Fallback for non-SQLite stores: list without limit and count
