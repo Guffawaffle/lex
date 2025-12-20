@@ -15,7 +15,7 @@ Provides two interfaces:
 - ✅ SQLite + FTS5 for fuzzy Frame recall
 - ✅ Atlas Frame generation (spatial neighborhood context)
 - ✅ Module ID validation with fuzzy suggestions (THE CRITICAL RULE)
-- ✅ Six MCP tools: `lex.remember`, `lex.recall`, `lex.list_frames`, `lex.policy_check`, `lex.timeline`, `lex.code_atlas`
+- ✅ Eight MCP tools: `lex.remember`, `lex.validate_remember`, `lex.recall`, `lex.list_frames`, `lex.policy_check`, `lex.timeline`, `lex.code_atlas`, `lex.introspect`
 - ✅ Local-first (no cloud sync, no telemetry)
 - ✅ Comprehensive test suite (integration + alias resolution + performance)
 
@@ -227,6 +227,89 @@ Analyze code structure and dependencies across modules.
 
 **Response:**
 Returns code structure visualization with dependency graphs and module relationships.
+
+### `lex.introspect`
+
+Discover the current state of Lex for agent self-discovery.
+
+**Optional Parameters:**
+- `format` - Output format: `full` (default) or `compact` for small-context agents
+
+**Example (Full Format):**
+```json
+{
+  "method": "tools/call",
+  "params": {
+    "name": "lex.introspect",
+    "arguments": {}
+  }
+}
+```
+
+**Response (Full Format):**
+```json
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "🔍 Lex Introspection\n\n📦 Version: 2.1.0\n\n📋 Policy:\n  Modules: 14\n  Module IDs: cli, memory/frames, memory/mcp, ...\n\n📊 State:\n  Frames: 42\n  Latest Frame: 2025-12-17T10:30:00.000Z\n  Branch: main\n\n⚙️  Capabilities:\n  Encryption: ✅\n  Images: ✅\n\n🚨 Error Codes (16):\n  VALIDATION_REQUIRED_FIELD, VALIDATION_INVALID_FORMAT, ..."
+    }
+  ],
+  "data": {
+    "version": "2.1.0",
+    "policy": {
+      "modules": ["cli", "memory/frames", "memory/mcp", ...],
+      "moduleCount": 14
+    },
+    "state": {
+      "frameCount": 42,
+      "latestFrame": "2025-12-17T10:30:00.000Z",
+      "currentBranch": "main"
+    },
+    "capabilities": {
+      "encryption": true,
+      "images": true
+    },
+    "errorCodes": ["VALIDATION_REQUIRED_FIELD", "VALIDATION_INVALID_FORMAT", ...]
+  }
+}
+```
+
+**Example (Compact Format):**
+```json
+{
+  "method": "tools/call",
+  "params": {
+    "name": "lex.introspect",
+    "arguments": { "format": "compact" }
+  }
+}
+```
+
+**Response (Compact Format):**
+```json
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\n  \"v\": \"2.1.0\",\n  \"caps\": [\"enc\", \"img\"],\n  \"state\": { \"frames\": 42, \"branch\": \"main\" },\n  \"mods\": 14,\n  \"errs\": [\"VAL_FIE\", \"VAL_FOR\", \"VAL_ID\", ...]\n}"
+    }
+  ],
+  "data": {
+    "v": "2.1.0",
+    "caps": ["enc", "img"],
+    "state": { "frames": 42, "branch": "main" },
+    "mods": 14,
+    "errs": ["VAL_FIE", "VAL_FOR", "VAL_ID", ...]
+  }
+}
+```
+
+The compact format is optimized for agents with limited token windows:
+- Short field names (`v`, `caps`, `mods`, `errs`)
+- Module count instead of full array
+- Error code abbreviations (stable, cacheable)
+- Capability abbreviations (`enc` for encryption, `img` for images)
 
 ## Error Codes (1.0.0 Contract)
 
