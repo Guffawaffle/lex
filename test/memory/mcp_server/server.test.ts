@@ -44,7 +44,7 @@ describe("MCP Server - Protocol", () => {
       const response = await srv.handleRequest({ method: "tools/list" });
 
       assert.ok(response.tools, "Response should have tools array");
-      assert.strictEqual(response.tools.length, 7, "Should have 7 tools");
+      assert.strictEqual(response.tools.length, 8, "Should have 8 tools");
 
       const toolNames = response.tools.map((t) => t.name);
       assert.ok(
@@ -65,6 +65,10 @@ describe("MCP Server - Protocol", () => {
       assert.ok(
         toolNames.includes("code_atlas"),
         "Should include code_atlas"
+      );
+      assert.ok(
+        toolNames.includes("introspect"),
+        "Should include introspect"
       );
     } finally {
       await teardown();

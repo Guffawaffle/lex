@@ -25,7 +25,7 @@ import { getCurrentBranch } from "../../shared/git/branch.js";
 import { validatePolicySchema } from "../../shared/policy/schema.js";
 import { randomUUID } from "crypto";
 import { join } from "path";
-import { existsSync } from "fs";
+import { existsSync, readFileSync } from "fs";
 import { AXErrorException, isAXErrorException } from "../../shared/errors/ax-error.js";
 // @ts-ignore - importing from compiled dist directories
 import {
@@ -96,6 +96,10 @@ interface CodeAtlasArgs {
   path?: string;
   foldRadius?: number;
   maxTokens?: number;
+}
+
+interface IntrospectArgs {
+  format?: "full" | "compact";
 }
 
 export interface MCPRequest {
@@ -356,6 +360,10 @@ export class MCPServer {
       case "lex_code_atlas": // Deprecated alias (v2.0.x)
         return await this.handleCodeAtlas(args);
 
+      case "introspect":
+      case "lex_introspect": // Deprecated alias (v2.0.x)
+        return await this.handleIntrospect(args);
+
       default:
         throw new MCPError(MCPErrorCode.INTERNAL_UNKNOWN_TOOL, `Unknown tool: ${name}`, {
           requestedTool: name,
@@ -367,6 +375,7 @@ export class MCPServer {
             "policy_check",
             "timeline",
             "code_atlas",
+            "introspect",
           ],
         });
     }
@@ -1233,6 +1242,174 @@ export class MCPServer {
         `Failed to generate code atlas: ${errorMessage}`,
         { path: requestPath, error: errorMessage }
       );
+    }
+  }
+
+  /**
+   * Handle introspect tool - discover current Lex state
+   */
+  private async handleIntrospect(args: Record<string, unknown>): Promise<MCPResponse> {
+    const { format = "full" } = args as unknown as IntrospectArgs;
+
+    try {
+      // Get version from package.json
+      // Navigate up from dist/memory/mcp_server/server.js to package.json
+      const packageJsonPath = join(process.cwd(), "package.json");
+      let version = "unknown";
+      try {
+        const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf-8"));
+        version = packageJson.version || "unknown";
+      } catch {
+        // If we can't read package.json, use a fallback
+        version = "2.1.0";
+      }
+
+      // Get policy information
+      const policyData: { modules: string[]; moduleCount: number } | null = this.policy
+        ? {
+            modules: Object.keys(this.policy.modules).sort(),
+            moduleCount: Object.keys(this.policy.modules).length,
+          }
+        : null;
+
+      // Get state information
+      const frames = await this.frameStore.listFrames({ limit: 1 });
+      const frameCount = await this.getFrameCount();
+      const latestFrame = frames.length > 0 ? frames[0].timestamp : null;
+
+      // Get current branch (if available)
+      let currentBranch = "unknown";
+      try {
+        if (this.repoRoot || process.env.LEX_DEFAULT_BRANCH) {
+          currentBranch = getCurrentBranch();
+        }
+      } catch {
+        // If we can't get branch, keep "unknown"
+      }
+
+      // Capabilities
+      const capabilities = {
+        encryption: this.db !== null, // SQLite support implies encryption capability
+        images: this.imageManager !== null,
+      };
+
+      // Error codes - get all MCPErrorCode values
+      const errorCodes = Object.values(MCPErrorCode);
+
+      if (format === "compact") {
+        // Compact format for small-context agents
+        const compactResponse = {
+          v: version,
+          caps: [] as string[],
+          state: {
+            frames: frameCount,
+            branch: currentBranch,
+          },
+          mods: policyData ? policyData.moduleCount : 0,
+          errs: errorCodes.map((code) => this.abbreviateErrorCode(code)),
+        };
+
+        // Add capability abbreviations
+        if (capabilities.encryption) compactResponse.caps.push("enc");
+        if (capabilities.images) compactResponse.caps.push("img");
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(compactResponse, null, 2),
+            },
+          ],
+          data: compactResponse,
+        };
+      } else {
+        // Full format
+        const fullResponse = {
+          version,
+          policy: policyData
+            ? {
+                modules: policyData.modules,
+                moduleCount: policyData.moduleCount,
+              }
+            : null,
+          state: {
+            frameCount,
+            latestFrame,
+            currentBranch,
+          },
+          capabilities,
+          errorCodes,
+        };
+
+        // Format human-readable output
+        let text = `🔍 Lex Introspection\n\n`;
+        text += `📦 Version: ${version}\n\n`;
+
+        if (policyData) {
+          text += `📋 Policy:\n`;
+          text += `  Modules: ${policyData.moduleCount}\n`;
+          text += `  Module IDs: ${policyData.modules.join(", ")}\n\n`;
+        } else {
+          text += `📋 Policy: Not loaded\n\n`;
+        }
+
+        text += `📊 State:\n`;
+        text += `  Frames: ${frameCount}\n`;
+        text += `  Latest Frame: ${latestFrame || "none"}\n`;
+        text += `  Branch: ${currentBranch}\n\n`;
+
+        text += `⚙️  Capabilities:\n`;
+        text += `  Encryption: ${capabilities.encryption ? "✅" : "❌"}\n`;
+        text += `  Images: ${capabilities.images ? "✅" : "❌"}\n\n`;
+
+        text += `🚨 Error Codes (${errorCodes.length}):\n`;
+        text += `  ${errorCodes.join(", ")}\n`;
+
+        return {
+          content: [
+            {
+              type: "text",
+              text,
+            },
+          ],
+          data: fullResponse,
+        };
+      }
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      throw new MCPError(
+        MCPErrorCode.INTERNAL_ERROR,
+        `Failed to introspect: ${errorMessage}`,
+        { error: errorMessage }
+      );
+    }
+  }
+
+  /**
+   * Abbreviate error code for compact format
+   * Example: VALIDATION_REQUIRED_FIELD -> VAL_REQ
+   */
+  private abbreviateErrorCode(code: string): string {
+    const parts = code.split("_");
+    if (parts.length === 1) return code.substring(0, 3).toUpperCase();
+
+    // Take first 3 letters of first word and first 3 of last word
+    const first = parts[0].substring(0, 3).toUpperCase();
+    const last = parts[parts.length - 1].substring(0, 3).toUpperCase();
+    return `${first}_${last}`;
+  }
+
+  /**
+   * Get total frame count from database
+   */
+  private async getFrameCount(): Promise<number> {
+    try {
+      // Get all frames and count them
+      // FrameStore doesn't have a count method, so we list and count
+      const allFrames = await this.frameStore.listFrames({ limit: 10000 });
+      return allFrames.length;
+    } catch {
+      return 0;
     }
   }
 

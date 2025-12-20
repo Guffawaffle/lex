@@ -282,4 +282,20 @@ export const MCP_TOOLS: MCPTool[] = [
       },
     },
   },
+  {
+    name: "introspect",
+    description:
+      "Discover the current state of Lex (available modules, policy, frame count, capabilities, error codes)",
+    inputSchema: {
+      type: "object",
+      properties: {
+        format: {
+          type: "string",
+          enum: ["full", "compact"],
+          description: "Output format: 'full' (default) or 'compact' for small-context agents",
+          default: "full",
+        },
+      },
+    },
+  },
 ];
