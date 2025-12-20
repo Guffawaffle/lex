@@ -3,6 +3,10 @@
  *
  * Tests the MCP protocol implementation for Frame storage and recall.
  * Uses Node.js built-in test runner (node:test) - no external dependencies.
+ *
+ * NOTE: This file contains the CANONICAL tool registry test.
+ * When adding/removing MCP tools, update ONLY the "tools/list returns all available tools" test below.
+ * Other test files should assert tool *presence* rather than exact counts.
  */
 
 import { test, describe } from "node:test";
@@ -44,32 +48,25 @@ describe("MCP Server - Protocol", () => {
       const response = await srv.handleRequest({ method: "tools/list" });
 
       assert.ok(response.tools, "Response should have tools array");
-      assert.strictEqual(response.tools.length, 9, "Should have 9 tools");
 
-      const toolNames = response.tools.map((t) => t.name);
-      assert.ok(
-        toolNames.includes("remember"),
-        "Should include remember"
-      );
-      assert.ok(
-        toolNames.includes("validate_remember"),
-        "Should include validate_remember"
-      );
-      assert.ok(toolNames.includes("recall"), "Should include recall");
-      assert.ok(toolNames.includes("get_frame"), "Should include get_frame");
-      assert.ok(toolNames.includes("list_frames"), "Should include list_frames");
-      assert.ok(toolNames.includes("policy_check"), "Should include policy_check");
-      assert.ok(
-        toolNames.includes("timeline"),
-        "Should include timeline"
-      );
-      assert.ok(
-        toolNames.includes("code_atlas"),
-        "Should include code_atlas"
-      );
-      assert.ok(
-        toolNames.includes("introspect"),
-        "Should include introspect"
+      // Canonical tool registry test: owns the exact set of expected tools
+      const toolNames = response.tools.map((t) => t.name).sort();
+      const expectedTools = [
+        "code_atlas",
+        "get_frame",
+        "introspect",
+        "list_frames",
+        "policy_check",
+        "recall",
+        "remember",
+        "timeline",
+        "validate_remember",
+      ].sort();
+
+      assert.deepStrictEqual(
+        toolNames,
+        expectedTools,
+        "Should have exactly these tools (no more, no less)"
       );
     } finally {
       await teardown();

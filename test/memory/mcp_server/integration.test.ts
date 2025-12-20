@@ -684,17 +684,18 @@ describe("MCP Server Integration Tests", () => {
         });
 
         assert.ok(response.tools, "Should return tools array");
-        assert.strictEqual(response.tools.length, 9, "Should have 9 tools");
-
+        
+        // Test only what this test cares about: presence of key tools
         const toolNames = response.tools.map((t) => t.name);
-        assert.ok(toolNames.includes("remember"));
-        assert.ok(toolNames.includes("validate_remember"));
-        assert.ok(toolNames.includes("recall"));
-        assert.ok(toolNames.includes("get_frame"));
-        assert.ok(toolNames.includes("list_frames"));
-        assert.ok(toolNames.includes("policy_check"));
-        assert.ok(toolNames.includes("timeline"));
-        assert.ok(toolNames.includes("code_atlas"));
+        assert.ok(toolNames.includes("remember"), "Should include remember");
+        assert.ok(toolNames.includes("validate_remember"), "Should include validate_remember");
+        assert.ok(toolNames.includes("recall"), "Should include recall");
+        assert.ok(toolNames.includes("get_frame"), "Should include get_frame");
+        assert.ok(toolNames.includes("list_frames"), "Should include list_frames");
+        assert.ok(toolNames.includes("policy_check"), "Should include policy_check");
+        assert.ok(toolNames.includes("timeline"), "Should include timeline");
+        assert.ok(toolNames.includes("code_atlas"), "Should include code_atlas");
+        assert.ok(toolNames.includes("introspect"), "Should include introspect");
       } finally {
         await teardown();
       }
