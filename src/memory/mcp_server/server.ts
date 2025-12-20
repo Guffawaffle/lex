@@ -1396,11 +1396,11 @@ export class MCPServer {
       // Two parts: use first 3 of each
       return `${parts[0].substring(0, 3)}_${parts[1].substring(0, 3)}`.toUpperCase();
     }
-    // Three or more parts: use first 3 of first, middle, and last
+    // Three or more parts: use first, second, and last for consistency
     const first = parts[0].substring(0, 3).toUpperCase();
-    const middle = parts[Math.floor(parts.length / 2)].substring(0, 3).toUpperCase();
+    const second = parts[1].substring(0, 3).toUpperCase();
     const last = parts[parts.length - 1].substring(0, 3).toUpperCase();
-    return `${first}_${middle}_${last}`;
+    return `${first}_${second}_${last}`;
   }
 
   /**
@@ -1416,9 +1416,9 @@ export class MCPServer {
         return result.count;
       }
       
-      // Fallback for non-SQLite stores: list and count
-      // Note: This may not return the complete count for very large stores
-      const allFrames = await this.frameStore.listFrames({ limit: 10000 });
+      // Fallback for non-SQLite stores: list without limit and count
+      // Note: For very large stores, this could be memory-intensive
+      const allFrames = await this.frameStore.listFrames({});
       return allFrames.length;
     } catch {
       return 0;
