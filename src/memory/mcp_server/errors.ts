@@ -63,6 +63,9 @@ export enum MCPErrorCode {
   /** Failed to store image attachment */
   STORAGE_IMAGE_FAILED = "STORAGE_IMAGE_FAILED",
 
+  /** Frame with given ID was not found */
+  STORAGE_FRAME_NOT_FOUND = "STORAGE_FRAME_NOT_FOUND",
+
   // =============================================================================
   // POLICY ERRORS
   // =============================================================================

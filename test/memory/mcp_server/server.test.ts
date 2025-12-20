@@ -44,7 +44,7 @@ describe("MCP Server - Protocol", () => {
       const response = await srv.handleRequest({ method: "tools/list" });
 
       assert.ok(response.tools, "Response should have tools array");
-      assert.strictEqual(response.tools.length, 7, "Should have 7 tools");
+      assert.strictEqual(response.tools.length, 8, "Should have 8 tools");
 
       const toolNames = response.tools.map((t) => t.name);
       assert.ok(
@@ -56,6 +56,7 @@ describe("MCP Server - Protocol", () => {
         "Should include validate_remember"
       );
       assert.ok(toolNames.includes("recall"), "Should include recall");
+      assert.ok(toolNames.includes("get_frame"), "Should include get_frame");
       assert.ok(toolNames.includes("list_frames"), "Should include list_frames");
       assert.ok(toolNames.includes("policy_check"), "Should include policy_check");
       assert.ok(
@@ -726,6 +727,175 @@ describe("MCP Server - Protocol", () => {
       assert.ok(
         response.content[0].text.includes("🌿 Branch: custom-branch-name"),
         "Should use provided branch name"
+      );
+    } finally {
+      await teardown();
+    }
+  });
+
+  test("get_frame retrieves a Frame by ID", async () => {
+    const srv = setup();
+    try {
+      // First, create a Frame
+      const createResponse = await srv.handleRequest({
+        method: "tools/call",
+        params: {
+          name: "remember",
+          arguments: {
+            reference_point: "test frame retrieval",
+            summary_caption: "Testing get_frame tool",
+            status_snapshot: {
+              next_action: "Verify retrieval",
+              blockers: ["none"],
+            },
+            module_scope: ["policy/scanners"],
+            jira: "TEST-123",
+            keywords: ["testing", "retrieval"],
+          },
+        },
+      });
+
+      // Extract frame ID from the response
+      assert.ok(createResponse.data?.frame_id, "Frame creation should return frame_id");
+      const frameId = createResponse.data.frame_id as string;
+
+      // Then, retrieve it using get_frame
+      const response = await srv.handleRequest({
+        method: "tools/call",
+        params: {
+          name: "get_frame",
+          arguments: {
+            frame_id: frameId,
+          },
+        },
+      });
+
+      assert.ok(response.content, "Response should have content");
+      assert.ok(
+        response.content[0].text.includes("✅ Frame retrieved"),
+        "Should confirm Frame retrieval"
+      );
+      assert.ok(
+        response.content[0].text.includes("test frame retrieval"),
+        "Should include reference point"
+      );
+      assert.ok(
+        response.content[0].text.includes("Testing get_frame tool"),
+        "Should include summary caption"
+      );
+      assert.ok(
+        response.content[0].text.includes("TEST-123"),
+        "Should include Jira ticket"
+      );
+      assert.ok(
+        response.content[0].text.includes("Atlas Frame"),
+        "Should include Atlas Frame by default"
+      );
+      assert.ok(response.data?.frame_id === frameId, "Response data should include frame_id");
+    } finally {
+      await teardown();
+    }
+  });
+
+  test("get_frame retrieves a Frame without Atlas when include_atlas=false", async () => {
+    const srv = setup();
+    try {
+      // First, create a Frame
+      const createResponse = await srv.handleRequest({
+        method: "tools/call",
+        params: {
+          name: "remember",
+          arguments: {
+            reference_point: "test without atlas",
+            summary_caption: "Testing get_frame without atlas",
+            status_snapshot: {
+              next_action: "Verify retrieval",
+            },
+            module_scope: ["policy/scanners"],
+          },
+        },
+      });
+
+      const frameId = createResponse.data?.frame_id as string;
+
+      // Retrieve it with include_atlas=false
+      const response = await srv.handleRequest({
+        method: "tools/call",
+        params: {
+          name: "get_frame",
+          arguments: {
+            frame_id: frameId,
+            include_atlas: false,
+          },
+        },
+      });
+
+      assert.ok(response.content, "Response should have content");
+      assert.ok(
+        response.content[0].text.includes("✅ Frame retrieved"),
+        "Should confirm Frame retrieval"
+      );
+      assert.ok(
+        !response.content[0].text.includes("Atlas Frame"),
+        "Should NOT include Atlas Frame when include_atlas=false"
+      );
+    } finally {
+      await teardown();
+    }
+  });
+
+  test("get_frame returns error for non-existent frame", async () => {
+    const srv = setup();
+    try {
+      const response = await srv.handleRequest({
+        method: "tools/call",
+        params: {
+          name: "get_frame",
+          arguments: {
+            frame_id: "nonexistent-frame-id",
+          },
+        },
+      });
+
+      assert.ok(response.error, "Should return error");
+      assert.strictEqual(
+        response.error.code,
+        "STORAGE_FRAME_NOT_FOUND",
+        "Error code should be STORAGE_FRAME_NOT_FOUND"
+      );
+      assert.ok(
+        response.error.message.includes("Frame not found"),
+        "Error message should indicate frame not found"
+      );
+      assert.ok(
+        response.error.context?.frameId === "nonexistent-frame-id",
+        "Error context should include frame ID"
+      );
+    } finally {
+      await teardown();
+    }
+  });
+
+  test("get_frame returns error for missing frame_id", async () => {
+    const srv = setup();
+    try {
+      const response = await srv.handleRequest({
+        method: "tools/call",
+        params: {
+          name: "get_frame",
+          arguments: {},
+        },
+      });
+
+      assert.ok(response.error, "Should return error");
+      assert.strictEqual(
+        response.error.code,
+        "VALIDATION_REQUIRED_FIELD",
+        "Error code should be VALIDATION_REQUIRED_FIELD"
+      );
+      assert.ok(
+        response.error.message.includes("Missing required field: frame_id"),
+        "Error message should mention missing frame_id"
       );
     } finally {
       await teardown();

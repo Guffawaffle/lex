@@ -72,6 +72,11 @@ interface RecallArgs {
   limit?: number;
 }
 
+interface GetFrameArgs {
+  frame_id: string;
+  include_atlas?: boolean;
+}
+
 interface ListFramesArgs {
   branch?: string;
   module?: string;
@@ -340,6 +345,10 @@ export class MCPServer {
       case "lex_recall": // Deprecated alias (v2.0.x)
         return await this.handleRecall(args);
 
+      case "get_frame":
+      case "lex_get_frame": // Deprecated alias (v2.0.x)
+        return await this.handleGetFrame(args);
+
       case "list_frames":
       case "lex_list_frames": // Deprecated alias (v2.0.x)
         return await this.handleListFrames(args);
@@ -363,6 +372,7 @@ export class MCPServer {
             "remember",
             "validate_remember",
             "recall",
+            "get_frame",
             "list_frames",
             "policy_check",
             "timeline",
@@ -846,6 +856,75 @@ export class MCPServer {
           text: `🎯 Found ${frames.length} Frame(s):\n${results}`,
         },
       ],
+    };
+  }
+
+  /**
+   * Handle get_frame tool - retrieve a specific frame by ID
+   */
+  private async handleGetFrame(args: Record<string, unknown>): Promise<MCPResponse> {
+    const { frame_id, include_atlas = true } = args as unknown as GetFrameArgs;
+
+    // Validate required field
+    if (!frame_id) {
+      throw new MCPError(
+        MCPErrorCode.VALIDATION_REQUIRED_FIELD,
+        "Missing required field: frame_id",
+        { missingFields: ["frame_id"] }
+      );
+    }
+
+    // Retrieve the frame by ID
+    const frame = await this.frameStore.getFrameById(frame_id);
+
+    if (!frame) {
+      throw new MCPError(
+        MCPErrorCode.STORAGE_FRAME_NOT_FOUND,
+        `Frame not found: ${frame_id}`,
+        { frameId: frame_id }
+      );
+    }
+
+    // Format the frame data
+    const nextAction = frame.status_snapshot?.next_action || "None specified";
+    const blockers = frame.status_snapshot?.blockers || [];
+    const mergeBlockers = frame.status_snapshot?.merge_blockers || [];
+    const testsFailing = frame.status_snapshot?.tests_failing || [];
+
+    let result =
+      `✅ Frame retrieved: ${frame.id}\n` +
+      `📍 Reference: ${frame.reference_point}\n` +
+      `💬 Summary: ${frame.summary_caption}\n` +
+      `📦 Modules: ${frame.module_scope.join(", ")}\n` +
+      `🌿 Branch: ${frame.branch}\n` +
+      `${frame.jira ? `🎫 Jira: ${frame.jira}\n` : ""}` +
+      `📅 Timestamp: ${frame.timestamp}\n` +
+      `\nStatus:\n` +
+      `  ⏭️  Next Action: ${nextAction}\n` +
+      `  🚫 Blockers (${blockers.length}): ${blockers.join(", ") || "none"}\n` +
+      `  ⛔ Merge Blockers (${mergeBlockers.length}): ${mergeBlockers.join(", ") || "none"}\n` +
+      `  ❌ Tests Failing (${testsFailing.length}): ${testsFailing.join(", ") || "none"}\n` +
+      `${frame.keywords ? `🏷️  Keywords: ${frame.keywords.join(", ")}\n` : ""}` +
+      `${frame.atlas_frame_id ? `🗺️  Atlas: ${frame.atlas_frame_id}\n` : ""}`;
+
+    // Include Atlas Frame if requested
+    if (include_atlas) {
+      const atlasFrame = generateAtlasFrame(frame.module_scope);
+      const atlasOutput = formatAtlasFrame(atlasFrame);
+      result += `\n${atlasOutput}`;
+    }
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: result,
+        },
+      ],
+      data: {
+        frame_id: frame.id,
+        timestamp: frame.timestamp,
+      },
     };
   }
 
