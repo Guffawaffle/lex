@@ -1,7 +1,7 @@
 import { getLogger } from "@smartergpt/lex/logger";
 import { SqliteFrameStore } from "../store/sqlite/index.js";
 import type { FrameStore, FrameSearchCriteria } from "../store/frame-store.js";
-import { deleteFrame } from "../store/queries.js";
+import { deleteFrame, getFrameCount as getFrameCountQuery } from "../store/queries.js";
 import type Database from "better-sqlite3-multiple-ciphers";
 // @ts-ignore - importing from compiled dist directories
 import { ImageManager } from "../store/images.js";
@@ -25,7 +25,7 @@ import { getCurrentBranch } from "../../shared/git/branch.js";
 import { validatePolicySchema } from "../../shared/policy/schema.js";
 import { randomUUID } from "crypto";
 import { join } from "path";
-import { existsSync } from "fs";
+import { existsSync, readFileSync } from "fs";
 import { AXErrorException, isAXErrorException } from "../../shared/errors/ax-error.js";
 // @ts-ignore - importing from compiled dist directories
 import {
@@ -72,6 +72,11 @@ interface RecallArgs {
   limit?: number;
 }
 
+interface GetFrameArgs {
+  frame_id: string;
+  include_atlas?: boolean;
+}
+
 interface ListFramesArgs {
   branch?: string;
   module?: string;
@@ -96,6 +101,10 @@ interface CodeAtlasArgs {
   path?: string;
   foldRadius?: number;
   maxTokens?: number;
+}
+
+interface IntrospectArgs {
+  format?: "full" | "compact";
 }
 
 export interface MCPRequest {
@@ -340,6 +349,10 @@ export class MCPServer {
       case "lex_recall": // Deprecated alias (v2.0.x)
         return await this.handleRecall(args);
 
+      case "get_frame":
+      case "lex_get_frame": // Deprecated alias (v2.0.x)
+        return await this.handleGetFrame(args);
+
       case "list_frames":
       case "lex_list_frames": // Deprecated alias (v2.0.x)
         return await this.handleListFrames(args);
@@ -356,6 +369,10 @@ export class MCPServer {
       case "lex_code_atlas": // Deprecated alias (v2.0.x)
         return await this.handleCodeAtlas(args);
 
+      case "introspect":
+      case "lex_introspect": // Deprecated alias (v2.0.x)
+        return await this.handleIntrospect(args);
+
       default:
         throw new MCPError(MCPErrorCode.INTERNAL_UNKNOWN_TOOL, `Unknown tool: ${name}`, {
           requestedTool: name,
@@ -363,10 +380,12 @@ export class MCPServer {
             "remember",
             "validate_remember",
             "recall",
+            "get_frame",
             "list_frames",
             "policy_check",
             "timeline",
             "code_atlas",
+            "introspect",
           ],
         });
     }
@@ -850,6 +869,75 @@ export class MCPServer {
   }
 
   /**
+   * Handle get_frame tool - retrieve a specific frame by ID
+   */
+  private async handleGetFrame(args: Record<string, unknown>): Promise<MCPResponse> {
+    const { frame_id, include_atlas = true } = args as unknown as GetFrameArgs;
+
+    // Validate required field
+    if (!frame_id) {
+      throw new MCPError(
+        MCPErrorCode.VALIDATION_REQUIRED_FIELD,
+        "Missing required field: frame_id",
+        { missingFields: ["frame_id"] }
+      );
+    }
+
+    // Retrieve the frame by ID
+    const frame = await this.frameStore.getFrameById(frame_id);
+
+    if (!frame) {
+      throw new MCPError(
+        MCPErrorCode.STORAGE_FRAME_NOT_FOUND,
+        `Frame not found: ${frame_id}`,
+        { frameId: frame_id }
+      );
+    }
+
+    // Format the frame data
+    const nextAction = frame.status_snapshot?.next_action || "None specified";
+    const blockers = frame.status_snapshot?.blockers || [];
+    const mergeBlockers = frame.status_snapshot?.merge_blockers || [];
+    const testsFailing = frame.status_snapshot?.tests_failing || [];
+
+    let result =
+      `✅ Frame retrieved: ${frame.id}\n` +
+      `📍 Reference: ${frame.reference_point}\n` +
+      `💬 Summary: ${frame.summary_caption}\n` +
+      `📦 Modules: ${frame.module_scope.join(", ")}\n` +
+      `🌿 Branch: ${frame.branch}\n` +
+      `${frame.jira ? `🎫 Jira: ${frame.jira}\n` : ""}` +
+      `📅 Timestamp: ${frame.timestamp}\n` +
+      `\nStatus:\n` +
+      `  ⏭️  Next Action: ${nextAction}\n` +
+      `  🚫 Blockers (${blockers.length}): ${blockers.join(", ") || "none"}\n` +
+      `  ⛔ Merge Blockers (${mergeBlockers.length}): ${mergeBlockers.join(", ") || "none"}\n` +
+      `  ❌ Tests Failing (${testsFailing.length}): ${testsFailing.join(", ") || "none"}\n` +
+      `${frame.keywords ? `🏷️  Keywords: ${frame.keywords.join(", ")}\n` : ""}` +
+      `${frame.atlas_frame_id ? `🗺️  Atlas: ${frame.atlas_frame_id}\n` : ""}`;
+
+    // Include Atlas Frame if requested
+    if (include_atlas) {
+      const atlasFrame = generateAtlasFrame(frame.module_scope);
+      const atlasOutput = formatAtlasFrame(atlasFrame);
+      result += `\n${atlasOutput}`;
+    }
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: result,
+        },
+      ],
+      data: {
+        frame_id: frame.id,
+        timestamp: frame.timestamp,
+      },
+    };
+  }
+
+  /**
    * Handle mcp_lex_frame_list tool - list recent Frames
    */
   private async handleListFrames(args: Record<string, unknown>): Promise<MCPResponse> {
@@ -1233,6 +1321,188 @@ export class MCPServer {
         `Failed to generate code atlas: ${errorMessage}`,
         { path: requestPath, error: errorMessage }
       );
+    }
+  }
+
+  /**
+   * Handle introspect tool - discover current Lex state
+   */
+  private async handleIntrospect(args: Record<string, unknown>): Promise<MCPResponse> {
+    const { format = "full" } = args as unknown as IntrospectArgs;
+
+    try {
+      // Get version from package.json
+      // Navigate up from dist/memory/mcp_server/server.js to package.json
+      const packageJsonPath = join(process.cwd(), "package.json");
+      let version = "unknown";
+      try {
+        const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf-8"));
+        version = packageJson.version || "unknown";
+      } catch {
+        // If we can't read package.json, version stays "unknown"
+      }
+
+      // Get policy information
+      const policyData: { modules: string[]; moduleCount: number } | null = this.policy
+        ? {
+            modules: Object.keys(this.policy.modules).sort(),
+            moduleCount: Object.keys(this.policy.modules).length,
+          }
+        : null;
+
+      // Get state information
+      const frames = await this.frameStore.listFrames({ limit: 1 });
+      const frameCount = await this.getFrameCount();
+      const latestFrame = frames.length > 0 ? frames[0].timestamp : null;
+
+      // Get current branch (if available)
+      let currentBranch = "unknown";
+      try {
+        if (this.repoRoot || process.env.LEX_DEFAULT_BRANCH) {
+          currentBranch = getCurrentBranch();
+        }
+      } catch {
+        // If we can't get branch, keep "unknown"
+      }
+
+      // Capabilities
+      const capabilities = {
+        // SQLite database with better-sqlite3-multiple-ciphers supports encryption
+        // (though encryption may not be active for all databases)
+        encryption: this.db !== null,
+        images: this.imageManager !== null,
+      };
+
+      // Error codes - get all MCPErrorCode values
+      const errorCodes = Object.values(MCPErrorCode);
+
+      if (format === "compact") {
+        // Compact format for small-context agents
+        const compactResponse = {
+          v: version,
+          caps: [] as string[],
+          state: {
+            frames: frameCount,
+            branch: currentBranch,
+          },
+          mods: policyData ? policyData.moduleCount : 0,
+          errs: errorCodes.map((code) => this.abbreviateErrorCode(code)),
+        };
+
+        // Add capability abbreviations
+        if (capabilities.encryption) compactResponse.caps.push("enc");
+        if (capabilities.images) compactResponse.caps.push("img");
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(compactResponse, null, 2),
+            },
+          ],
+          data: compactResponse,
+        };
+      } else {
+        // Full format
+        const fullResponse = {
+          version,
+          policy: policyData
+            ? {
+                modules: policyData.modules,
+                moduleCount: policyData.moduleCount,
+              }
+            : null,
+          state: {
+            frameCount,
+            latestFrame,
+            currentBranch,
+          },
+          capabilities,
+          errorCodes,
+        };
+
+        // Format human-readable output
+        let text = `🔍 Lex Introspection\n\n`;
+        text += `📦 Version: ${version}\n\n`;
+
+        if (policyData) {
+          text += `📋 Policy:\n`;
+          text += `  Modules: ${policyData.moduleCount}\n`;
+          text += `  Module IDs: ${policyData.modules.join(", ")}\n\n`;
+        } else {
+          text += `📋 Policy: Not loaded\n\n`;
+        }
+
+        text += `📊 State:\n`;
+        text += `  Frames: ${frameCount}\n`;
+        text += `  Latest Frame: ${latestFrame || "none"}\n`;
+        text += `  Branch: ${currentBranch}\n\n`;
+
+        text += `⚙️  Capabilities:\n`;
+        text += `  Encryption: ${capabilities.encryption ? "✅" : "❌"}\n`;
+        text += `  Images: ${capabilities.images ? "✅" : "❌"}\n\n`;
+
+        text += `🚨 Error Codes (${errorCodes.length}):\n`;
+        text += `  ${errorCodes.join(", ")}\n`;
+
+        return {
+          content: [
+            {
+              type: "text",
+              text,
+            },
+          ],
+          data: fullResponse,
+        };
+      }
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      throw new MCPError(
+        MCPErrorCode.INTERNAL_ERROR,
+        `Failed to introspect: ${errorMessage}`,
+        { error: errorMessage }
+      );
+    }
+  }
+
+  /**
+   * Abbreviate error code for compact format
+   * Uses a deterministic mapping to avoid collisions
+   * Example: VALIDATION_REQUIRED_FIELD -> VAL_REQ_FIE
+   */
+  private abbreviateErrorCode(code: string): string {
+    const parts = code.split("_");
+    if (parts.length === 1) return code.substring(0, 3).toUpperCase();
+    if (parts.length === 2) {
+      // Two parts: use first 3 of each
+      return `${parts[0].substring(0, 3)}_${parts[1].substring(0, 3)}`.toUpperCase();
+    }
+    // Three or more parts: use first, second, and last for consistency
+    const first = parts[0].substring(0, 3).toUpperCase();
+    const second = parts[1].substring(0, 3).toUpperCase();
+    const last = parts[parts.length - 1].substring(0, 3).toUpperCase();
+    return `${first}_${second}_${last}`;
+  }
+
+  /**
+   * Get total frame count from database
+   * 
+   * Note: For non-SQLite stores, this loads all frames into memory.
+   * Future: Add a count() method to FrameStore interface for better performance.
+   */
+  private async getFrameCount(): Promise<number> {
+    try {
+      // Use curated query module for efficiency if we have a SQLite store
+      if (this.db) {
+        return getFrameCountQuery(this.db);
+      }
+      
+      // Fallback for non-SQLite stores: list without limit and count
+      // Note: For very large stores, this could be memory-intensive
+      const allFrames = await this.frameStore.listFrames({});
+      return allFrames.length;
+    } catch {
+      return 0;
     }
   }
 

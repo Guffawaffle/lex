@@ -189,6 +189,25 @@ export const MCP_TOOLS: MCPTool[] = [
     },
   },
   {
+    name: "get_frame",
+    description: "Retrieve a specific frame by ID. Use when you know the exact frame ID.",
+    inputSchema: {
+      type: "object",
+      required: ["frame_id"],
+      properties: {
+        frame_id: {
+          type: "string",
+          description: "Frame ID to retrieve (e.g., from remember response or passed context)",
+        },
+        include_atlas: {
+          type: "boolean",
+          description: "Include Atlas Frame neighborhood in response (default: true)",
+          default: true,
+        },
+      },
+    },
+  },
+  {
     name: "list_frames",
     description:
       "List recent Frames, optionally filtered by branch or module. Returns Frame + Atlas Frame for each result.",
@@ -278,6 +297,22 @@ export const MCP_TOOLS: MCPTool[] = [
         foldRadius: {
           type: "number",
           description: "Neighborhood depth (default: 1)",
+        },
+      },
+    },
+  },
+  {
+    name: "introspect",
+    description:
+      "Discover the current state of Lex (available modules, policy, frame count, capabilities, error codes)",
+    inputSchema: {
+      type: "object",
+      properties: {
+        format: {
+          type: "string",
+          enum: ["full", "compact"],
+          description: "Output format: 'full' (default) or 'compact' for small-context agents",
+          default: "full",
         },
       },
     },
