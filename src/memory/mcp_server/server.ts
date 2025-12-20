@@ -1288,7 +1288,9 @@ export class MCPServer {
 
       // Capabilities
       const capabilities = {
-        encryption: this.db !== null, // SQLite support implies encryption capability
+        // SQLite database with better-sqlite3-multiple-ciphers supports encryption
+        // (though encryption may not be active for all databases)
+        encryption: this.db !== null,
         images: this.imageManager !== null,
       };
 
@@ -1405,6 +1407,9 @@ export class MCPServer {
 
   /**
    * Get total frame count from database
+   * 
+   * Note: For non-SQLite stores, this loads all frames into memory.
+   * Future: Add a count() method to FrameStore interface for better performance.
    */
   private async getFrameCount(): Promise<number> {
     try {
