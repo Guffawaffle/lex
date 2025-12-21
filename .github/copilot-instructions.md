@@ -54,8 +54,13 @@ For persona-based workflows, see LexSona documentation.
 
 Run `lex recall` for detailed guidance on:
 - `lex recall "git tests"` — NO git commits in tests (GPG signing hangs)
-- `lex recall "sql safety"` — Curated query modules only
+- `lex recall "sql safety"` — Curated query modules only (see TROUBLESHOOTING.md "SQL Safety Violations")
 - `lex recall "ip boundary"` — Lex never imports from lexrunner
+
+**SQL Safety Quick Reference:**
+- All `db.prepare()` calls must be in curated query modules (see `test/sql-safety.test.ts`)
+- If you get a SQL safety test failure, see `TROUBLESHOOTING.md` for refactor examples
+- Never use string interpolation for SQL queries - always use parameterized queries
 
 ---
 

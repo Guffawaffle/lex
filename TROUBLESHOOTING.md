@@ -214,6 +214,338 @@ LEX_POLICY_PATH=/path/to/custom-policy.json lex check
 
 ---
 
+## SQL Safety Violations
+
+### Test Failure: "db.prepare() outside curated SQL modules"
+
+**Problem:**
+The SQL safety test fails because you've used `db.prepare()` in a file that isn't a curated query module.
+
+**Example Error:**
+```
+Found db.prepare() calls outside curated SQL modules:
+
+src/memory/mcp_server/routes/analytics.ts:45:  const stmt = db.prepare("SELECT COUNT(*) FROM frames");
+
+All SQL must live in curated modules:
+  - src/memory/store/queries.ts
+  - src/memory/store/code-unit-queries.ts
+  - src/memory/store/receipt-queries.ts
+  ...
+```
+
+**Why This Rule Exists:**
+
+Lex enforces a **curated query module** pattern to prevent SQL injection vulnerabilities and ensure all SQL is reviewed and maintained in one place. All `db.prepare()` calls must live in dedicated query modules, not scattered throughout the codebase.
+
+**Benefits:**
+- ✅ Easier security audits (all SQL in known locations)
+- ✅ Prevents accidental SQL injection
+- ✅ Single source of truth for database operations
+- ✅ Better type safety with parameterized queries
+
+### Sanctioned Query Modules
+
+These modules are **allowed** to use `db.prepare()`:
+
+| Module | Purpose |
+|--------|---------|
+| `src/memory/store/queries.ts` | Frame CRUD operations |
+| `src/memory/store/code-unit-queries.ts` | CodeUnit CRUD operations |
+| `src/memory/store/receipt-queries.ts` | Receipt CRUD and aggregation |
+| `src/memory/store/lexsona-queries.ts` | LexSona behavioral queries |
+| `src/memory/store/code-atlas-runs.ts` | CodeAtlas run tracking |
+| `src/memory/store/images.ts` | Image storage queries |
+| `src/memory/store/db.ts` | Schema initialization |
+| `src/memory/store/backup.ts` | Backup utilities |
+| `src/memory/store/sqlite/*` | SqliteFrameStore implementations |
+| `src/memory/mcp_server/auth/state-storage.ts` | OAuth state storage |
+| `src/memory/mcp_server/routes/*.ts` | MCP route handlers (minimal SQL only) |
+| `src/shared/cli/db.ts` | CLI database utilities |
+
+### How to Fix: Move SQL to Curated Module
+
+**❌ BEFORE (Violation):**
+
+```typescript
+// src/memory/mcp_server/routes/analytics.ts
+export function getFrameCount(db: Database.Database): number {
+  // ❌ Direct db.prepare() call in route handler
+  const stmt = db.prepare("SELECT COUNT(*) as count FROM frames");
+  const result = stmt.get() as { count: number };
+  return result.count;
+}
+
+// Later in route:
+app.get("/api/analytics", (req, res) => {
+  const count = getFrameCount(db);
+  res.json({ frameCount: count });
+});
+```
+
+**✅ AFTER (Fixed):**
+
+```typescript
+// Step 1: Add query to curated module
+// src/memory/store/queries.ts
+
+/**
+ * Get total count of frames in database
+ */
+export function getFrameCount(db: Database.Database, userId?: string): number {
+  // ✅ SQL lives in curated module
+  let stmt;
+  if (userId) {
+    stmt = db.prepare("SELECT COUNT(*) as count FROM frames WHERE user_id = ?");
+    const result = stmt.get(userId) as { count: number };
+    return result.count;
+  } else {
+    stmt = db.prepare("SELECT COUNT(*) as count FROM frames");
+    const result = stmt.get() as { count: number };
+    return result.count;
+  }
+}
+```
+
+```typescript
+// Step 2: Import and use the curated query
+// src/memory/mcp_server/routes/analytics.ts
+import { getFrameCount } from "../../store/queries.js";
+
+// ✅ Route calls curated query function
+app.get("/api/analytics", (req, res) => {
+  const count = getFrameCount(db, req.user?.id);
+  res.json({ frameCount: count });
+});
+```
+
+### Common Patterns
+
+#### Pattern 1: Simple SELECT Query
+
+**❌ WRONG:**
+```typescript
+// In a route or service file
+const frames = db.prepare("SELECT * FROM frames WHERE branch = ?").all(branch);
+```
+
+**✅ CORRECT:**
+```typescript
+// In src/memory/store/queries.ts
+export function getFramesByBranch(db: Database.Database, branch: string): Frame[] {
+  const stmt = db.prepare("SELECT * FROM frames WHERE branch = ?");
+  const rows = stmt.all(branch) as FrameRow[];
+  return rows.map(rowToFrame);
+}
+
+// In your route/service
+import { getFramesByBranch } from "../../store/queries.js";
+const frames = getFramesByBranch(db, branch);
+```
+
+#### Pattern 2: Aggregation Query
+
+**❌ WRONG:**
+```typescript
+// In analytics service
+const stats = db.prepare(`
+  SELECT branch, COUNT(*) as count 
+  FROM frames 
+  GROUP BY branch
+`).all();
+```
+
+**✅ CORRECT:**
+```typescript
+// In src/memory/store/queries.ts
+export interface BranchStats {
+  branch: string;
+  count: number;
+}
+
+export function getFrameCountByBranch(db: Database.Database): BranchStats[] {
+  const stmt = db.prepare(`
+    SELECT branch, COUNT(*) as count 
+    FROM frames 
+    GROUP BY branch
+  `);
+  return stmt.all() as BranchStats[];
+}
+
+// In your service
+import { getFrameCountByBranch } from "../../store/queries.js";
+const stats = getFrameCountByBranch(db);
+```
+
+#### Pattern 3: Complex Query with Multiple Parameters
+
+**❌ WRONG:**
+```typescript
+// In search service
+const results = db.prepare(`
+  SELECT * FROM frames 
+  WHERE branch = ? 
+    AND timestamp > ? 
+    AND module_scope LIKE ?
+  ORDER BY timestamp DESC 
+  LIMIT ?
+`).all(branch, since, `%${module}%`, limit);
+```
+
+**✅ CORRECT:**
+```typescript
+// In src/memory/store/queries.ts
+export interface FrameSearchOptions {
+  branch?: string;
+  since?: string;
+  moduleScope?: string;
+  limit?: number;
+}
+
+export function searchFrames(
+  db: Database.Database, 
+  options: FrameSearchOptions
+): Frame[] {
+  const { branch, since, moduleScope, limit = 100 } = options;
+  
+  let query = "SELECT * FROM frames WHERE 1=1";
+  const params: unknown[] = [];
+  
+  if (branch) {
+    query += " AND branch = ?";
+    params.push(branch);
+  }
+  
+  if (since) {
+    query += " AND timestamp > ?";
+    params.push(since);
+  }
+  
+  if (moduleScope) {
+    query += " AND module_scope LIKE ?";
+    params.push(`%${moduleScope}%`);
+  }
+  
+  query += " ORDER BY timestamp DESC LIMIT ?";
+  params.push(limit);
+  
+  const stmt = db.prepare(query);
+  const rows = stmt.all(...params) as FrameRow[];
+  return rows.map(rowToFrame);
+}
+
+// In your service
+import { searchFrames } from "../../store/queries.js";
+const results = searchFrames(db, { branch, since, moduleScope: module, limit });
+```
+
+### Remediation Steps
+
+When the SQL safety test fails:
+
+1. **Identify the violation:**
+   - The test output shows the file and line number
+   - Example: `src/memory/mcp_server/routes/analytics.ts:45`
+
+2. **Choose the appropriate curated module:**
+   - Frame queries → `src/memory/store/queries.ts`
+   - Receipt queries → `src/memory/store/receipt-queries.ts`
+   - CodeUnit queries → `src/memory/store/code-unit-queries.ts`
+   - New domain → Consider if you need a new curated module
+
+3. **Create a helper function in the curated module:**
+   ```typescript
+   export function yourQueryFunction(db: Database.Database, params: YourParams): YourResult {
+     const stmt = db.prepare("YOUR SQL HERE");
+     return stmt.all(params) as YourResult[];
+   }
+   ```
+
+4. **Replace the inline SQL with the helper:**
+   ```typescript
+   import { yourQueryFunction } from "../../store/queries.js";
+   const result = yourQueryFunction(db, params);
+   ```
+
+5. **Run the test to verify:**
+   ```bash
+   npm test -- test/sql-safety.test.ts
+   ```
+
+### Creating a New Curated Module
+
+If your SQL doesn't fit into existing modules, you can create a new one:
+
+1. **Create the module:**
+   ```typescript
+   // src/memory/store/your-domain-queries.ts
+   import Database from "better-sqlite3-multiple-ciphers";
+   
+   export function yourQuery(db: Database.Database): YourResult[] {
+     const stmt = db.prepare("SELECT ...");
+     return stmt.all() as YourResult[];
+   }
+   ```
+
+2. **Add to allowed patterns:**
+   ```typescript
+   // test/sql-safety.test.ts
+   const ALLOWED_PATTERNS = [
+     // ... existing patterns
+     "memory/store/your-domain-queries.ts",
+   ];
+   ```
+
+3. **Update this documentation** to list the new module.
+
+### Security Best Practices
+
+**DO:**
+- ✅ Use parameterized queries with `?` placeholders
+- ✅ Export typed functions with clear signatures
+- ✅ Validate input before passing to SQL
+- ✅ Use `unknown[]` or specific types for params
+- ✅ Document what each query does
+
+**DON'T:**
+- ❌ String interpolation: `` `SELECT * FROM ${table}` ``
+- ❌ Direct user input: `db.prepare(userInput)`
+- ❌ Inline SQL in routes/services/utilities
+- ❌ Dynamic table names without validation
+- ❌ Untyped return values
+
+**Example of UNSAFE pattern (never do this):**
+```typescript
+// ❌ EXTREMELY DANGEROUS - SQL INJECTION VULNERABILITY
+function searchByColumn(db: Database.Database, column: string, value: string) {
+  const query = `SELECT * FROM frames WHERE ${column} = '${value}'`;
+  return db.prepare(query).all();
+}
+```
+
+**Safe alternative:**
+```typescript
+// ✅ SAFE - Parameterized with validated column
+function searchByColumn(
+  db: Database.Database, 
+  column: 'branch' | 'jira' | 'reference_point',  // Explicit whitelist
+  value: string
+): Frame[] {
+  const query = `SELECT * FROM frames WHERE ${column} = ?`;
+  const stmt = db.prepare(query);
+  const rows = stmt.all(value) as FrameRow[];
+  return rows.map(rowToFrame);
+}
+```
+
+### Related Files
+
+- **Test:** `test/sql-safety.test.ts` - Enforces the curated module pattern
+- **Example Module:** `src/memory/store/queries.ts` - Frame queries
+- **Example Module:** `src/memory/store/receipt-queries.ts` - Receipt queries
+
+---
+
 ## Import Pattern Reference
 
 ### Correct Import Patterns (Single Package)

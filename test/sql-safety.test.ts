@@ -88,7 +88,14 @@ describe("SQL Safety", () => {
           `All SQL must live in curated modules:\n` +
           ALLOWED_PATTERNS.map((p) => `  - src/${p}`).join("\n") +
           `\n\n` +
-          `See .github/copilot-instructions.md for SQL safety rules.`
+          `To fix this violation, move your SQL to a curated query module.\n` +
+          `See TROUBLESHOOTING.md "SQL Safety Violations" section for:\n` +
+          `  - Before/after refactor examples\n` +
+          `  - Step-by-step remediation guide\n` +
+          `  - Security best practices\n` +
+          `\n` +
+          `Quick fix: Extract your SQL into a function in src/memory/store/queries.ts\n` +
+          `and import that function instead of using db.prepare() directly.`
       );
     }
   });
