@@ -12,17 +12,9 @@
 // Configure logger level before importing modules
 // Suppress Pino logs by default unless --verbose or LEX_DEBUG=1
 if (!process.env.LEX_LOG_LEVEL) {
-  // Check if --verbose appears as a top-level flag (not as a value for another option)
-  // This is a simple check that works for the global --verbose flag position
-  const hasVerboseFlag = process.argv.slice(2).some((arg, idx, arr) => {
-    // Check if this is the --verbose flag itself
-    if (arg === "--verbose") {
-      // Make sure it's not a value for a previous option
-      const prevArg = arr[idx - 1];
-      return !prevArg || !prevArg.startsWith("--");
-    }
-    return false;
-  });
+  // Simple check: just look for --verbose anywhere in argv
+  // Commander will validate it properly, this is just for early env setup
+  const hasVerboseFlag = process.argv.includes("--verbose");
   const hasDebugEnv = process.env.LEX_DEBUG === "1";
   
   if (hasVerboseFlag || hasDebugEnv) {
@@ -35,12 +27,19 @@ if (!process.env.LEX_LOG_LEVEL) {
 }
 
 // Use dynamic import to ensure environment variables are set before modules load
-import("./index.js").then((indexModule) => {
-  return indexModule.run();
-}).catch((error) => {
-  // Import output module only if needed for error handling
-  import("./output.js").then((outputModule) => {
-    outputModule.error("Unexpected error: " + String(error));
+(async () => {
+  try {
+    const indexModule = await import("./index.js");
+    await indexModule.run();
+  } catch (error) {
+    // Import output module only if needed for error handling
+    try {
+      const outputModule = await import("./output.js");
+      outputModule.error("Unexpected error: " + String(error));
+    } catch (outputError) {
+      // If we can't even import the output module, fall back to console.error
+      console.error("Fatal error: " + String(error));
+    }
     process.exit(2);
-  });
-});
+  }
+})();
