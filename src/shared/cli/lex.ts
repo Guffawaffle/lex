@@ -9,11 +9,28 @@
  *   lex check merged.json lexmap.policy.json
  */
 
-import { run } from "./index.js";
-import * as output from "./output.js";
+// Configure logger level before importing modules
+// Suppress Pino logs by default unless --verbose or LEX_DEBUG=1
+if (!process.env.LEX_LOG_LEVEL) {
+  const hasVerboseFlag = process.argv.includes("--verbose");
+  const hasDebugEnv = process.env.LEX_DEBUG === "1";
+  
+  if (hasVerboseFlag || hasDebugEnv) {
+    // Enable verbose logging
+    process.env.LEX_VERBOSE = "1";
+  } else {
+    // Suppress Pino logs
+    process.env.LEX_LOG_LEVEL = "silent";
+  }
+}
 
-// Run the CLI
-run().catch((error) => {
-  output.error("Unexpected error:" + String(error));
-  process.exit(2);
+// Use dynamic import to ensure environment variables are set before modules load
+import("./index.js").then((indexModule) => {
+  return indexModule.run();
+}).catch((error) => {
+  // Import output module only if needed for error handling
+  import("./output.js").then((outputModule) => {
+    outputModule.error("Unexpected error:" + String(error));
+    process.exit(2);
+  });
 });
