@@ -61,8 +61,6 @@ Lex exposes a contract surface that any runner or tool can target. This document
 
 ### 2. Frames
 
-### 2. Frames
-
 **What:** The atomic unit of AI memory.
 
 **Schema:** `schemas/frame.schema.json`
@@ -76,8 +74,6 @@ Lex exposes a contract surface that any runner or tool can target. This document
 **Guarantee:** A valid Frame today will be a valid Frame tomorrow. Schema evolution is additive only within a major version.
 
 ---
-
-### 3. Policy
 
 ### 3. Policy
 
@@ -97,8 +93,6 @@ Lex exposes a contract surface that any runner or tool can target. This document
 
 ### 4. Instructions
 
-### 4. Instructions
-
 **What:** IDE/host-specific instruction blocks generated from a canonical source.
 
 **Schema:** `schemas/lex-yaml.schema.json` (config) + marker format
@@ -112,8 +106,6 @@ Lex exposes a contract surface that any runner or tool can target. This document
 **Guarantee:** Running `lex instructions generate` twice produces identical output.
 
 ---
-
-### 5. Rules
 
 ### 5. Rules
 
