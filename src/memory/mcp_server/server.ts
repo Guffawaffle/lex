@@ -322,10 +322,11 @@ export class MCPServer {
 
   /**
    * Handle tools/list request
+   * Returns tools sorted by name for deterministic ordering
    */
   private handleToolsList(): MCPResponse {
     return {
-      tools: MCP_TOOLS,
+      tools: [...MCP_TOOLS].sort((a, b) => a.name.localeCompare(b.name)),
     };
   }
 
@@ -1373,12 +1374,16 @@ export class MCPServer {
         images: this.imageManager !== null,
       };
 
-      // Error codes - get all MCPErrorCode values
-      const errorCodes = Object.values(MCPErrorCode);
+      // Error codes - get all MCPErrorCode values and sort for deterministic ordering
+      const errorCodes = Object.values(MCPErrorCode).sort();
+
+      // Schema version for contract stability
+      const schemaVersion = "1.0.0";
 
       if (format === "compact") {
         // Compact format for small-context agents
         const compactResponse = {
+          schemaVersion,
           v: version,
           caps: [] as string[],
           state: {
@@ -1386,12 +1391,13 @@ export class MCPServer {
             branch: currentBranch,
           },
           mods: policyData ? policyData.moduleCount : 0,
-          errs: errorCodes.map((code) => this.abbreviateErrorCode(code)),
+          errs: errorCodes.map((code) => this.abbreviateErrorCode(code)).sort(),
         };
 
-        // Add capability abbreviations
+        // Add capability abbreviations in deterministic order
         if (capabilities.encryption) compactResponse.caps.push("enc");
         if (capabilities.images) compactResponse.caps.push("img");
+        compactResponse.caps.sort();
 
         return {
           content: [
@@ -1405,6 +1411,7 @@ export class MCPServer {
       } else {
         // Full format
         const fullResponse = {
+          schemaVersion,
           version,
           policy: policyData
             ? {
@@ -1423,6 +1430,7 @@ export class MCPServer {
 
         // Format human-readable output
         let text = `🔍 Lex Introspection\n\n`;
+        text += `📐 Schema Version: ${schemaVersion}\n`;
         text += `📦 Version: ${version}\n\n`;
 
         if (policyData) {

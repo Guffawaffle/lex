@@ -20,7 +20,48 @@ Lex exposes a contract surface that any runner or tool can target. This document
 
 ## Core Contracts
 
-### 1. Frames
+### 1. Introspect
+
+**What:** Discovery mechanism for agents to understand current Lex state, capabilities, and error codes.
+
+**Schema:** Introspect response (no external schema file - defined by MCP server implementation)
+
+**Schema Version:** 1.0.0
+
+**Invariants:**
+- Response includes `schemaVersion` field for contract stability tracking
+- All arrays (tools, modules, error codes) are returned in **deterministic sorted order**
+- Error codes enum values are stable across minor versions (additions only)
+- Full format returns: `schemaVersion`, `version`, `policy`, `state`, `capabilities`, `errorCodes`
+- Compact format returns abbreviated versions: `schemaVersion`, `v`, `caps`, `state`, `mods`, `errs`
+
+**Stable Fields (guaranteed across minor releases):**
+- `schemaVersion`: Version of the introspect response contract (SemVer)
+- `version`: Lex package version
+- `policy.modules`: Array of module IDs (sorted alphabetically)
+- `policy.moduleCount`: Number of modules
+- `state.frameCount`: Number of stored frames
+- `state.currentBranch`: Current git branch
+- `state.latestFrame`: Timestamp of most recent frame (or null)
+- `capabilities.encryption`: Whether encryption is available
+- `capabilities.images`: Whether image storage is available
+- `errorCodes`: Array of MCPErrorCode enum values (sorted alphabetically)
+
+**Best-Effort Fields (may change or be null):**
+- `policy`: Null if no policy file is loaded
+- `state.latestFrame`: Null if no frames exist
+
+**Guarantee:** 
+- Schema version follows SemVer. Agents can cache and depend on the structure within a major version.
+- Deterministic ordering enables reliable caching and diffing of introspect results.
+- Adding new error codes, capabilities, or fields is considered a minor version bump.
+- Removing or changing existing fields is a major version bump.
+
+---
+
+### 2. Frames
+
+### 2. Frames
 
 **What:** The atomic unit of AI memory.
 
@@ -36,7 +77,9 @@ Lex exposes a contract surface that any runner or tool can target. This document
 
 ---
 
-### 2. Policy
+### 3. Policy
+
+### 3. Policy
 
 **What:** Rules that govern module ownership, caller permissions, and kill patterns.
 
@@ -52,7 +95,9 @@ Lex exposes a contract surface that any runner or tool can target. This document
 
 ---
 
-### 3. Instructions
+### 4. Instructions
+
+### 4. Instructions
 
 **What:** IDE/host-specific instruction blocks generated from a canonical source.
 
@@ -68,7 +113,9 @@ Lex exposes a contract surface that any runner or tool can target. This document
 
 ---
 
-### 4. Rules
+### 5. Rules
+
+### 5. Rules
 
 **What:** Behavioral rules with confidence scores and decay.
 
@@ -80,6 +127,20 @@ Lex exposes a contract surface that any runner or tool can target. This document
 - Rules are scoped by **Scope Contract A+** (Lex-owned canonical base keys). See [`docs/LEXSONA.md`](./LEXSONA.md) for the authoritative definition, legacy alias handling, and normalization requirements.
 
 **Guarantee:** Rule confidence is computable from stored values. No hidden state.
+
+---
+
+### 6. MCP Tools
+
+**What:** Model Context Protocol tools exposed by the Lex MCP server.
+
+**Invariants:**
+- Tools list is returned in **deterministic sorted order** by name
+- Tool schemas are stable within a major version
+- New tools may be added in minor versions
+- Tool removal or signature changes require major version bump
+
+**Guarantee:** Tools/list returns a deterministically ordered array, enabling reliable caching and comparison.
 
 ---
 
