@@ -1391,6 +1391,7 @@ export class MCPServer {
             branch: currentBranch,
           },
           mods: policyData ? policyData.moduleCount : 0,
+          // Abbreviate error codes and re-sort (abbreviation changes alphabetical order)
           errs: errorCodes.map((code) => this.abbreviateErrorCode(code)).sort(),
         };
 
