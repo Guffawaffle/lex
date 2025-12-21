@@ -292,18 +292,11 @@ app.get("/api/analytics", (req, res) => {
 /**
  * Get total count of frames in database
  */
-export function getFrameCount(db: Database.Database, userId?: string): number {
+export function getFrameCount(db: Database.Database): number {
   // ✅ SQL lives in curated module
-  let stmt;
-  if (userId) {
-    stmt = db.prepare("SELECT COUNT(*) as count FROM frames WHERE user_id = ?");
-    const result = stmt.get(userId) as { count: number };
-    return result.count;
-  } else {
-    stmt = db.prepare("SELECT COUNT(*) as count FROM frames");
-    const result = stmt.get() as { count: number };
-    return result.count;
-  }
+  const stmt = db.prepare("SELECT COUNT(*) as count FROM frames");
+  const result = stmt.get() as { count: number };
+  return result.count;
 }
 ```
 
@@ -314,7 +307,7 @@ import { getFrameCount } from "../../store/queries.js";
 
 // ✅ Route calls curated query function
 app.get("/api/analytics", (req, res) => {
-  const count = getFrameCount(db, req.user?.id);
+  const count = getFrameCount(db);
   res.json({ frameCount: count });
 });
 ```

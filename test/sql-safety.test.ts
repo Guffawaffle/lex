@@ -34,7 +34,6 @@ const ALLOWED_PATTERNS = [
   "memory/store/backup.ts",
   "memory/store/code-atlas-runs.ts",
   "memory/store/images.ts",
-  "memory/store/lexsona-queries.ts",
   "memory/store/sqlite/", // SqliteFrameStore and future sqlite implementations
   "memory/mcp_server/auth/state-storage.ts",
   "memory/mcp_server/routes/",
