@@ -12,7 +12,17 @@
 // Configure logger level before importing modules
 // Suppress Pino logs by default unless --verbose or LEX_DEBUG=1
 if (!process.env.LEX_LOG_LEVEL) {
-  const hasVerboseFlag = process.argv.includes("--verbose");
+  // Check if --verbose appears as a top-level flag (not as a value for another option)
+  // This is a simple check that works for the global --verbose flag position
+  const hasVerboseFlag = process.argv.slice(2).some((arg, idx, arr) => {
+    // Check if this is the --verbose flag itself
+    if (arg === "--verbose") {
+      // Make sure it's not a value for a previous option
+      const prevArg = arr[idx - 1];
+      return !prevArg || !prevArg.startsWith("--");
+    }
+    return false;
+  });
   const hasDebugEnv = process.env.LEX_DEBUG === "1";
   
   if (hasVerboseFlag || hasDebugEnv) {
@@ -30,7 +40,7 @@ import("./index.js").then((indexModule) => {
 }).catch((error) => {
   // Import output module only if needed for error handling
   import("./output.js").then((outputModule) => {
-    outputModule.error("Unexpected error:" + String(error));
+    outputModule.error("Unexpected error: " + String(error));
     process.exit(2);
   });
 });
