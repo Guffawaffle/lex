@@ -8,7 +8,7 @@ import { ImageManager } from "../store/images.js";
 // @ts-ignore - importing from compiled dist directories
 import type { Frame } from "../frames/types.js";
 import { MCP_TOOLS } from "./tools.js";
-import { MCPError, MCPErrorCode, createModuleIdError } from "./errors.js";
+import { MCPError, MCPErrorCode, MCP_ERROR_METADATA, createModuleIdError } from "./errors.js";
 // @ts-ignore - importing from compiled dist directories
 import { generateAtlasFrame, formatAtlasFrame } from "../../shared/atlas/atlas-frame.js";
 // @ts-ignore - importing from compiled dist directories
@@ -1377,6 +1377,15 @@ export class MCPServer {
       // Error codes - get all MCPErrorCode values and sort for deterministic ordering
       const errorCodes = Object.values(MCPErrorCode).sort();
 
+      // Build error code metadata map for introspection
+      const errorCodeMetadata: Record<
+        string,
+        { category: string; retryable: boolean }
+      > = {};
+      for (const code of errorCodes) {
+        errorCodeMetadata[code] = MCP_ERROR_METADATA[code as MCPErrorCode];
+      }
+
       // Schema version for contract stability
       const schemaVersion = "1.0.0";
 
@@ -1427,6 +1436,7 @@ export class MCPServer {
           },
           capabilities,
           errorCodes,
+          errorCodeMetadata,
         };
 
         // Format human-readable output
@@ -1452,7 +1462,26 @@ export class MCPServer {
         text += `  Images: ${capabilities.images ? "✅" : "❌"}\n\n`;
 
         text += `🚨 Error Codes (${errorCodes.length}):\n`;
-        text += `  ${errorCodes.join(", ")}\n`;
+        // Group by category for better readability
+        const byCategory: Record<string, string[]> = {
+          validation: [],
+          storage: [],
+          policy: [],
+          internal: [],
+        };
+        for (const code of errorCodes) {
+          const metadata = errorCodeMetadata[code];
+          byCategory[metadata.category].push(code);
+        }
+        for (const [category, codes] of Object.entries(byCategory)) {
+          if (codes.length > 0) {
+            const retryableCount = codes.filter(
+              (c) => errorCodeMetadata[c].retryable
+            ).length;
+            text += `  ${category.toUpperCase()} (${codes.length}, ${retryableCount} retryable):\n`;
+            text += `    ${codes.join(", ")}\n`;
+          }
+        }
 
         return {
           content: [
