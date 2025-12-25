@@ -1,13 +1,5 @@
 /**
  * Tests for lex frames import command
- *
- * ⚠️  WARNING: THIS FILE IS EXCLUDED FROM `npm test` ⚠️
- *
- * This file executes git commands and is NOT acceptable in the main test path.
- * Reason: This environment uses mandatory interactive GPG signing for commits,
- * which causes these tests to hang indefinitely.
- *
- * To run these tests explicitly: npm run test:git
  */
 
 import { test } from "node:test";

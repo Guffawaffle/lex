@@ -48,7 +48,15 @@ function readFramesFromFile(filepath: string): Frame[] {
     }
 
     if (errors.length > 0 && frames.length === 0) {
-      throw new Error(`All frames failed validation:\n${errors.join("\n")}`);
+      throw new AXErrorException(
+        "IMPORT_VALIDATION_FAILED",
+        `All frames failed validation in ${filepath}`,
+        [
+          "Ensure all frames conform to the Frame schema",
+          "Check that required fields are present: id, timestamp, branch, module_scope, summary_caption, reference_point, status_snapshot",
+        ],
+        { filepath, validationErrors: errors.join("\n") }
+      );
     }
 
     if (errors.length > 0) {
@@ -216,17 +224,9 @@ export async function importFrames(
         output.info(`\n🔍 Dry run mode - validating ${allFrames.length} frames...\n`);
       }
 
-      for (const frame of allFrames) {
-        const result = safeParseFrame(frame);
-        if (result.success) {
-          imported++;
-        } else {
-          errors++;
-          if (!options.json) {
-            output.error(`Frame ${frame.id} validation failed: ${result.error.message}`);
-          }
-        }
-      }
+      // Frames are already validated during readFramesFromFile/readFramesFromDirectory
+      // In dry-run mode, we just report the count of valid frames
+      imported = allFrames.length;
 
       const duration = ((Date.now() - startTime) / 1000).toFixed(2);
 
@@ -267,10 +267,10 @@ export async function importFrames(
             }
             continue;
           }
-          // If merge is enabled, we'll overwrite below
+          // If merge is enabled, saveFrame will perform upsert (INSERT OR REPLACE)
         }
 
-        // Save frame (this will upsert in merge mode)
+        // Save frame - performs INSERT for new frames, or INSERT OR REPLACE for existing frames (merge mode)
         await store.saveFrame(frame);
         imported++;
 
