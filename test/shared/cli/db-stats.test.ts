@@ -88,7 +88,7 @@ describe("Database Stats Command", () => {
 
     const output = JSON.parse(result);
     assert.strictEqual(output.frames.total, 10);
-    assert.ok(output.frames.thisWeek >= 7); // At least 7 frames within last week
+    assert.ok(output.frames.thisWeek >= 7); // At least 7 frames (days 0-6) are within last week
     assert.strictEqual(output.frames.thisMonth, 10); // All frames within last month
     assert.ok(output.dateRange.oldest);
     assert.ok(output.dateRange.newest);

@@ -995,19 +995,15 @@ export async function dbStats(options: DbStatsOptions = {}): Promise<void> {
     }
 
     // Get module distribution
-    interface ModuleCount {
-      module: string;
-      count: number;
-    }
-
     const moduleDistribution: Record<string, number> = {};
     
     // Get all frames and parse module_scope
-    const allFrames = db.prepare("SELECT module_scope FROM frames").all() as Array<{
+    // For large databases, we iterate rather than load all at once
+    const frameIterator = db.prepare("SELECT module_scope FROM frames").iterate() as IterableIterator<{
       module_scope: string;
     }>;
 
-    for (const frame of allFrames) {
+    for (const frame of frameIterator) {
       try {
         const modules = JSON.parse(frame.module_scope) as string[];
         for (const module of modules) {
@@ -1104,15 +1100,22 @@ export async function dbStats(options: DbStatsOptions = {}): Promise<void> {
           ? 0
           : sortedModules.slice(5).reduce((sum, m) => sum + m.count, 0);
 
+        // Calculate max length for padding (minimum 20, maximum from actual module names)
+        const maxModuleLength = Math.max(
+          20,
+          ...modulesToShow.map((m) => m.module.length),
+          otherCount > 0 ? "(other)".length : 0
+        );
+
         output.info(options.detailed ? "Module Distribution:" : "Top Modules:");
         for (const { module, count } of modulesToShow) {
           const percentage = totalFrames > 0 ? Math.round((count / totalFrames) * 100) : 0;
-          output.info(`  ${module.padEnd(20)} ${count} frames (${percentage}%)`);
+          output.info(`  ${module.padEnd(maxModuleLength)} ${count} frames (${percentage}%)`);
         }
 
         if (!options.detailed && otherCount > 0) {
           const otherPercentage = totalFrames > 0 ? Math.round((otherCount / totalFrames) * 100) : 0;
-          output.info(`  ${"(other)".padEnd(20)} ${otherCount} frames (${otherPercentage}%)`);
+          output.info(`  ${"(other)".padEnd(maxModuleLength)} ${otherCount} frames (${otherPercentage}%)`);
         }
         output.info("");
       }
