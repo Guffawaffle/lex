@@ -241,7 +241,7 @@ test("logger receives diagnostic events (non-blocking)", () => {
     debug: (msg: string, data?: unknown) => logCalls.push({ level: "debug", message: msg, data }),
   };
 
-  const out = createOutput({ mode: "plain", logger: mockLogger as any });
+  const out = createOutput({ mode: "plain", logger: mockLogger as any, verbose: true });
   const logs: string[] = [];
   const originalLog = console.log;
   console.log = (msg: string) => logs.push(msg);

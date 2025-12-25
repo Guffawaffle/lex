@@ -40,6 +40,7 @@ export function createOutput(opts: OutputOptions = {}): CliOutput {
   const envMode = (process.env.LEX_CLI_OUTPUT_MODE ?? "").toLowerCase();
   const mode = opts.mode ?? (envMode === "jsonl" ? "jsonl" : "plain");
   const scope = opts.scope;
+  const verbose = opts.verbose ?? (process.env.LEX_DEBUG === "1" || process.env.LEX_VERBOSE === "1");
   const diag = opts.logger ?? getLogger("cli:output");
 
   function nowIso(): string {
@@ -64,20 +65,22 @@ export function createOutput(opts: OutputOptions = {}): CliOutput {
       ...(hint && { hint }),
     };
 
-    // Diagnostic sink: always gets structured object (non-blocking)
-    try {
-      const diagMsg = `CLI Output: ${message ?? code ?? level}`;
-      if (level === "error") {
-        diag.error(diagMsg);
-      } else if (level === "warn") {
-        diag.warn(diagMsg);
-      } else if (level === "debug") {
-        diag.debug(diagMsg);
-      } else {
-        diag.info(diagMsg);
+    // Diagnostic sink: only log if verbose mode is enabled
+    if (verbose) {
+      try {
+        const diagMsg = `CLI Output: ${message ?? code ?? level}`;
+        if (level === "error") {
+          diag.error(diagMsg);
+        } else if (level === "warn") {
+          diag.warn(diagMsg);
+        } else if (level === "debug") {
+          diag.debug(diagMsg);
+        } else {
+          diag.info(diagMsg);
+        }
+      } catch {
+        // Avoid breaking CLI on logger errors
       }
-    } catch {
-      // Avoid breaking CLI on logger errors
     }
 
     // User-facing sink: stdout/stderr

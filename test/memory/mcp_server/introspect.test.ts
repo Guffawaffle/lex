@@ -54,6 +54,10 @@ describe("MCP Server - Introspect Tool", () => {
 
       const data = response.data as Record<string, unknown>;
 
+      // Check schemaVersion
+      assert.ok(data.schemaVersion, "Should have schemaVersion");
+      assert.strictEqual(typeof data.schemaVersion, "string", "SchemaVersion should be a string");
+
       // Check version
       assert.ok(data.version, "Should have version");
       assert.strictEqual(typeof data.version, "string", "Version should be a string");
@@ -81,9 +85,18 @@ describe("MCP Server - Introspect Tool", () => {
         "Should include VALIDATION_REQUIRED_FIELD"
       );
 
+      // Verify error codes are sorted (deterministic ordering)
+      const sortedErrorCodes = [...errorCodes].sort();
+      assert.deepStrictEqual(
+        errorCodes,
+        sortedErrorCodes,
+        "Error codes should be in sorted order"
+      );
+
       // Check text output
       const text = response.content[0].text;
       assert.ok(text.includes("Lex Introspection"), "Text should include title");
+      assert.ok(text.includes("Schema Version:"), "Text should include schema version");
       assert.ok(text.includes("Version:"), "Text should include version");
       assert.ok(text.includes("State:"), "Text should include state");
       assert.ok(text.includes("Capabilities:"), "Text should include capabilities");
@@ -110,22 +123,29 @@ describe("MCP Server - Introspect Tool", () => {
       const data = response.data as Record<string, unknown>;
 
       // Check compact format fields
+      assert.ok("schemaVersion" in data, "Should have 'schemaVersion'");
       assert.ok("v" in data, "Should have 'v' (version)");
       assert.ok("caps" in data, "Should have 'caps' (capabilities)");
       assert.ok("state" in data, "Should have 'state'");
       assert.ok("mods" in data, "Should have 'mods' (module count)");
       assert.ok("errs" in data, "Should have 'errs' (error codes)");
 
-      // Check capabilities are abbreviated
+      // Check capabilities are abbreviated and sorted
       const caps = data.caps as string[];
       assert.ok(Array.isArray(caps), "Caps should be an array");
+      const sortedCaps = [...caps].sort();
+      assert.deepStrictEqual(caps, sortedCaps, "Capabilities should be in sorted order");
 
-      // Check error codes are abbreviated
+      // Check error codes are abbreviated and sorted
       const errs = data.errs as string[];
       assert.ok(Array.isArray(errs), "Errs should be an array");
       assert.ok(errs.length > 0, "Should have at least one abbreviated error code");
       // Should have abbreviated forms like VAL_REQ, VAL_INV, etc.
       assert.ok(errs.some((err) => err.includes("_")), "Error codes should be abbreviated");
+      
+      // Verify error codes are sorted (deterministic ordering)
+      const sortedErrs = [...errs].sort();
+      assert.deepStrictEqual(errs, sortedErrs, "Error codes should be in sorted order");
     } finally {
       await teardown();
     }
@@ -223,6 +243,45 @@ describe("MCP Server - Introspect Tool", () => {
       assert.ok(response.tools, "Response should have tools array");
       const toolNames = response.tools.map((t) => t.name);
       assert.ok(toolNames.includes("introspect"), "Should include introspect tool");
+      
+      // Verify tools are sorted (deterministic ordering)
+      const sortedToolNames = [...toolNames].sort();
+      assert.deepStrictEqual(
+        toolNames,
+        sortedToolNames,
+        "Tools should be in sorted order by name"
+      );
+    } finally {
+      await teardown();
+    }
+  });
+
+  test("introspect policy modules are sorted for deterministic ordering", async () => {
+    const srv = setup();
+    try {
+      const response = await srv.handleRequest({
+        method: "tools/call",
+        params: {
+          name: "introspect",
+          arguments: {},
+        },
+      });
+
+      const data = response.data as Record<string, unknown>;
+
+      // If policy is loaded, check that modules are sorted
+      if (data.policy !== null) {
+        const policy = data.policy as Record<string, unknown>;
+        const modules = policy.modules as string[];
+        
+        // Verify modules are sorted (deterministic ordering)
+        const sortedModules = [...modules].sort();
+        assert.deepStrictEqual(
+          modules,
+          sortedModules,
+          "Policy modules should be in sorted order"
+        );
+      }
     } finally {
       await teardown();
     }

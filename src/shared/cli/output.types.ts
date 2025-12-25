@@ -40,6 +40,7 @@ export interface CliEvent<T = unknown> {
  * @param mode - Output mode: "plain" for human, "jsonl" for machines. Defaults to env or plain.
  * @param pretty - Whether to use colors/formatting. Defaults to env or TTY detection.
  * @param logger - Optional logger adapter (pino-compatible shape) for diagnostic sink.
+ * @param verbose - Whether to enable diagnostic logging. Defaults to false.
  */
 export interface OutputOptions {
   scope?: string;
@@ -52,6 +53,7 @@ export interface OutputOptions {
     warn(obj: unknown, msg?: string): void;
     error(obj: unknown, msg?: string): void;
   };
+  verbose?: boolean;
 }
 
 /**

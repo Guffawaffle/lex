@@ -24,6 +24,7 @@ export interface RecallOptions {
   showCacheStats?: boolean;
   exact?: boolean; // If true, disable fuzzy matching (prefix wildcards)
   list?: number | boolean; // If set, list recent frames instead of searching (true = use default limit)
+  strict?: boolean; // If true, exit with code 1 when no frames found (for backwards compatibility)
 }
 
 /**
@@ -64,8 +65,12 @@ export async function recall(
       frames = allFrames;
 
       if (frames.length === 0) {
-        output.error(`\n❌ No frames found in database\n`);
-        process.exit(1);
+        if (options.json) {
+          json({ frames: [], query: null, matchCount: 0 });
+        } else {
+          output.info(`\nNo frames found in database\n`);
+        }
+        process.exit(options.strict ? 1 : 0);
       }
     } else {
       // Normal search mode - query is required
@@ -90,8 +95,12 @@ export async function recall(
       }
 
       if (frames.length === 0) {
-        output.info(`\n❌ No frames found matching: "${query}"\n`);
-        process.exit(1);
+        if (options.json) {
+          json({ frames: [], query, matchCount: 0 });
+        } else {
+          output.info(`\nNo frames found matching: "${query}"\n`);
+        }
+        process.exit(options.strict ? 1 : 0);
       }
     }
 

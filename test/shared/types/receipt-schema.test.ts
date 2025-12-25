@@ -110,7 +110,7 @@ describe("Receipt Schema Tests", () => {
     });
 
     it("should reject Receipt without id", () => {
-      const { id, ...noId } = validReceipt;
+      const { id: _id, ...noId } = validReceipt;
       assert.throws(() => ReceiptSchema.parse(noId));
     });
 
@@ -120,12 +120,12 @@ describe("Receipt Schema Tests", () => {
     });
 
     it("should reject Receipt without executor", () => {
-      const { executor, ...noExecutor } = validReceipt;
+      const { executor: _executor, ...noExecutor } = validReceipt;
       assert.throws(() => ReceiptSchema.parse(noExecutor));
     });
 
     it("should reject Receipt without task", () => {
-      const { task, ...noTask } = validReceipt;
+      const { task: _task, ...noTask } = validReceipt;
       assert.throws(() => ReceiptSchema.parse(noTask));
     });
 

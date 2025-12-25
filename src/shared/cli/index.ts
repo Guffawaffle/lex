@@ -60,7 +60,8 @@ export function createProgram(): Command {
     .name("lex")
     .description("Policy-aware work continuity with receipts")
     .version(getVersion())
-    .option("--json", "Output results in JSON format");
+    .option("--json", "Output results in JSON format")
+    .option("--verbose", "Enable diagnostic logging (Pino logs)");
 
   // lex init command
   program
@@ -140,6 +141,7 @@ export function createProgram(): Command {
     )
     .option("--cache-stats", "Show cache statistics")
     .option("--exact", "Disable fuzzy matching (prefix wildcards)")
+    .option("--strict", "Exit with code 1 when no frames found (for CI/scripts)")
     .action(async (query, cmdOptions) => {
       const globalOptions = program.opts();
       const options: RecallOptions = {
@@ -149,6 +151,7 @@ export function createProgram(): Command {
         maxTokens: cmdOptions.maxTokens,
         showCacheStats: cmdOptions.cacheStats || false,
         exact: cmdOptions.exact || false,
+        strict: cmdOptions.strict || false,
         json: globalOptions.json || false,
       };
 
@@ -364,7 +367,7 @@ export function createProgram(): Command {
         projectRoot: cmdOptions.projectRoot,
         config: cmdOptions.config,
         dryRun: cmdOptions.dryRun || false,
-        verbose: cmdOptions.verbose || false,
+        verbose: cmdOptions.verbose || globalOptions.verbose || false,
         json: globalOptions.json || false,
       };
       await instructionsGenerate(options);
