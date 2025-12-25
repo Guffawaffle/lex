@@ -9,11 +9,37 @@
  *   lex check merged.json lexmap.policy.json
  */
 
-import { run } from "./index.js";
-import * as output from "./output.js";
+// Configure logger level before importing modules
+// Suppress Pino logs by default unless --verbose or LEX_DEBUG=1
+if (!process.env.LEX_LOG_LEVEL) {
+  // Simple check: just look for --verbose anywhere in argv
+  // Commander will validate it properly, this is just for early env setup
+  const hasVerboseFlag = process.argv.includes("--verbose");
+  const hasDebugEnv = process.env.LEX_DEBUG === "1";
+  
+  if (hasVerboseFlag || hasDebugEnv) {
+    // Enable verbose logging
+    process.env.LEX_VERBOSE = "1";
+  } else {
+    // Suppress Pino logs
+    process.env.LEX_LOG_LEVEL = "silent";
+  }
+}
 
-// Run the CLI
-run().catch((error) => {
-  output.error("Unexpected error:" + String(error));
-  process.exit(2);
-});
+// Use dynamic import to ensure environment variables are set before modules load
+(async () => {
+  try {
+    const indexModule = await import("./index.js");
+    await indexModule.run();
+  } catch (error) {
+    // Import output module only if needed for error handling
+    try {
+      const outputModule = await import("./output.js");
+      outputModule.error("Unexpected error: " + String(error));
+    } catch (outputError) {
+      // If we can't even import the output module, fall back to console.error
+      console.error("Fatal error: " + String(error));
+    }
+    process.exit(2);
+  }
+})();

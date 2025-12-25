@@ -60,7 +60,8 @@ export function createProgram(): Command {
     .name("lex")
     .description("Policy-aware work continuity with receipts")
     .version(getVersion())
-    .option("--json", "Output results in JSON format");
+    .option("--json", "Output results in JSON format")
+    .option("--verbose", "Enable diagnostic logging (Pino logs)");
 
   // lex init command
   program
@@ -366,7 +367,7 @@ export function createProgram(): Command {
         projectRoot: cmdOptions.projectRoot,
         config: cmdOptions.config,
         dryRun: cmdOptions.dryRun || false,
-        verbose: cmdOptions.verbose || false,
+        verbose: cmdOptions.verbose || globalOptions.verbose || false,
         json: globalOptions.json || false,
       };
       await instructionsGenerate(options);
