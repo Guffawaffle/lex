@@ -16,7 +16,7 @@ if (!process.env.LEX_LOG_LEVEL) {
   // Commander will validate it properly, this is just for early env setup
   const hasVerboseFlag = process.argv.includes("--verbose");
   const hasDebugEnv = process.env.LEX_DEBUG === "1";
-  
+
   if (hasVerboseFlag || hasDebugEnv) {
     // Enable verbose logging
     process.env.LEX_VERBOSE = "1";
@@ -27,7 +27,7 @@ if (!process.env.LEX_LOG_LEVEL) {
 }
 
 // Use dynamic import to ensure environment variables are set before modules load
-(async () => {
+void (async () => {
   try {
     const indexModule = await import("./index.js");
     await indexModule.run();
@@ -36,9 +36,9 @@ if (!process.env.LEX_LOG_LEVEL) {
     try {
       const outputModule = await import("./output.js");
       outputModule.error("Unexpected error: " + String(error));
-    } catch (outputError) {
+    } catch {
       // If we can't even import the output module, fall back to console.error
-      console.error("Fatal error: " + String(error));
+      process.stderr.write(`Fatal error: ${String(error)}\n`);
     }
     process.exit(2);
   }
