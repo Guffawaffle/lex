@@ -11,13 +11,16 @@ import { check, type CheckOptions } from "./check.js";
 import { timeline, type TimelineCommandOptions } from "./timeline.js";
 import { init, type InitOptions } from "./init.js";
 import { exportFrames, type ExportCommandOptions } from "./export.js";
+import { importFrames, type ImportCommandOptions } from "./import.js";
 import {
   dbVacuum,
   dbBackup,
   dbEncrypt,
+  dbStats,
   type DbVacuumOptions,
   type DbBackupOptions,
   type DbEncryptOptions,
+  type DbStatsOptions,
 } from "./db.js";
 import { policyCheck, type PolicyCheckOptions } from "./policy-check.js";
 import { policyAddModule, type PolicyAddModuleOptions } from "./policy-add-module.js";
@@ -234,6 +237,28 @@ export function createProgram(): Command {
       await exportFrames(options);
     });
 
+  // lex frames import command
+  framesCommand
+    .command("import")
+    .description("Import frames from JSON files for backup recovery and migration")
+    .option("--from-dir <path>", "Import all JSON files from directory")
+    .option("--from-file <path>", "Import single JSON file (array of Frames)")
+    .option("--dry-run", "Validate without writing to database")
+    .option("--skip-duplicates", "Skip frames with existing IDs")
+    .option("--merge", "Update existing frames with new data")
+    .action(async (cmdOptions) => {
+      const globalOptions = program.opts();
+      const options: ImportCommandOptions = {
+        fromDir: cmdOptions.fromDir,
+        fromFile: cmdOptions.fromFile,
+        dryRun: cmdOptions.dryRun || false,
+        skipDuplicates: cmdOptions.skipDuplicates || false,
+        merge: cmdOptions.merge || false,
+        json: globalOptions.json || false,
+      };
+      await importFrames(options);
+    });
+
   // lex db command group
   const dbCommand = program.command("db").description("Database maintenance commands");
 
@@ -293,6 +318,20 @@ export function createProgram(): Command {
         progress: cmdOptions.progress || false,
       };
       await dbEncrypt(options);
+    });
+
+  // lex db stats
+  dbCommand
+    .command("stats")
+    .description("Show database statistics and health information")
+    .option("--detailed", "Include full module breakdown")
+    .action(async (cmdOptions) => {
+      const globalOptions = program.opts();
+      const options: DbStatsOptions = {
+        json: globalOptions.json || false,
+        detailed: cmdOptions.detailed || false,
+      };
+      await dbStats(options);
     });
 
   // lex policy command group
