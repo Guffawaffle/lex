@@ -11,6 +11,7 @@ import { check, type CheckOptions } from "./check.js";
 import { timeline, type TimelineCommandOptions } from "./timeline.js";
 import { init, type InitOptions } from "./init.js";
 import { exportFrames, type ExportCommandOptions } from "./export.js";
+import { importFrames, type ImportCommandOptions } from "./import.js";
 import {
   dbVacuum,
   dbBackup,
@@ -232,6 +233,28 @@ export function createProgram(): Command {
         json: globalOptions.json || false,
       };
       await exportFrames(options);
+    });
+
+  // lex frames import command
+  framesCommand
+    .command("import")
+    .description("Import frames from JSON files for backup recovery and migration")
+    .option("--from-dir <path>", "Import all JSON files from directory")
+    .option("--from-file <path>", "Import single JSON file (array of Frames)")
+    .option("--dry-run", "Validate without writing to database")
+    .option("--skip-duplicates", "Skip frames with existing IDs")
+    .option("--merge", "Update existing frames with new data")
+    .action(async (cmdOptions) => {
+      const globalOptions = program.opts();
+      const options: ImportCommandOptions = {
+        fromDir: cmdOptions.fromDir,
+        fromFile: cmdOptions.fromFile,
+        dryRun: cmdOptions.dryRun || false,
+        skipDuplicates: cmdOptions.skipDuplicates || false,
+        merge: cmdOptions.merge || false,
+        json: globalOptions.json || false,
+      };
+      await importFrames(options);
     });
 
   // lex db command group
