@@ -15,9 +15,11 @@ import {
   dbVacuum,
   dbBackup,
   dbEncrypt,
+  dbStats,
   type DbVacuumOptions,
   type DbBackupOptions,
   type DbEncryptOptions,
+  type DbStatsOptions,
 } from "./db.js";
 import { policyCheck, type PolicyCheckOptions } from "./policy-check.js";
 import { policyAddModule, type PolicyAddModuleOptions } from "./policy-add-module.js";
@@ -293,6 +295,20 @@ export function createProgram(): Command {
         progress: cmdOptions.progress || false,
       };
       await dbEncrypt(options);
+    });
+
+  // lex db stats
+  dbCommand
+    .command("stats")
+    .description("Show database statistics and health information")
+    .option("--detailed", "Include full module breakdown")
+    .action(async (cmdOptions) => {
+      const globalOptions = program.opts();
+      const options: DbStatsOptions = {
+        json: globalOptions.json || false,
+        detailed: cmdOptions.detailed || false,
+      };
+      await dbStats(options);
     });
 
   // lex policy command group
