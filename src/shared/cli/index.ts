@@ -140,6 +140,7 @@ export function createProgram(): Command {
     )
     .option("--cache-stats", "Show cache statistics")
     .option("--exact", "Disable fuzzy matching (prefix wildcards)")
+    .option("--strict", "Exit with code 1 when no frames found (for CI/scripts)")
     .action(async (query, cmdOptions) => {
       const globalOptions = program.opts();
       const options: RecallOptions = {
@@ -149,6 +150,7 @@ export function createProgram(): Command {
         maxTokens: cmdOptions.maxTokens,
         showCacheStats: cmdOptions.cacheStats || false,
         exact: cmdOptions.exact || false,
+        strict: cmdOptions.strict || false,
         json: globalOptions.json || false,
       };
 
