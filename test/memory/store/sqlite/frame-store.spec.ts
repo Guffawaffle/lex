@@ -162,33 +162,108 @@ describe("SqliteFrameStore Tests", () => {
       });
 
       test("should list all Frames in descending timestamp order", async () => {
-        const frames = await store.listFrames();
-        assert.ok(frames.length >= 3, "Should have at least 3 frames");
+        const result = await store.listFrames();
+        assert.ok(result.frames.length >= 3, "Should have at least 3 frames");
         // Verify order is descending by timestamp
-        for (let i = 1; i < frames.length; i++) {
+        for (let i = 1; i < result.frames.length; i++) {
           assert.ok(
-            frames[i - 1].timestamp >= frames[i].timestamp,
+            result.frames[i - 1].timestamp >= result.frames[i].timestamp,
             "Frames should be in descending timestamp order"
           );
         }
+        // Verify metadata
+        assert.strictEqual(result.order.by, "created_at");
+        assert.strictEqual(result.order.direction, "desc");
       });
 
       test("should limit results when requested", async () => {
-        const frames = await store.listFrames({ limit: 2 });
-        assert.strictEqual(frames.length, 2, "Should return only 2 frames");
+        const result = await store.listFrames({ limit: 2 });
+        assert.strictEqual(result.frames.length, 2, "Should return only 2 frames");
+        assert.strictEqual(result.page.limit, 2);
       });
 
       test("should support offset for pagination", async () => {
-        const allFrames = await store.listFrames();
-        const offsetFrames = await store.listFrames({ limit: 2, offset: 1 });
+        const allResult = await store.listFrames();
+        const offsetResult = await store.listFrames({ limit: 2, offset: 1 });
 
-        assert.strictEqual(offsetFrames.length, 2, "Should return 2 frames");
-        assert.strictEqual(offsetFrames[0].id, allFrames[1].id, "First frame should match second from full list");
+        assert.strictEqual(offsetResult.frames.length, 2, "Should return 2 frames");
+        assert.strictEqual(offsetResult.frames[0].id, allResult.frames[1].id, "First frame should match second from full list");
       });
 
       test("should return empty array when offset exceeds total", async () => {
-        const frames = await store.listFrames({ offset: 1000 });
-        assert.strictEqual(frames.length, 0, "Should return empty array");
+        const result = await store.listFrames({ offset: 1000 });
+        assert.strictEqual(result.frames.length, 0, "Should return empty array");
+        assert.strictEqual(result.page.hasMore, false);
+      });
+
+      test("should support cursor-based pagination", async () => {
+        // Get first page
+        const page1 = await store.listFrames({ limit: 2 });
+        assert.strictEqual(page1.frames.length, 2, "First page should have 2 frames");
+        assert.strictEqual(page1.page.hasMore, true, "Should indicate more results");
+        assert.ok(page1.page.nextCursor, "Should provide next cursor");
+
+        // Get second page using cursor
+        const page2 = await store.listFrames({ limit: 2, cursor: page1.page.nextCursor! });
+        assert.strictEqual(page2.frames.length, 2, "Second page should have 2 frames");
+        
+        // Ensure no duplicates between pages
+        const page1Ids = new Set(page1.frames.map(f => f.id));
+        const page2Ids = new Set(page2.frames.map(f => f.id));
+        for (const id of page2Ids) {
+          assert.ok(!page1Ids.has(id), `Frame ${id} should not appear in both pages`);
+        }
+      });
+
+      test("should indicate hasMore=false on last page", async () => {
+        // Get all frames to know total count
+        const allResult = await store.listFrames();
+        const totalCount = allResult.frames.length;
+
+        // Request more than total
+        const result = await store.listFrames({ limit: totalCount + 10 });
+        assert.strictEqual(result.page.hasMore, false, "Should indicate no more results");
+        assert.strictEqual(result.page.nextCursor, null, "Should not provide next cursor");
+      });
+
+      test("should maintain stable ordering with cursor pagination", async () => {
+        // Save frames with same timestamp to test tie-breaking
+        const sameTimestamp = "2025-11-05T12:00:00Z";
+        await store.saveFrame({
+          id: "frame-same-ts-1",
+          timestamp: sameTimestamp,
+          branch: "test",
+          module_scope: ["test"],
+          summary_caption: "Test 1",
+          reference_point: "test 1",
+          status_snapshot: { next_action: "test" },
+        });
+        await store.saveFrame({
+          id: "frame-same-ts-2",
+          timestamp: sameTimestamp,
+          branch: "test",
+          module_scope: ["test"],
+          summary_caption: "Test 2",
+          reference_point: "test 2",
+          status_snapshot: { next_action: "test" },
+        });
+
+        // Page through results
+        const page1 = await store.listFrames({ limit: 3 });
+        const page2 = await store.listFrames({ limit: 3, cursor: page1.page.nextCursor! });
+
+        // Collect all IDs
+        const allIds = [...page1.frames.map(f => f.id), ...page2.frames.map(f => f.id)];
+        
+        // Ensure no duplicates
+        const uniqueIds = new Set(allIds);
+        assert.strictEqual(uniqueIds.size, allIds.length, "Should have no duplicate frames across pages");
+      });
+
+      test("should handle invalid cursor gracefully", async () => {
+        // Invalid cursor should be treated as if no cursor was provided
+        const result = await store.listFrames({ limit: 2, cursor: "invalid-cursor" });
+        assert.ok(result.frames.length > 0, "Should return results even with invalid cursor");
       });
     });
 
@@ -420,9 +495,9 @@ describe("SqliteFrameStore Tests", () => {
       const page1 = await store.listFrames({ limit: 1 });
       const page2 = await store.listFrames({ limit: 1, offset: 1 });
 
-      assert.strictEqual(page1.length, 1, "Page 1 should have 1 frame");
-      assert.strictEqual(page2.length, 1, "Page 2 should have 1 frame");
-      assert.notStrictEqual(page1[0].id, page2[0].id, "Pages should have different frames");
+      assert.strictEqual(page1.frames.length, 1, "Page 1 should have 1 frame");
+      assert.strictEqual(page2.frames.length, 1, "Page 2 should have 1 frame");
+      assert.notStrictEqual(page1.frames[0].id, page2.frames[0].id, "Pages should have different frames");
     });
   });
 
@@ -434,8 +509,8 @@ describe("SqliteFrameStore Tests", () => {
     });
 
     test("should handle empty database", async () => {
-      const frames = await store.listFrames();
-      assert.strictEqual(frames.length, 0, "Should return empty array");
+      const result = await store.listFrames();
+      assert.strictEqual(result.frames.length, 0, "Should return empty array");
       await store.close();
     });
 
