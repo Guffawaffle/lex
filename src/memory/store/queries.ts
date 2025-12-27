@@ -349,3 +349,47 @@ export function getFrameCount(db: Database.Database): number {
   const result = stmt.get() as { count: number };
   return result.count;
 }
+
+/**
+ * Get Turn Cost metrics for a time period
+ * Returns frame count and aggregated spend metrics
+ */
+export function getTurnCostMetrics(
+  db: Database.Database,
+  since?: string
+): {
+  frameCount: number;
+  estimatedTokens: number;
+  prompts: number;
+} {
+  const whereClauses: string[] = [];
+  const params: string[] = [];
+
+  if (since) {
+    whereClauses.push("timestamp >= ?");
+    params.push(since);
+  }
+
+  const whereClause = whereClauses.length > 0 ? `WHERE ${whereClauses.join(" AND ")}` : "";
+
+  const stmt = db.prepare(`
+    SELECT 
+      COUNT(*) as frameCount,
+      SUM(CASE WHEN spend IS NOT NULL THEN json_extract(spend, '$.tokens_estimated') ELSE 0 END) as estimatedTokens,
+      SUM(CASE WHEN spend IS NOT NULL THEN json_extract(spend, '$.prompts') ELSE 0 END) as prompts
+    FROM frames
+    ${whereClause}
+  `);
+
+  const result = stmt.get(...params) as {
+    frameCount: number;
+    estimatedTokens: number | null;
+    prompts: number | null;
+  };
+
+  return {
+    frameCount: result.frameCount || 0,
+    estimatedTokens: result.estimatedTokens || 0,
+    prompts: result.prompts || 0,
+  };
+}

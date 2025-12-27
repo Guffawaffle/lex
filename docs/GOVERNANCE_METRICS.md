@@ -110,19 +110,43 @@ const customScore = calculateWeightedTurnCost(components, customWeights);
 console.log(`Custom Turn Cost: ${customScore}`);
 ```
 
-#### CLI (Future)
+#### CLI
 
-The `lex turncost` command is a placeholder for future Turn Cost tracking features:
+The `lex turncost` command provides basic Turn Cost metrics from your Frame database:
 
 ```bash
-# Not yet implemented
+# Show metrics for last 24 hours (default)
 lex turncost
 
-# Shows planned features:
-# • Session-level Turn Cost tracking
-# • Historical Turn Cost analysis
-# • Turn Cost optimization recommendations
+# Output:
+# 📊 Turn Cost Metrics
+# 
+# Period: 24h
+# Frames: 5
+# Estimated Tokens: 7,500
+# Prompts: 20
+# 
+# Average tokens per frame: 1,500
+
+# JSON output
+lex turncost --json
+
+# Custom time period
+lex turncost --period 7d   # Last 7 days
+lex turncost --period 30d  # Last 30 days
+lex turncost --period 48h  # Last 48 hours
 ```
+
+The command aggregates:
+- **Frames**: Count of work sessions in the period
+- **Estimated Tokens**: Sum of `spend.tokens_estimated` from frames with spend metadata
+- **Prompts**: Sum of `spend.prompts` from frames with spend metadata
+
+**Future enhancements** (planned):
+- Session-level Turn Cost component tracking (λL + γC + ρR + τT + αA)
+- Historical Turn Cost analysis and trends
+- Turn Cost optimization recommendations
+- Anomaly detection for unusually high coordination costs
 
 ### Interpretation
 
@@ -188,4 +212,8 @@ Planned Turn Cost features:
 - **Governance Thesis**: See full analysis in `docs/thesis/lex_governance-collab_systems_paper_draft.md` (Section 3.1)
 - **Frame Schema v4**: `src/memory/frames/types.ts`
 - **Turn Cost Calculation**: `src/memory/frames/turncost.ts`
-- **Tests**: `test/memory/frames/turncost.test.ts`
+- **CLI Command**: `src/shared/cli/turncost.ts`
+- **Database Queries**: `src/memory/store/queries.ts` (getTurnCostMetrics)
+- **Tests**: 
+  - Schema tests: `test/memory/frames/turncost.test.ts`
+  - CLI tests: `test/shared/cli/turncost.test.ts`

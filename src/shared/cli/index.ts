@@ -33,6 +33,7 @@ import {
   type InstructionsGenerateOptions,
   type InstructionsCheckOptions,
 } from "./instructions.js";
+import { turncost, type TurnCostOptions } from "./turncost.js";
 import * as output from "./output.js";
 import { readFileSync } from "fs";
 import { join, dirname } from "path";
@@ -459,30 +460,18 @@ export function createProgram(): Command {
       await codeAtlas(options);
     });
 
-  // lex turncost command (skeleton for future implementation)
+  // lex turncost command
   program
     .command("turncost")
     .description("Measure and analyze Turn Cost metrics (governance coordination cost)")
-    .action(async () => {
+    .option("--period <duration>", "Time period for metrics (e.g., 24h, 7d, 30d)", "24h")
+    .action(async (cmdOptions) => {
       const globalOptions = program.opts();
-      if (globalOptions.json) {
-        output.json({
-          success: false,
-          message: "Turn Cost measurement not yet implemented",
-          info: "This command is a placeholder for future Turn Cost tracking features",
-        });
-      } else {
-        output.info("⚠️  Turn Cost measurement not yet implemented");
-        output.info("");
-        output.info("This command will eventually support:");
-        output.info("  • Session-level Turn Cost tracking");
-        output.info("  • Historical Turn Cost analysis");
-        output.info("  • Turn Cost optimization recommendations");
-        output.info("");
-        output.info("Turn Cost formula: λL + γC + ρR + τT + αA");
-        output.info("  L = Latency, C = Context Reset, R = Renegotiation");
-        output.info("  T = Token Bloat, A = Attention Switch");
-      }
+      const options: TurnCostOptions = {
+        json: globalOptions.json || false,
+        period: cmdOptions.period,
+      };
+      await turncost(options);
     });
 
   return program;
