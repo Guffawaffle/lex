@@ -87,6 +87,11 @@ export const MCP_TOOLS: MCPTool[] = [
           },
           description: "Optional array of image attachments (base64-encoded with MIME type)",
         },
+        request_id: {
+          type: "string",
+          description:
+            "Optional idempotency key. If provided, duplicate calls with the same request_id will return the cached response instead of creating a new frame. Useful for safely retrying tool calls.",
+        },
       },
     },
   },
