@@ -1,6 +1,6 @@
 -- ============================================================================
 -- Lex Database Reference Schema
--- Version: 8 (as of 0.6.0)
+-- Version: 9 (as of 2.1.1)
 --
 -- This file documents the complete current schema for reference.
 -- It is NOT executed — actual migrations are in src/memory/store/db.ts.
@@ -39,30 +39,44 @@ CREATE TABLE IF NOT EXISTS frames (
 );
 
 -- FTS5 virtual table for full-text search
+-- V9: Expanded to include next_action, module_scope, jira, branch for better search coverage
+-- Uses external contentless FTS5 to allow JSON extraction
 CREATE VIRTUAL TABLE IF NOT EXISTS frames_fts USING fts5(
   reference_point,
   summary_caption,
   keywords,
-  content='frames',
-  content_rowid='rowid'
+  next_action,    -- Extracted from status_snapshot JSON
+  module_scope,   -- JSON array of module IDs
+  jira,           -- Ticket ID
+  branch,         -- Branch name
+  content=''
 );
 
 -- FTS sync triggers
 CREATE TRIGGER IF NOT EXISTS frames_ai AFTER INSERT ON frames BEGIN
-  INSERT INTO frames_fts(rowid, reference_point, summary_caption, keywords)
-  VALUES (new.rowid, new.reference_point, new.summary_caption, new.keywords);
+  INSERT INTO frames_fts(rowid, reference_point, summary_caption, keywords, next_action, module_scope, jira, branch)
+  VALUES (
+    new.rowid,
+    new.reference_point,
+    new.summary_caption,
+    new.keywords,
+    json_extract(new.status_snapshot, '$.next_action'),
+    new.module_scope,
+    new.jira,
+    new.branch
+  );
 END;
 
 CREATE TRIGGER IF NOT EXISTS frames_ad AFTER DELETE ON frames BEGIN
-  DELETE FROM frames_fts WHERE rowid = old.rowid;
+  INSERT INTO frames_fts(frames_fts, rowid, reference_point, summary_caption, keywords, next_action, module_scope, jira, branch)
+  VALUES ('delete', old.rowid, old.reference_point, old.summary_caption, old.keywords, json_extract(old.status_snapshot, '$.next_action'), old.module_scope, old.jira, old.branch);
 END;
 
 CREATE TRIGGER IF NOT EXISTS frames_au AFTER UPDATE ON frames BEGIN
-  UPDATE frames_fts
-  SET reference_point = new.reference_point,
-      summary_caption = new.summary_caption,
-      keywords = new.keywords
-  WHERE rowid = new.rowid;
+  INSERT INTO frames_fts(frames_fts, rowid, reference_point, summary_caption, keywords, next_action, module_scope, jira, branch)
+  VALUES ('delete', old.rowid, old.reference_point, old.summary_caption, old.keywords, json_extract(old.status_snapshot, '$.next_action'), old.module_scope, old.jira, old.branch);
+  INSERT INTO frames_fts(rowid, reference_point, summary_caption, keywords, next_action, module_scope, jira, branch)
+  VALUES (new.rowid, new.reference_point, new.summary_caption, new.keywords, json_extract(new.status_snapshot, '$.next_action'), new.module_scope, new.jira, new.branch);
 END;
 
 -- Frame indexes
