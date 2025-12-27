@@ -61,8 +61,8 @@ export async function recall(
           process.exit(1);
         }
       }
-      const allFrames = await store.listFrames({ limit });
-      frames = allFrames;
+      const result = await store.listFrames({ limit });
+      frames = result.frames;
 
       if (frames.length === 0) {
         if (options.json) {

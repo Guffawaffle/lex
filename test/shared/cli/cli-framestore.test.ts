@@ -82,7 +82,7 @@ describe("CLI Commands with FrameStore Dependency Injection", () => {
       
       // Verify store is functional with custom path
       await store.saveFrame(testFrame1);
-      const frames = await store.listFrames();
+      const result = await store.listFrames(); const frames = result.frames;
       
       assert.strictEqual(frames.length, 1);
       
@@ -148,7 +148,8 @@ describe("CLI Commands with FrameStore Dependency Injection", () => {
       await store.saveFrame(testFrame3);
       
       // Simulate timeline filtering by Jira
-      const allFrames = await store.listFrames();
+      const result = await store.listFrames();
+      const allFrames = result.frames;
       const framesByJira = allFrames.filter(f => f.jira === "TICKET-123");
       
       assert.strictEqual(framesByJira.length, 2, "Should find 2 frames for TICKET-123");
@@ -164,7 +165,8 @@ describe("CLI Commands with FrameStore Dependency Injection", () => {
       await store.saveFrame(testFrame3);
       
       // Simulate timeline filtering by branch
-      const allFrames = await store.listFrames();
+      const result = await store.listFrames();
+      const allFrames = result.frames;
       const framesByBranch = allFrames.filter(f => f.branch === "feature/auth-fix");
       
       assert.strictEqual(framesByBranch.length, 2, "Should find 2 frames for feature/auth-fix branch");
@@ -176,7 +178,7 @@ describe("CLI Commands with FrameStore Dependency Injection", () => {
       await store.saveFrame(testFrame3);
       
       // Simulate export - get all frames
-      const frames = await store.listFrames();
+      const result = await store.listFrames(); const frames = result.frames;
       
       assert.strictEqual(frames.length, 3, "Should export all 3 frames");
       
@@ -221,8 +223,10 @@ describe("CLI Commands with FrameStore Dependency Injection", () => {
       await store1.saveFrame(testFrame1);
       await store2.saveFrame(testFrame2);
       
-      const store1Frames = await store1.listFrames();
-      const store2Frames = await store2.listFrames();
+      const result1 = await store1.listFrames();
+      const result2 = await store2.listFrames();
+      const store1Frames = result1.frames;
+      const store2Frames = result2.frames;
       
       assert.strictEqual(store1Frames.length, 1, "Store 1 should have 1 frame");
       assert.strictEqual(store2Frames.length, 1, "Store 2 should have 1 frame");
@@ -233,7 +237,8 @@ describe("CLI Commands with FrameStore Dependency Injection", () => {
     test("Pre-populated MemoryFrameStore should work correctly", async () => {
       const prePopulatedStore = new MemoryFrameStore([testFrame1, testFrame2]);
       
-      const frames = await prePopulatedStore.listFrames();
+      const result = await prePopulatedStore.listFrames();
+      const frames = result.frames;
       assert.strictEqual(frames.length, 2, "Pre-populated store should have 2 frames");
       
       const frame1 = await prePopulatedStore.getFrameById("frame-001");
@@ -262,7 +267,7 @@ describe("CLI Commands with FrameStore Dependency Injection", () => {
       assert.strictEqual(results.length, 3, "Should return 3 results");
       assert.ok(results.every(r => r.success), "All saves should succeed");
       
-      const frames = await store.listFrames();
+      const result = await store.listFrames(); const frames = result.frames;
       assert.strictEqual(frames.length, 3, "Store should have 3 frames");
     });
   });
@@ -281,7 +286,7 @@ describe("CLI Commands with FrameStore Dependency Injection", () => {
       await store.saveFrame(testFrame3);
 
       // List with default limit
-      const frames = await store.listFrames({ limit: 10 });
+      const result = await store.listFrames({ limit: 10 }); const frames = result.frames;
       
       assert.strictEqual(frames.length, 3, "Should return all 3 frames when limit is 10");
     });
@@ -293,7 +298,7 @@ describe("CLI Commands with FrameStore Dependency Injection", () => {
       await store.saveFrame(testFrame3);
 
       // List with limit of 2
-      const frames = await store.listFrames({ limit: 2 });
+      const result = await store.listFrames({ limit: 2 }); const frames = result.frames;
       
       assert.strictEqual(frames.length, 2, "Should return only 2 frames");
     });
@@ -303,7 +308,7 @@ describe("CLI Commands with FrameStore Dependency Injection", () => {
       await store.saveFrame(testFrame2); // 2025-11-02
       await store.saveFrame(testFrame3); // 2025-11-03
 
-      const frames = await store.listFrames({ limit: 10 });
+      const result = await store.listFrames({ limit: 10 }); const frames = result.frames;
       
       assert.strictEqual(frames.length, 3, "Should return all frames");
       // Most recent first
@@ -313,7 +318,7 @@ describe("CLI Commands with FrameStore Dependency Injection", () => {
     });
 
     test("should return empty array when no frames exist", async () => {
-      const frames = await store.listFrames({ limit: 10 });
+      const result = await store.listFrames({ limit: 10 }); const frames = result.frames;
       
       assert.strictEqual(frames.length, 0, "Should return empty array when no frames exist");
     });
@@ -323,7 +328,7 @@ describe("CLI Commands with FrameStore Dependency Injection", () => {
       await store.saveFrame(testFrame2);
       await store.saveFrame(testFrame3);
 
-      const frames = await store.listFrames({ limit: 1 });
+      const result = await store.listFrames({ limit: 1 }); const frames = result.frames;
       
       assert.strictEqual(frames.length, 1, "Should return exactly 1 frame");
       assert.strictEqual(frames[0].id, "frame-003", "Should return the most recent frame");

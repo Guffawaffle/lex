@@ -131,7 +131,8 @@ export async function exportFrames(
       frames = await store.searchFrames(searchCriteria);
     } else {
       // Get all frames
-      frames = await store.listFrames();
+      const result = await store.listFrames();
+      frames = result.frames;
     }
 
     // Apply additional filters (jira, branch) in memory

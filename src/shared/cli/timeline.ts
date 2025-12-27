@@ -67,16 +67,16 @@ export async function timeline(
 
     // Get all frames and filter by Jira ticket or branch
     // First, try to match by Jira ticket ID
-    const allFrames = await store.listFrames();
+    const listResult = await store.listFrames();
 
     // Try to find frames by Jira ticket first
-    const framesByJira = allFrames.filter((f) => f.jira === ticketOrBranch);
+    const framesByJira = listResult.frames.filter((f) => f.jira === ticketOrBranch);
     if (framesByJira.length > 0) {
       frames = framesByJira;
       title = `${ticketOrBranch}: Timeline`;
     } else {
       // Try by branch name
-      const framesByBranch = allFrames.filter((f) => f.branch === ticketOrBranch);
+      const framesByBranch = listResult.frames.filter((f) => f.branch === ticketOrBranch);
       if (framesByBranch.length > 0) {
         frames = framesByBranch;
         title = `Branch ${ticketOrBranch}: Timeline`;

@@ -231,6 +231,10 @@ export const MCP_TOOLS: MCPTool[] = [
           type: "string",
           description: "ISO 8601 timestamp - only return Frames after this time",
         },
+        cursor: {
+          type: "string",
+          description: "Opaque cursor for pagination - use nextCursor from previous response to get next page",
+        },
       },
     },
   },

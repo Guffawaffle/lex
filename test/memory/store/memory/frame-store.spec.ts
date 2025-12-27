@@ -242,47 +242,72 @@ describe("MemoryFrameStore", () => {
     });
 
     test("should list all frames when no options provided", async () => {
-      const results = await store.listFrames();
-      assert.strictEqual(results.length, 3, "Should return all 3 frames");
+      const result = await store.listFrames();
+      assert.strictEqual(result.frames.length, 3, "Should return all 3 frames");
     });
 
     test("should sort by timestamp descending", async () => {
-      const results = await store.listFrames();
+      const result = await store.listFrames();
       // Frames should be ordered newest first
       assert.ok(
-        results[0].timestamp >= results[1].timestamp,
+        result.frames[0].timestamp >= result.frames[1].timestamp,
         "Results should be in descending timestamp order"
       );
       assert.ok(
-        results[1].timestamp >= results[2].timestamp,
+        result.frames[1].timestamp >= result.frames[2].timestamp,
         "Results should be in descending timestamp order"
       );
     });
 
     test("should respect limit option", async () => {
-      const results = await store.listFrames({ limit: 2 });
-      assert.strictEqual(results.length, 2, "Should return only 2 frames");
+      const result = await store.listFrames({ limit: 2 });
+      assert.strictEqual(result.frames.length, 2, "Should return only 2 frames");
     });
 
     test("should respect offset option", async () => {
-      const allResults = await store.listFrames();
-      const offsetResults = await store.listFrames({ offset: 1 });
-      assert.strictEqual(offsetResults.length, 2, "Should return 2 frames after offset");
+      const allResult = await store.listFrames();
+      const offsetResult = await store.listFrames({ offset: 1 });
+      assert.strictEqual(offsetResult.frames.length, 2, "Should return 2 frames after offset");
       assert.strictEqual(
-        offsetResults[0].id,
-        allResults[1].id,
+        offsetResult.frames[0].id,
+        allResult.frames[1].id,
         "First offset result should match second overall result"
       );
     });
 
     test("should handle limit and offset together", async () => {
-      const results = await store.listFrames({ limit: 1, offset: 1 });
-      assert.strictEqual(results.length, 1, "Should return 1 frame");
+      const result = await store.listFrames({ limit: 1, offset: 1 });
+      assert.strictEqual(result.frames.length, 1, "Should return 1 frame");
     });
 
     test("should handle offset larger than total", async () => {
-      const results = await store.listFrames({ offset: 100 });
-      assert.strictEqual(results.length, 0, "Should return empty array for large offset");
+      const result = await store.listFrames({ offset: 100 });
+      assert.strictEqual(result.frames.length, 0, "Should return empty array for large offset");
+    });
+
+    test("should support cursor-based pagination", async () => {
+      // Get first page
+      const page1 = await store.listFrames({ limit: 2 });
+      assert.strictEqual(page1.frames.length, 2, "First page should have 2 frames");
+      assert.strictEqual(page1.page.hasMore, true, "Should indicate more results");
+      assert.ok(page1.page.nextCursor, "Should provide next cursor");
+
+      // Get second page using cursor
+      const page2 = await store.listFrames({ limit: 2, cursor: page1.page.nextCursor! });
+      assert.strictEqual(page2.frames.length, 1, "Second page should have 1 frame");
+      
+      // Ensure no duplicates between pages
+      const page1Ids = new Set(page1.frames.map(f => f.id));
+      const page2Ids = new Set(page2.frames.map(f => f.id));
+      for (const id of page2Ids) {
+        assert.ok(!page1Ids.has(id), `Frame ${id} should not appear in both pages`);
+      }
+    });
+
+    test("should indicate hasMore=false on last page", async () => {
+      const result = await store.listFrames({ limit: 10 });
+      assert.strictEqual(result.page.hasMore, false, "Should indicate no more results");
+      assert.strictEqual(result.page.nextCursor, null, "Should not provide next cursor");
     });
   });
 

@@ -126,7 +126,7 @@ describe("Batch Frame Ingestion - External Orchestrator Pattern", () => {
       assert.strictEqual(result.count, 3);
 
       // Verify all parallel units are persisted atomically
-      const allFrames = await store.listFrames();
+      const { frames: allFrames } = await store.listFrames();
       assert.strictEqual(allFrames.length, 3);
     });
   });
@@ -167,7 +167,7 @@ describe("Batch Frame Ingestion - External Orchestrator Pattern", () => {
       assert.strictEqual(result.count, 0);
 
       // Verify atomicity: no Frames persisted
-      const allFrames = await store.listFrames();
+      const { frames: allFrames } = await store.listFrames();
       assert.strictEqual(allFrames.length, 0);
     });
 
@@ -194,9 +194,7 @@ describe("Batch Frame Ingestion - External Orchestrator Pattern", () => {
     });
 
     test("should provide detailed validation errors for debugging", async () => {
-      const frames = [
-        createInvalidFrame("debug-frame") as FrameInput,
-      ];
+      const frames = [createInvalidFrame("debug-frame") as FrameInput];
 
       const result = await insertFramesBatch(store, frames);
 
@@ -229,7 +227,10 @@ describe("Batch Frame Ingestion - External Orchestrator Pattern", () => {
       assert.strictEqual(result.count, 10);
 
       // Should complete quickly (well under 100ms for 10 frames)
-      assert.ok(duration < 100, `10 frames should complete in <100ms, took ${duration.toFixed(2)}ms`);
+      assert.ok(
+        duration < 100,
+        `10 frames should complete in <100ms, took ${duration.toFixed(2)}ms`
+      );
 
       console.log(`    Performance: 10 frames ingested in ${duration.toFixed(2)}ms`);
     });
@@ -248,12 +249,15 @@ describe("Batch Frame Ingestion - External Orchestrator Pattern", () => {
       assert.strictEqual(result.count, 100);
 
       // Should complete within reasonable time (under 500ms per acceptance criteria)
-      assert.ok(duration < 500, `100 frames should complete in <500ms, took ${duration.toFixed(2)}ms`);
+      assert.ok(
+        duration < 500,
+        `100 frames should complete in <500ms, took ${duration.toFixed(2)}ms`
+      );
 
       console.log(`    Performance: 100 frames ingested in ${duration.toFixed(2)}ms`);
 
       // Verify all frames were persisted
-      const allFrames = await store.listFrames({ limit: 100 });
+      const { frames: allFrames } = await store.listFrames({ limit: 100 });
       assert.strictEqual(allFrames.length, 100);
     });
   });
@@ -347,10 +351,7 @@ describe("Batch Frame Ingestion - External Orchestrator Pattern", () => {
 
   describe("Atlas Rebuild Hooks (L-EXE-004)", () => {
     test("should call onSuccess callback after successful batch ingestion", async () => {
-      const frames = [
-        createValidFrame("hook-success-1", 0),
-        createValidFrame("hook-success-2", 1),
-      ];
+      const frames = [createValidFrame("hook-success-1", 0), createValidFrame("hook-success-2", 1)];
 
       let callbackCalled = false;
       let callbackResult: any = null;
@@ -371,9 +372,7 @@ describe("Batch Frame Ingestion - External Orchestrator Pattern", () => {
     });
 
     test("should NOT call onSuccess callback on validation failure", async () => {
-      const frames = [
-        createInvalidFrame("invalid-no-hook") as FrameInput,
-      ];
+      const frames = [createInvalidFrame("invalid-no-hook") as FrameInput];
 
       let callbackCalled = false;
 
@@ -457,7 +456,10 @@ describe("Batch Frame Ingestion - External Orchestrator Pattern", () => {
       assert.strictEqual(receivedResult.count, 3);
       assert.strictEqual(receivedResult.validationErrors.length, 0);
       assert.strictEqual(receivedResult.results.length, 3);
-      assert.ok(receivedResult.results.every((r: any) => r.success), "all frame saves should succeed");
+      assert.ok(
+        receivedResult.results.every((r: any) => r.success),
+        "all frame saves should succeed"
+      );
     });
 
     test("integration: batch ingestion can trigger actual Atlas rebuild", async () => {
@@ -479,11 +481,11 @@ describe("Batch Frame Ingestion - External Orchestrator Pattern", () => {
         onSuccess: async () => {
           // Simulate what a real Atlas rebuild trigger would do
           // In production, this would call: await triggerAtlasRebuild()
-          
+
           atlasRebuildTriggered = true;
-          
+
           // Simulate rebuilding Atlas from all frames in the store
-          const allFrames = await store.listFrames();
+          const { frames: allFrames } = await store.listFrames();
           // In a real scenario, this would call rebuildAtlas(allFrames)
           atlasNodeCount = allFrames.length;
         },
