@@ -91,6 +91,47 @@ export enum MCPErrorCode {
 }
 
 /**
+ * Error code metadata for agent introspection
+ */
+export interface MCPErrorCodeMetadata {
+  /** Error category (validation, storage, policy, internal) */
+  category: "validation" | "storage" | "policy" | "internal";
+  /** Whether the error is potentially retryable (e.g., transient storage issues) */
+  retryable: boolean;
+}
+
+/**
+ * Metadata map for all error codes
+ * Agents can use this to understand error categories and retry behavior
+ */
+export const MCP_ERROR_METADATA: Record<MCPErrorCode, MCPErrorCodeMetadata> = {
+  // VALIDATION ERRORS - never retryable (client input problems)
+  [MCPErrorCode.VALIDATION_REQUIRED_FIELD]: { category: "validation", retryable: false },
+  [MCPErrorCode.VALIDATION_INVALID_FORMAT]: { category: "validation", retryable: false },
+  [MCPErrorCode.VALIDATION_INVALID_MODULE_ID]: { category: "validation", retryable: false },
+  [MCPErrorCode.VALIDATION_EMPTY_MODULE_SCOPE]: { category: "validation", retryable: false },
+  [MCPErrorCode.VALIDATION_INVALID_STATUS]: { category: "validation", retryable: false },
+  [MCPErrorCode.VALIDATION_INVALID_IMAGE]: { category: "validation", retryable: false },
+  [MCPErrorCode.VALIDATION_INVALID_PATH]: { category: "validation", retryable: false },
+
+  // STORAGE ERRORS - potentially retryable (transient issues)
+  [MCPErrorCode.STORAGE_WRITE_FAILED]: { category: "storage", retryable: true },
+  [MCPErrorCode.STORAGE_READ_FAILED]: { category: "storage", retryable: true },
+  [MCPErrorCode.STORAGE_DELETE_FAILED]: { category: "storage", retryable: true },
+  [MCPErrorCode.STORAGE_IMAGE_FAILED]: { category: "storage", retryable: true },
+  [MCPErrorCode.STORAGE_FRAME_NOT_FOUND]: { category: "storage", retryable: false },
+
+  // POLICY ERRORS - not retryable (configuration problems)
+  [MCPErrorCode.POLICY_NOT_FOUND]: { category: "policy", retryable: false },
+  [MCPErrorCode.POLICY_INVALID]: { category: "policy", retryable: false },
+
+  // INTERNAL ERRORS - potentially retryable depending on cause
+  [MCPErrorCode.INTERNAL_UNKNOWN_TOOL]: { category: "internal", retryable: false },
+  [MCPErrorCode.INTERNAL_UNKNOWN_METHOD]: { category: "internal", retryable: false },
+  [MCPErrorCode.INTERNAL_ERROR]: { category: "internal", retryable: true },
+};
+
+/**
  * MCP Error with structured code and metadata
  */
 export class MCPError extends Error {

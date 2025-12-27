@@ -304,7 +304,7 @@ export const MCP_TOOLS: MCPTool[] = [
   {
     name: "introspect",
     description:
-      "Discover the current state of Lex (available modules, policy, frame count, capabilities, error codes)",
+      "Discover the current state of Lex (available modules, policy, frame count, capabilities, error codes with metadata). Returns error code categories (validation, storage, policy, internal) and retryability hints for autonomous error handling.",
     inputSchema: {
       type: "object",
       properties: {

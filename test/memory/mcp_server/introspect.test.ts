@@ -93,6 +93,67 @@ describe("MCP Server - Introspect Tool", () => {
         "Error codes should be in sorted order"
       );
 
+      // Check error code metadata
+      assert.ok(data.errorCodeMetadata, "Should have error code metadata");
+      const errorCodeMetadata = data.errorCodeMetadata as Record<
+        string,
+        { category: string; retryable: boolean }
+      >;
+      assert.strictEqual(
+        typeof errorCodeMetadata,
+        "object",
+        "Error code metadata should be an object"
+      );
+
+      // Verify metadata exists for all error codes
+      for (const code of errorCodes) {
+        assert.ok(
+          errorCodeMetadata[code],
+          `Metadata should exist for error code ${code}`
+        );
+        assert.ok(
+          "category" in errorCodeMetadata[code],
+          `Metadata for ${code} should have category`
+        );
+        assert.ok(
+          ["validation", "storage", "policy", "internal"].includes(
+            errorCodeMetadata[code].category
+          ),
+          `Category for ${code} should be valid`
+        );
+        assert.ok(
+          "retryable" in errorCodeMetadata[code],
+          `Metadata for ${code} should have retryable`
+        );
+        assert.strictEqual(
+          typeof errorCodeMetadata[code].retryable,
+          "boolean",
+          `Retryable for ${code} should be boolean`
+        );
+      }
+
+      // Verify specific examples
+      assert.strictEqual(
+        errorCodeMetadata["VALIDATION_REQUIRED_FIELD"].category,
+        "validation",
+        "VALIDATION_REQUIRED_FIELD should be validation category"
+      );
+      assert.strictEqual(
+        errorCodeMetadata["VALIDATION_REQUIRED_FIELD"].retryable,
+        false,
+        "VALIDATION_REQUIRED_FIELD should not be retryable"
+      );
+      assert.strictEqual(
+        errorCodeMetadata["STORAGE_WRITE_FAILED"].category,
+        "storage",
+        "STORAGE_WRITE_FAILED should be storage category"
+      );
+      assert.strictEqual(
+        errorCodeMetadata["STORAGE_WRITE_FAILED"].retryable,
+        true,
+        "STORAGE_WRITE_FAILED should be retryable"
+      );
+
       // Check text output
       const text = response.content[0].text;
       assert.ok(text.includes("Lex Introspection"), "Text should include title");
@@ -101,6 +162,8 @@ describe("MCP Server - Introspect Tool", () => {
       assert.ok(text.includes("State:"), "Text should include state");
       assert.ok(text.includes("Capabilities:"), "Text should include capabilities");
       assert.ok(text.includes("Error Codes"), "Text should include error codes");
+      assert.ok(text.includes("VALIDATION"), "Text should include VALIDATION category");
+      assert.ok(text.includes("retryable"), "Text should mention retryable count");
     } finally {
       await teardown();
     }

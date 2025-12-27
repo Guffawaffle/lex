@@ -252,10 +252,11 @@ Discover the current state of Lex for agent self-discovery.
   "content": [
     {
       "type": "text",
-      "text": "🔍 Lex Introspection\n\n📦 Version: 2.1.0\n\n📋 Policy:\n  Modules: 14\n  Module IDs: cli, memory/frames, memory/mcp, ...\n\n📊 State:\n  Frames: 42\n  Latest Frame: 2025-12-17T10:30:00.000Z\n  Branch: main\n\n⚙️  Capabilities:\n  Encryption: ✅\n  Images: ✅\n\n🚨 Error Codes (16):\n  VALIDATION_REQUIRED_FIELD, VALIDATION_INVALID_FORMAT, ..."
+      "text": "🔍 Lex Introspection\n\n📦 Version: 2.1.0\n\n📋 Policy:\n  Modules: 14\n  Module IDs: cli, memory/frames, memory/mcp, ...\n\n📊 State:\n  Frames: 42\n  Latest Frame: 2025-12-17T10:30:00.000Z\n  Branch: main\n\n⚙️  Capabilities:\n  Encryption: ✅\n  Images: ✅\n\n🚨 Error Codes (17):\n  VALIDATION (7, 0 retryable):\n    VALIDATION_REQUIRED_FIELD, VALIDATION_INVALID_FORMAT, ...\n  STORAGE (5, 4 retryable):\n    STORAGE_WRITE_FAILED, STORAGE_READ_FAILED, ...\n  ..."
     }
   ],
   "data": {
+    "schemaVersion": "1.0.0",
     "version": "2.1.0",
     "policy": {
       "modules": ["cli", "memory/frames", "memory/mcp", ...],
@@ -270,7 +271,12 @@ Discover the current state of Lex for agent self-discovery.
       "encryption": true,
       "images": true
     },
-    "errorCodes": ["VALIDATION_REQUIRED_FIELD", "VALIDATION_INVALID_FORMAT", ...]
+    "errorCodes": ["INTERNAL_ERROR", "INTERNAL_UNKNOWN_METHOD", ...],
+    "errorCodeMetadata": {
+      "VALIDATION_REQUIRED_FIELD": { "category": "validation", "retryable": false },
+      "STORAGE_WRITE_FAILED": { "category": "storage", "retryable": true },
+      ...
+    }
   }
 }
 ```
@@ -311,6 +317,55 @@ The compact format is optimized for agents with limited token windows:
 - Error code abbreviations: 3-part scheme using first, second, and last word parts (e.g., VALIDATION_REQUIRED_FIELD → VAL_REQ_FIE)
 - Capability abbreviations (`enc` for encryption, `img` for images)
 
+### Error Code Discovery
+
+The `introspect` tool returns all available error codes with metadata for autonomous error handling:
+
+```json
+{
+  "errorCodes": ["VALIDATION_REQUIRED_FIELD", "STORAGE_WRITE_FAILED", ...],
+  "errorCodeMetadata": {
+    "VALIDATION_REQUIRED_FIELD": {
+      "category": "validation",
+      "retryable": false
+    },
+    "STORAGE_WRITE_FAILED": {
+      "category": "storage",
+      "retryable": true
+    }
+  }
+}
+```
+
+**Categories:**
+- `validation` - Input/parameter errors (never retryable)
+- `storage` - Database/storage errors (may be retryable)
+- `policy` - Policy configuration errors (not retryable)
+- `internal` - Internal server errors (may be retryable)
+
+**Retryability:**
+Agents can use the `retryable` hint to decide whether to retry an operation:
+- `false` - Don't retry (validation errors, missing resources)
+- `true` - Safe to retry with backoff (transient storage/network issues)
+
+**Usage Example:**
+```typescript
+const introspection = await mcpClient.call('lex.introspect', {});
+const errorMeta = introspection.data.errorCodeMetadata;
+
+// Later, when handling an error:
+if (response.error) {
+  const meta = errorMeta[response.error.code];
+  if (meta.retryable) {
+    // Implement exponential backoff retry
+    await retry(operation);
+  } else {
+    // Fix the input and try again
+    console.error('Non-retryable error:', response.error.message);
+  }
+}
+```
+
 ## Error Codes (1.0.0 Contract)
 
 MCP tool responses use structured error codes for machine-readable error handling.
@@ -334,24 +389,25 @@ Orchestrators can branch on these codes without parsing error messages.
 
 ### Error Code Reference
 
-| Code | Category | Description |
-|------|----------|-------------|
-| `VALIDATION_REQUIRED_FIELD` | Validation | Required field is missing |
-| `VALIDATION_INVALID_FORMAT` | Validation | Field has invalid format or type |
-| `VALIDATION_INVALID_MODULE_ID` | Validation | Module ID not in policy |
-| `VALIDATION_EMPTY_MODULE_SCOPE` | Validation | module_scope array is empty |
-| `VALIDATION_INVALID_STATUS` | Validation | status_snapshot structure is invalid |
-| `VALIDATION_INVALID_IMAGE` | Validation | Image data is malformed |
-| `VALIDATION_INVALID_PATH` | Validation | Path provided does not exist or is inaccessible |
-| `STORAGE_WRITE_FAILED` | Storage | Failed to save frame |
-| `STORAGE_READ_FAILED` | Storage | Failed to read from database |
-| `STORAGE_DELETE_FAILED` | Storage | Failed to delete from database |
-| `STORAGE_IMAGE_FAILED` | Storage | Failed to store image attachment |
-| `POLICY_NOT_FOUND` | Policy | Policy file not found |
-| `POLICY_INVALID` | Policy | Policy file has invalid structure |
-| `INTERNAL_UNKNOWN_TOOL` | Internal | Unknown tool name requested |
-| `INTERNAL_UNKNOWN_METHOD` | Internal | Unknown MCP method requested |
-| `INTERNAL_ERROR` | Internal | Unexpected internal error |
+| Code | Category | Retryable | Description |
+|------|----------|-----------|-------------|
+| `VALIDATION_REQUIRED_FIELD` | validation | ❌ | Required field is missing |
+| `VALIDATION_INVALID_FORMAT` | validation | ❌ | Field has invalid format or type |
+| `VALIDATION_INVALID_MODULE_ID` | validation | ❌ | Module ID not in policy |
+| `VALIDATION_EMPTY_MODULE_SCOPE` | validation | ❌ | module_scope array is empty |
+| `VALIDATION_INVALID_STATUS` | validation | ❌ | status_snapshot structure is invalid |
+| `VALIDATION_INVALID_IMAGE` | validation | ❌ | Image data is malformed |
+| `VALIDATION_INVALID_PATH` | validation | ❌ | Path provided does not exist or is inaccessible |
+| `STORAGE_WRITE_FAILED` | storage | ✅ | Failed to save frame |
+| `STORAGE_READ_FAILED` | storage | ✅ | Failed to read from database |
+| `STORAGE_DELETE_FAILED` | storage | ✅ | Failed to delete from database |
+| `STORAGE_IMAGE_FAILED` | storage | ✅ | Failed to store image attachment |
+| `STORAGE_FRAME_NOT_FOUND` | storage | ❌ | Frame with given ID was not found |
+| `POLICY_NOT_FOUND` | policy | ❌ | Policy file not found |
+| `POLICY_INVALID` | policy | ❌ | Policy file has invalid structure |
+| `INTERNAL_UNKNOWN_TOOL` | internal | ❌ | Unknown tool name requested |
+| `INTERNAL_UNKNOWN_METHOD` | internal | ❌ | Unknown MCP method requested |
+| `INTERNAL_ERROR` | internal | ✅ | Unexpected internal error |
 
 ### Handling Errors in Code
 
