@@ -317,4 +317,24 @@ export const MCP_TOOLS: MCPTool[] = [
       },
     },
   },
+  {
+    name: "help",
+    description:
+      "Get usage help for Lex MCP tools including examples, required fields, related tools, and common workflows. Use this to understand how to use Lex tools effectively.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        tool: {
+          type: "string",
+          description:
+            "Tool name to get help for (optional - returns all tools if omitted). Valid values: remember, validate_remember, recall, get_frame, list_frames, policy_check, timeline, code_atlas, introspect, help",
+        },
+        examples: {
+          type: "boolean",
+          description: "Include executable examples in the response (default: true)",
+          default: true,
+        },
+      },
+    },
+  },
 ];
