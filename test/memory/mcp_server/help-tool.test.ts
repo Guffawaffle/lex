@@ -1,0 +1,426 @@
+/**
+ * Tests for help MCP tool (AX #577)
+ *
+ * Verifies that the help tool provides:
+ * - Structured documentation for all tools
+ * - Executable examples
+ * - Related tools and workflows
+ * - Correct error handling for unknown tools
+ */
+
+import { test, describe } from "node:test";
+import assert from "node:assert";
+import { MCPServer } from "@app/memory/mcp_server/server.js";
+import { mkdtempSync, rmSync } from "fs";
+import { join } from "path";
+import { tmpdir } from "os";
+
+describe("Help MCP Tool (AX #577)", () => {
+  let server: MCPServer;
+  let testDbPath: string;
+  let tmpDir: string;
+
+  function setup() {
+    tmpDir = mkdtempSync(join(tmpdir(), "help-tool-"));
+    testDbPath = join(tmpDir, "test.db");
+    server = new MCPServer(testDbPath);
+    return server;
+  }
+
+  async function teardown() {
+    if (server) {
+      await server.close();
+    }
+    if (tmpDir) {
+      try {
+        rmSync(tmpDir, { recursive: true, force: true });
+      } catch {
+        // Ignore cleanup errors
+      }
+    }
+  }
+
+  describe("Tool registration", () => {
+    test("help tool should be in tools/list", async () => {
+      const srv = setup();
+      try {
+        const response = await srv.handleRequest({
+          method: "tools/list",
+          params: {},
+        });
+
+        assert.ok(response.tools, "Should have tools array");
+        const toolNames = (response.tools as Array<{ name: string }>).map((t) => t.name);
+        assert.ok(toolNames.includes("help"), "help should be in tools list");
+      } finally {
+        await teardown();
+      }
+    });
+  });
+
+  describe("All tools help", () => {
+    test("should return help for all tools when no tool specified", async () => {
+      const srv = setup();
+      try {
+        const response = await srv.handleRequest({
+          method: "tools/call",
+          params: {
+            name: "help",
+            arguments: {},
+          },
+        });
+
+        assert.ok(response.content, "Response should have content");
+        assert.ok(response.data, "Response should have structured data");
+
+        const data = response.data as Record<string, unknown>;
+        assert.ok(data.tools, "Data should have tools object");
+        assert.ok(data.workflows, "Data should have workflows object");
+
+        // Verify all expected tools are documented
+        const tools = data.tools as Record<string, unknown>;
+        const expectedTools = [
+          "remember",
+          "validate_remember",
+          "recall",
+          "get_frame",
+          "list_frames",
+          "policy_check",
+          "timeline",
+          "code_atlas",
+          "introspect",
+          "help",
+        ];
+        for (const toolName of expectedTools) {
+          assert.ok(tools[toolName], `Should have help for ${toolName}`);
+        }
+      } finally {
+        await teardown();
+      }
+    });
+
+    test("should include workflows in all-tools response", async () => {
+      const srv = setup();
+      try {
+        const response = await srv.handleRequest({
+          method: "tools/call",
+          params: {
+            name: "help",
+            arguments: {},
+          },
+        });
+
+        const data = response.data as Record<string, unknown>;
+        const workflows = data.workflows as Record<string, unknown>;
+
+        // Check for expected workflows
+        assert.ok(workflows["store-then-recall"], "Should have store-then-recall workflow");
+        assert.ok(workflows["timeline-tracking"], "Should have timeline-tracking workflow");
+        assert.ok(workflows["initial-discovery"], "Should have initial-discovery workflow");
+      } finally {
+        await teardown();
+      }
+    });
+  });
+
+  describe("Single tool help", () => {
+    test("should return detailed help for remember tool", async () => {
+      const srv = setup();
+      try {
+        const response = await srv.handleRequest({
+          method: "tools/call",
+          params: {
+            name: "help",
+            arguments: { tool: "remember" },
+          },
+        });
+
+        const data = response.data as Record<string, unknown>;
+
+        assert.strictEqual(data.tool, "remember");
+        assert.ok(data.description, "Should have description");
+        assert.ok(Array.isArray(data.requiredFields), "Should have requiredFields array");
+        assert.ok(Array.isArray(data.optionalFields), "Should have optionalFields array");
+        assert.ok(Array.isArray(data.relatedTools), "Should have relatedTools array");
+        assert.ok(Array.isArray(data.workflows), "Should have workflows array");
+        assert.ok(Array.isArray(data.examples), "Should have examples array");
+
+        // Check required fields
+        const requiredFields = data.requiredFields as string[];
+        assert.ok(requiredFields.includes("reference_point"));
+        assert.ok(requiredFields.includes("summary_caption"));
+        assert.ok(requiredFields.includes("status_snapshot"));
+        assert.ok(requiredFields.includes("module_scope"));
+      } finally {
+        await teardown();
+      }
+    });
+
+    test("should return detailed help for recall tool", async () => {
+      const srv = setup();
+      try {
+        const response = await srv.handleRequest({
+          method: "tools/call",
+          params: {
+            name: "help",
+            arguments: { tool: "recall" },
+          },
+        });
+
+        const data = response.data as Record<string, unknown>;
+
+        assert.strictEqual(data.tool, "recall");
+        assert.ok(data.description, "Should have description");
+
+        // recall has no required fields
+        const requiredFields = data.requiredFields as string[];
+        assert.strictEqual(requiredFields.length, 0, "recall should have no required fields");
+
+        // Check optional fields
+        const optionalFields = data.optionalFields as string[];
+        assert.ok(optionalFields.includes("reference_point"));
+        assert.ok(optionalFields.includes("jira"));
+        assert.ok(optionalFields.includes("branch"));
+      } finally {
+        await teardown();
+      }
+    });
+
+    test("should error for unknown tool", async () => {
+      const srv = setup();
+      try {
+        const response = await srv.handleRequest({
+          method: "tools/call",
+          params: {
+            name: "help",
+            arguments: { tool: "nonexistent_tool" },
+          },
+        });
+
+        assert.ok(response.error, "Should have error");
+        assert.ok(
+          response.error.message.includes("Unknown tool"),
+          "Error should mention unknown tool"
+        );
+      } finally {
+        await teardown();
+      }
+    });
+  });
+
+  describe("Examples", () => {
+    test("should include examples by default", async () => {
+      const srv = setup();
+      try {
+        const response = await srv.handleRequest({
+          method: "tools/call",
+          params: {
+            name: "help",
+            arguments: { tool: "remember" },
+          },
+        });
+
+        const data = response.data as Record<string, unknown>;
+        const examples = data.examples as Array<{
+          description: string;
+          input: Record<string, unknown>;
+        }>;
+
+        assert.ok(examples.length > 0, "Should have at least one example");
+        assert.ok(examples[0].description, "Example should have description");
+        assert.ok(examples[0].input, "Example should have input");
+      } finally {
+        await teardown();
+      }
+    });
+
+    test("should exclude examples when examples=false", async () => {
+      const srv = setup();
+      try {
+        const response = await srv.handleRequest({
+          method: "tools/call",
+          params: {
+            name: "help",
+            arguments: { tool: "remember", examples: false },
+          },
+        });
+
+        const data = response.data as Record<string, unknown>;
+        assert.ok(!data.examples, "Should not have examples when examples=false");
+      } finally {
+        await teardown();
+      }
+    });
+
+    test("examples should have valid structure", async () => {
+      const srv = setup();
+      try {
+        const response = await srv.handleRequest({
+          method: "tools/call",
+          params: {
+            name: "help",
+            arguments: { tool: "remember" },
+          },
+        });
+
+        const data = response.data as Record<string, unknown>;
+        const examples = data.examples as Array<{
+          description: string;
+          input: Record<string, unknown>;
+        }>;
+
+        // Verify first example has expected fields
+        const firstExample = examples[0];
+        assert.ok(firstExample.input.reference_point, "Example should have reference_point");
+        assert.ok(firstExample.input.summary_caption, "Example should have summary_caption");
+        assert.ok(firstExample.input.status_snapshot, "Example should have status_snapshot");
+        assert.ok(firstExample.input.module_scope, "Example should have module_scope");
+      } finally {
+        await teardown();
+      }
+    });
+  });
+
+  describe("Related tools", () => {
+    test("remember should list recall as related", async () => {
+      const srv = setup();
+      try {
+        const response = await srv.handleRequest({
+          method: "tools/call",
+          params: {
+            name: "help",
+            arguments: { tool: "remember" },
+          },
+        });
+
+        const data = response.data as Record<string, unknown>;
+        const relatedTools = data.relatedTools as string[];
+
+        assert.ok(relatedTools.includes("recall"), "remember should be related to recall");
+      } finally {
+        await teardown();
+      }
+    });
+
+    test("recall should list remember as related", async () => {
+      const srv = setup();
+      try {
+        const response = await srv.handleRequest({
+          method: "tools/call",
+          params: {
+            name: "help",
+            arguments: { tool: "recall" },
+          },
+        });
+
+        const data = response.data as Record<string, unknown>;
+        const relatedTools = data.relatedTools as string[];
+
+        assert.ok(relatedTools.includes("remember"), "recall should be related to remember");
+      } finally {
+        await teardown();
+      }
+    });
+  });
+
+  describe("Text output", () => {
+    test("should include markdown-formatted text output", async () => {
+      const srv = setup();
+      try {
+        const response = await srv.handleRequest({
+          method: "tools/call",
+          params: {
+            name: "help",
+            arguments: { tool: "remember" },
+          },
+        });
+
+        const text = (response.content as Array<{ text: string }>)[0].text;
+
+        assert.ok(text.includes("# remember"), "Should have tool name as header");
+        assert.ok(text.includes("## Required Fields"), "Should have Required Fields section");
+        assert.ok(text.includes("## Optional Fields"), "Should have Optional Fields section");
+        assert.ok(text.includes("## Related Tools"), "Should have Related Tools section");
+        assert.ok(text.includes("## Workflows"), "Should have Workflows section");
+        assert.ok(text.includes("## Examples"), "Should have Examples section");
+      } finally {
+        await teardown();
+      }
+    });
+
+    test("all-tools text should include summary", async () => {
+      const srv = setup();
+      try {
+        const response = await srv.handleRequest({
+          method: "tools/call",
+          params: {
+            name: "help",
+            arguments: {},
+          },
+        });
+
+        const text = (response.content as Array<{ text: string }>)[0].text;
+
+        assert.ok(text.includes("# Lex MCP Tools Help"), "Should have main header");
+        assert.ok(text.includes("## Available Tools"), "Should have Available Tools section");
+        assert.ok(text.includes("## Common Workflows"), "Should have Common Workflows section");
+      } finally {
+        await teardown();
+      }
+    });
+  });
+
+  describe("All tools documentation completeness", () => {
+    const allTools = [
+      "remember",
+      "validate_remember",
+      "recall",
+      "get_frame",
+      "list_frames",
+      "policy_check",
+      "timeline",
+      "code_atlas",
+      "introspect",
+      "help",
+    ];
+
+    for (const toolName of allTools) {
+      test(`${toolName} should have complete documentation`, async () => {
+        const srv = setup();
+        try {
+          const response = await srv.handleRequest({
+            method: "tools/call",
+            params: {
+              name: "help",
+              arguments: { tool: toolName },
+            },
+          });
+
+          const data = response.data as Record<string, unknown>;
+
+          assert.strictEqual(data.tool, toolName, `Tool name should be ${toolName}`);
+          assert.ok(
+            typeof data.description === "string" && data.description.length > 0,
+            `${toolName} should have non-empty description`
+          );
+          assert.ok(
+            Array.isArray(data.requiredFields),
+            `${toolName} should have requiredFields array`
+          );
+          assert.ok(
+            Array.isArray(data.optionalFields),
+            `${toolName} should have optionalFields array`
+          );
+          assert.ok(Array.isArray(data.relatedTools), `${toolName} should have relatedTools array`);
+          assert.ok(Array.isArray(data.workflows), `${toolName} should have workflows array`);
+          assert.ok(
+            Array.isArray(data.examples) && (data.examples as unknown[]).length > 0,
+            `${toolName} should have at least one example`
+          );
+        } finally {
+          await teardown();
+        }
+      });
+    }
+  });
+});

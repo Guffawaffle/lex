@@ -54,6 +54,7 @@ describe("MCP Server - Protocol", () => {
       const expectedTools = [
         "code_atlas",
         "get_frame",
+        "help",
         "introspect",
         "list_frames",
         "policy_check",
@@ -784,10 +785,7 @@ describe("MCP Server - Protocol", () => {
         response.content[0].text.includes("Testing get_frame tool"),
         "Should include summary caption"
       );
-      assert.ok(
-        response.content[0].text.includes("TEST-123"),
-        "Should include Jira ticket"
-      );
+      assert.ok(response.content[0].text.includes("TEST-123"), "Should include Jira ticket");
       assert.ok(
         response.content[0].text.includes("Atlas Frame"),
         "Should include Atlas Frame by default"

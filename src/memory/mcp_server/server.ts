@@ -374,6 +374,10 @@ export class MCPServer {
       case "lex_introspect": // Deprecated alias (v2.0.x)
         return await this.handleIntrospect(args);
 
+      case "help":
+      case "lex_help": // Deprecated alias (v2.0.x)
+        return await this.handleHelp(args);
+
       default:
         throw new MCPError(MCPErrorCode.INTERNAL_UNKNOWN_TOOL, `Unknown tool: ${name}`, {
           requestedTool: name,
@@ -387,6 +391,7 @@ export class MCPServer {
             "timeline",
             "code_atlas",
             "introspect",
+            "help",
           ],
         });
     }
@@ -1540,6 +1545,448 @@ export class MCPServer {
     const second = parts[1].substring(0, 3).toUpperCase();
     const last = parts[parts.length - 1].substring(0, 3).toUpperCase();
     return `${first}_${second}_${last}`;
+  }
+
+  /**
+   * Handle help tool - self-documentation for Lex MCP tools (AX #577)
+   *
+   * Returns structured help including:
+   * - Tool descriptions and required fields
+   * - Executable examples
+   * - Related tools for common workflows
+   * - Common workflow patterns
+   */
+  private async handleHelp(args: Record<string, unknown>): Promise<MCPResponse> {
+    const { tool, examples = true } = args as { tool?: string; examples?: boolean };
+
+    // Define tool help data
+    const toolHelp: Record<
+      string,
+      {
+        description: string;
+        requiredFields: string[];
+        optionalFields: string[];
+        examples: Array<{ description: string; input: Record<string, unknown> }>;
+        relatedTools: string[];
+        workflows: string[];
+      }
+    > = {
+      remember: {
+        description:
+          "Store a Frame (episodic memory snapshot) capturing your current work context.",
+        requiredFields: ["reference_point", "summary_caption", "status_snapshot", "module_scope"],
+        optionalFields: ["branch", "jira", "keywords", "atlas_frame_id", "images"],
+        examples: [
+          {
+            description: "Store work session for authentication refactoring",
+            input: {
+              reference_point: "Refactoring UserAuth module",
+              summary_caption: "Extracted password validation to separate function",
+              status_snapshot: {
+                next_action: "Add unit tests for new function",
+                blockers: [],
+                tests_failing: [],
+              },
+              module_scope: ["memory/store"],
+              jira: "AUTH-123",
+              keywords: ["refactoring", "authentication"],
+            },
+          },
+          {
+            description: "Store debugging session with blockers",
+            input: {
+              reference_point: "Debugging memory leak in Frame store",
+              summary_caption: "Identified leak in SQLite connection pool",
+              status_snapshot: {
+                next_action: "Review connection cleanup logic",
+                blockers: ["Need access to production logs"],
+                merge_blockers: ["Waiting for security review"],
+              },
+              module_scope: ["memory/store", "memory/frames"],
+            },
+          },
+        ],
+        relatedTools: ["recall", "list_frames", "validate_remember"],
+        workflows: ["store-then-recall", "timeline-tracking", "validate-before-store"],
+      },
+      validate_remember: {
+        description:
+          "Validate remember input without storing (dry-run). Use to check inputs before committing.",
+        requiredFields: ["reference_point", "summary_caption", "status_snapshot", "module_scope"],
+        optionalFields: ["branch", "jira", "keywords", "atlas_frame_id", "images"],
+        examples: [
+          {
+            description: "Validate input before storing",
+            input: {
+              reference_point: "Test reference",
+              summary_caption: "Test summary",
+              status_snapshot: { next_action: "Continue testing" },
+              module_scope: ["memory/store"],
+            },
+          },
+        ],
+        relatedTools: ["remember"],
+        workflows: ["validate-before-store"],
+      },
+      recall: {
+        description:
+          "Search Frames by reference point, branch, or Jira ticket. Returns matching Frames with Atlas neighborhoods.",
+        requiredFields: [],
+        optionalFields: ["reference_point", "jira", "branch", "limit"],
+        examples: [
+          {
+            description: "Search by topic",
+            input: { reference_point: "authentication refactoring" },
+          },
+          {
+            description: "Filter by Jira ticket",
+            input: { jira: "AUTH-123" },
+          },
+          {
+            description: "Filter by branch with limit",
+            input: { branch: "feature/auth-refactor", limit: 5 },
+          },
+        ],
+        relatedTools: ["remember", "list_frames", "get_frame"],
+        workflows: ["store-then-recall", "context-recovery"],
+      },
+      get_frame: {
+        description:
+          "Retrieve a specific frame by ID. Use when you know the exact frame ID from a previous response.",
+        requiredFields: ["frame_id"],
+        optionalFields: ["include_atlas"],
+        examples: [
+          {
+            description: "Get frame by ID",
+            input: { frame_id: "frame-abc123" },
+          },
+          {
+            description: "Get frame without Atlas neighborhood",
+            input: { frame_id: "frame-abc123", include_atlas: false },
+          },
+        ],
+        relatedTools: ["recall", "list_frames"],
+        workflows: ["direct-frame-access"],
+      },
+      list_frames: {
+        description:
+          "List recent Frames, optionally filtered by branch or module. Good for getting an overview.",
+        requiredFields: [],
+        optionalFields: ["branch", "module", "limit", "since"],
+        examples: [
+          {
+            description: "List recent frames",
+            input: { limit: 10 },
+          },
+          {
+            description: "List frames for a specific branch",
+            input: { branch: "main", limit: 5 },
+          },
+          {
+            description: "List frames since a date",
+            input: { since: "2024-01-01T00:00:00Z" },
+          },
+        ],
+        relatedTools: ["recall", "timeline"],
+        workflows: ["timeline-tracking", "context-recovery"],
+      },
+      policy_check: {
+        description:
+          "Validate code against policy rules from lexmap.policy.json. Checks module boundaries and dependencies.",
+        requiredFields: [],
+        optionalFields: ["path", "policyPath", "strict"],
+        examples: [
+          {
+            description: "Check current directory",
+            input: {},
+          },
+          {
+            description: "Check specific path with strict mode",
+            input: { path: "./src", strict: true },
+          },
+        ],
+        relatedTools: ["introspect", "code_atlas"],
+        workflows: ["pre-commit-check", "ci-validation"],
+      },
+      timeline: {
+        description:
+          "Show visual timeline of Frame evolution for a ticket or branch. Great for understanding work history.",
+        requiredFields: ["ticketOrBranch"],
+        optionalFields: ["since", "until", "format"],
+        examples: [
+          {
+            description: "Show timeline for a Jira ticket",
+            input: { ticketOrBranch: "AUTH-123" },
+          },
+          {
+            description: "Show timeline for a branch with date range",
+            input: {
+              ticketOrBranch: "feature/auth-refactor",
+              since: "2024-01-01T00:00:00Z",
+              format: "json",
+            },
+          },
+        ],
+        relatedTools: ["list_frames", "recall"],
+        workflows: ["timeline-tracking", "context-recovery"],
+      },
+      code_atlas: {
+        description:
+          "Analyze code structure and dependencies across modules. Visualizes the dependency graph.",
+        requiredFields: [],
+        optionalFields: ["seedModules", "foldRadius"],
+        examples: [
+          {
+            description: "Analyze memory module dependencies",
+            input: { seedModules: ["memory/store"], foldRadius: 2 },
+          },
+          {
+            description: "Analyze multiple modules",
+            input: { seedModules: ["memory/store", "memory/mcp"], foldRadius: 1 },
+          },
+        ],
+        relatedTools: ["policy_check", "introspect"],
+        workflows: ["dependency-analysis", "refactoring-planning"],
+      },
+      introspect: {
+        description:
+          "Discover the current state of Lex including available modules, policy, frame count, and error codes.",
+        requiredFields: [],
+        optionalFields: ["format"],
+        examples: [
+          {
+            description: "Get full introspection",
+            input: {},
+          },
+          {
+            description: "Get compact format for small-context agents",
+            input: { format: "compact" },
+          },
+        ],
+        relatedTools: ["help", "policy_check"],
+        workflows: ["initial-discovery", "error-handling"],
+      },
+      help: {
+        description:
+          "Get usage help for Lex MCP tools including examples, required fields, and workflows.",
+        requiredFields: [],
+        optionalFields: ["tool", "examples"],
+        examples: [
+          {
+            description: "Get help for all tools",
+            input: {},
+          },
+          {
+            description: "Get help for a specific tool",
+            input: { tool: "remember" },
+          },
+          {
+            description: "Get help without examples",
+            input: { tool: "recall", examples: false },
+          },
+        ],
+        relatedTools: ["introspect"],
+        workflows: ["initial-discovery"],
+      },
+    };
+
+    // Define workflow descriptions
+    const workflows: Record<
+      string,
+      {
+        description: string;
+        steps: string[];
+        tools: string[];
+      }
+    > = {
+      "store-then-recall": {
+        description: "Store work context and retrieve it later",
+        steps: [
+          "Use `remember` to store your current work context",
+          "Use `recall` with reference_point to find it later",
+          "Optionally use `get_frame` if you have the exact frame ID",
+        ],
+        tools: ["remember", "recall", "get_frame"],
+      },
+      "timeline-tracking": {
+        description: "Track work evolution over time for a ticket or branch",
+        steps: [
+          "Use `remember` regularly to capture work progress",
+          "Use `timeline` to visualize the evolution",
+          "Use `list_frames` to see recent work",
+        ],
+        tools: ["remember", "timeline", "list_frames"],
+      },
+      "validate-before-store": {
+        description: "Validate inputs before committing to storage",
+        steps: [
+          "Use `validate_remember` to check your inputs",
+          "Fix any validation errors",
+          "Use `remember` to store the validated frame",
+        ],
+        tools: ["validate_remember", "remember"],
+      },
+      "context-recovery": {
+        description: "Recover context when resuming work",
+        steps: [
+          "Use `recall` to search for relevant frames",
+          "Use `timeline` to see work history",
+          "Use `get_frame` to get detailed frame content",
+        ],
+        tools: ["recall", "timeline", "get_frame"],
+      },
+      "initial-discovery": {
+        description: "Discover Lex capabilities when starting",
+        steps: [
+          "Use `help` to understand available tools",
+          "Use `introspect` to see system state and available modules",
+          "Use `recall` or `list_frames` to see existing memory",
+        ],
+        tools: ["help", "introspect", "recall", "list_frames"],
+      },
+      "dependency-analysis": {
+        description: "Understand code structure and dependencies",
+        steps: [
+          "Use `introspect` to see available modules",
+          "Use `code_atlas` to visualize dependencies",
+          "Use `policy_check` to validate boundaries",
+        ],
+        tools: ["introspect", "code_atlas", "policy_check"],
+      },
+      "pre-commit-check": {
+        description: "Validate code before committing",
+        steps: [
+          "Use `policy_check` to validate module boundaries",
+          "Fix any policy violations",
+          "Use `remember` to capture the work context",
+        ],
+        tools: ["policy_check", "remember"],
+      },
+    };
+
+    // Build response based on requested tool
+    if (tool) {
+      // Get help for a specific tool
+      const helpData = toolHelp[tool];
+      if (!helpData) {
+        throw new MCPError(MCPErrorCode.VALIDATION_INVALID_FORMAT, `Unknown tool: ${tool}`, {
+          requestedTool: tool,
+          availableTools: Object.keys(toolHelp),
+        });
+      }
+
+      const response: Record<string, unknown> = {
+        tool,
+        description: helpData.description,
+        requiredFields: helpData.requiredFields,
+        optionalFields: helpData.optionalFields,
+        relatedTools: helpData.relatedTools,
+        workflows: helpData.workflows.map((w) => ({
+          name: w,
+          description: workflows[w]?.description || w,
+        })),
+      };
+
+      if (examples) {
+        response.examples = helpData.examples;
+      }
+
+      // Format text output
+      const textOutput = [
+        `# ${tool}`,
+        "",
+        helpData.description,
+        "",
+        "## Required Fields",
+        helpData.requiredFields.length > 0
+          ? helpData.requiredFields.map((f) => `  - ${f}`).join("\n")
+          : "  (none)",
+        "",
+        "## Optional Fields",
+        helpData.optionalFields.length > 0
+          ? helpData.optionalFields.map((f) => `  - ${f}`).join("\n")
+          : "  (none)",
+        "",
+        "## Related Tools",
+        helpData.relatedTools.map((t) => `  - ${t}`).join("\n"),
+        "",
+        "## Workflows",
+        helpData.workflows.map((w) => `  - ${w}: ${workflows[w]?.description || ""}`).join("\n"),
+      ];
+
+      if (examples && helpData.examples.length > 0) {
+        textOutput.push(
+          "",
+          "## Examples",
+          ...helpData.examples
+            .map((ex, i) => [
+              `### Example ${i + 1}: ${ex.description}`,
+              "```json",
+              JSON.stringify(ex.input, null, 2),
+              "```",
+            ])
+            .flat()
+        );
+      }
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: textOutput.join("\n"),
+          },
+        ],
+        data: response,
+      };
+    } else {
+      // Get help for all tools
+      const response: Record<string, unknown> = {
+        tools: Object.fromEntries(
+          Object.entries(toolHelp).map(([name, data]) => {
+            const toolData: Record<string, unknown> = {
+              description: data.description,
+              requiredFields: data.requiredFields,
+              relatedTools: data.relatedTools,
+            };
+            if (examples && data.examples.length > 0) {
+              toolData.examples = data.examples;
+            }
+            return [name, toolData];
+          })
+        ),
+        workflows: Object.fromEntries(
+          Object.entries(workflows).map(([name, data]) => [
+            name,
+            { description: data.description, tools: data.tools },
+          ])
+        ),
+      };
+
+      // Format text output
+      const textOutput = [
+        "# Lex MCP Tools Help",
+        "",
+        "## Available Tools",
+        ...Object.entries(toolHelp).map(
+          ([name, data]) => `  - **${name}**: ${data.description.split(".")[0]}`
+        ),
+        "",
+        "## Common Workflows",
+        ...Object.entries(workflows).map(([name, data]) => `  - **${name}**: ${data.description}`),
+        "",
+        'Use `help(tool: "<name>")` for detailed help on a specific tool.',
+      ];
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: textOutput.join("\n"),
+          },
+        ],
+        data: response,
+      };
+    }
   }
 
   /**
