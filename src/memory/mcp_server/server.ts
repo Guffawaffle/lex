@@ -770,6 +770,9 @@ export class MCPServer {
   private async handleRecall(args: Record<string, unknown>): Promise<MCPResponse> {
     const { reference_point, jira, branch, limit = 10 } = args as unknown as RecallArgs;
 
+    // Track search timing for metadata (AX #578)
+    const searchStart = Date.now();
+
     if (!reference_point && !jira && !branch) {
       throw new AXErrorException(
         "MCP_RECALL_MISSING_PARAMS",
@@ -784,6 +787,7 @@ export class MCPServer {
     }
 
     let frames: Frame[];
+    let matchStrategy: string;
     try {
       // Build search criteria based on provided parameters
       const criteria: FrameSearchCriteria = { limit };
@@ -792,18 +796,22 @@ export class MCPServer {
         // Use FTS5 full-text search for reference_point
         criteria.query = reference_point;
         frames = await this.frameStore.searchFrames(criteria);
+        matchStrategy = "fts";
       } else if (jira) {
         // For jira/branch filtering, we need to search all and filter
         // The FrameStore interface doesn't have specific jira/branch methods
         // We'll use listFrames and filter in JavaScript
         const allFrames = await this.frameStore.listFrames({ limit: MAX_FILTER_FETCH_LIMIT });
         frames = allFrames.filter((f) => f.jira === jira).slice(0, limit);
+        matchStrategy = "filter:jira";
       } else if (branch) {
         // For branch filtering, search all and filter
         const allFrames = await this.frameStore.listFrames({ limit: MAX_FILTER_FETCH_LIMIT });
         frames = allFrames.filter((f) => f.branch === branch).slice(0, limit);
+        matchStrategy = "filter:branch";
       } else {
         frames = [];
+        matchStrategy = "none";
       }
     } catch (error: unknown) {
       // FTS5 search can fail with special characters (e.g., "zzz-nonexistent-query-zzz")
@@ -812,10 +820,30 @@ export class MCPServer {
       const err = error as any;
       if (err.code === "SQLITE_ERROR" || err.message?.includes("no such column")) {
         frames = [];
+        matchStrategy = "fts";
       } else {
         throw error;
       }
     }
+
+    // Calculate search timing and get total frame count (AX #578)
+    const searchTimeMs = Date.now() - searchStart;
+    const totalFrames = await this.getFrameCount();
+
+    // Build search metadata (AX #578)
+    const meta = {
+      query: {
+        reference_point: reference_point || null,
+        jira: jira || null,
+        branch: branch || null,
+        limit,
+      },
+      searchTimeMs,
+      totalFrames,
+      matchStrategy,
+      matchCount: frames.length,
+      status: frames.length > 0 ? "success" : "no_matches",
+    };
 
     if (frames.length === 0) {
       return {
@@ -827,6 +855,7 @@ export class MCPServer {
               "Try broader search terms or check your query parameters.",
           },
         ],
+        data: { meta },
       };
     }
 
@@ -870,6 +899,7 @@ export class MCPServer {
           text: `🎯 Found ${frames.length} Frame(s):\n${results}`,
         },
       ],
+      data: { meta },
     };
   }
 
