@@ -23,7 +23,7 @@ describe("MCP Server with MemoryFrameStore - Test Isolation", () => {
       try {
         const response = await server.handleRequest({ method: "tools/list" });
         assert.ok(response.tools, "Response should have tools array");
-        
+
         // Test presence of key tools rather than exact count
         const toolNames = response.tools.map((t) => t.name);
         assert.ok(toolNames.includes("remember"), "Should include remember tool");
@@ -106,7 +106,7 @@ describe("MCP Server with MemoryFrameStore - Test Isolation", () => {
         // Only test A's frame should be present
         assert.strictEqual(memoryStore.size(), 1, "Store should have exactly 1 frame");
 
-        const frames = await memoryStore.listFrames();
+        const { frames } = await memoryStore.listFrames();
         assert.ok(frames[0].reference_point.includes("test A"), "Frame should be from test A");
       } finally {
         await server.close();
@@ -138,7 +138,7 @@ describe("MCP Server with MemoryFrameStore - Test Isolation", () => {
         // Only test B's frame should be present
         assert.strictEqual(memoryStore.size(), 1, "Store should have exactly 1 frame");
 
-        const frames = await memoryStore.listFrames();
+        const { frames } = await memoryStore.listFrames();
         assert.ok(frames[0].reference_point.includes("test B"), "Frame should be from test B");
       } finally {
         await server.close();

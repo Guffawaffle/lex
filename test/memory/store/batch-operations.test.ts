@@ -313,7 +313,7 @@ describe("SqliteFrameStore Batch Performance", () => {
     await store.saveFrames(frames);
 
     // Verify all frames can be retrieved
-    const allFrames = await store.listFrames({ limit: 100 });
+    const { frames: allFrames } = await store.listFrames({ limit: 100 });
     assert.strictEqual(allFrames.length, 100, "Should have 100 frames");
 
     // Spot check a few
