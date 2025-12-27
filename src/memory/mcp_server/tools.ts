@@ -334,6 +334,12 @@ export const MCP_TOOLS: MCPTool[] = [
           description: "Include executable examples in the response (default: true)",
           default: true,
         },
+        format: {
+          type: "string",
+          enum: ["full", "micro"],
+          description: "Output format: 'full' (default) or 'micro' for ultra-compact examples",
+          default: "full",
+        },
       },
     },
   },

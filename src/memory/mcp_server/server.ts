@@ -1557,7 +1557,11 @@ export class MCPServer {
    * - Common workflow patterns
    */
   private async handleHelp(args: Record<string, unknown>): Promise<MCPResponse> {
-    const { tool, examples = true } = args as { tool?: string; examples?: boolean };
+    const { tool, examples = true, format = "full" } = args as {
+      tool?: string;
+      examples?: boolean;
+      format?: string;
+    };
 
     // Define tool help data
     const toolHelp: Record<
@@ -1567,6 +1571,7 @@ export class MCPServer {
         requiredFields: string[];
         optionalFields: string[];
         examples: Array<{ description: string; input: Record<string, unknown> }>;
+        microExamples?: Record<string, { in: string; out: string }>;
         relatedTools: string[];
         workflows: string[];
       }
@@ -1606,6 +1611,16 @@ export class MCPServer {
             },
           },
         ],
+        microExamples: {
+          "store-work": {
+            in: "{ref:'Refactoring auth',cap:'Extracted validation',status:{next:'Add tests'},mods:['memory/store']}",
+            out: "{ok:true,id:'frame_abc123'}",
+          },
+          "with-blocker": {
+            in: "{ref:'Debug leak',cap:'Found in pool',status:{next:'Review cleanup',blockers:['Need prod logs']},mods:['memory/store']}",
+            out: "{ok:true,id:'frame_xyz789'}",
+          },
+        },
         relatedTools: ["recall", "list_frames", "validate_remember"],
         workflows: ["store-then-recall", "timeline-tracking", "validate-before-store"],
       },
@@ -1625,6 +1640,12 @@ export class MCPServer {
             },
           },
         ],
+        microExamples: {
+          validate: {
+            in: "{ref:'Test ref',cap:'Test summary',status:{next:'Continue testing'},mods:['memory/store']}",
+            out: "{ok:true,valid:true}",
+          },
+        },
         relatedTools: ["remember"],
         workflows: ["validate-before-store"],
       },
@@ -1647,6 +1668,20 @@ export class MCPServer {
             input: { branch: "feature/auth-refactor", limit: 5 },
           },
         ],
+        microExamples: {
+          "by-topic": {
+            in: "{ref:'authentication refactoring'}",
+            out: "{frames:[{id:'f1',ref:'Refactoring auth',cap:'Done'}]}",
+          },
+          "by-jira": {
+            in: "{jira:'AUTH-123'}",
+            out: "{frames:[{id:'f2',jira:'AUTH-123'}]}",
+          },
+          "by-branch": {
+            in: "{branch:'feature/auth',limit:5}",
+            out: "{frames:[{id:'f3',branch:'feature/auth'}]}",
+          },
+        },
         relatedTools: ["remember", "list_frames", "get_frame"],
         workflows: ["store-then-recall", "context-recovery"],
       },
@@ -1665,6 +1700,16 @@ export class MCPServer {
             input: { frame_id: "frame-abc123", include_atlas: false },
           },
         ],
+        microExamples: {
+          "get-by-id": {
+            in: "{frame_id:'frame-abc123'}",
+            out: "{frame:{id:'frame-abc123',ref:'Auth work',cap:'Done'}}",
+          },
+          "no-atlas": {
+            in: "{frame_id:'frame-abc123',include_atlas:false}",
+            out: "{frame:{id:'frame-abc123',ref:'Auth work'}}",
+          },
+        },
         relatedTools: ["recall", "list_frames"],
         workflows: ["direct-frame-access"],
       },
@@ -1687,6 +1732,20 @@ export class MCPServer {
             input: { since: "2024-01-01T00:00:00Z" },
           },
         ],
+        microExamples: {
+          recent: {
+            in: "{limit:10}",
+            out: "{frames:[{id:'f1',ref:'Recent work'}]}",
+          },
+          "by-branch": {
+            in: "{branch:'main',limit:5}",
+            out: "{frames:[{id:'f2',branch:'main'}]}",
+          },
+          "by-date": {
+            in: "{since:'2024-01-01T00:00:00Z'}",
+            out: "{frames:[{id:'f3',created:'2024-01-15'}]}",
+          },
+        },
         relatedTools: ["recall", "timeline"],
         workflows: ["timeline-tracking", "context-recovery"],
       },
@@ -1705,6 +1764,16 @@ export class MCPServer {
             input: { path: "./src", strict: true },
           },
         ],
+        microExamples: {
+          "check-current": {
+            in: "{}",
+            out: "{ok:true,violations:[]}",
+          },
+          "check-path": {
+            in: "{path:'./src',strict:true}",
+            out: "{ok:true,violations:[]}",
+          },
+        },
         relatedTools: ["introspect", "code_atlas"],
         workflows: ["pre-commit-check", "ci-validation"],
       },
@@ -1727,6 +1796,16 @@ export class MCPServer {
             },
           },
         ],
+        microExamples: {
+          "by-jira": {
+            in: "{ticketOrBranch:'AUTH-123'}",
+            out: "{timeline:[{at:'2024-01-15',ref:'Started'}]}",
+          },
+          "by-branch": {
+            in: "{ticketOrBranch:'feature/auth',since:'2024-01-01T00:00:00Z',format:'json'}",
+            out: "{timeline:[{at:'2024-01-15',status:'In progress'}]}",
+          },
+        },
         relatedTools: ["list_frames", "recall"],
         workflows: ["timeline-tracking", "context-recovery"],
       },
@@ -1745,6 +1824,16 @@ export class MCPServer {
             input: { seedModules: ["memory/store", "memory/mcp"], foldRadius: 1 },
           },
         ],
+        microExamples: {
+          "single-module": {
+            in: "{seedModules:['memory/store'],foldRadius:2}",
+            out: "{graph:{nodes:['memory/store'],edges:[]}}",
+          },
+          "multi-module": {
+            in: "{seedModules:['memory/store','memory/mcp'],foldRadius:1}",
+            out: "{graph:{nodes:['memory/store','memory/mcp']}}",
+          },
+        },
         relatedTools: ["policy_check", "introspect"],
         workflows: ["dependency-analysis", "refactoring-planning"],
       },
@@ -1763,6 +1852,16 @@ export class MCPServer {
             input: { format: "compact" },
           },
         ],
+        microExamples: {
+          full: {
+            in: "{}",
+            out: "{modules:['memory','policy'],frameCount:42}",
+          },
+          compact: {
+            in: "{format:'compact'}",
+            out: "{mods:['memory','policy'],frames:42}",
+          },
+        },
         relatedTools: ["help", "policy_check"],
         workflows: ["initial-discovery", "error-handling"],
       },
@@ -1770,7 +1869,7 @@ export class MCPServer {
         description:
           "Get usage help for Lex MCP tools including examples, required fields, and workflows.",
         requiredFields: [],
-        optionalFields: ["tool", "examples"],
+        optionalFields: ["tool", "examples", "format"],
         examples: [
           {
             description: "Get help for all tools",
@@ -1785,6 +1884,24 @@ export class MCPServer {
             input: { tool: "recall", examples: false },
           },
         ],
+        microExamples: {
+          "all-tools": {
+            in: "{}",
+            out: "{tools:{remember:{desc:'Store frame'}}}",
+          },
+          "single-tool": {
+            in: "{tool:'remember'}",
+            out: "{tool:'remember',desc:'Store frame'}",
+          },
+          "no-examples": {
+            in: "{tool:'recall',examples:false}",
+            out: "{tool:'recall',desc:'Search frames'}",
+          },
+          micro: {
+            in: "{tool:'remember',format:'micro'}",
+            out: "{microExamples:{'store-work':{in:'...',out:'...'}}}",
+          },
+        },
         relatedTools: ["introspect"],
         workflows: ["initial-discovery"],
       },
@@ -1888,7 +2005,11 @@ export class MCPServer {
       };
 
       if (examples) {
-        response.examples = helpData.examples;
+        if (format === "micro" && helpData.microExamples) {
+          response.microExamples = helpData.microExamples;
+        } else {
+          response.examples = helpData.examples;
+        }
       }
 
       // Format text output
@@ -1914,19 +2035,29 @@ export class MCPServer {
         helpData.workflows.map((w) => `  - ${w}: ${workflows[w]?.description || ""}`).join("\n"),
       ];
 
-      if (examples && helpData.examples.length > 0) {
-        textOutput.push(
-          "",
-          "## Examples",
-          ...helpData.examples
-            .map((ex, i) => [
-              `### Example ${i + 1}: ${ex.description}`,
-              "```json",
-              JSON.stringify(ex.input, null, 2),
-              "```",
-            ])
-            .flat()
-        );
+      if (examples) {
+        if (format === "micro" && helpData.microExamples) {
+          textOutput.push(
+            "",
+            "## Micro Examples",
+            ...Object.entries(helpData.microExamples)
+              .map(([name, example]) => [`**${name}**`, `  in:  ${example.in}`, `  out: ${example.out}`])
+              .flat()
+          );
+        } else if (helpData.examples.length > 0) {
+          textOutput.push(
+            "",
+            "## Examples",
+            ...helpData.examples
+              .map((ex, i) => [
+                `### Example ${i + 1}: ${ex.description}`,
+                "```json",
+                JSON.stringify(ex.input, null, 2),
+                "```",
+              ])
+              .flat()
+          );
+        }
       }
 
       return {

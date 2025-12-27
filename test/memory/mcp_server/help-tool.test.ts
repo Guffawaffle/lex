@@ -423,4 +423,259 @@ describe("Help MCP Tool (AX #577)", () => {
       });
     }
   });
+
+  describe("Micro format (AX #013)", () => {
+    test("should support format=micro parameter", async () => {
+      const srv = setup();
+      try {
+        const response = await srv.handleRequest({
+          method: "tools/call",
+          params: {
+            name: "help",
+            arguments: { tool: "remember", format: "micro" },
+          },
+        });
+
+        const data = response.data as Record<string, unknown>;
+        assert.ok(data.microExamples, "Should have microExamples when format=micro");
+        assert.ok(!data.examples, "Should not have full examples when format=micro");
+      } finally {
+        await teardown();
+      }
+    });
+
+    test("micro examples should be compact", async () => {
+      const srv = setup();
+      try {
+        const response = await srv.handleRequest({
+          method: "tools/call",
+          params: {
+            name: "help",
+            arguments: { tool: "remember", format: "micro" },
+          },
+        });
+
+        const data = response.data as Record<string, unknown>;
+        const microExamples = data.microExamples as Record<string, { in: string; out: string }>;
+
+        assert.ok(microExamples, "Should have microExamples");
+        assert.ok(Object.keys(microExamples).length > 0, "Should have at least one micro example");
+
+        // Check structure of first micro example
+        const firstExample = Object.values(microExamples)[0];
+        assert.ok(firstExample.in, "Micro example should have 'in' field");
+        assert.ok(firstExample.out, "Micro example should have 'out' field");
+        assert.ok(
+          typeof firstExample.in === "string",
+          "Micro example 'in' should be a string"
+        );
+        assert.ok(
+          typeof firstExample.out === "string",
+          "Micro example 'out' should be a string"
+        );
+      } finally {
+        await teardown();
+      }
+    });
+
+    test("micro examples should use abbreviated field names", async () => {
+      const srv = setup();
+      try {
+        const response = await srv.handleRequest({
+          method: "tools/call",
+          params: {
+            name: "help",
+            arguments: { tool: "remember", format: "micro" },
+          },
+        });
+
+        const data = response.data as Record<string, unknown>;
+        const microExamples = data.microExamples as Record<string, { in: string; out: string }>;
+
+        // Check that examples use abbreviated names
+        const firstExample = Object.values(microExamples)[0];
+        const input = firstExample.in;
+
+        // Should use abbreviated field names like ref, cap, mods instead of full names
+        assert.ok(
+          input.includes("ref:") || input.includes("cap:") || input.includes("mods:"),
+          "Should use abbreviated field names (ref, cap, mods)"
+        );
+
+        // Should NOT use full field names
+        assert.ok(
+          !input.includes("reference_point:") &&
+            !input.includes("summary_caption:") &&
+            !input.includes("module_scope:"),
+          "Should not use full field names"
+        );
+      } finally {
+        await teardown();
+      }
+    });
+
+    test("micro examples should be significantly shorter than full examples", async () => {
+      const srv = setup();
+      try {
+        // Get full format
+        const fullResponse = await srv.handleRequest({
+          method: "tools/call",
+          params: {
+            name: "help",
+            arguments: { tool: "remember", format: "full" },
+          },
+        });
+
+        // Get micro format
+        const microResponse = await srv.handleRequest({
+          method: "tools/call",
+          params: {
+            name: "help",
+            arguments: { tool: "remember", format: "micro" },
+          },
+        });
+
+        const fullData = fullResponse.data as Record<string, unknown>;
+        const microData = microResponse.data as Record<string, unknown>;
+
+        const fullExamplesStr = JSON.stringify(fullData.examples);
+        const microExamplesStr = JSON.stringify(microData.microExamples);
+
+        // Micro should be significantly shorter (at least 50% smaller)
+        assert.ok(
+          microExamplesStr.length < fullExamplesStr.length * 0.5,
+          `Micro examples (${microExamplesStr.length} chars) should be < 50% of full examples (${fullExamplesStr.length} chars)`
+        );
+      } finally {
+        await teardown();
+      }
+    });
+
+    test("micro examples should be valid parseable JSON-ish", async () => {
+      const srv = setup();
+      try {
+        const response = await srv.handleRequest({
+          method: "tools/call",
+          params: {
+            name: "help",
+            arguments: { tool: "remember", format: "micro" },
+          },
+        });
+
+        const data = response.data as Record<string, unknown>;
+        const microExamples = data.microExamples as Record<string, { in: string; out: string }>;
+
+        // Check that examples have proper JSON-like structure
+        for (const example of Object.values(microExamples)) {
+          // Should start with { and end with }
+          assert.ok(example.in.startsWith("{"), "Input should start with {");
+          assert.ok(example.in.endsWith("}"), "Input should end with }");
+          assert.ok(example.out.startsWith("{"), "Output should start with {");
+          assert.ok(example.out.endsWith("}"), "Output should end with }");
+        }
+      } finally {
+        await teardown();
+      }
+    });
+
+    test("format=full should still return full examples", async () => {
+      const srv = setup();
+      try {
+        const response = await srv.handleRequest({
+          method: "tools/call",
+          params: {
+            name: "help",
+            arguments: { tool: "remember", format: "full" },
+          },
+        });
+
+        const data = response.data as Record<string, unknown>;
+        assert.ok(data.examples, "Should have full examples when format=full");
+        assert.ok(!data.microExamples, "Should not have microExamples when format=full");
+      } finally {
+        await teardown();
+      }
+    });
+
+    test("default format should return full examples", async () => {
+      const srv = setup();
+      try {
+        const response = await srv.handleRequest({
+          method: "tools/call",
+          params: {
+            name: "help",
+            arguments: { tool: "remember" },
+          },
+        });
+
+        const data = response.data as Record<string, unknown>;
+        assert.ok(data.examples, "Should have full examples by default");
+        assert.ok(!data.microExamples, "Should not have microExamples by default");
+      } finally {
+        await teardown();
+      }
+    });
+
+    test("micro format text output should be compact", async () => {
+      const srv = setup();
+      try {
+        const response = await srv.handleRequest({
+          method: "tools/call",
+          params: {
+            name: "help",
+            arguments: { tool: "remember", format: "micro" },
+          },
+        });
+
+        const text = (response.content as Array<{ text: string }>)[0].text;
+
+        assert.ok(text.includes("## Micro Examples"), "Should have Micro Examples section");
+        assert.ok(!text.includes("```json"), "Should not have JSON code blocks in micro format");
+      } finally {
+        await teardown();
+      }
+    });
+
+    test("all tools should have micro examples", async () => {
+      const srv = setup();
+      const allTools = [
+        "remember",
+        "validate_remember",
+        "recall",
+        "get_frame",
+        "list_frames",
+        "policy_check",
+        "timeline",
+        "code_atlas",
+        "introspect",
+        "help",
+      ];
+
+      try {
+        for (const toolName of allTools) {
+          const response = await srv.handleRequest({
+            method: "tools/call",
+            params: {
+              name: "help",
+              arguments: { tool: toolName, format: "micro" },
+            },
+          });
+
+          const data = response.data as Record<string, unknown>;
+          assert.ok(
+            data.microExamples,
+            `${toolName} should have microExamples when format=micro`
+          );
+
+          const microExamples = data.microExamples as Record<string, { in: string; out: string }>;
+          assert.ok(
+            Object.keys(microExamples).length > 0,
+            `${toolName} should have at least one micro example`
+          );
+        }
+      } finally {
+        await teardown();
+      }
+    });
+  });
 });
