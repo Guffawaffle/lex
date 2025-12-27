@@ -356,6 +356,10 @@ export function initializeDatabase(db: Database.Database): void {
     applyMigrationV8(db);
     db.prepare("INSERT INTO schema_version (version) VALUES (?)").run(8);
   }
+  if (currentVersion < 9) {
+    applyMigrationV9(db);
+    db.prepare("INSERT INTO schema_version (version) VALUES (?)").run(9);
+  }
 }
 
 /**
@@ -704,6 +708,94 @@ function applyMigrationV7(db: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_lexsona_rules_frame_id
     ON lexsona_behavior_rules(frame_id)
     WHERE frame_id IS NOT NULL;
+  `);
+}
+
+/**
+ * Migration V9: Expand FTS5 index to include next_action, module_scope, jira, branch
+ *
+ * Expands the frames_fts virtual table to search additional fields that agents
+ * frequently query. This improves the effectiveness of `lex recall` for
+ * agent-driven memory retrieval.
+ *
+ * Fields added to FTS5 index:
+ * - next_action: Extracted from status_snapshot JSON (often contains actionable context)
+ * - module_scope: JSON array of module IDs (agents search by module)
+ * - jira: Ticket ID (should be instantly searchable)
+ * - branch: Branch context (frequently queried)
+ *
+ * @see https://github.com/Guffawaffle/lex/issues/DX-003
+ */
+function applyMigrationV9(db: Database.Database): void {
+  // Drop existing FTS5 table and triggers
+  db.exec(`DROP TRIGGER IF EXISTS frames_au;`);
+  db.exec(`DROP TRIGGER IF EXISTS frames_ad;`);
+  db.exec(`DROP TRIGGER IF EXISTS frames_ai;`);
+  db.exec(`DROP TABLE IF EXISTS frames_fts;`);
+
+  // Create expanded FTS5 virtual table with additional searchable fields
+  // Note: We use external contentless FTS5 (content='') to allow custom columns
+  // that don't exist in the frames table (e.g., next_action from JSON extraction)
+  db.exec(`
+    CREATE VIRTUAL TABLE frames_fts USING fts5(
+      reference_point,
+      summary_caption,
+      keywords,
+      next_action,
+      module_scope,
+      jira,
+      branch,
+      content=''
+    );
+  `);
+
+  // Create triggers to keep FTS index in sync with frames table
+  // Extract next_action from status_snapshot JSON during insert/update
+  db.exec(`
+    CREATE TRIGGER frames_ai AFTER INSERT ON frames BEGIN
+      INSERT INTO frames_fts(rowid, reference_point, summary_caption, keywords, next_action, module_scope, jira, branch)
+      VALUES (
+        new.rowid,
+        new.reference_point,
+        new.summary_caption,
+        new.keywords,
+        json_extract(new.status_snapshot, '$.next_action'),
+        new.module_scope,
+        new.jira,
+        new.branch
+      );
+    END;
+  `);
+
+  db.exec(`
+    CREATE TRIGGER frames_ad AFTER DELETE ON frames BEGIN
+      INSERT INTO frames_fts(frames_fts, rowid, reference_point, summary_caption, keywords, next_action, module_scope, jira, branch)
+      VALUES ('delete', old.rowid, old.reference_point, old.summary_caption, old.keywords, json_extract(old.status_snapshot, '$.next_action'), old.module_scope, old.jira, old.branch);
+    END;
+  `);
+
+  db.exec(`
+    CREATE TRIGGER frames_au AFTER UPDATE ON frames BEGIN
+      INSERT INTO frames_fts(frames_fts, rowid, reference_point, summary_caption, keywords, next_action, module_scope, jira, branch)
+      VALUES ('delete', old.rowid, old.reference_point, old.summary_caption, old.keywords, json_extract(old.status_snapshot, '$.next_action'), old.module_scope, old.jira, old.branch);
+      INSERT INTO frames_fts(rowid, reference_point, summary_caption, keywords, next_action, module_scope, jira, branch)
+      VALUES (new.rowid, new.reference_point, new.summary_caption, new.keywords, json_extract(new.status_snapshot, '$.next_action'), new.module_scope, new.jira, new.branch);
+    END;
+  `);
+
+  // Rebuild FTS index from existing data
+  db.exec(`
+    INSERT INTO frames_fts(rowid, reference_point, summary_caption, keywords, next_action, module_scope, jira, branch)
+    SELECT
+      rowid,
+      reference_point,
+      summary_caption,
+      keywords,
+      json_extract(status_snapshot, '$.next_action'),
+      module_scope,
+      jira,
+      branch
+    FROM frames;
   `);
 }
 
