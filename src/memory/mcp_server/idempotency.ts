@@ -14,30 +14,9 @@
  */
 
 import { getLogger } from "@smartergpt/lex/logger";
+import type { MCPResponse } from "./server.js";
 
 const logger = getLogger("memory:mcp_server:idempotency");
-
-/**
- * MCP Response structure (for idempotency caching)
- * Must match the MCPResponse interface from server.ts
- */
-export interface MCPResponse {
-  protocolVersion?: string;
-  capabilities?: unknown;
-  serverInfo?: {
-    name: string;
-    version: string;
-  };
-  tools?: unknown[];
-  content?: unknown[];
-  error?: {
-    message: string;
-    code: string;
-    context?: Record<string, unknown>;
-    nextActions?: string[];
-  };
-  data?: Record<string, unknown>;
-}
 
 /**
  * Cached entry with response and timestamp
