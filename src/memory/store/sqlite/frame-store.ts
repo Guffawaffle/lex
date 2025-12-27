@@ -10,6 +10,7 @@ import type {
   FrameStore,
   FrameSearchCriteria,
   FrameListOptions,
+  FrameListResult,
   SaveResult,
 } from "../frame-store.js";
 import type { Frame, FrameStatusSnapshot, FrameSpendMetadata } from "../../frames/types.js";
@@ -17,6 +18,40 @@ import type { FrameRow } from "../db.js";
 import { Frame as FrameSchema } from "../../frames/types.js";
 import { createDatabase } from "../db.js";
 import { normalizeFTS5Query } from "../fts5-utils.js";
+
+/**
+ * Cursor for stable pagination.
+ * Encodes the last seen (timestamp, frame_id) tuple.
+ */
+interface PaginationCursor {
+  timestamp: string;
+  frame_id: string;
+}
+
+/**
+ * Encode a pagination cursor to an opaque base64 string.
+ */
+function encodeCursor(timestamp: string, frameId: string): string {
+  const cursor: PaginationCursor = { timestamp, frame_id: frameId };
+  return Buffer.from(JSON.stringify(cursor)).toString("base64");
+}
+
+/**
+ * Decode a pagination cursor from a base64 string.
+ * Returns null if the cursor is invalid.
+ */
+function decodeCursor(cursor: string): PaginationCursor | null {
+  try {
+    const decoded = Buffer.from(cursor, "base64").toString("utf-8");
+    const parsed = JSON.parse(decoded) as PaginationCursor;
+    if (typeof parsed.timestamp === "string" && typeof parsed.frame_id === "string") {
+      return parsed;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Convert Frame object to database row
@@ -353,26 +388,45 @@ export class SqliteFrameStore implements FrameStore {
   /**
    * List Frames with optional pagination.
    *
-   * Frames are returned in descending timestamp order (newest first).
+   * Supports both cursor-based and offset-based pagination for backward compatibility.
+   * Cursor-based pagination provides stable ordering by (timestamp DESC, id DESC).
+   * When a cursor is provided, it takes precedence over offset.
+   *
+   * @param options - Pagination options (limit, cursor, or offset).
+   * @returns FrameListResult with frames and pagination metadata.
    */
-  async listFrames(options?: FrameListOptions): Promise<Frame[]> {
+  async listFrames(options?: FrameListOptions): Promise<FrameListResult> {
     if (this.isClosed) {
       throw new Error("SqliteFrameStore is closed");
     }
 
-    let query = "SELECT * FROM frames ORDER BY timestamp DESC";
-    const params: number[] = [];
+    const limit = options?.limit ?? 10;
+    const params: (string | number)[] = [];
 
-    if (options?.limit !== undefined) {
-      query += " LIMIT ?";
-      params.push(options.limit);
+    // Build query with stable ordering: timestamp DESC, id DESC
+    let query = "SELECT * FROM frames";
+
+    // Handle cursor-based pagination (takes precedence over offset)
+    if (options?.cursor) {
+      const cursorData = decodeCursor(options.cursor);
+      if (cursorData) {
+        // Use row value comparison for stable pagination
+        // (timestamp, id) < (cursor.timestamp, cursor.frame_id)
+        query += " WHERE (timestamp, id) < (?, ?)";
+        params.push(cursorData.timestamp, cursorData.frame_id);
+      }
+      // If cursor is invalid, treat as if no cursor was provided
     }
 
-    if (options?.offset !== undefined) {
-      if (options?.limit === undefined) {
-        // SQLite requires LIMIT when using OFFSET
-        query += " LIMIT -1";
-      }
+    // Add stable ordering
+    query += " ORDER BY timestamp DESC, id DESC";
+
+    // Fetch limit + 1 to determine if there are more results
+    query += " LIMIT ?";
+    params.push(limit + 1);
+
+    // Handle offset-based pagination (only if no cursor)
+    if (!options?.cursor && options?.offset !== undefined) {
       query += " OFFSET ?";
       params.push(options.offset);
     }
@@ -380,7 +434,29 @@ export class SqliteFrameStore implements FrameStore {
     const stmt = this._db.prepare(query);
     const rows = stmt.all(...params) as FrameRow[];
 
-    return rows.map(rowToFrame);
+    // Determine if there are more results
+    const hasMore = rows.length > limit;
+    const frames = rows.slice(0, limit).map(rowToFrame);
+
+    // Generate next cursor from the last frame
+    let nextCursor: string | null = null;
+    if (hasMore && frames.length > 0) {
+      const lastFrame = frames[frames.length - 1];
+      nextCursor = encodeCursor(lastFrame.timestamp, lastFrame.id);
+    }
+
+    return {
+      frames,
+      page: {
+        limit,
+        nextCursor,
+        hasMore,
+      },
+      order: {
+        by: "created_at",
+        direction: "desc",
+      },
+    };
   }
 
   /**

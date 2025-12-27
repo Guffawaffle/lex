@@ -53,6 +53,48 @@ export interface FrameListOptions {
 
   /** Number of Frames to skip (for pagination). */
   offset?: number;
+
+  /** Opaque cursor for stable pagination (takes precedence over offset). */
+  cursor?: string;
+}
+
+/**
+ * Pagination metadata for Frame listing.
+ */
+export interface FrameListPage {
+  /** Maximum number of Frames returned per page. */
+  limit: number;
+
+  /** Opaque cursor to fetch the next page, or null if no more results. */
+  nextCursor: string | null;
+
+  /** Whether there are more results available. */
+  hasMore: boolean;
+}
+
+/**
+ * Ordering metadata for Frame listing.
+ */
+export interface FrameListOrder {
+  /** Field used for ordering. */
+  by: "created_at";
+
+  /** Sort direction. */
+  direction: "desc";
+}
+
+/**
+ * Result of listing Frames with pagination metadata.
+ */
+export interface FrameListResult {
+  /** Array of Frames returned for this page. */
+  frames: Frame[];
+
+  /** Pagination metadata. */
+  page: FrameListPage;
+
+  /** Ordering metadata. */
+  order: FrameListOrder;
 }
 
 /**
@@ -107,9 +149,9 @@ export interface FrameStore {
   /**
    * List Frames with optional pagination.
    * @param options - Pagination options.
-   * @returns Array of Frames.
+   * @returns FrameListResult with frames and pagination metadata.
    */
-  listFrames(options?: FrameListOptions): Promise<Frame[]>;
+  listFrames(options?: FrameListOptions): Promise<FrameListResult>;
 
   /**
    * Close the store and release any resources.

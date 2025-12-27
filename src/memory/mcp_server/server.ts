@@ -82,6 +82,7 @@ interface ListFramesArgs {
   module?: string;
   limit?: number;
   since?: string;
+  cursor?: string;
 }
 
 interface PolicyCheckArgs {
@@ -801,13 +802,13 @@ export class MCPServer {
         // For jira/branch filtering, we need to search all and filter
         // The FrameStore interface doesn't have specific jira/branch methods
         // We'll use listFrames and filter in JavaScript
-        const allFrames = await this.frameStore.listFrames({ limit: MAX_FILTER_FETCH_LIMIT });
-        frames = allFrames.filter((f) => f.jira === jira).slice(0, limit);
+        const result = await this.frameStore.listFrames({ limit: MAX_FILTER_FETCH_LIMIT });
+        frames = result.frames.filter((f) => f.jira === jira).slice(0, limit);
         matchStrategy = "filter:jira";
       } else if (branch) {
         // For branch filtering, search all and filter
-        const allFrames = await this.frameStore.listFrames({ limit: MAX_FILTER_FETCH_LIMIT });
-        frames = allFrames.filter((f) => f.branch === branch).slice(0, limit);
+        const result = await this.frameStore.listFrames({ limit: MAX_FILTER_FETCH_LIMIT });
+        frames = result.frames.filter((f) => f.branch === branch).slice(0, limit);
         matchStrategy = "filter:branch";
       } else {
         frames = [];
@@ -974,11 +975,22 @@ export class MCPServer {
    * Handle mcp_lex_frame_list tool - list recent Frames
    */
   private async handleListFrames(args: Record<string, unknown>): Promise<MCPResponse> {
-    const { branch, module, limit = 10, since } = args as unknown as ListFramesArgs;
+    const { branch, module, limit = 10, since, cursor } = args as unknown as ListFramesArgs;
 
-    // Get frames using frameStore.listFrames
-    // Fetch more than limit to account for filtering
-    let frames = await this.frameStore.listFrames({ limit: MAX_FILTER_FETCH_LIMIT });
+    // Get frames using frameStore.listFrames with new pagination API
+    // Note: When filters are applied (branch, module, since), we need to fetch more
+    // frames than the limit to account for filtering. However, cursor pagination
+    // doesn't work well with post-fetch filtering. For now, we'll fetch a large
+    // batch when filters are present.
+    const needsFiltering = branch || module || since;
+    const fetchLimit = needsFiltering ? MAX_FILTER_FETCH_LIMIT : limit;
+
+    const result = await this.frameStore.listFrames({ 
+      limit: fetchLimit,
+      cursor: cursor,
+    });
+
+    let frames = result.frames;
 
     // Filter by branch if specified
     if (branch) {
@@ -996,8 +1008,10 @@ export class MCPServer {
       frames = frames.filter((f: Frame) => new Date(f.timestamp) >= sinceDate);
     }
 
-    // Apply limit
-    frames = frames.slice(0, limit);
+    // Apply limit after filtering (if we fetched more due to filters)
+    if (needsFiltering) {
+      frames = frames.slice(0, limit);
+    }
 
     if (frames.length === 0) {
       return {
@@ -1007,6 +1021,14 @@ export class MCPServer {
             text: "📋 No Frames found matching criteria.",
           },
         ],
+        data: {
+          page: {
+            limit: result.page.limit,
+            nextCursor: null,
+            hasMore: false,
+          },
+          order: result.order,
+        },
       };
     }
 
@@ -1027,13 +1049,33 @@ export class MCPServer {
       })
       .join("\n");
 
+    // Add pagination info to the output
+    let paginationInfo = `\n\n📄 Pagination:\n`;
+    paginationInfo += `   Limit: ${result.page.limit}\n`;
+    paginationInfo += `   Has More: ${result.page.hasMore}\n`;
+    if (result.page.nextCursor) {
+      paginationInfo += `   Next Cursor: ${result.page.nextCursor}\n`;
+    }
+    paginationInfo += `   Order: ${result.order.by} ${result.order.direction}`;
+
     return {
       content: [
         {
           type: "text",
-          text: `📋 Recent Frames (${frames.length}):\n${results}`,
+          text: `📋 Recent Frames (${frames.length}):\n${results}${paginationInfo}`,
         },
       ],
+      data: {
+        page: needsFiltering 
+          ? {
+              // When filtering, we can't reliably provide nextCursor
+              limit: result.page.limit,
+              nextCursor: null,
+              hasMore: false,
+            }
+          : result.page,
+        order: result.order,
+      },
     };
   }
 
@@ -1138,19 +1180,19 @@ export class MCPServer {
 
     try {
       // Get all frames and filter by Jira ticket or branch
-      const allFrames = await this.frameStore.listFrames();
+      const listResult = await this.frameStore.listFrames();
 
       let frames: Frame[] = [];
       let title: string;
 
       // Try to find frames by Jira ticket first
-      const framesByJira = allFrames.filter((f) => f.jira === ticketOrBranch);
+      const framesByJira = listResult.frames.filter((f) => f.jira === ticketOrBranch);
       if (framesByJira.length > 0) {
         frames = framesByJira;
         title = `${ticketOrBranch}: Timeline`;
       } else {
         // Try by branch name
-        const framesByBranch = allFrames.filter((f) => f.branch === ticketOrBranch);
+        const framesByBranch = listResult.frames.filter((f) => f.branch === ticketOrBranch);
         if (framesByBranch.length > 0) {
           frames = framesByBranch;
           title = `Branch ${ticketOrBranch}: Timeline`;
@@ -1384,9 +1426,9 @@ export class MCPServer {
         : null;
 
       // Get state information
-      const frames = await this.frameStore.listFrames({ limit: 1 });
+      const result = await this.frameStore.listFrames({ limit: 1 });
       const frameCount = await this.getFrameCount();
-      const latestFrame = frames.length > 0 ? frames[0].timestamp : null;
+      const latestFrame = result.frames.length > 0 ? result.frames[0].timestamp : null;
 
       // Get current branch (if available)
       let currentBranch = "unknown";
@@ -2135,8 +2177,8 @@ export class MCPServer {
 
       // Fallback for non-SQLite stores: list without limit and count
       // Note: For very large stores, this could be memory-intensive
-      const allFrames = await this.frameStore.listFrames({});
-      return allFrames.length;
+      const result = await this.frameStore.listFrames({});
+      return result.frames.length;
     } catch {
       return 0;
     }
