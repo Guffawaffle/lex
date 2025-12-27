@@ -13,7 +13,7 @@ import { deriveEncryptionKey, initializeDatabase } from "../../memory/store/db.j
 import * as output from "./output.js";
 import { getNDJSONLogger } from "../logger/index.js";
 import Database from "better-sqlite3-multiple-ciphers";
-import { existsSync, renameSync, unlinkSync, copyFileSync } from "fs";
+import { existsSync, renameSync, unlinkSync, copyFileSync, statSync } from "fs";
 import { createHash, randomBytes } from "crypto";
 import { dirname, join, basename } from "path";
 import { AXErrorException } from "../errors/ax-error.js";
@@ -52,6 +52,11 @@ export interface DbEncryptOptions {
    * Show progress indicator during migration.
    */
   progress?: boolean;
+}
+
+export interface DbStatsOptions {
+  json?: boolean;
+  detailed?: boolean;
 }
 
 /**
@@ -906,6 +911,234 @@ export async function receiptValidate(options: ReceiptValidateOptions): Promise<
       });
     } else {
       output.error(`Failed to validate receipt: ${error instanceof Error ? error.message : String(error)}`);
+    }
+    process.exit(1);
+  }
+}
+
+/**
+ * Show database statistics
+ */
+export async function dbStats(options: DbStatsOptions = {}): Promise<void> {
+  const startTime = Date.now();
+
+  try {
+    const dbPath = getDefaultDbPath();
+
+    // Check if database exists
+    if (!existsSync(dbPath)) {
+      if (options.json) {
+        output.json({
+          success: false,
+          error: "Database not found. Run 'lex init' to create it.",
+        });
+      } else {
+        output.error("Database not found. Run 'lex init' to create it.");
+      }
+      process.exit(1);
+    }
+
+    const db = getDb();
+
+    logger.info("Gathering database statistics", {
+      operation: "dbStats",
+      metadata: { dbPath },
+    });
+
+    // Get file size
+    const stats = statSync(dbPath);
+    const sizeBytes = stats.size;
+    const sizeMB = (sizeBytes / (1024 * 1024)).toFixed(1);
+
+    // Get total frame count
+    const totalCountResult = db.prepare("SELECT COUNT(*) as count FROM frames").get() as {
+      count: number;
+    };
+    const totalFrames = totalCountResult.count;
+
+    // Calculate date for one week ago
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+    const oneWeekAgoISO = oneWeekAgo.toISOString();
+
+    // Calculate date for one month ago
+    const oneMonthAgo = new Date();
+    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+    const oneMonthAgoISO = oneMonthAgo.toISOString();
+
+    // Get frames from this week
+    const weekCountResult = db
+      .prepare("SELECT COUNT(*) as count FROM frames WHERE timestamp >= ?")
+      .get(oneWeekAgoISO) as { count: number };
+    const thisWeek = weekCountResult.count;
+
+    // Get frames from this month
+    const monthCountResult = db
+      .prepare("SELECT COUNT(*) as count FROM frames WHERE timestamp >= ?")
+      .get(oneMonthAgoISO) as { count: number };
+    const thisMonth = monthCountResult.count;
+
+    // Get date range (oldest and newest)
+    let oldestDate: string | null = null;
+    let newestDate: string | null = null;
+
+    if (totalFrames > 0) {
+      const oldestResult = db
+        .prepare("SELECT MIN(timestamp) as oldest FROM frames")
+        .get() as { oldest: string | null };
+      oldestDate = oldestResult.oldest;
+
+      const newestResult = db
+        .prepare("SELECT MAX(timestamp) as newest FROM frames")
+        .get() as { newest: string | null };
+      newestDate = newestResult.newest;
+    }
+
+    // Get module distribution
+    const moduleDistribution: Record<string, number> = {};
+    
+    // Get all frames and parse module_scope
+    // For large databases, we iterate rather than load all at once
+    const frameIterator = db.prepare("SELECT module_scope FROM frames").iterate() as IterableIterator<{
+      module_scope: string;
+    }>;
+
+    for (const frame of frameIterator) {
+      try {
+        const modules = JSON.parse(frame.module_scope) as string[];
+        for (const module of modules) {
+          moduleDistribution[module] = (moduleDistribution[module] || 0) + 1;
+        }
+      } catch {
+        // Skip frames with invalid JSON
+      }
+    }
+
+    // Sort modules by count descending
+    const sortedModules = Object.entries(moduleDistribution)
+      .map(([module, count]) => ({ module, count }))
+      .sort((a, b) => b.count - a.count);
+
+    // Get rules count (check if table exists first)
+    let rulesCount = 0;
+    try {
+      const rulesCountResult = db
+        .prepare("SELECT COUNT(*) as count FROM lexsona_behavior_rules")
+        .get() as { count: number };
+      rulesCount = rulesCountResult.count;
+    } catch {
+      // Table doesn't exist yet (pre-migration V7)
+      rulesCount = 0;
+    }
+
+    // Get receipts count (check if table exists first)
+    let receiptsCount = 0;
+    try {
+      const receiptsCountResult = db
+        .prepare("SELECT COUNT(*) as count FROM receipts")
+        .get() as { count: number };
+      receiptsCount = receiptsCountResult.count;
+    } catch {
+      // Table doesn't exist yet (pre-migration V8)
+      receiptsCount = 0;
+    }
+
+    const duration = Date.now() - startTime;
+
+    logger.info("Database statistics gathered", {
+      operation: "dbStats",
+      duration_ms: duration,
+      metadata: { dbPath, totalFrames },
+    });
+
+    // Output results
+    if (options.json) {
+      const jsonOutput: Record<string, unknown> = {
+        path: dbPath,
+        sizeBytes,
+        frames: {
+          total: totalFrames,
+          thisWeek,
+          thisMonth,
+        },
+        dateRange: {
+          oldest: oldestDate,
+          newest: newestDate,
+        },
+        moduleDistribution: options.detailed
+          ? Object.fromEntries(sortedModules.map((m) => [m.module, m.count]))
+          : Object.fromEntries(sortedModules.slice(0, 5).map((m) => [m.module, m.count])),
+        rules: rulesCount,
+        receipts: receiptsCount,
+      };
+
+      output.json(jsonOutput);
+    } else {
+      // Human-readable output
+      output.info("Database Statistics");
+      output.info("═══════════════════");
+      output.info("");
+      output.info(`Location: ${dbPath}`);
+      output.info(`Size: ${sizeMB} MB`);
+      output.info("");
+      output.info("Frames:");
+      output.info(`  Total: ${totalFrames}`);
+      output.info(`  This week: ${thisWeek}`);
+      output.info(`  This month: ${thisMonth}`);
+      output.info("");
+
+      if (oldestDate && newestDate) {
+        output.info("Date Range:");
+        output.info(`  Oldest: ${oldestDate.split("T")[0]}`);
+        output.info(`  Newest: ${newestDate.split("T")[0]}`);
+        output.info("");
+      }
+
+      if (sortedModules.length > 0) {
+        const modulesToShow = options.detailed ? sortedModules : sortedModules.slice(0, 5);
+        const otherCount = options.detailed
+          ? 0
+          : sortedModules.slice(5).reduce((sum, m) => sum + m.count, 0);
+
+        // Calculate max length for padding (minimum 20, maximum from actual module names)
+        const maxModuleLength = Math.max(
+          20,
+          ...modulesToShow.map((m) => m.module.length),
+          otherCount > 0 ? "(other)".length : 0
+        );
+
+        output.info(options.detailed ? "Module Distribution:" : "Top Modules:");
+        for (const { module, count } of modulesToShow) {
+          const percentage = totalFrames > 0 ? Math.round((count / totalFrames) * 100) : 0;
+          output.info(`  ${module.padEnd(maxModuleLength)} ${count} frames (${percentage}%)`);
+        }
+
+        if (!options.detailed && otherCount > 0) {
+          const otherPercentage = totalFrames > 0 ? Math.round((otherCount / totalFrames) * 100) : 0;
+          output.info(`  ${"(other)".padEnd(maxModuleLength)} ${otherCount} frames (${otherPercentage}%)`);
+        }
+        output.info("");
+      }
+
+      output.info(`Rules: ${rulesCount}`);
+      output.info(`Receipts: ${receiptsCount}`);
+    }
+  } catch (error) {
+    logger.error("Database stats failed", {
+      operation: "dbStats",
+      error: error instanceof Error ? error : new Error(String(error)),
+    });
+
+    if (options.json) {
+      output.json({
+        success: false,
+        operation: "stats",
+        error: error instanceof Error ? error.message : String(error),
+      });
+    } else {
+      output.error(
+        `Failed to gather database statistics: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
     process.exit(1);
   }
