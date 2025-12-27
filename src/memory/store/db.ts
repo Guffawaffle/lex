@@ -360,6 +360,10 @@ export function initializeDatabase(db: Database.Database): void {
     applyMigrationV9(db);
     db.prepare("INSERT INTO schema_version (version) VALUES (?)").run(9);
   }
+  if (currentVersion < 10) {
+    applyMigrationV10(db);
+    db.prepare("INSERT INTO schema_version (version) VALUES (?)").run(10);
+  }
 }
 
 /**
@@ -800,6 +804,42 @@ function applyMigrationV9(db: Database.Database): void {
 }
 
 /**
+ * Migration V10: Add personas table for managed persona storage
+ *
+ * Adds personas table to store managed persona definitions for LexSona.
+ * Unlike frames, personas have no decay - they are stable configuration
+ * with explicit versioning.
+ *
+ * @see https://github.com/Guffawaffle/lex/issues/616
+ */
+function applyMigrationV10(db: Database.Database): void {
+  // Create personas table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS personas (
+      id TEXT PRIMARY KEY,
+      version TEXT NOT NULL,
+      manifest_yaml TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      source TEXT NOT NULL DEFAULT 'user' CHECK(source IN ('bundled', 'user', 'project')),
+      checksum TEXT
+    );
+  `);
+
+  // Index for filtering by source (bundled, user, project)
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_personas_source
+    ON personas(source);
+  `);
+
+  // Index for ordering by updated_at
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_personas_updated
+    ON personas(updated_at DESC);
+  `);
+}
+
+/**
  * Migration V8: Receipt storage for governance tracking
  *
  * Adds receipts table to track operation outcomes with failure classification,
@@ -812,45 +852,45 @@ function applyMigrationV8(db: Database.Database): void {
       id TEXT PRIMARY KEY,
       schema_version TEXT NOT NULL DEFAULT '1.0.0',
       kind TEXT NOT NULL DEFAULT 'Receipt',
-      
+
       -- What happened
       action TEXT NOT NULL,
       outcome TEXT NOT NULL CHECK(outcome IN ('success', 'failure', 'partial', 'deferred')),
       rationale TEXT NOT NULL,
-      
+
       -- Failure classification (Wave 2)
       failure_class TEXT CHECK(failure_class IN (
-        'timeout', 'resource_exhaustion', 'model_error', 
+        'timeout', 'resource_exhaustion', 'model_error',
         'context_overflow', 'policy_violation'
       )),
       failure_details TEXT,
       recovery_suggestion TEXT,
-      
+
       -- Uncertainty handling
       confidence TEXT NOT NULL CHECK(confidence IN ('high', 'medium', 'low', 'uncertain')),
       uncertainty_notes TEXT, -- JSON array of UncertaintyMarker objects
-      
+
       -- Reversibility
       reversibility TEXT NOT NULL CHECK(reversibility IN (
         'reversible', 'partially-reversible', 'irreversible'
       )),
       rollback_path TEXT,
       rollback_tested INTEGER, -- SQLite boolean (0 or 1)
-      
+
       -- Escalation
       escalation_required INTEGER NOT NULL DEFAULT 0, -- SQLite boolean
       escalation_reason TEXT,
       escalated_to TEXT,
-      
+
       -- Metadata
       timestamp TEXT NOT NULL,
       agent_id TEXT,
       session_id TEXT,
       frame_id TEXT,
-      
+
       -- OAuth2/JWT user isolation
       user_id TEXT,
-      
+
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
   `);

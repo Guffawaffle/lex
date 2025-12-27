@@ -8,6 +8,70 @@
  * @see docs/research/LexSona/CptPlnt/lexsona_behavior_rule.schema.json
  */
 
+// ============================================================================
+// PERSONA STORAGE (V10)
+// ============================================================================
+
+/**
+ * Source of a persona definition
+ */
+export type PersonaSource = "bundled" | "user" | "project";
+
+/**
+ * A persona record stored in the database
+ */
+export interface PersonaRecord {
+  /**
+   * Unique persona identifier (e.g., "quality-first_engineering")
+   */
+  id: string;
+
+  /**
+   * Semantic version of the persona (e.g., "1.0.0")
+   */
+  version: string;
+
+  /**
+   * Full YAML content of the persona manifest
+   */
+  manifest_yaml: string;
+
+  /**
+   * When the persona was first created
+   */
+  created_at: string;
+
+  /**
+   * When the persona was last updated
+   */
+  updated_at: string;
+
+  /**
+   * Source of the persona: "bundled" (shipped with LexSona),
+   * "user" (personal), or "project" (shared in a project)
+   */
+  source: PersonaSource;
+
+  /**
+   * SHA256 checksum of manifest for sync detection
+   */
+  checksum?: string;
+}
+
+/**
+ * Filter options for listing personas
+ */
+export interface ListPersonasFilter {
+  /**
+   * Filter by source type
+   */
+  source?: PersonaSource;
+}
+
+// ============================================================================
+// BEHAVIORAL RULES (V7)
+// ============================================================================
+
 /**
  * Scope definition for behavioral rules
  * Matches the context lattice structure from the mathematical framework

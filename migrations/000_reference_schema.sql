@@ -1,6 +1,6 @@
 -- ============================================================================
 -- Lex Database Reference Schema
--- Version: 9 (as of 2.1.1)
+-- Version: 10 (as of 2.2.0)
 --
 -- This file documents the complete current schema for reference.
 -- It is NOT executed — actual migrations are in src/memory/store/db.ts.
@@ -256,45 +256,45 @@ CREATE TABLE IF NOT EXISTS receipts (
   id TEXT PRIMARY KEY,
   schema_version TEXT NOT NULL DEFAULT '1.0.0',
   kind TEXT NOT NULL DEFAULT 'Receipt',
-  
+
   -- What happened
   action TEXT NOT NULL,
   outcome TEXT NOT NULL CHECK(outcome IN ('success', 'failure', 'partial', 'deferred')),
   rationale TEXT NOT NULL,
-  
+
   -- Failure classification (Wave 2)
   failure_class TEXT CHECK(failure_class IN (
-    'timeout', 'resource_exhaustion', 'model_error', 
+    'timeout', 'resource_exhaustion', 'model_error',
     'context_overflow', 'policy_violation'
   )),
   failure_details TEXT,
   recovery_suggestion TEXT,
-  
+
   -- Uncertainty handling
   confidence TEXT NOT NULL CHECK(confidence IN ('high', 'medium', 'low', 'uncertain')),
   uncertainty_notes TEXT, -- JSON array of UncertaintyMarker objects
-  
+
   -- Reversibility
   reversibility TEXT NOT NULL CHECK(reversibility IN (
     'reversible', 'partially-reversible', 'irreversible'
   )),
   rollback_path TEXT,
   rollback_tested INTEGER, -- SQLite boolean (0 or 1)
-  
+
   -- Escalation
   escalation_required INTEGER NOT NULL DEFAULT 0, -- SQLite boolean
   escalation_reason TEXT,
   escalated_to TEXT,
-  
+
   -- Metadata
   timestamp TEXT NOT NULL,
   agent_id TEXT,
   session_id TEXT,
   frame_id TEXT,
-  
+
   -- OAuth2/JWT user isolation
   user_id TEXT,
-  
+
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -306,3 +306,21 @@ CREATE INDEX IF NOT EXISTS idx_receipts_frame_id ON receipts(frame_id) WHERE fra
 CREATE INDEX IF NOT EXISTS idx_receipts_user_id ON receipts(user_id) WHERE user_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_receipts_session_failure ON receipts(session_id, failure_class, timestamp DESC) WHERE session_id IS NOT NULL AND failure_class IS NOT NULL;
 
+-- ============================================================================
+-- PERSONAS (V10)
+-- Managed persona storage for LexSona integration
+-- Unlike frames, personas have no decay - stable configuration with versioning
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS personas (
+  id TEXT PRIMARY KEY,           -- e.g., "quality-first_engineering"
+  version TEXT NOT NULL,         -- semver: "1.0.0"
+  manifest_yaml TEXT NOT NULL,   -- full YAML content
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  source TEXT NOT NULL DEFAULT 'user' CHECK(source IN ('bundled', 'user', 'project')),
+  checksum TEXT                  -- SHA256 of manifest for sync detection
+);
+
+CREATE INDEX IF NOT EXISTS idx_personas_source ON personas(source);
+CREATE INDEX IF NOT EXISTS idx_personas_updated ON personas(updated_at DESC);

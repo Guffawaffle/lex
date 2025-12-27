@@ -13,6 +13,16 @@
 // API functions
 export { getRules, recordCorrection } from "./api.js";
 
+// Persona CRUD (V10)
+export {
+  savePersona,
+  getPersona,
+  listPersonas as listPersonasFromDb,
+  deletePersona,
+  upsertPersona,
+  getPersonaChecksum,
+} from "../../memory/store/lexsona-queries.js";
+
 // Types (re-exported from store)
 export type {
   BehaviorRule,
@@ -22,6 +32,10 @@ export type {
   Correction,
   GetRulesOptions,
   RuleSeverity,
+  // Persona types (V10)
+  PersonaRecord,
+  PersonaSource,
+  ListPersonasFilter,
 } from "../../memory/store/lexsona-types.js";
 
 export { LEXSONA_DEFAULTS } from "../../memory/store/lexsona-types.js";

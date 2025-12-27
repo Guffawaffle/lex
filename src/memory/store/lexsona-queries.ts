@@ -527,9 +527,7 @@ export function getAllBehaviorRules(
     ${limit ? "LIMIT ?" : ""}
   `);
 
-  const rows = limit
-    ? (stmt.all(limit) as BehaviorRuleRow[])
-    : (stmt.all() as BehaviorRuleRow[]);
+  const rows = limit ? (stmt.all(limit) as BehaviorRuleRow[]) : (stmt.all() as BehaviorRuleRow[]);
 
   const rules = rows.map(rowToRule).map(addConfidenceFields);
 
@@ -541,4 +539,219 @@ export function getAllBehaviorRules(
   });
 
   return rules;
+}
+
+// ============================================================================
+// PERSONA STORAGE (V10)
+// ============================================================================
+
+import { createHash } from "crypto";
+import type { PersonaRecord, PersonaSource, ListPersonasFilter } from "./lexsona-types.js";
+
+/**
+ * Database row type for personas table
+ */
+export interface PersonaRow {
+  id: string;
+  version: string;
+  manifest_yaml: string;
+  created_at: string;
+  updated_at: string;
+  source: string;
+  checksum: string | null;
+}
+
+/**
+ * Convert database row to PersonaRecord
+ */
+function personaRowToRecord(row: PersonaRow): PersonaRecord {
+  return {
+    id: row.id,
+    version: row.version,
+    manifest_yaml: row.manifest_yaml,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+    source: row.source as PersonaSource,
+    checksum: row.checksum ?? undefined,
+  };
+}
+
+/**
+ * Compute SHA256 checksum of manifest content
+ */
+function computeChecksum(manifest: string): string {
+  return createHash("sha256").update(manifest).digest("hex");
+}
+
+/**
+ * Save a persona to the database (insert only, fails if exists)
+ *
+ * @param db - Database connection
+ * @param id - Persona identifier (e.g., "quality-first_engineering")
+ * @param manifest - Full YAML content
+ * @param version - Semantic version (e.g., "1.0.0")
+ * @param source - Source type (default: "user")
+ */
+export function savePersona(
+  db: Database.Database,
+  id: string,
+  manifest: string,
+  version: string,
+  source: PersonaSource = "user"
+): void {
+  const startTime = Date.now();
+  const now = new Date().toISOString();
+  const checksum = computeChecksum(manifest);
+
+  const stmt = db.prepare(`
+    INSERT INTO personas (id, version, manifest_yaml, created_at, updated_at, source, checksum)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `);
+
+  stmt.run(id, version, manifest, now, now, source, checksum);
+
+  const duration = Date.now() - startTime;
+  logger.info("Persona saved", {
+    operation: "savePersona",
+    duration_ms: duration,
+    metadata: { id, version, source },
+  });
+}
+
+/**
+ * Get a persona by ID
+ *
+ * @param db - Database connection
+ * @param id - Persona identifier
+ * @returns PersonaRecord or null if not found
+ */
+export function getPersona(db: Database.Database, id: string): PersonaRecord | null {
+  const startTime = Date.now();
+
+  const stmt = db.prepare(`SELECT * FROM personas WHERE id = ?`);
+  const row = stmt.get(id) as PersonaRow | undefined;
+
+  const duration = Date.now() - startTime;
+  logger.debug("Persona lookup", {
+    operation: "getPersona",
+    duration_ms: duration,
+    metadata: { id, found: !!row },
+  });
+
+  return row ? personaRowToRecord(row) : null;
+}
+
+/**
+ * List all personas, optionally filtered by source
+ *
+ * @param db - Database connection
+ * @param filter - Optional filter by source
+ * @returns Array of PersonaRecords
+ */
+export function listPersonas(db: Database.Database, filter?: ListPersonasFilter): PersonaRecord[] {
+  const startTime = Date.now();
+
+  let sql = `SELECT * FROM personas`;
+  const params: string[] = [];
+
+  if (filter?.source) {
+    sql += ` WHERE source = ?`;
+    params.push(filter.source);
+  }
+
+  sql += ` ORDER BY updated_at DESC`;
+
+  const stmt = db.prepare(sql);
+  const rows = (params.length > 0 ? stmt.all(...params) : stmt.all()) as PersonaRow[];
+
+  const personas = rows.map(personaRowToRecord);
+
+  const duration = Date.now() - startTime;
+  logger.debug("Personas listed", {
+    operation: "listPersonas",
+    duration_ms: duration,
+    metadata: { count: personas.length, filter },
+  });
+
+  return personas;
+}
+
+/**
+ * Delete a persona by ID
+ *
+ * @param db - Database connection
+ * @param id - Persona identifier
+ * @returns true if deleted, false if not found
+ */
+export function deletePersona(db: Database.Database, id: string): boolean {
+  const startTime = Date.now();
+
+  const stmt = db.prepare(`DELETE FROM personas WHERE id = ?`);
+  const result = stmt.run(id);
+
+  const deleted = result.changes > 0;
+
+  const duration = Date.now() - startTime;
+  logger.info("Persona delete attempt", {
+    operation: "deletePersona",
+    duration_ms: duration,
+    metadata: { id, deleted },
+  });
+
+  return deleted;
+}
+
+/**
+ * Upsert a persona (update if exists, insert if not)
+ *
+ * @param db - Database connection
+ * @param id - Persona identifier
+ * @param manifest - Full YAML content
+ * @param version - Semantic version
+ * @param source - Source type (default: "user")
+ */
+export function upsertPersona(
+  db: Database.Database,
+  id: string,
+  manifest: string,
+  version: string,
+  source: PersonaSource = "user"
+): void {
+  const startTime = Date.now();
+  const now = new Date().toISOString();
+  const checksum = computeChecksum(manifest);
+
+  const stmt = db.prepare(`
+    INSERT INTO personas (id, version, manifest_yaml, created_at, updated_at, source, checksum)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(id) DO UPDATE SET
+      version = excluded.version,
+      manifest_yaml = excluded.manifest_yaml,
+      updated_at = excluded.updated_at,
+      source = excluded.source,
+      checksum = excluded.checksum
+  `);
+
+  stmt.run(id, version, manifest, now, now, source, checksum);
+
+  const duration = Date.now() - startTime;
+  logger.info("Persona upserted", {
+    operation: "upsertPersona",
+    duration_ms: duration,
+    metadata: { id, version, source },
+  });
+}
+
+/**
+ * Get the checksum for a persona (for sync detection)
+ *
+ * @param db - Database connection
+ * @param id - Persona identifier
+ * @returns Checksum string or null if not found
+ */
+export function getPersonaChecksum(db: Database.Database, id: string): string | null {
+  const stmt = db.prepare(`SELECT checksum FROM personas WHERE id = ?`);
+  const row = stmt.get(id) as { checksum: string | null } | undefined;
+
+  return row?.checksum ?? null;
 }

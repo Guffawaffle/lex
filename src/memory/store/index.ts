@@ -126,6 +126,13 @@ export {
   createBehaviorRule,
   getRulesByContext,
   findRuleByContext,
+  // Persona CRUD
+  savePersona,
+  getPersona,
+  listPersonas,
+  deletePersona,
+  upsertPersona,
+  getPersonaChecksum,
 } from "./lexsona-queries.js";
 
 // LexSona types
@@ -137,6 +144,10 @@ export type {
   RuleContext,
   Correction,
   GetRulesOptions,
+  // Persona types
+  PersonaRecord,
+  PersonaSource,
+  ListPersonasFilter,
 } from "./lexsona-types.js";
 export { LEXSONA_DEFAULTS } from "./lexsona-types.js";
 
