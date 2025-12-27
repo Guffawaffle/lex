@@ -544,7 +544,7 @@ export class MCPServer {
       frame_id: frameId,
       created_at: timestamp,
     };
-    
+
     // Include atlas_frame_id if one was provided or stored
     if (frame.atlas_frame_id) {
       responseData.atlas_frame_id = frame.atlas_frame_id;
@@ -647,12 +647,7 @@ export class MCPServer {
     }
 
     // Validate module IDs against policy (if available and module_scope is valid)
-    if (
-      this.policy &&
-      module_scope &&
-      Array.isArray(module_scope) &&
-      module_scope.length > 0
-    ) {
+    if (this.policy && module_scope && Array.isArray(module_scope) && module_scope.length > 0) {
       try {
         const validationResult = await validateModuleIds(module_scope, this.policy);
 
@@ -701,7 +696,11 @@ export class MCPServer {
             code: MCPErrorCode.VALIDATION_INVALID_IMAGE,
             message: "Image mime_type is required",
           });
-        } else if (!["image/png", "image/jpeg", "image/jpg", "image/gif", "image/webp"].includes(img.mime_type)) {
+        } else if (
+          !["image/png", "image/jpeg", "image/jpg", "image/gif", "image/webp"].includes(
+            img.mime_type
+          )
+        ) {
           warnings.push({
             field: `images[${i}].mime_type`,
             message: `Uncommon MIME type: ${img.mime_type}. Supported types: image/png, image/jpeg, image/jpg, image/gif, image/webp`,
@@ -766,6 +765,9 @@ export class MCPServer {
   private async handleRecall(args: Record<string, unknown>): Promise<MCPResponse> {
     const { reference_point, jira, branch, limit = 10 } = args as unknown as RecallArgs;
 
+    // Track search timing for metadata (AX #578)
+    const searchStart = Date.now();
+
     if (!reference_point && !jira && !branch) {
       throw new AXErrorException(
         "MCP_RECALL_MISSING_PARAMS",
@@ -780,6 +782,7 @@ export class MCPServer {
     }
 
     let frames: Frame[];
+    let matchStrategy: string;
     try {
       // Build search criteria based on provided parameters
       const criteria: FrameSearchCriteria = { limit };
@@ -788,18 +791,22 @@ export class MCPServer {
         // Use FTS5 full-text search for reference_point
         criteria.query = reference_point;
         frames = await this.frameStore.searchFrames(criteria);
+        matchStrategy = "fts";
       } else if (jira) {
         // For jira/branch filtering, we need to search all and filter
         // The FrameStore interface doesn't have specific jira/branch methods
         // We'll use listFrames and filter in JavaScript
         const allFrames = await this.frameStore.listFrames({ limit: MAX_FILTER_FETCH_LIMIT });
         frames = allFrames.filter((f) => f.jira === jira).slice(0, limit);
+        matchStrategy = "filter:jira";
       } else if (branch) {
         // For branch filtering, search all and filter
         const allFrames = await this.frameStore.listFrames({ limit: MAX_FILTER_FETCH_LIMIT });
         frames = allFrames.filter((f) => f.branch === branch).slice(0, limit);
+        matchStrategy = "filter:branch";
       } else {
         frames = [];
+        matchStrategy = "none";
       }
     } catch (error: unknown) {
       // FTS5 search can fail with special characters (e.g., "zzz-nonexistent-query-zzz")
@@ -808,10 +815,30 @@ export class MCPServer {
       const err = error as any;
       if (err.code === "SQLITE_ERROR" || err.message?.includes("no such column")) {
         frames = [];
+        matchStrategy = "fts";
       } else {
         throw error;
       }
     }
+
+    // Calculate search timing and get total frame count (AX #578)
+    const searchTimeMs = Date.now() - searchStart;
+    const totalFrames = await this.getFrameCount();
+
+    // Build search metadata (AX #578)
+    const meta = {
+      query: {
+        reference_point: reference_point || null,
+        jira: jira || null,
+        branch: branch || null,
+        limit,
+      },
+      searchTimeMs,
+      totalFrames,
+      matchStrategy,
+      matchCount: frames.length,
+      status: frames.length > 0 ? "success" : "no_matches",
+    };
 
     if (frames.length === 0) {
       return {
@@ -823,6 +850,7 @@ export class MCPServer {
               "Try broader search terms or check your query parameters.",
           },
         ],
+        data: { meta },
       };
     }
 
@@ -866,6 +894,7 @@ export class MCPServer {
           text: `🎯 Found ${frames.length} Frame(s):\n${results}`,
         },
       ],
+      data: { meta },
     };
   }
 
@@ -888,11 +917,9 @@ export class MCPServer {
     const frame = await this.frameStore.getFrameById(frame_id);
 
     if (!frame) {
-      throw new MCPError(
-        MCPErrorCode.STORAGE_FRAME_NOT_FOUND,
-        `Frame not found: ${frame_id}`,
-        { frameId: frame_id }
-      );
+      throw new MCPError(MCPErrorCode.STORAGE_FRAME_NOT_FOUND, `Frame not found: ${frame_id}`, {
+        frameId: frame_id,
+      });
     }
 
     // Format the frame data
@@ -1378,10 +1405,7 @@ export class MCPServer {
       const errorCodes = Object.values(MCPErrorCode).sort();
 
       // Build error code metadata map for introspection
-      const errorCodeMetadata: Record<
-        string,
-        { category: string; retryable: boolean }
-      > = {};
+      const errorCodeMetadata: Record<string, { category: string; retryable: boolean }> = {};
       for (const code of errorCodes) {
         errorCodeMetadata[code] = MCP_ERROR_METADATA[code as MCPErrorCode];
       }
@@ -1475,9 +1499,7 @@ export class MCPServer {
         }
         for (const [category, codes] of Object.entries(byCategory)) {
           if (codes.length > 0) {
-            const retryableCount = codes.filter(
-              (c) => errorCodeMetadata[c].retryable
-            ).length;
+            const retryableCount = codes.filter((c) => errorCodeMetadata[c].retryable).length;
             text += `  ${category.toUpperCase()} (${codes.length}, ${retryableCount} retryable):\n`;
             text += `    ${codes.join(", ")}\n`;
           }
@@ -1495,11 +1517,9 @@ export class MCPServer {
       }
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      throw new MCPError(
-        MCPErrorCode.INTERNAL_ERROR,
-        `Failed to introspect: ${errorMessage}`,
-        { error: errorMessage }
-      );
+      throw new MCPError(MCPErrorCode.INTERNAL_ERROR, `Failed to introspect: ${errorMessage}`, {
+        error: errorMessage,
+      });
     }
   }
 
@@ -1524,7 +1544,7 @@ export class MCPServer {
 
   /**
    * Get total frame count from database
-   * 
+   *
    * Note: For non-SQLite stores, this loads all frames into memory.
    * Future: Add a count() method to FrameStore interface for better performance.
    */
@@ -1534,7 +1554,7 @@ export class MCPServer {
       if (this.db) {
         return getFrameCountQuery(this.db);
       }
-      
+
       // Fallback for non-SQLite stores: list without limit and count
       // Note: For very large stores, this could be memory-intensive
       const allFrames = await this.frameStore.listFrames({});
