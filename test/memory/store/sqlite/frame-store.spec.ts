@@ -172,7 +172,7 @@ describe("SqliteFrameStore Tests", () => {
           );
         }
         // Verify metadata
-        assert.strictEqual(result.order.by, "created_at");
+        assert.strictEqual(result.order.by, "timestamp");
         assert.strictEqual(result.order.direction, "desc");
       });
 

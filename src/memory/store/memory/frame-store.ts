@@ -223,7 +223,7 @@ export class MemoryFrameStore implements FrameStore {
         hasMore,
       },
       order: {
-        by: "created_at",
+        by: "timestamp",
         direction: "desc",
       },
     };

@@ -1066,9 +1066,11 @@ export class MCPServer {
         },
       ],
       data: {
+        // Note: Cursor pagination is disabled when filters (branch, module, since) are applied
+        // because post-fetch filtering makes it impossible to generate accurate nextCursor values.
+        // In this case, all matching results are fetched and sliced client-side.
         page: needsFiltering 
           ? {
-              // When filtering, we can't reliably provide nextCursor
               limit: result.page.limit,
               nextCursor: null,
               hasMore: false,

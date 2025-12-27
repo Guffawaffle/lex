@@ -77,7 +77,7 @@ export interface FrameListPage {
  */
 export interface FrameListOrder {
   /** Field used for ordering. */
-  by: "created_at";
+  by: "timestamp";
 
   /** Sort direction. */
   direction: "desc";
