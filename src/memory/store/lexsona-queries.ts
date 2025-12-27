@@ -349,6 +349,71 @@ export function counterExampleRule(db: Database.Database, ruleId: string): boole
 }
 
 /**
+ * Promote a rule to "core" status by setting observation_count >= minN
+ *
+ * Core rules are immediately visible in getRules without needing multiple observations.
+ * This bumps observation_count to minN (default 3) and adjusts alpha proportionally.
+ *
+ * @param db - Database connection
+ * @param ruleId - Rule ID to promote
+ * @param targetN - Target observation count (default: MIN_OBSERVATION_COUNT)
+ * @returns Updated rule or null if not found
+ */
+export function promoteRule(
+  db: Database.Database,
+  ruleId: string,
+  targetN: number = LEXSONA_DEFAULTS.MIN_OBSERVATION_COUNT
+): BehaviorRuleWithConfidence | null {
+  const startTime = Date.now();
+  const now = new Date().toISOString();
+
+  // First get the current rule
+  const current = getBehaviorRuleById(db, ruleId);
+  if (!current) {
+    logger.debug("BehaviorRule not found for promotion", {
+      operation: "promoteRule",
+      duration_ms: Date.now() - startTime,
+      metadata: { ruleId },
+    });
+    return null;
+  }
+
+  // If already at or above target, just return current
+  if (current.observation_count >= targetN) {
+    logger.debug("BehaviorRule already at target N", {
+      operation: "promoteRule",
+      duration_ms: Date.now() - startTime,
+      metadata: { ruleId, currentN: current.observation_count, targetN },
+    });
+    return current;
+  }
+
+  // Calculate how many observations to add
+  const delta = targetN - current.observation_count;
+
+  // Add delta to both observation_count and alpha (reinforcements)
+  const stmt = db.prepare(`
+    UPDATE lexsona_behavior_rules
+    SET alpha = alpha + ?,
+        observation_count = ?,
+        updated_at = ?,
+        last_observed = ?
+    WHERE rule_id = ?
+  `);
+
+  stmt.run(delta, targetN, now, now, ruleId);
+
+  const duration = Date.now() - startTime;
+  logger.info("BehaviorRule promoted to core", {
+    operation: "promoteRule",
+    duration_ms: duration,
+    metadata: { ruleId, previousN: current.observation_count, newN: targetN, alphaDelta: delta },
+  });
+
+  return getBehaviorRuleById(db, ruleId);
+}
+
+/**
  * Create a new behavior rule with initial observation
  */
 export function createBehaviorRule(

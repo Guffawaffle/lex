@@ -21,6 +21,9 @@ export {
   deletePersona,
   upsertPersona,
   getPersonaChecksum,
+  // Rule management
+  promoteRule,
+  getBehaviorRuleById,
 } from "../../memory/store/lexsona-queries.js";
 
 // Types (re-exported from store)
