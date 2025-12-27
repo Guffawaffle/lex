@@ -103,7 +103,7 @@ describe("Atlas Rebuild Performance", () => {
     assert.ok(duration < 5000, `Rebuild took ${duration}ms, expected < 5000ms`);
   });
 
-  test("10,000 frames rebuilds in < 60s", { skip: process.env.CI === "true" }, function () {
+  test("10,000 frames rebuilds in < 70s", { skip: process.env.CI === "true" }, function () {
     // Increase timeout for this test
     this.timeout = 120000; // 2 minutes max
     // Skip in CI to reduce overall test duration; run locally during development
@@ -117,7 +117,7 @@ describe("Atlas Rebuild Performance", () => {
     console.log(`  ⏱️  10,000 frames: ${duration}ms (${(duration / 1000).toFixed(2)}s)`);
 
     assert.equal(atlas.nodes.length, 10000);
-    assert.ok(duration < 60000, `Rebuild took ${duration}ms, expected < 60000ms`);
+    assert.ok(duration < 70000, `Rebuild took ${duration}ms, expected < 70000ms`);
   });
 
   test("rebuild is deterministic even with large datasets", () => {

@@ -24,6 +24,7 @@ export {
   // Rule management
   promoteRule,
   getBehaviorRuleById,
+  findRuleByContext,
 } from "../../memory/store/lexsona-queries.js";
 
 // Types (re-exported from store)
