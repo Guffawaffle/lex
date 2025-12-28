@@ -187,7 +187,11 @@ describe("SqliteFrameStore Tests", () => {
         const offsetResult = await store.listFrames({ limit: 2, offset: 1 });
 
         assert.strictEqual(offsetResult.frames.length, 2, "Should return 2 frames");
-        assert.strictEqual(offsetResult.frames[0].id, allResult.frames[1].id, "First frame should match second from full list");
+        assert.strictEqual(
+          offsetResult.frames[0].id,
+          allResult.frames[1].id,
+          "First frame should match second from full list"
+        );
       });
 
       test("should return empty array when offset exceeds total", async () => {
@@ -206,10 +210,10 @@ describe("SqliteFrameStore Tests", () => {
         // Get second page using cursor
         const page2 = await store.listFrames({ limit: 2, cursor: page1.page.nextCursor! });
         assert.strictEqual(page2.frames.length, 2, "Second page should have 2 frames");
-        
+
         // Ensure no duplicates between pages
-        const page1Ids = new Set(page1.frames.map(f => f.id));
-        const page2Ids = new Set(page2.frames.map(f => f.id));
+        const page1Ids = new Set(page1.frames.map((f) => f.id));
+        const page2Ids = new Set(page2.frames.map((f) => f.id));
         for (const id of page2Ids) {
           assert.ok(!page1Ids.has(id), `Frame ${id} should not appear in both pages`);
         }
@@ -253,11 +257,15 @@ describe("SqliteFrameStore Tests", () => {
         const page2 = await store.listFrames({ limit: 3, cursor: page1.page.nextCursor! });
 
         // Collect all IDs
-        const allIds = [...page1.frames.map(f => f.id), ...page2.frames.map(f => f.id)];
-        
+        const allIds = [...page1.frames.map((f) => f.id), ...page2.frames.map((f) => f.id)];
+
         // Ensure no duplicates
         const uniqueIds = new Set(allIds);
-        assert.strictEqual(uniqueIds.size, allIds.length, "Should have no duplicate frames across pages");
+        assert.strictEqual(
+          uniqueIds.size,
+          allIds.length,
+          "Should have no duplicate frames across pages"
+        );
       });
 
       test("should handle invalid cursor gracefully", async () => {
@@ -305,10 +313,7 @@ describe("SqliteFrameStore Tests", () => {
         const frames = await store.searchFrames({ since });
         assert.ok(frames.length > 0, "Should find frames after since date");
         for (const frame of frames) {
-          assert.ok(
-            new Date(frame.timestamp) >= since,
-            "All frames should be after since date"
-          );
+          assert.ok(new Date(frame.timestamp) >= since, "All frames should be after since date");
         }
       });
 
@@ -316,10 +321,7 @@ describe("SqliteFrameStore Tests", () => {
         const until = new Date("2025-11-02T00:00:00Z");
         const frames = await store.searchFrames({ until });
         for (const frame of frames) {
-          assert.ok(
-            new Date(frame.timestamp) <= until,
-            "All frames should be before until date"
-          );
+          assert.ok(new Date(frame.timestamp) <= until, "All frames should be before until date");
         }
       });
 
@@ -386,40 +388,36 @@ describe("SqliteFrameStore Tests", () => {
       const store = new SqliteFrameStore(":memory:");
       await store.close();
 
-      await assert.rejects(
-        async () => store.saveFrame(testFrame1),
-        { message: "SqliteFrameStore is closed" }
-      );
+      await assert.rejects(async () => store.saveFrame(testFrame1), {
+        message: "SqliteFrameStore is closed",
+      });
     });
 
     test("should throw after close for getFrameById", async () => {
       const store = new SqliteFrameStore(":memory:");
       await store.close();
 
-      await assert.rejects(
-        async () => store.getFrameById("frame-001"),
-        { message: "SqliteFrameStore is closed" }
-      );
+      await assert.rejects(async () => store.getFrameById("frame-001"), {
+        message: "SqliteFrameStore is closed",
+      });
     });
 
     test("should throw after close for searchFrames", async () => {
       const store = new SqliteFrameStore(":memory:");
       await store.close();
 
-      await assert.rejects(
-        async () => store.searchFrames({ query: "test" }),
-        { message: "SqliteFrameStore is closed" }
-      );
+      await assert.rejects(async () => store.searchFrames({ query: "test" }), {
+        message: "SqliteFrameStore is closed",
+      });
     });
 
     test("should throw after close for listFrames", async () => {
       const store = new SqliteFrameStore(":memory:");
       await store.close();
 
-      await assert.rejects(
-        async () => store.listFrames(),
-        { message: "SqliteFrameStore is closed" }
-      );
+      await assert.rejects(async () => store.listFrames(), {
+        message: "SqliteFrameStore is closed",
+      });
     });
   });
 
@@ -497,7 +495,11 @@ describe("SqliteFrameStore Tests", () => {
 
       assert.strictEqual(page1.frames.length, 1, "Page 1 should have 1 frame");
       assert.strictEqual(page2.frames.length, 1, "Page 2 should have 1 frame");
-      assert.notStrictEqual(page1.frames[0].id, page2.frames[0].id, "Pages should have different frames");
+      assert.notStrictEqual(
+        page1.frames[0].id,
+        page2.frames[0].id,
+        "Pages should have different frames"
+      );
     });
   });
 

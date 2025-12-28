@@ -59,7 +59,9 @@ describe("Instructions E2E Integration", () => {
     const fullPath = join(testDir, relativePath);
     mkdirSync(join(fullPath, ".."), { recursive: true });
     const yaml = `version: ${config.version}
-${config.instructions ? `instructions:
+${
+  config.instructions
+    ? `instructions:
   canonical: "${config.instructions.canonical ?? ".smartergpt/instructions/lex.md"}"${
     config.instructions.projections
       ? `
@@ -67,24 +69,31 @@ ${config.instructions ? `instructions:
     copilot: ${config.instructions.projections.copilot ?? true}
     cursor: ${config.instructions.projections.cursor ?? true}`
       : ""
-  }` : ""}`;
+  }`
+    : ""
+}`;
     writeFileSync(fullPath, yaml);
   }
 
   /**
    * Helper to run the full instruction generation pipeline
    */
-  function runInstructionGeneration(options: {
-    dryRun?: boolean;
-    backup?: boolean;
-    lexConfig?: LexYaml;
-  } = {}): { projections: ReturnType<typeof generateProjections>; writeResult?: ReturnType<typeof writeProjections> } {
-    const configResult = options.lexConfig 
+  function runInstructionGeneration(
+    options: {
+      dryRun?: boolean;
+      backup?: boolean;
+      lexConfig?: LexYaml;
+    } = {}
+  ): {
+    projections: ReturnType<typeof generateProjections>;
+    writeResult?: ReturnType<typeof writeProjections>;
+  } {
+    const configResult = options.lexConfig
       ? { success: true, config: options.lexConfig, path: null, source: "file" as const }
       : loadLexYaml(testDir);
-    
+
     const config = configResult.config ?? { version: 1 };
-    
+
     const projectionConfig: ProjectionConfig = {
       canonical: loadCanonicalInstructions(testDir, config),
       hosts: detectAvailableHosts(testDir),
@@ -96,18 +105,20 @@ ${config.instructions ? `instructions:
 
     if (options.dryRun) {
       // Dry-run: don't write files, just return projections
-      return { 
+      return {
         projections,
         writeResult: writeProjections(
-          projections.map(p => ({ path: p.path, content: p.content })),
+          projections.map((p) => ({ path: p.path, content: p.content })),
           { dryRun: true, backup: options.backup ?? false }
-        )
+        ),
       };
     }
 
     // Write files
     const writeResult = writeProjections(
-      projections.filter(p => p.action !== "skip").map(p => ({ path: p.path, content: p.content })),
+      projections
+        .filter((p) => p.action !== "skip")
+        .map((p) => ({ path: p.path, content: p.content })),
       { dryRun: false, backup: options.backup ?? false }
     );
 
@@ -126,12 +137,12 @@ ${config.instructions ? `instructions:
       // Verify
       const copilotPath = join(testDir, ".github", "copilot-instructions.md");
       assert.ok(existsSync(copilotPath), "copilot-instructions.md should be created");
-      
+
       const content = readFileSync(copilotPath, "utf-8");
       assert.ok(content.includes(LEX_BEGIN), "Should contain LEX:BEGIN marker");
       assert.ok(content.includes(LEX_END), "Should contain LEX:END marker");
       assert.ok(content.includes("Test Instructions"), "Should contain canonical content");
-      
+
       assert.strictEqual(result.projections.length, 1);
       assert.strictEqual(result.projections[0].host, "copilot");
       assert.strictEqual(result.projections[0].action, "create");
@@ -151,13 +162,13 @@ ${config.instructions ? `instructions:
       // Verify
       const cursorPath = join(testDir, ".cursorrules");
       const content = readFileSync(cursorPath, "utf-8");
-      
+
       assert.ok(content.includes("Cursor Rules"), "Should preserve original content");
       assert.ok(content.includes("Custom rules here"), "Should preserve custom rules");
       assert.ok(content.includes(LEX_BEGIN), "Should add LEX:BEGIN marker");
       assert.ok(content.includes(LEX_END), "Should add LEX:END marker");
       assert.ok(content.includes("Lex Cursor Instructions"), "Should contain canonical content");
-      
+
       assert.strictEqual(result.projections.length, 1);
       assert.strictEqual(result.projections[0].host, "cursor");
       assert.strictEqual(result.projections[0].action, "update");
@@ -191,8 +202,8 @@ ${config.instructions ? `instructions:
 
       // Verify projections
       assert.strictEqual(result.projections.length, 2);
-      const copilotProj = result.projections.find(p => p.host === "copilot");
-      const cursorProj = result.projections.find(p => p.host === "cursor");
+      const copilotProj = result.projections.find((p) => p.host === "copilot");
+      const cursorProj = result.projections.find((p) => p.host === "cursor");
       assert.ok(copilotProj, "Should have copilot projection");
       assert.ok(cursorProj, "Should have cursor projection");
     });
@@ -208,12 +219,13 @@ ${config.instructions ? `instructions:
 
       // Verify
       assert.strictEqual(result.projections.length, 0, "Should have no projections");
-      
+
       // Ensure no files were created
-      assert.ok(!existsSync(join(testDir, ".github", "copilot-instructions.md")), 
-        "copilot-instructions.md should not exist");
-      assert.ok(!existsSync(join(testDir, ".cursorrules")), 
-        ".cursorrules should not exist");
+      assert.ok(
+        !existsSync(join(testDir, ".github", "copilot-instructions.md")),
+        "copilot-instructions.md should not exist"
+      );
+      assert.ok(!existsSync(join(testDir, ".cursorrules")), ".cursorrules should not exist");
     });
 
     it("should return empty projections when canonical file is missing", () => {
@@ -225,7 +237,11 @@ ${config.instructions ? `instructions:
       const result = runInstructionGeneration();
 
       // Verify
-      assert.strictEqual(result.projections.length, 0, "Should have no projections without canonical");
+      assert.strictEqual(
+        result.projections.length,
+        0,
+        "Should have no projections without canonical"
+      );
     });
   });
 
@@ -234,9 +250,12 @@ ${config.instructions ? `instructions:
       // Setup: Create custom canonical path
       const customCanonicalPath = "docs/ai/custom-instructions.md";
       mkdirSync(join(testDir, "docs", "ai"), { recursive: true });
-      writeFileSync(join(testDir, customCanonicalPath), "# Custom Location\n\nInstructions from custom path.");
+      writeFileSync(
+        join(testDir, customCanonicalPath),
+        "# Custom Location\n\nInstructions from custom path."
+      );
       mkdirSync(join(testDir, ".github"), { recursive: true });
-      
+
       // Create lex.yaml with custom canonical path
       createLexYaml({
         version: 1,
@@ -250,8 +269,10 @@ ${config.instructions ? `instructions:
 
       // Verify
       assert.strictEqual(result.projections.length, 1);
-      assert.ok(result.projections[0].content.includes("Custom Location"), 
-        "Should use custom canonical file content");
+      assert.ok(
+        result.projections[0].content.includes("Custom Location"),
+        "Should use custom canonical file content"
+      );
     });
 
     it("should respect projection settings from lex.yaml", () => {
@@ -259,7 +280,7 @@ ${config.instructions ? `instructions:
       mkdirSync(join(testDir, ".github"), { recursive: true });
       writeFileSync(join(testDir, ".cursorrules"), "# Cursor");
       createCanonicalFile("# Selective Projection\n\nOnly for copilot.");
-      
+
       // Create lex.yaml that disables cursor
       createLexYaml({
         version: 1,
@@ -278,7 +299,7 @@ ${config.instructions ? `instructions:
       // Verify: Only copilot projection
       assert.strictEqual(result.projections.length, 1);
       assert.strictEqual(result.projections[0].host, "copilot");
-      
+
       // .cursorrules should be unchanged
       const cursorContent = readFileSync(join(testDir, ".cursorrules"), "utf-8");
       assert.ok(!cursorContent.includes(LEX_BEGIN), "Cursor should not have LEX markers");
@@ -297,7 +318,7 @@ ${config.instructions ? `instructions:
       // Verify: File should not exist
       const copilotPath = join(testDir, ".github", "copilot-instructions.md");
       assert.ok(!existsSync(copilotPath), "File should NOT be created in dry-run");
-      
+
       // But projections should still be generated
       assert.strictEqual(result.projections.length, 1);
       assert.ok(result.writeResult);
@@ -316,7 +337,7 @@ ${config.instructions ? `instructions:
       // Verify: File should be unchanged
       const cursorContent = readFileSync(join(testDir, ".cursorrules"), "utf-8");
       assert.strictEqual(cursorContent, originalContent, "File should be unchanged in dry-run");
-      
+
       assert.strictEqual(result.projections.length, 1);
       assert.strictEqual(result.projections[0].action, "update");
     });
@@ -334,8 +355,11 @@ ${config.instructions ? `instructions:
       const content1 = readFileSync(copilotPath, "utf-8");
 
       // Verify first run creates the file
-      assert.strictEqual(result1.projections[0].action, "create", 
-        "First run should create the file");
+      assert.strictEqual(
+        result1.projections[0].action,
+        "create",
+        "First run should create the file"
+      );
 
       // Execute second time
       const result2 = runInstructionGeneration();
@@ -343,10 +367,13 @@ ${config.instructions ? `instructions:
 
       // Verify
       assert.strictEqual(content1, content2, "Content should be identical after two runs");
-      
+
       // Second run should skip (no changes needed)
-      assert.strictEqual(result2.projections[0].action, "skip", 
-        "Second run should skip as content is unchanged");
+      assert.strictEqual(
+        result2.projections[0].action,
+        "skip",
+        "Second run should skip as content is unchanged"
+      );
     });
 
     it("should skip writing when content is unchanged", () => {
@@ -363,7 +390,7 @@ ${config.instructions ? `instructions:
       // Verify skip action
       assert.strictEqual(result.projections.length, 1);
       assert.strictEqual(result.projections[0].action, "skip");
-      
+
       // writeResult should have nothing written (we filter out skips)
       assert.ok(result.writeResult);
       assert.strictEqual(result.writeResult.written.length, 0);
@@ -385,7 +412,10 @@ ${config.instructions ? `instructions:
       // Verify
       const content = readFileSync(copilotPath, "utf-8");
       assert.ok(content.includes("My Custom Header"), "Should preserve human header");
-      assert.ok(content.includes("important human-written content"), "Should preserve human content");
+      assert.ok(
+        content.includes("important human-written content"),
+        "Should preserve human content"
+      );
       assert.ok(content.includes("New Lex Content"), "Should have updated Lex content");
       assert.ok(!content.includes("Old Lex Content"), "Should not have old Lex content");
     });
@@ -394,8 +424,10 @@ ${config.instructions ? `instructions:
       // Setup: Create file with human content at the end
       const copilotPath = join(testDir, ".github", "copilot-instructions.md");
       mkdirSync(join(testDir, ".github"), { recursive: true });
-      writeFileSync(copilotPath, 
-        `${LEX_BEGIN}\n# Old Lex\n${LEX_END}\n\n# Human Footer\n\nCustom rules below.\n`);
+      writeFileSync(
+        copilotPath,
+        `${LEX_BEGIN}\n# Old Lex\n${LEX_END}\n\n# Human Footer\n\nCustom rules below.\n`
+      );
       createCanonicalFile("# Updated Lex\n\nNew instructions.");
 
       // Execute
@@ -424,7 +456,7 @@ ${config.instructions ? `instructions:
         "# Footer Section",
         "",
         "More human content here.",
-        ""
+        "",
       ].join("\n");
       writeFileSync(copilotPath, existingContent);
       createCanonicalFile("# Brand New Lex\n\nCompletely new content.");
@@ -454,12 +486,15 @@ ${config.instructions ? `instructions:
 
       // Verify
       const content = readFileSync(copilotPath, "utf-8");
-      assert.ok(content.includes("Existing Manual Instructions"), "Should preserve original content");
+      assert.ok(
+        content.includes("Existing Manual Instructions"),
+        "Should preserve original content"
+      );
       assert.ok(content.includes("Human-written content"), "Should preserve human content");
       assert.ok(content.includes(LEX_BEGIN), "Should add LEX:BEGIN");
       assert.ok(content.includes(LEX_END), "Should add LEX:END");
       assert.ok(content.includes("Appended Lex"), "Should have Lex content");
-      
+
       // Markers should come after original content
       const beginIndex = content.indexOf(LEX_BEGIN);
       const humanContentIndex = content.indexOf("Human-written content");

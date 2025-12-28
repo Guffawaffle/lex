@@ -86,10 +86,7 @@ describe("Git Command Wrapper", () => {
       // Use runGit with cwd to get branch
       const branch = runGit(["rev-parse", "--abbrev-ref", "HEAD"], { cwd: testDir });
 
-      assert.ok(
-        branch === "main" || branch === "master",
-        "Should execute in specified directory"
-      );
+      assert.ok(branch === "main" || branch === "master", "Should execute in specified directory");
     } finally {
       rmSync(testDir, { recursive: true, force: true });
     }

@@ -77,10 +77,10 @@ function loadConfigFile(): Partial<LexConfig> | null {
   try {
     const content = fs.readFileSync(configPath, "utf-8");
     const parsed = JSON.parse(content) as Partial<LexConfig>;
-    
+
     // Expand tokens in the configuration
     const expanded = expandTokensInObject(parsed);
-    
+
     return expanded;
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);

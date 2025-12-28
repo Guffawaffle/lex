@@ -281,7 +281,7 @@ describe("SqliteCodeAtlasStore Tests", () => {
     test("should support offset in listCodeAtlasRuns", async () => {
       const allResult = await store.listCodeAtlasRuns();
       const offsetResult = await store.listCodeAtlasRuns({ offset: 1 });
-      
+
       // With offset 1, we should get one less item
       assert.strictEqual(offsetResult.items.length, allResult.items.length - 1);
       // Total should be the same regardless of offset

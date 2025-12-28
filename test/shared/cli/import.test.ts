@@ -322,14 +322,10 @@ test("CLI: lex frames import --merge updates existing frames", () => {
     assert.match(output, /Imported: 1/, "Should import 1 frame");
 
     // Verify the frame was updated
-    const recallOutput = execFileSync(
-      process.execPath,
-      [lexBin, "recall", "frame-1"],
-      {
-        encoding: "utf-8",
-        env: getTestEnv(),
-      }
-    );
+    const recallOutput = execFileSync(process.execPath, [lexBin, "recall", "frame-1"], {
+      encoding: "utf-8",
+      env: getTestEnv(),
+    });
     assert.match(recallOutput, /Updated summary/, "Frame should have updated summary");
   } finally {
     cleanup();

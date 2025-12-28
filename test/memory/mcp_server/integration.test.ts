@@ -146,7 +146,7 @@ describe("MCP Server Integration Tests", () => {
           typeof rememberResponse.data.created_at === "string",
           "created_at should be a string"
         );
-        
+
         // Verify timestamp is valid ISO 8601
         const timestamp = new Date(rememberResponse.data.created_at as string);
         assert.ok(!isNaN(timestamp.getTime()), "created_at should be valid ISO 8601 timestamp");
@@ -159,7 +159,7 @@ describe("MCP Server Integration Tests", () => {
       const srv = setup();
       try {
         const testAtlasFrameId = "atlas_test_123";
-        
+
         // Create a Frame with atlas_frame_id
         const rememberArgs = {
           reference_point: "AX-002 atlas test",
@@ -684,7 +684,7 @@ describe("MCP Server Integration Tests", () => {
         });
 
         assert.ok(response.tools, "Should return tools array");
-        
+
         // Test only what this test cares about: presence of key tools
         const toolNames = response.tools.map((t) => t.name);
         assert.ok(toolNames.includes("remember"), "Should include remember");

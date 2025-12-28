@@ -364,7 +364,10 @@ describe("MCP Server - Timeline Tool", () => {
 
       assert.ok(response.content, "Response should have content");
       const text = response.content[0].text;
-      assert.ok(text.includes("No frames found in the specified date range"), "Should indicate empty result after filtering");
+      assert.ok(
+        text.includes("No frames found in the specified date range"),
+        "Should indicate empty result after filtering"
+      );
     } finally {
       await teardown();
     }

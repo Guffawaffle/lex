@@ -126,11 +126,7 @@ export function recordCorrection(
   const polarity = correction.polarity ?? 1;
 
   // Try to find an existing rule matching the context
-  const existingRule = findRuleByContext(
-    db,
-    correction.context.module_id,
-    correction.correction
-  );
+  const existingRule = findRuleByContext(db, correction.context.module_id, correction.correction);
 
   let result: BehaviorRuleWithConfidence;
 
@@ -143,11 +139,7 @@ export function recordCorrection(
     }
 
     // Fetch updated rule
-    const updated = findRuleByContext(
-      db,
-      correction.context.module_id,
-      correction.correction
-    );
+    const updated = findRuleByContext(db, correction.context.module_id, correction.correction);
 
     if (!updated) {
       // Should not happen, but handle gracefully

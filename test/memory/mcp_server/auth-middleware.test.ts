@@ -80,7 +80,9 @@ describe("JWT Authentication Middleware", () => {
       assert.equal(response.body.status, "created");
 
       // Verify frame was created with correct user_id
-      const frame = db.prepare("SELECT * FROM frames WHERE id = ?").get(response.body.id) as { user_id: string };
+      const frame = db.prepare("SELECT * FROM frames WHERE id = ?").get(response.body.id) as {
+        user_id: string;
+      };
       assert.equal(frame.user_id, userId);
     });
 
@@ -123,7 +125,9 @@ describe("JWT Authentication Middleware", () => {
       assert.ok(response.body.id);
 
       // Verify frame was created with system-default user_id
-      const frame = db.prepare("SELECT * FROM frames WHERE id = ?").get(response.body.id) as { user_id: string };
+      const frame = db.prepare("SELECT * FROM frames WHERE id = ?").get(response.body.id) as {
+        user_id: string;
+      };
       assert.equal(frame.user_id, "system-default");
     });
 
@@ -209,8 +213,12 @@ describe("JWT Authentication Middleware", () => {
         .expect(201);
 
       // Verify frames have correct user_id
-      const frame1 = db.prepare("SELECT * FROM frames WHERE id = ?").get(response1.body.id) as { user_id: string };
-      const frame2 = db.prepare("SELECT * FROM frames WHERE id = ?").get(response2.body.id) as { user_id: string };
+      const frame1 = db.prepare("SELECT * FROM frames WHERE id = ?").get(response1.body.id) as {
+        user_id: string;
+      };
+      const frame2 = db.prepare("SELECT * FROM frames WHERE id = ?").get(response2.body.id) as {
+        user_id: string;
+      };
 
       assert.equal(frame1.user_id, userId1);
       assert.equal(frame2.user_id, userId2);
@@ -230,7 +238,9 @@ describe("JWT Authentication Middleware", () => {
         })
         .expect(201);
 
-      const frame = db.prepare("SELECT * FROM frames WHERE id = ?").get(response.body.id) as { user_id: string };
+      const frame = db.prepare("SELECT * FROM frames WHERE id = ?").get(response.body.id) as {
+        user_id: string;
+      };
       assert.equal(frame.user_id, "system-default");
     });
   });

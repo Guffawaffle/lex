@@ -307,10 +307,7 @@ describe("MCP Server - validate_remember", () => {
         response.content[0].text.includes("✅ Validation passed"),
         "Should confirm validation passed"
       );
-      assert.ok(
-        !response.content[0].text.includes("⚠️  Warnings"),
-        "Should not include warnings"
-      );
+      assert.ok(!response.content[0].text.includes("⚠️  Warnings"), "Should not include warnings");
     } finally {
       await teardown();
     }

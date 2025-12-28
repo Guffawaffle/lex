@@ -290,9 +290,7 @@ let globalManager: AtlasRebuildManager | null = null;
  * @param config - Manager configuration
  * @returns The initialized manager
  */
-export function initAtlasRebuildManager(
-  config: AtlasRebuildManagerConfig
-): AtlasRebuildManager {
+export function initAtlasRebuildManager(config: AtlasRebuildManagerConfig): AtlasRebuildManager {
   if (globalManager) {
     globalManager.dispose();
   }
@@ -307,9 +305,7 @@ export function initAtlasRebuildManager(
  */
 export function getAtlasRebuildManager(): AtlasRebuildManager {
   if (!globalManager) {
-    throw new Error(
-      "AtlasRebuildManager not initialized. Call initAtlasRebuildManager() first."
-    );
+    throw new Error("AtlasRebuildManager not initialized. Call initAtlasRebuildManager() first.");
   }
   return globalManager;
 }

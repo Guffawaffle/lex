@@ -343,7 +343,7 @@ closeDb(db);
 
 ## 🎯 Project Status
 
-**Current Version:** `2.0.3` ([Changelog](./CHANGELOG.md))
+**Current Version:** `2.1.0` ([Changelog](./CHANGELOG.md))
 
 ### 🚀 2.0.0 — AX-Native Release
 

@@ -49,10 +49,7 @@ function createInvalidFrame(id: string): Partial<Frame> {
 /**
  * Test suite for a specific FrameStore implementation
  */
-function createBatchOperationsTests(
-  name: string,
-  createStore: () => FrameStore
-) {
+function createBatchOperationsTests(name: string, createStore: () => FrameStore) {
   describe(`${name} Batch Operations`, () => {
     let store: FrameStore;
 
@@ -333,9 +330,8 @@ describe("SqliteFrameStore Batch Edge Cases", () => {
     const store = new SqliteFrameStore(":memory:");
     await store.close();
 
-    await assert.rejects(
-      async () => store.saveFrames([createTestFrame("closed-001")]),
-      { message: "SqliteFrameStore is closed" }
-    );
+    await assert.rejects(async () => store.saveFrames([createTestFrame("closed-001")]), {
+      message: "SqliteFrameStore is closed",
+    });
   });
 });

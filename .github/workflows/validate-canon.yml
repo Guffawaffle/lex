@@ -24,6 +24,9 @@ jobs:
       - name: Validate JSON Schemas with AJV
         run: npm run validate-schemas
 
+      - name: Validate documentation accuracy
+        run: npm run validate-docs
+
       - name: Lint prompt templates
         run: npm run prompts:lint
 

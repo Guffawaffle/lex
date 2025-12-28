@@ -75,7 +75,11 @@ describe("code_units Migration (V5) Tests", () => {
 
       for (const col of requiredColumns) {
         assert.ok(columnMap.has(col.name), `${col.name} column should exist`);
-        assert.strictEqual(columnMap.get(col.name)!.type, col.type, `${col.name} should be ${col.type}`);
+        assert.strictEqual(
+          columnMap.get(col.name)!.type,
+          col.type,
+          `${col.name} should be ${col.type}`
+        );
         assert.strictEqual(columnMap.get(col.name)!.notnull, 1, `${col.name} should be NOT NULL`);
       }
 
@@ -87,7 +91,11 @@ describe("code_units Migration (V5) Tests", () => {
 
       for (const col of optionalColumns) {
         assert.ok(columnMap.has(col.name), `${col.name} column should exist`);
-        assert.strictEqual(columnMap.get(col.name)!.type, col.type, `${col.name} should be ${col.type}`);
+        assert.strictEqual(
+          columnMap.get(col.name)!.type,
+          col.type,
+          `${col.name} should be ${col.type}`
+        );
         assert.strictEqual(columnMap.get(col.name)!.notnull, 0, `${col.name} should be nullable`);
       }
     });
@@ -132,27 +140,21 @@ describe("code_units Migration (V5) Tests", () => {
   describe("Indexes", () => {
     test("should have idx_code_units_repo index", () => {
       const indexes = db
-        .prepare(
-          "SELECT name FROM sqlite_master WHERE type='index' AND name='idx_code_units_repo'"
-        )
+        .prepare("SELECT name FROM sqlite_master WHERE type='index' AND name='idx_code_units_repo'")
         .all();
       assert.strictEqual(indexes.length, 1, "idx_code_units_repo index should exist");
     });
 
     test("should have idx_code_units_file index", () => {
       const indexes = db
-        .prepare(
-          "SELECT name FROM sqlite_master WHERE type='index' AND name='idx_code_units_file'"
-        )
+        .prepare("SELECT name FROM sqlite_master WHERE type='index' AND name='idx_code_units_file'")
         .all();
       assert.strictEqual(indexes.length, 1, "idx_code_units_file index should exist");
     });
 
     test("should have idx_code_units_kind index", () => {
       const indexes = db
-        .prepare(
-          "SELECT name FROM sqlite_master WHERE type='index' AND name='idx_code_units_kind'"
-        )
+        .prepare("SELECT name FROM sqlite_master WHERE type='index' AND name='idx_code_units_kind'")
         .all();
       assert.strictEqual(indexes.length, 1, "idx_code_units_kind index should exist");
     });

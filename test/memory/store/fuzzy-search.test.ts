@@ -124,7 +124,7 @@ describe("Fuzzy search (AX-006)", () => {
   });
 
   describe("multi-term fuzzy search", () => {
-    it('should find frames matching multiple partial terms', () => {
+    it("should find frames matching multiple partial terms", () => {
       const result = searchFrames(db, "AX debug");
       assert.ok(result.frames.length >= 1, "Should find frames matching both terms");
       assert.ok(
@@ -133,7 +133,7 @@ describe("Fuzzy search (AX-006)", () => {
       );
     });
 
-    it('should support partial matches in multi-term queries', () => {
+    it("should support partial matches in multi-term queries", () => {
       const result = searchFrames(db, "auth debug");
       assert.ok(result.frames.length >= 1, "Should find frames with auth and debugging");
       assert.ok(
@@ -153,7 +153,7 @@ describe("Fuzzy search (AX-006)", () => {
       // Note: FTS5 still matches complete words/tokens, so "debug" will match the token "debug" in "auth debug session"
       // but NOT the word "debugging" (which is a different token)
       const exactResult = searchFrames(db, "debug", { exact: true });
-      
+
       // Should find frame-002 which has "debug" as an exact token
       // Should NOT find frame-001 which has "debugging" but not "debug"
       assert.ok(
@@ -169,7 +169,10 @@ describe("Fuzzy search (AX-006)", () => {
     it("should find exact term when exact=true", () => {
       // Searching for exact term "debugging" should still work
       const result = searchFrames(db, "debugging", { exact: true });
-      assert.ok(result.frames.length >= 2, "Exact: should find 'debugging' when searching for 'debugging'");
+      assert.ok(
+        result.frames.length >= 2,
+        "Exact: should find 'debugging' when searching for 'debugging'"
+      );
     });
   });
 
@@ -186,7 +189,9 @@ describe("Fuzzy search (AX-006)", () => {
     it('✓ "debug" finds frames with "debugging" in them', () => {
       const result = searchFrames(db, "debug");
       assert.ok(
-        result.frames.some((f) => f.keywords?.includes("debugging") || f.summary_caption.includes("debugging")),
+        result.frames.some(
+          (f) => f.keywords?.includes("debugging") || f.summary_caption.includes("debugging")
+        ),
         '"debug" should match "debugging"'
       );
     });
@@ -194,10 +199,11 @@ describe("Fuzzy search (AX-006)", () => {
     it('✓ "AX" finds frames mentioning AX anywhere', () => {
       const result = searchFrames(db, "AX");
       assert.ok(
-        result.frames.some((f) => 
-          f.reference_point.includes("AX") || 
-          f.summary_caption.includes("AX") || 
-          f.keywords?.includes("AX")
+        result.frames.some(
+          (f) =>
+            f.reference_point.includes("AX") ||
+            f.summary_caption.includes("AX") ||
+            f.keywords?.includes("AX")
         ),
         '"AX" should match frames with AX'
       );
@@ -213,7 +219,10 @@ describe("Fuzzy search (AX-006)", () => {
     it("✓ --exact flag for strict matching works", () => {
       const fuzzyResult = searchFrames(db, "debug");
       const exactResult = searchFrames(db, "debug", { exact: true });
-      assert.ok(fuzzyResult.frames.length > exactResult.frames.length, "--exact should reduce results");
+      assert.ok(
+        fuzzyResult.frames.length > exactResult.frames.length,
+        "--exact should reduce results"
+      );
     });
   });
 });

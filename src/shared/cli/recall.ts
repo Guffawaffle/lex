@@ -53,7 +53,7 @@ export async function recall(
       // When --list N is used, it's set to N (number)
       // Explicitly handle 0 as invalid
       let limit = 10; // default
-      if (typeof options.list === 'number') {
+      if (typeof options.list === "number") {
         if (options.list > 0) {
           limit = options.list;
         } else {
@@ -145,7 +145,7 @@ export async function recall(
           const date = new Date(frame.timestamp).toISOString().substring(0, 10);
           const keywordsStr = frame.keywords?.join(", ") ?? "none";
           const modulesStr = frame.module_scope.join(", ") || "none";
-          
+
           output.info(`${i + 1}. [${date}] ${frame.summary_caption}`);
           output.info(`   Keywords: ${keywordsStr}`);
           output.info(`   Modules: ${modulesStr}`);

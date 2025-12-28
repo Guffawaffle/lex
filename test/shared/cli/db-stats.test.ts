@@ -37,7 +37,8 @@ describe("Database Stats Command", () => {
         id: `test-frame-${i}`,
         timestamp: date.toISOString(),
         branch: "main",
-        module_scope: i % 3 === 0 ? ["cli", "memory/store"] : i % 3 === 1 ? ["cli"] : ["policy/check"],
+        module_scope:
+          i % 3 === 0 ? ["cli", "memory/store"] : i % 3 === 1 ? ["cli"] : ["policy/check"],
         summary_caption: `Test frame ${i}`,
         reference_point: `test ${i}`,
         status_snapshot: {

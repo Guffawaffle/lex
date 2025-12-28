@@ -189,7 +189,7 @@ describe("lex policy check command", () => {
 
       const policy = {
         modules: {
-          "INVALID": { description: "test" },
+          INVALID: { description: "test" },
         },
       };
 

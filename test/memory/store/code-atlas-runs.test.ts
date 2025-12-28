@@ -89,9 +89,7 @@ describe("Code Atlas Runs Storage Tests", () => {
   describe("Database Migration V5", () => {
     test("should create code_atlas_runs table", () => {
       const tables = db
-        .prepare(
-          "SELECT name FROM sqlite_master WHERE type='table' AND name='code_atlas_runs'"
-        )
+        .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='code_atlas_runs'")
         .all();
       assert.strictEqual(tables.length, 1, "code_atlas_runs table should exist");
     });
@@ -115,9 +113,9 @@ describe("Code Atlas Runs Storage Tests", () => {
     });
 
     test("should have schema version 5 recorded", () => {
-      const versionRow = db
-        .prepare("SELECT MAX(version) as version FROM schema_version")
-        .get() as { version: number };
+      const versionRow = db.prepare("SELECT MAX(version) as version FROM schema_version").get() as {
+        version: number;
+      };
       assert.ok(versionRow.version >= 5, "Schema version should be at least 5");
     });
   });

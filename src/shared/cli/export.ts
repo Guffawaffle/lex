@@ -4,7 +4,11 @@
  * Export frames from database to JSON files for backup, sharing, and archival.
  */
 
-import { createFrameStore, type FrameStore, type FrameSearchCriteria } from "../../memory/store/index.js";
+import {
+  createFrameStore,
+  type FrameStore,
+  type FrameSearchCriteria,
+} from "../../memory/store/index.js";
 import type { Frame } from "../types/frame.js";
 import { mkdirSync, writeFileSync } from "fs";
 import { join } from "path";
@@ -36,9 +40,9 @@ function parseDurationToDate(duration: string): Date {
         "INVALID_DATE_FORMAT",
         `Invalid date format: "${duration}". Use ISO date or duration (e.g., "7d", "1h")`,
         [
-          "Use ISO date format (e.g., \"2024-01-01T00:00:00Z\")",
-          "Use duration format (e.g., \"7d\" for 7 days, \"1h\" for 1 hour)",
-          "Valid duration units: h (hours), d (days), w (weeks), m (months), y (years)"
+          'Use ISO date format (e.g., "2024-01-01T00:00:00Z")',
+          'Use duration format (e.g., "7d" for 7 days, "1h" for 1 hour)',
+          "Valid duration units: h (hours), d (days), w (weeks), m (months), y (years)",
         ],
         { duration, operation: "export" }
       );
@@ -125,7 +129,7 @@ export async function exportFrames(
 
     // Get frames with optional time filtering via searchFrames or listFrames
     let frames: Frame[];
-    
+
     if (searchCriteria.since) {
       // Use searchFrames for time-based filtering
       frames = await store.searchFrames(searchCriteria);
@@ -137,11 +141,11 @@ export async function exportFrames(
 
     // Apply additional filters (jira, branch) in memory
     if (options.jira) {
-      frames = frames.filter(f => f.jira === options.jira);
+      frames = frames.filter((f) => f.jira === options.jira);
     }
 
     if (options.branch) {
-      frames = frames.filter(f => f.branch === options.branch);
+      frames = frames.filter((f) => f.branch === options.branch);
     }
 
     // Determine output directory

@@ -49,7 +49,7 @@ function resolveCanonDir(): string {
     [
       "Ensure the package is properly installed",
       "Check that package.json exists in the package root",
-      "Verify the installation directory structure is intact"
+      "Verify the installation directory structure is intact",
     ],
     { searchPath: __dirname, operation: "init" }
   );
@@ -125,13 +125,13 @@ export async function init(options: InitOptions = {}): Promise<InitResult> {
     fs.mkdirSync(lexDir, { recursive: true });
     const policyPath = path.join(lexDir, "lexmap.policy.json");
     let modulesDiscovered = 0;
-    
+
     if (!fs.existsSync(policyPath) || options.force) {
       if (options.policy) {
         // Generate seed policy from directory structure
         const modules = discoverModules({ rootDir: baseDir });
         modulesDiscovered = modules.length;
-        
+
         if (modules.length > 0) {
           const policy = generatePolicyFile(modules);
           fs.writeFileSync(policyPath, JSON.stringify(policy, null, 2) + "\n");
@@ -172,16 +172,16 @@ export async function init(options: InitOptions = {}): Promise<InitResult> {
     // Default to true unless explicitly set to false
     const shouldCreateInstructions = options.instructions !== false;
     let instructionsCreated = false;
-    
+
     if (shouldCreateInstructions) {
       const instructionsDir = path.join(workspaceDir, "instructions");
       fs.mkdirSync(instructionsDir, { recursive: true });
-      
+
       const instructionsPath = path.join(instructionsDir, "lex.md");
-      
+
       if (!fs.existsSync(instructionsPath) || options.force) {
         const canonInstructionsPath = path.join(canonDir, "instructions", "lex.example.md");
-        
+
         if (fs.existsSync(canonInstructionsPath)) {
           fs.copyFileSync(canonInstructionsPath, instructionsPath);
           filesCreated.push(path.relative(baseDir, instructionsPath));
@@ -218,7 +218,7 @@ export async function init(options: InitOptions = {}): Promise<InitResult> {
         output.info(`  └── lex/lexmap.policy.json (optional module policy)`);
       }
       output.info("");
-      
+
       if (options.policy && modulesDiscovered > 0) {
         output.info("Policy generation:");
         output.info(`  ✓ Scanned src/ directory structure`);
@@ -226,7 +226,7 @@ export async function init(options: InitOptions = {}): Promise<InitResult> {
         output.info(`  ✓ Generated .smartergpt/lex/lexmap.policy.json`);
         output.info("");
       }
-      
+
       output.info("Prompts resolution order:");
       output.info("  1. LEX_PROMPTS_DIR (env var override)");
       output.info("  2. .smartergpt/prompts/ (workspace - just created)");

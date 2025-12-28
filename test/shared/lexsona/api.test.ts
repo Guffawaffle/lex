@@ -48,7 +48,9 @@ describe("LexSona API Tests", () => {
   describe("Database Schema", () => {
     test("should have lexsona_behavior_rules table", () => {
       const tables = db
-        .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='lexsona_behavior_rules'")
+        .prepare(
+          "SELECT name FROM sqlite_master WHERE type='table' AND name='lexsona_behavior_rules'"
+        )
         .all();
       assert.strictEqual(tables.length, 1, "lexsona_behavior_rules table should exist");
     });
@@ -57,7 +59,7 @@ describe("LexSona API Tests", () => {
       const indexes = db
         .prepare("SELECT name FROM sqlite_master WHERE type='index' AND name LIKE 'idx_lexsona_%'")
         .all() as { name: string }[];
-      
+
       const indexNames = indexes.map((i) => i.name);
       assert.ok(indexNames.includes("idx_lexsona_rules_module"), "module index should exist");
       assert.ok(indexNames.includes("idx_lexsona_rules_category"), "category index should exist");
@@ -265,11 +267,21 @@ describe("LexSona API Tests", () => {
     test("should include rules when minN=1", () => {
       // Note: rule-low-n has alpha=3, beta=5 → confidence=0.375, which is below
       // the default minConfidence of 0.5, so we need to lower the threshold
-      const rules = getRules(db, { module_id: "src/services/auth" }, { minN: 1, minConfidence: 0.3 });
+      const rules = getRules(
+        db,
+        { module_id: "src/services/auth" },
+        { minN: 1, minConfidence: 0.3 }
+      );
 
       // All auth rules should be included
-      assert.ok(rules.some((r) => r.rule_id === "rule-low-n"), "Should find rule-low-n with minN=1");
-      assert.ok(rules.some((r) => r.rule_id === "rule-auth-001"), "Should find rule-auth-001");
+      assert.ok(
+        rules.some((r) => r.rule_id === "rule-low-n"),
+        "Should find rule-low-n with minN=1"
+      );
+      assert.ok(
+        rules.some((r) => r.rule_id === "rule-auth-001"),
+        "Should find rule-auth-001"
+      );
     });
 
     test("should return rules sorted by effective_confidence descending", () => {
@@ -289,10 +301,19 @@ describe("LexSona API Tests", () => {
 
       for (const rule of rules) {
         assert.ok(typeof rule.confidence === "number", "confidence should be a number");
-        assert.ok(rule.confidence >= 0 && rule.confidence <= 1, "confidence should be between 0 and 1");
+        assert.ok(
+          rule.confidence >= 0 && rule.confidence <= 1,
+          "confidence should be between 0 and 1"
+        );
         assert.ok(typeof rule.decay_factor === "number", "decay_factor should be a number");
-        assert.ok(rule.decay_factor > 0 && rule.decay_factor <= 1, "decay_factor should be between 0 and 1");
-        assert.ok(typeof rule.effective_confidence === "number", "effective_confidence should be a number");
+        assert.ok(
+          rule.decay_factor > 0 && rule.decay_factor <= 1,
+          "decay_factor should be between 0 and 1"
+        );
+        assert.ok(
+          typeof rule.effective_confidence === "number",
+          "effective_confidence should be a number"
+        );
       }
     });
 

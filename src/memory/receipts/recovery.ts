@@ -17,7 +17,13 @@ export interface RecoverySuggestion {
   /** Detailed explanation of why this helps */
   rationale: string;
   /** Governance intervention type needed */
-  interventionType: "reduce_scope" | "increase_budget" | "escalate" | "chunk_task" | "retry" | "policy_review";
+  interventionType:
+    | "reduce_scope"
+    | "increase_budget"
+    | "escalate"
+    | "chunk_task"
+    | "retry"
+    | "policy_review";
 }
 
 /**

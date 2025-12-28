@@ -106,7 +106,7 @@ describe("Turn Cost Schema Validation", () => {
       tokenBloat: 500,
       attentionSwitch: 2,
     };
-    
+
     const weights = {
       lambda: 0.15,
       gamma: 0.25,
@@ -114,11 +114,11 @@ describe("Turn Cost Schema Validation", () => {
       tau: 0.1,
       alpha: 0.2,
     };
-    
+
     // Calculate actual score: 0.15*1500 + 0.25*2000 + 0.3*3 + 0.1*500 + 0.2*2
     // = 225 + 500 + 0.9 + 50 + 0.4 = 776.3
     const expectedScore = 776.3;
-    
+
     const turnCost = {
       components,
       weights,
@@ -171,7 +171,10 @@ describe("Turn Cost Calculation", () => {
 
     // Expected: 0.2*1000 + 0.3*2000 + 0.1*3 + 0.2*500 + 0.2*2
     // = 200 + 600 + 0.3 + 100 + 0.4 = 900.7
-    assert.ok(Math.abs(score - 900.7) < 0.0001, `Should calculate correct weighted score with custom weights (got ${score})`);
+    assert.ok(
+      Math.abs(score - 900.7) < 0.0001,
+      `Should calculate correct weighted score with custom weights (got ${score})`
+    );
   });
 
   test("should handle zero values", () => {
@@ -282,7 +285,10 @@ describe("Turn Cost Edge Cases", () => {
     const score = calculateWeightedTurnCost(components);
     // Expected: 0.1*1500.5 + 0.2*2000.75 + 0.3*3.2 + 0.1*500.1 + 0.3*2.8
     // = 150.05 + 400.15 + 0.96 + 50.01 + 0.84 = 602.01
-    assert.ok(Math.abs(score - 602.01) < 0.0001, `Should calculate with decimal precision (got ${score})`);
+    assert.ok(
+      Math.abs(score - 602.01) < 0.0001,
+      `Should calculate with decimal precision (got ${score})`
+    );
   });
 
   test("should handle negative values (debt reduction scenarios)", () => {
@@ -300,7 +306,10 @@ describe("Turn Cost Edge Cases", () => {
     const score = calculateWeightedTurnCost(components);
     // Expected: 0.1*1000 + 0.2*(-500) + 0.3*2 + 0.1*0 + 0.3*1
     // = 100 - 100 + 0.6 + 0 + 0.3 = 0.9
-    assert.ok(Math.abs(score - 0.9) < 0.0001, `Should handle negative values correctly (got ${score})`);
+    assert.ok(
+      Math.abs(score - 0.9) < 0.0001,
+      `Should handle negative values correctly (got ${score})`
+    );
   });
 
   test("should calculate Turn Cost for minimal session", () => {

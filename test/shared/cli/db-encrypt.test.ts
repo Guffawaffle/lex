@@ -21,9 +21,12 @@ import type { Frame } from "@app/memory/frames/types.js";
 describe("Database Encryption Security (SEC-003)", () => {
   const testDir = join(tmpdir(), `lex-db-encrypt-test-${Date.now()}`);
   const lexBin = join(process.cwd(), "dist", "shared", "cli", "lex.js");
-  
+
   // Updated default passphrase to meet character diversity requirements
-  function getTestEnv(dbPath: string, passphrase: string = "Test-Passphrase@99"): NodeJS.ProcessEnv {
+  function getTestEnv(
+    dbPath: string,
+    passphrase: string = "Test-Passphrase@99"
+  ): NodeJS.ProcessEnv {
     return {
       NODE_ENV: "test",
       LEX_LOG_LEVEL: "silent",
@@ -37,7 +40,7 @@ describe("Database Encryption Security (SEC-003)", () => {
     // Ensure no encryption key is set when creating unencrypted test DB
     const originalKey = process.env.LEX_DB_KEY;
     delete process.env.LEX_DB_KEY;
-    
+
     try {
       const db = createDatabase(dbPath);
       const testFrame: Frame = {
@@ -76,27 +79,31 @@ describe("Database Encryption Security (SEC-003)", () => {
       mkdirSync(subDir, { recursive: true });
       const inputPath = join(subDir, "test.db");
       const outputPath = join(subDir, "test-encrypted.db");
-      
+
       createTestDatabase(inputPath);
-      
+
       const result = execFileSync(
         process.execPath,
         [lexBin, "db", "encrypt", "--input", inputPath, "--output", outputPath],
         { encoding: "utf-8", env: getTestEnv(inputPath) }
       );
-      
+
       // Check that output mentions backup was created
       assert.match(result, /Backup created:/, "Should mention backup was created");
-      
+
       // Check that backup file exists
       const files = readdirSync(subDir);
-      const backupFiles = files.filter(f => f.includes(".pre-encrypt."));
+      const backupFiles = files.filter((f) => f.includes(".pre-encrypt."));
       assert.strictEqual(backupFiles.length, 1, "Should create exactly one backup file");
-      
+
       // Verify backup file name format
       const backupFile = backupFiles[0];
-      assert.match(backupFile, /test\.pre-encrypt\.\d{8}-\d{6}\.db/, "Backup should have correct format");
-      
+      assert.match(
+        backupFile,
+        /test\.pre-encrypt\.\d{8}-\d{6}\.db/,
+        "Backup should have correct format"
+      );
+
       // Verify encrypted output was created
       assert.ok(existsSync(outputPath), "Encrypted output should exist");
     });
@@ -106,23 +113,23 @@ describe("Database Encryption Security (SEC-003)", () => {
       mkdirSync(subDir, { recursive: true });
       const inputPath = join(subDir, "test.db");
       const outputPath = join(subDir, "test-encrypted.db");
-      
+
       createTestDatabase(inputPath);
-      
+
       const result = execFileSync(
         process.execPath,
         [lexBin, "db", "encrypt", "--input", inputPath, "--output", outputPath, "--no-backup"],
         { encoding: "utf-8", env: getTestEnv(inputPath) }
       );
-      
+
       // Check that output does NOT mention backup
       assert.doesNotMatch(result, /Backup created:/, "Should not mention backup creation");
-      
+
       // Check that no backup file exists
       const files = readdirSync(subDir);
-      const backupFiles = files.filter(f => f.includes(".pre-encrypt."));
+      const backupFiles = files.filter((f) => f.includes(".pre-encrypt."));
       assert.strictEqual(backupFiles.length, 0, "Should not create any backup file");
-      
+
       // Verify encrypted output was still created
       assert.ok(existsSync(outputPath), "Encrypted output should exist");
     });
@@ -132,19 +139,23 @@ describe("Database Encryption Security (SEC-003)", () => {
       mkdirSync(subDir, { recursive: true });
       const inputPath = join(subDir, "test.db");
       const outputPath = join(subDir, "test-encrypted.db");
-      
+
       createTestDatabase(inputPath);
-      
+
       const result = execFileSync(
         process.execPath,
         [lexBin, "--json", "db", "encrypt", "--input", inputPath, "--output", outputPath],
         { encoding: "utf-8", env: getTestEnv(inputPath) }
       );
-      
+
       const json = JSON.parse(result.trim());
       assert.ok(json.success, "Operation should succeed");
       assert.ok(json.backup_path, "JSON should include backup_path");
-      assert.match(json.backup_path, /\.pre-encrypt\.\d{8}-\d{6}\.db$/, "backup_path should have correct format");
+      assert.match(
+        json.backup_path,
+        /\.pre-encrypt\.\d{8}-\d{6}\.db$/,
+        "backup_path should have correct format"
+      );
     });
   });
 
@@ -154,13 +165,13 @@ describe("Database Encryption Security (SEC-003)", () => {
       mkdirSync(subDir, { recursive: true });
       const inputPath = join(subDir, "test.db");
       const outputPath = join(subDir, "test-encrypted.db");
-      
+
       createTestDatabase(inputPath);
-      
+
       // Try to encrypt with wrong key (empty key should fail)
       const env = getTestEnv(inputPath);
       delete env.LEX_DB_KEY; // No passphrase - should fail
-      
+
       try {
         execFileSync(
           process.execPath,
@@ -171,13 +182,13 @@ describe("Database Encryption Security (SEC-003)", () => {
       } catch {
         // Expected to fail
       }
-      
+
       // Check no output file was created
       assert.ok(!existsSync(outputPath), "No output file should exist after error");
-      
+
       // Check no temp files were left behind
       const files = readdirSync(subDir);
-      const tempFiles = files.filter(f => f.includes(".tmp"));
+      const tempFiles = files.filter((f) => f.includes(".tmp"));
       assert.strictEqual(tempFiles.length, 0, "No temp files should remain after error");
     });
 
@@ -186,21 +197,21 @@ describe("Database Encryption Security (SEC-003)", () => {
       mkdirSync(subDir, { recursive: true });
       const inputPath = join(subDir, "test.db");
       const outputPath = join(subDir, "test-encrypted.db");
-      
+
       createTestDatabase(inputPath);
-      
+
       execFileSync(
         process.execPath,
         [lexBin, "db", "encrypt", "--input", inputPath, "--output", outputPath, "--no-backup"],
         { encoding: "utf-8", env: getTestEnv(inputPath) }
       );
-      
+
       // Verify output exists and is readable
       assert.ok(existsSync(outputPath), "Output file should exist");
-      
+
       // Check no temp files were left behind
       const files = readdirSync(subDir);
-      const tempFiles = files.filter(f => f.includes(".tmp"));
+      const tempFiles = files.filter((f) => f.includes(".tmp"));
       assert.strictEqual(tempFiles.length, 0, "No temp files should remain after success");
     });
   });
@@ -211,12 +222,12 @@ describe("Database Encryption Security (SEC-003)", () => {
       mkdirSync(subDir, { recursive: true });
       const inputPath = join(subDir, "test.db");
       const outputPath = join(subDir, "test-encrypted.db");
-      
+
       createTestDatabase(inputPath);
-      
+
       // Create existing output file
       writeFileSync(outputPath, "existing file");
-      
+
       try {
         execFileSync(
           process.execPath,
@@ -235,15 +246,25 @@ describe("Database Encryption Security (SEC-003)", () => {
       mkdirSync(subDir, { recursive: true });
       const inputPath = join(subDir, "test.db");
       const outputPath = join(subDir, "test-encrypted.db");
-      
+
       createTestDatabase(inputPath);
-      
+
       const result = execFileSync(
         process.execPath,
-        [lexBin, "db", "encrypt", "--input", inputPath, "--output", outputPath, "--no-backup", "--verify"],
+        [
+          lexBin,
+          "db",
+          "encrypt",
+          "--input",
+          inputPath,
+          "--output",
+          outputPath,
+          "--no-backup",
+          "--verify",
+        ],
         { encoding: "utf-8", env: getTestEnv(inputPath) }
       );
-      
+
       assert.match(result, /Verified:/, "Should show verification result");
       assert.match(result, /frames migrated successfully/, "Should show successful migration");
     });
@@ -388,7 +409,9 @@ describe("Database Encryption Migration Tests (SEC-002)", () => {
       destDb.pragma(`key="x'${encryptionKey}'"`);
       initializeDatabase(destDb);
 
-      const rows = sourceDbRead.prepare("SELECT * FROM frames").all() as Array<Record<string, unknown>>;
+      const rows = sourceDbRead.prepare("SELECT * FROM frames").all() as Array<
+        Record<string, unknown>
+      >;
       const columns = Object.keys(rows[0]);
 
       const placeholders = columns.map(() => "?").join(", ");
@@ -452,7 +475,7 @@ describe("Database Encryption Session Management (SEC-004)", () => {
   function createTestDatabaseWithFrames(dbPath: string, frameCount: number): void {
     const originalKey = process.env.LEX_DB_KEY;
     delete process.env.LEX_DB_KEY;
-    
+
     try {
       const db = createDatabase(dbPath);
       for (let i = 0; i < frameCount; i++) {
@@ -493,20 +516,20 @@ describe("Database Encryption Session Management (SEC-004)", () => {
       mkdirSync(subDir, { recursive: true });
       const inputPath = join(subDir, "test.db");
       const outputPath = join(subDir, "test-encrypted.db");
-      
+
       createTestDatabaseWithFrames(inputPath, 5);
-      
+
       const result = execFileSync(
         process.execPath,
         [lexBin, "db", "encrypt", "--input", inputPath, "--output", outputPath, "--dry-run"],
         { encoding: "utf-8", env: getTestEnv(inputPath) }
       );
-      
+
       // Verify dry-run output
       assert.match(result, /\[DRY RUN\]/, "Should indicate dry-run mode");
       assert.match(result, /5 frames to migrate/, "Should show frame count");
       assert.match(result, /Estimated migration time/, "Should show estimated time");
-      
+
       // Verify no output file was created
       assert.ok(!existsSync(outputPath), "Output file should not exist in dry-run mode");
     });
@@ -516,15 +539,25 @@ describe("Database Encryption Session Management (SEC-004)", () => {
       mkdirSync(subDir, { recursive: true });
       const inputPath = join(subDir, "test.db");
       const outputPath = join(subDir, "test-encrypted.db");
-      
+
       createTestDatabaseWithFrames(inputPath, 10);
-      
+
       const result = execFileSync(
         process.execPath,
-        [lexBin, "--json", "db", "encrypt", "--input", inputPath, "--output", outputPath, "--dry-run"],
+        [
+          lexBin,
+          "--json",
+          "db",
+          "encrypt",
+          "--input",
+          inputPath,
+          "--output",
+          outputPath,
+          "--dry-run",
+        ],
         { encoding: "utf-8", env: getTestEnv(inputPath) }
       );
-      
+
       const json = JSON.parse(result.trim());
       assert.ok(json.success, "Operation should succeed");
       assert.strictEqual(json.dry_run, true, "Should indicate dry_run in JSON");
@@ -538,9 +571,9 @@ describe("Database Encryption Session Management (SEC-004)", () => {
       mkdirSync(subDir, { recursive: true });
       const inputPath = join(subDir, "test.db");
       const outputPath = join(subDir, "test-encrypted.db");
-      
+
       createTestDatabaseWithFrames(inputPath, 3);
-      
+
       // Run without LEX_DB_KEY
       const env = {
         NODE_ENV: "test",
@@ -548,13 +581,13 @@ describe("Database Encryption Session Management (SEC-004)", () => {
         LEX_DB_PATH: inputPath,
         PATH: process.env.PATH,
       };
-      
+
       const result = execFileSync(
         process.execPath,
         [lexBin, "db", "encrypt", "--input", inputPath, "--output", outputPath, "--dry-run"],
         { encoding: "utf-8", env }
       );
-      
+
       assert.match(result, /\[DRY RUN\]/, "Should work without passphrase in dry-run mode");
     });
   });
@@ -565,28 +598,41 @@ describe("Database Encryption Session Management (SEC-004)", () => {
       mkdirSync(subDir, { recursive: true });
       const inputPath = join(subDir, "test.db");
       const outputPath = join(subDir, "test-encrypted.db");
-      
+
       createTestDatabaseWithFrames(inputPath, 25);
-      
+
       const result = execFileSync(
         process.execPath,
-        [lexBin, "db", "encrypt", "--input", inputPath, "--output", outputPath, "--batch-size", "5", "--no-backup"],
+        [
+          lexBin,
+          "db",
+          "encrypt",
+          "--input",
+          inputPath,
+          "--output",
+          outputPath,
+          "--batch-size",
+          "5",
+          "--no-backup",
+        ],
         { encoding: "utf-8", env: getTestEnv(inputPath) }
       );
-      
+
       assert.match(result, /Batch size: 5 rows/, "Should show batch size");
       assert.match(result, /25 frames/, "Should show frame count");
       assert.ok(existsSync(outputPath), "Encrypted output should exist");
-      
+
       // Verify encrypted database has all data
       const encryptionKey = deriveEncryptionKey("test-passphrase");
       const verifyDb = new Database(outputPath);
       verifyDb.pragma(`cipher='sqlcipher'`);
       verifyDb.pragma(`key="x'${encryptionKey}'"`);
-      
-      const count = (verifyDb.prepare("SELECT COUNT(*) as count FROM frames").get() as { count: number }).count;
+
+      const count = (
+        verifyDb.prepare("SELECT COUNT(*) as count FROM frames").get() as { count: number }
+      ).count;
       assert.strictEqual(count, 25, "All frames should be migrated");
-      
+
       verifyDb.close();
     });
 
@@ -595,15 +641,27 @@ describe("Database Encryption Session Management (SEC-004)", () => {
       mkdirSync(subDir, { recursive: true });
       const inputPath = join(subDir, "test.db");
       const outputPath = join(subDir, "test-encrypted.db");
-      
+
       createTestDatabaseWithFrames(inputPath, 10);
-      
+
       const result = execFileSync(
         process.execPath,
-        [lexBin, "--json", "db", "encrypt", "--input", inputPath, "--output", outputPath, "--batch-size", "3", "--no-backup"],
+        [
+          lexBin,
+          "--json",
+          "db",
+          "encrypt",
+          "--input",
+          inputPath,
+          "--output",
+          outputPath,
+          "--batch-size",
+          "3",
+          "--no-backup",
+        ],
         { encoding: "utf-8", env: getTestEnv(inputPath) }
       );
-      
+
       const json = JSON.parse(result.trim());
       assert.ok(json.success, "Operation should succeed");
       assert.strictEqual(json.batch_size, 3, "Should include batch_size in JSON output");
@@ -617,15 +675,25 @@ describe("Database Encryption Session Management (SEC-004)", () => {
       mkdirSync(subDir, { recursive: true });
       const inputPath = join(subDir, "test.db");
       const outputPath = join(subDir, "test-encrypted.db");
-      
+
       createTestDatabaseWithFrames(inputPath, 15);
-      
+
       const result = execFileSync(
         process.execPath,
-        [lexBin, "db", "encrypt", "--input", inputPath, "--output", outputPath, "--progress", "--no-backup"],
+        [
+          lexBin,
+          "db",
+          "encrypt",
+          "--input",
+          inputPath,
+          "--output",
+          outputPath,
+          "--progress",
+          "--no-backup",
+        ],
         { encoding: "utf-8", env: getTestEnv(inputPath) }
       );
-      
+
       // Progress lines contain "Migrating" text
       assert.match(result, /Migrating/, "Should show progress updates");
       assert.match(result, /frames/, "Should reference frames table");
@@ -637,15 +705,28 @@ describe("Database Encryption Session Management (SEC-004)", () => {
       mkdirSync(subDir, { recursive: true });
       const inputPath = join(subDir, "test.db");
       const outputPath = join(subDir, "test-encrypted.db");
-      
+
       createTestDatabaseWithFrames(inputPath, 20);
-      
+
       const result = execFileSync(
         process.execPath,
-        [lexBin, "db", "encrypt", "--input", inputPath, "--output", outputPath, "--progress", "--batch-size", "5", "--no-backup", "--verify"],
+        [
+          lexBin,
+          "db",
+          "encrypt",
+          "--input",
+          inputPath,
+          "--output",
+          outputPath,
+          "--progress",
+          "--batch-size",
+          "5",
+          "--no-backup",
+          "--verify",
+        ],
         { encoding: "utf-8", env: getTestEnv(inputPath) }
       );
-      
+
       assert.match(result, /Batch size: 5 rows/, "Should show batch size");
       assert.match(result, /Migrating/, "Should show progress updates");
       assert.match(result, /Verified:/, "Should verify data");

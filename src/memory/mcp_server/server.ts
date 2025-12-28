@@ -1008,7 +1008,7 @@ export class MCPServer {
     const needsFiltering = branch || module || since;
     const fetchLimit = needsFiltering ? MAX_FILTER_FETCH_LIMIT : limit;
 
-    const result = await this.frameStore.listFrames({ 
+    const result = await this.frameStore.listFrames({
       limit: fetchLimit,
       cursor: cursor,
     });
@@ -1092,7 +1092,7 @@ export class MCPServer {
         // Note: Cursor pagination is disabled when filters (branch, module, since) are applied
         // because post-fetch filtering makes it impossible to generate accurate nextCursor values.
         // In this case, all matching results are fetched and sliced client-side.
-        page: needsFiltering 
+        page: needsFiltering
           ? {
               limit: result.page.limit,
               nextCursor: null,
@@ -1624,7 +1624,11 @@ export class MCPServer {
    * - Common workflow patterns
    */
   private async handleHelp(args: Record<string, unknown>): Promise<MCPResponse> {
-    const { tool, examples = true, format = "full" } = args as {
+    const {
+      tool,
+      examples = true,
+      format = "full",
+    } = args as {
       tool?: string;
       examples?: boolean;
       format?: string;
@@ -2108,7 +2112,11 @@ export class MCPServer {
             "",
             "## Micro Examples",
             ...Object.entries(helpData.microExamples)
-              .map(([name, example]) => [`**${name}**`, `  in:  ${example.in}`, `  out: ${example.out}`])
+              .map(([name, example]) => [
+                `**${name}**`,
+                `  in:  ${example.in}`,
+                `  out: ${example.out}`,
+              ])
               .flat()
           );
         } else if (helpData.examples.length > 0) {

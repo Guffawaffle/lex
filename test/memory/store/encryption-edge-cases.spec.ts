@@ -336,10 +336,7 @@ describe("Encryption Edge Cases", () => {
 
       // Try to open with wrong key (should fail)
       process.env.LEX_DB_KEY = WRONG_PASSPHRASE;
-      assert.throws(
-        () => createDatabase(TEST_DB_PATH),
-        /Failed to open encrypted database/
-      );
+      assert.throws(() => createDatabase(TEST_DB_PATH), /Failed to open encrypted database/);
 
       // Reopen with correct key and verify data is intact
       process.env.LEX_DB_KEY = CORRECT_PASSPHRASE;

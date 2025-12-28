@@ -37,7 +37,10 @@ describe("Receipt Recovery Suggestions", () => {
     test("should return recovery suggestion for model_error", () => {
       const suggestion = getRecoverySuggestion("model_error");
 
-      assert.strictEqual(suggestion.action, "Escalate to senior tier or retry with different model");
+      assert.strictEqual(
+        suggestion.action,
+        "Escalate to senior tier or retry with different model"
+      );
       assert.strictEqual(suggestion.interventionType, "escalate");
       assert.ok(suggestion.rationale.includes("model"));
     });
@@ -94,10 +97,16 @@ describe("Receipt Recovery Suggestions", () => {
   describe("Intervention types", () => {
     test("should map failure classes to appropriate intervention types", () => {
       assert.strictEqual(getRecoverySuggestion("timeout").interventionType, "reduce_scope");
-      assert.strictEqual(getRecoverySuggestion("resource_exhaustion").interventionType, "chunk_task");
+      assert.strictEqual(
+        getRecoverySuggestion("resource_exhaustion").interventionType,
+        "chunk_task"
+      );
       assert.strictEqual(getRecoverySuggestion("model_error").interventionType, "escalate");
       assert.strictEqual(getRecoverySuggestion("context_overflow").interventionType, "chunk_task");
-      assert.strictEqual(getRecoverySuggestion("policy_violation").interventionType, "policy_review");
+      assert.strictEqual(
+        getRecoverySuggestion("policy_violation").interventionType,
+        "policy_review"
+      );
     });
   });
 });

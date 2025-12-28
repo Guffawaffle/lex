@@ -7,7 +7,10 @@
  */
 
 import { z } from "zod";
-import { Receipt as ReceiptSchema, UncertaintyMarker as UncertaintyMarkerSchema } from "./schema.js";
+import {
+  Receipt as ReceiptSchema,
+  UncertaintyMarker as UncertaintyMarkerSchema,
+} from "./schema.js";
 
 /**
  * Validation error with field path information
@@ -72,7 +75,12 @@ const KNOWN_RECEIPT_FIELDS = new Set([
 /**
  * Known fields in UncertaintyMarker schema
  */
-const KNOWN_UNCERTAINTY_MARKER_FIELDS = new Set(["stated", "actionTaken", "confidence", "mitigations"]);
+const KNOWN_UNCERTAINTY_MARKER_FIELDS = new Set([
+  "stated",
+  "actionTaken",
+  "confidence",
+  "mitigations",
+]);
 
 /**
  * Convert Zod error path to dot-notation string
@@ -193,7 +201,10 @@ export function validateReceiptPayload(data: unknown): ReceiptValidationResult {
       errors: [
         {
           path: "(root)",
-          message: data === null ? "Expected object, received null" : `Expected object, received ${typeof data}`,
+          message:
+            data === null
+              ? "Expected object, received null"
+              : `Expected object, received ${typeof data}`,
           code: "INVALID_TYPE",
         },
       ],
@@ -251,7 +262,10 @@ export function validateUncertaintyMarkerPayload(data: unknown): ReceiptValidati
       errors: [
         {
           path: "(root)",
-          message: data === null ? "Expected object, received null" : `Expected object, received ${typeof data}`,
+          message:
+            data === null
+              ? "Expected object, received null"
+              : `Expected object, received ${typeof data}`,
           code: "INVALID_TYPE",
         },
       ],

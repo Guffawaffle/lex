@@ -2,13 +2,13 @@
 
 ## Overview
 
-The **Mind Palace** system extends LexBrain's Frame-based memory with **reference points** and **Atlas Frames** to enable human-like recall without replaying full history or re-indexing entire codebases.
+The **Mind Palace** system extends Lex's Frame-based memory with **reference points** and **Atlas Frames** to enable human-like recall without replaying full history or re-indexing entire codebases.
 
 Instead of searching through all past work, you recall a **reference point** ("that auth bug when the Add User button was disabled") and the system expands only the relevant adjacent context.
 
 ## What is the Mind Palace System?
 
-The Mind Palace builds on LexBrain's Frame concept with two key additions:
+The Mind Palace builds on Lex's Frame concept with two key additions:
 
 ### 1. Reference Points
 
@@ -43,7 +43,7 @@ Together, reference points and Atlas Frames enable **instant, policy-aware conte
 When you capture a Frame with `/remember`, include a reference point:
 
 ```bash
-lexbrain remember \
+lex remember \
   --jira TICKET-123 \
   --branch feature/TICKET-123_auth_fix \
   --reference-point "Add User button still disabled" \
@@ -71,7 +71,7 @@ The reference point is stored in Frame metadata:
 Days later, you ask:
 
 ```bash
-lexbrain recall "Add User button"
+lex recall "Add User button"
 ```
 
 Or simply tell your assistant:
@@ -273,7 +273,7 @@ If yes, it's a good reference point.
 
 ```bash
 # Capture current state
-lexbrain remember \
+lex remember \
   --jira TICKET-123 \
   --reference-point "Add User button still disabled" \
   --summary "Admin panel still calling auth-core directly" \
@@ -287,7 +287,7 @@ git checkout hotfix/payment-crash
 
 # Return to original work
 git checkout feature/TICKET-123_auth_fix
-lexbrain recall "Add User button"
+lex recall "Add User button"
 ```
 
 Your assistant immediately knows:
@@ -303,12 +303,12 @@ Your assistant immediately knows:
 
 You:
 ```bash
-lexbrain recall "Add User button"
+lex recall "Add User button"
 ```
 
 Share the Frame ID with your teammate. They run:
 ```bash
-lexbrain recall frame_abc123
+lex recall frame_abc123
 ```
 
 They get:
@@ -325,7 +325,7 @@ No 30-minute explanation call needed.
 
 You:
 ```bash
-lexbrain recall "Add User button"
+lex recall "Add User button"
 ```
 
 Even if you don't remember the exact details, the reference point anchors you. The Atlas Frame shows which modules were involved, and you can see if the current bug is hitting the same policy boundary.
@@ -367,7 +367,7 @@ If you call something "Add User button" in one Frame, don't call it "New User wi
 Reference points are primary, but keywords supplement:
 
 ```bash
-lexbrain remember \
+lex remember \
   --reference-point "Add User button still disabled" \
   --keywords "auth,permissions,user-access-api,forbidden-service" \
   ...
@@ -380,7 +380,7 @@ If you forget the exact reference point, keyword search still works.
 Periodically check what reference points you've created:
 
 ```bash
-lexbrain list-references
+lex list-references
 ```
 
 If you see duplicates or vague ones, improve your naming for next time.
@@ -390,7 +390,7 @@ If you see duplicates or vague ones, improve your naming for next time.
 Always include both:
 
 ```bash
-lexbrain remember \
+lex remember \
   --jira TICKET-123 \
   --reference-point "Add User button still disabled" \
   ...
@@ -432,9 +432,9 @@ Atlas Frames snapshot policy **at capture time**. If policy changes, old Atlas F
 
 Best practice: When policy changes significantly, recapture Frames for active work.
 
-## Integration with Existing LexBrain Features
+## Integration with Existing Lex Features
 
-Mind Palace extends, not replaces, LexBrain's core features:
+Mind Palace extends, not replaces, Lex's core features:
 
 ### Frames
 
@@ -471,7 +471,7 @@ Without LexMap, you still get basic recall (via keywords/tickets), but **no Atla
 
 ## Privacy and Data Storage
 
-Mind Palace follows LexBrain's local-first principles:
+Mind Palace follows Lex's local-first principles:
 
 - **Reference points** - stored in local database (e.g. `/srv/lex-brain/thoughts.db`)
 - **Atlas Frames** - stored alongside Frames, same local database
@@ -489,7 +489,7 @@ If you enable optional sync (e.g. to your own S3 bucket), reference points and A
 
 ## See Also
 
-- [Architecture Loop](./ARCHITECTURE_LOOP.md) - How LexBrain + LexMap enable explainability
+- [Architecture Loop](./ARCHITECTURE_LOOP.md) - How Lex + LexMap enable explainability
 - [Adoption Guide](./ADOPTION_GUIDE.md) - Rolling out Mind Palace in your workflow
 - [FAQ](./FAQ.md) - Privacy, security, and compliance
 - [LexMap Documentation](https://github.com/yourorg/LexMap) - Policy and module coordinates

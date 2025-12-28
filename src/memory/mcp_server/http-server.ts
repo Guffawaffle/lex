@@ -160,7 +160,7 @@ export function createHttpServer(db: Database.Database, options: HttpServerOptio
 
   // Mount frames router with new auth middleware
   const framesRouter = createFramesRouter(db, options.apiKey || "", authFailureLimiter);
-  
+
   // Apply authentication middleware to frames routes
   app.use("/api/frames", authMiddleware, framesRouter);
 

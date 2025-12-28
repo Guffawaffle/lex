@@ -21,13 +21,13 @@ describe("MCP Server - lex.policy_check", () => {
   function setup(policyContent?: string) {
     testDir = mkdtempSync(join(tmpdir(), "lex-policy-test-"));
     testDbPath = join(testDir, "test-frames.db");
-    
+
     // Create a valid policy file if content provided
     if (policyContent) {
       const policyPath = join(testDir, "lexmap.policy.json");
       writeFileSync(policyPath, policyContent, "utf-8");
     }
-    
+
     server = new MCPServer(testDbPath, testDir);
     return server;
   }
@@ -108,10 +108,14 @@ describe("MCP Server - lex.policy_check", () => {
 
       // Should return an error for invalid JSON
       assert.ok(response.error, "Should return an error");
-      assert.strictEqual(response.error.code, "POLICY_INVALID", "Should use POLICY_INVALID error code");
+      assert.strictEqual(
+        response.error.code,
+        "POLICY_INVALID",
+        "Should use POLICY_INVALID error code"
+      );
       assert.ok(
         response.error.message.includes("Policy validation failed") ||
-        response.error.message.includes("JSON"),
+          response.error.message.includes("JSON"),
         "Error should indicate JSON parsing failure"
       );
     } finally {
@@ -134,10 +138,13 @@ describe("MCP Server - lex.policy_check", () => {
       });
 
       assert.ok(response.error, "Should return error");
-      assert.strictEqual(response.error.code, "POLICY_NOT_FOUND", "Should use POLICY_NOT_FOUND error code");
+      assert.strictEqual(
+        response.error.code,
+        "POLICY_NOT_FOUND",
+        "Should use POLICY_NOT_FOUND error code"
+      );
       assert.ok(
-        response.error.message.includes("not found") ||
-        response.error.message.includes("ENOENT"),
+        response.error.message.includes("not found") || response.error.message.includes("ENOENT"),
         "Error should indicate policy file not found"
       );
     } finally {
@@ -204,10 +211,7 @@ describe("MCP Server - lex.policy_check", () => {
       });
 
       // Should either succeed with a valid policy or fail gracefully
-      assert.ok(
-        response.content || response.error,
-        "Should return either content or error"
-      );
+      assert.ok(response.content || response.error, "Should return either content or error");
     } finally {
       await teardown();
     }
@@ -220,28 +224,19 @@ describe("MCP Server - lex.policy_check", () => {
 
       assert.ok(response.tools, "Response should have tools array");
       const toolNames = response.tools.map((t: any) => t.name);
-      assert.ok(
-        toolNames.includes("policy_check"),
-        "Should include lex_policy_check tool"
-      );
+      assert.ok(toolNames.includes("policy_check"), "Should include lex_policy_check tool");
 
       // Find the policy_check tool and verify its schema
       const policyCheckTool = response.tools.find((t: any) => t.name === "policy_check");
       assert.ok(policyCheckTool, "Should find policy_check tool");
       assert.ok(policyCheckTool.description, "Tool should have description");
       assert.ok(policyCheckTool.inputSchema, "Tool should have input schema");
-      assert.ok(
-        policyCheckTool.inputSchema.properties.path,
-        "Should have path parameter"
-      );
+      assert.ok(policyCheckTool.inputSchema.properties.path, "Should have path parameter");
       assert.ok(
         policyCheckTool.inputSchema.properties.policyPath,
         "Should have policyPath parameter"
       );
-      assert.ok(
-        policyCheckTool.inputSchema.properties.strict,
-        "Should have strict parameter"
-      );
+      assert.ok(policyCheckTool.inputSchema.properties.strict, "Should have strict parameter");
     } finally {
       await teardown();
     }

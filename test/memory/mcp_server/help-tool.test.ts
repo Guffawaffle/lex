@@ -465,14 +465,8 @@ describe("Help MCP Tool (AX #577)", () => {
         const firstExample = Object.values(microExamples)[0];
         assert.ok(firstExample.in, "Micro example should have 'in' field");
         assert.ok(firstExample.out, "Micro example should have 'out' field");
-        assert.ok(
-          typeof firstExample.in === "string",
-          "Micro example 'in' should be a string"
-        );
-        assert.ok(
-          typeof firstExample.out === "string",
-          "Micro example 'out' should be a string"
-        );
+        assert.ok(typeof firstExample.in === "string", "Micro example 'in' should be a string");
+        assert.ok(typeof firstExample.out === "string", "Micro example 'out' should be a string");
       } finally {
         await teardown();
       }
@@ -662,10 +656,7 @@ describe("Help MCP Tool (AX #577)", () => {
           });
 
           const data = response.data as Record<string, unknown>;
-          assert.ok(
-            data.microExamples,
-            `${toolName} should have microExamples when format=micro`
-          );
+          assert.ok(data.microExamples, `${toolName} should have microExamples when format=micro`);
 
           const microExamples = data.microExamples as Record<string, { in: string; out: string }>;
           assert.ok(

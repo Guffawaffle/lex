@@ -195,7 +195,7 @@ function formatDuration(ms: number): string {
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
   const seconds = totalSeconds % 60;
-  
+
   if (hours > 0) {
     return `${hours}h ${minutes}m ${seconds}s`;
   }
@@ -218,20 +218,20 @@ interface ProgressState {
 
 function updateProgress(state: ProgressState, json: boolean): void {
   if (json) return; // No progress in JSON mode
-  
+
   const elapsed = Date.now() - state.startTime;
   const rowsPerMs = state.processedRows / (elapsed || 1);
   const remainingRows = state.totalRows - state.processedRows;
   const estimatedRemainingMs = remainingRows / (rowsPerMs || 1);
-  
-  const percent = state.totalRows > 0 
-    ? Math.round((state.processedRows / state.totalRows) * 100) 
-    : 100;
-  
-  const etaStr = estimatedRemainingMs > 0 && state.processedRows > 0
-    ? ` ETA: ${formatDuration(estimatedRemainingMs)}`
-    : "";
-  
+
+  const percent =
+    state.totalRows > 0 ? Math.round((state.processedRows / state.totalRows) * 100) : 100;
+
+  const etaStr =
+    estimatedRemainingMs > 0 && state.processedRows > 0
+      ? ` ETA: ${formatDuration(estimatedRemainingMs)}`
+      : "";
+
   // Use carriage return to overwrite the same line
   process.stdout.write(
     `\r• Migrating ${state.tableName}: ${state.processedRows}/${state.totalRows} rows (${percent}%)${etaStr}   `
@@ -250,27 +250,26 @@ const VALID_SQL_IDENTIFIER_PATTERN = /^[a-zA-Z0-9_]+$/;
 /**
  * Validate that a SQL identifier (table or column name) matches the expected pattern.
  * This prevents SQL injection even though identifiers come from the schema.
- * 
+ *
  * @param identifier - The identifier to validate
  * @param type - Type of identifier for error messaging ("table" or "column")
  * @param context - Additional context for error messaging (e.g., table name for columns)
  * @throws Error if identifier doesn't match the pattern
  */
-function validateSqlIdentifier(identifier: string, type: "table" | "column", context?: string): void {
+function validateSqlIdentifier(
+  identifier: string,
+  type: "table" | "column",
+  context?: string
+): void {
   if (!VALID_SQL_IDENTIFIER_PATTERN.test(identifier)) {
     const contextStr = context ? ` in ${context}` : "";
     const errorCode = type === "table" ? "INVALID_TABLE_NAME" : "INVALID_COLUMN_NAME";
     const errorMessage = `Invalid ${type} name detected${contextStr}: ${identifier}`;
     const nextActions = [
       `Ensure the database schema uses valid ${type} names`,
-      `Check that no special characters are present in ${type} names`
+      `Check that no special characters are present in ${type} names`,
     ];
-    throw new AXErrorException(
-      errorCode,
-      errorMessage,
-      nextActions,
-      { identifier, type, context }
-    );
+    throw new AXErrorException(errorCode, errorMessage, nextActions, { identifier, type, context });
   }
 }
 
@@ -278,7 +277,7 @@ function validateSqlIdentifier(identifier: string, type: "table" | "column", con
  * Encrypt an existing database with SQLCipher
  *
  * Migrates an unencrypted database to an encrypted one, with data integrity verification.
- * 
+ *
  * Security features:
  * - Creates a timestamped backup before encryption (unless --no-backup)
  * - Uses atomic file creation via temp+rename pattern to prevent TOCTOU race conditions
@@ -309,8 +308,8 @@ export async function dbEncrypt(options: DbEncryptOptions = {}): Promise<void> {
         "DB_ENCRYPTION_KEY_MISSING",
         "Encryption passphrase is required. Set LEX_DB_KEY environment variable.",
         [
-          "Set the LEX_DB_KEY environment variable: export LEX_DB_KEY=\"your-passphrase\"",
-          "Ensure the passphrase is secure and backed up safely"
+          'Set the LEX_DB_KEY environment variable: export LEX_DB_KEY="your-passphrase"',
+          "Ensure the passphrase is secure and backed up safely",
         ],
         { operation: "dbEncrypt" }
       );
@@ -324,7 +323,7 @@ export async function dbEncrypt(options: DbEncryptOptions = {}): Promise<void> {
         [
           "Run `lex init` to create the database",
           "Check that LEX_DB_PATH environment variable points to the correct location",
-          "Verify the database file path is correct"
+          "Verify the database file path is correct",
         ],
         { path: inputPath, operation: "dbEncrypt" }
       );
@@ -339,7 +338,7 @@ export async function dbEncrypt(options: DbEncryptOptions = {}): Promise<void> {
         [
           "Remove the existing output database file",
           "Choose a different output path using --output option",
-          "Backup the existing file if needed before removing"
+          "Backup the existing file if needed before removing",
         ],
         { outputPath, inputPath, operation: "dbEncrypt" }
       );
@@ -347,10 +346,10 @@ export async function dbEncrypt(options: DbEncryptOptions = {}): Promise<void> {
 
     logger.info("Starting database encryption", {
       operation: "dbEncrypt",
-      metadata: { 
-        inputPath, 
-        outputPath, 
-        verify: options.verify, 
+      metadata: {
+        inputPath,
+        outputPath,
+        verify: options.verify,
         backup: shouldBackup,
         batchSize,
         dryRun: isDryRun,
@@ -418,22 +417,24 @@ export async function dbEncrypt(options: DbEncryptOptions = {}): Promise<void> {
     }
 
     // Get frame count specifically for backward compatibility
-    const framesTable = tableStats.find(t => t.name === "frames");
+    const framesTable = tableStats.find((t) => t.name === "frames");
     const totalRows = framesTable?.rowCount ?? 0;
 
     if (!options.json) {
-      output.info(`Found ${totalRows} frames to migrate (${totalRowsAllTables} total rows across ${tableNames.length} tables)`);
+      output.info(
+        `Found ${totalRows} frames to migrate (${totalRowsAllTables} total rows across ${tableNames.length} tables)`
+      );
     }
 
     // Dry-run mode: estimate and exit
     if (isDryRun) {
       sourceDb.close();
-      
+
       // Estimate time based on typical throughput
       const estimatedMs = (totalRowsAllTables / ESTIMATED_ROWS_PER_SECOND) * 1000;
-      
+
       const duration = Date.now() - startTime;
-      
+
       logger.info("Dry run completed", {
         operation: "dbEncrypt",
         duration_ms: duration,
@@ -524,10 +525,10 @@ export async function dbEncrypt(options: DbEncryptOptions = {}): Promise<void> {
           for (let i = 0; i < rows.length; i += batchSize) {
             const batch = rows.slice(i, i + batchSize) as Record<string, unknown>[];
             insertBatch(batch);
-            
+
             progressState.processedRows = Math.min(i + batchSize, rows.length);
             totalProcessedRows += batch.length;
-            
+
             if (showProgress) {
               updateProgress(progressState, options.json ?? false);
             }
@@ -542,7 +543,7 @@ export async function dbEncrypt(options: DbEncryptOptions = {}): Promise<void> {
               const values = columns.map((col) => row[col]);
               stmt.run(...values);
               rowIdx++;
-              
+
               // Update progress periodically for large tables
               if (showProgress && rowIdx % PROGRESS_UPDATE_INTERVAL === 0) {
                 progressState.processedRows = rowIdx;
@@ -597,7 +598,7 @@ export async function dbEncrypt(options: DbEncryptOptions = {}): Promise<void> {
           [
             "Check for database corruption during encryption",
             "Retry the encryption operation",
-            "Restore from backup if available"
+            "Restore from backup if available",
           ],
           { totalRows, verifiedRows, inputPath, outputPath, operation: "dbEncrypt" }
         );
@@ -645,7 +646,7 @@ export async function dbEncrypt(options: DbEncryptOptions = {}): Promise<void> {
     if (showProgress) {
       clearProgress(options.json ?? false);
     }
-    
+
     // Cleanup temp file on error
     if (tempPath && existsSync(tempPath)) {
       try {
@@ -692,14 +693,14 @@ function createEncryptionBackup(inputPath: string): string {
   const minutes = String(now.getMinutes()).padStart(2, "0");
   const seconds = String(now.getSeconds()).padStart(2, "0");
   const timestamp = `${year}${month}${day}-${hours}${minutes}${seconds}`;
-  
+
   const inputDir = dirname(inputPath);
   const fullBasename = basename(inputPath);
   // Remove .db or .sqlite extension if present, otherwise use full basename
   const inputBasename = fullBasename.replace(/\.(db|sqlite)$/, "");
   const backupFilename = `${inputBasename}.pre-encrypt.${timestamp}.db`;
   const backupPath = join(inputDir, backupFilename);
-  
+
   copyFileSync(inputPath, backupPath);
   return backupPath;
 }
@@ -730,7 +731,7 @@ function calculateDatabaseChecksum(dbPath: string): string {
         `Invalid table name detected during checksum: ${name}`,
         [
           "Ensure the database schema uses valid table names",
-          "Check that no special characters are present in table names"
+          "Check that no special characters are present in table names",
         ],
         { tableName: name, operation: "calculateChecksum" }
       );
@@ -751,7 +752,7 @@ function calculateDatabaseChecksum(dbPath: string): string {
           `Invalid column name detected in table "${name}": ${col}`,
           [
             "Ensure the database schema uses valid column names",
-            "Check that no special characters are present in column names"
+            "Check that no special characters are present in column names",
           ],
           { tableName: name, columnName: col, operation: "calculateChecksum" }
         );
@@ -850,7 +851,9 @@ export async function receiptCreate(options: ReceiptCreateOptions): Promise<void
         error: error instanceof Error ? error.message : String(error),
       });
     } else {
-      output.error(`Failed to create receipt: ${error instanceof Error ? error.message : String(error)}`);
+      output.error(
+        `Failed to create receipt: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
     process.exit(1);
   }
@@ -910,7 +913,9 @@ export async function receiptValidate(options: ReceiptValidateOptions): Promise<
         error: error instanceof Error ? error.message : String(error),
       });
     } else {
-      output.error(`Failed to validate receipt: ${error instanceof Error ? error.message : String(error)}`);
+      output.error(
+        `Failed to validate receipt: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
     process.exit(1);
   }
@@ -983,23 +988,25 @@ export async function dbStats(options: DbStatsOptions = {}): Promise<void> {
     let newestDate: string | null = null;
 
     if (totalFrames > 0) {
-      const oldestResult = db
-        .prepare("SELECT MIN(timestamp) as oldest FROM frames")
-        .get() as { oldest: string | null };
+      const oldestResult = db.prepare("SELECT MIN(timestamp) as oldest FROM frames").get() as {
+        oldest: string | null;
+      };
       oldestDate = oldestResult.oldest;
 
-      const newestResult = db
-        .prepare("SELECT MAX(timestamp) as newest FROM frames")
-        .get() as { newest: string | null };
+      const newestResult = db.prepare("SELECT MAX(timestamp) as newest FROM frames").get() as {
+        newest: string | null;
+      };
       newestDate = newestResult.newest;
     }
 
     // Get module distribution
     const moduleDistribution: Record<string, number> = {};
-    
+
     // Get all frames and parse module_scope
     // For large databases, we iterate rather than load all at once
-    const frameIterator = db.prepare("SELECT module_scope FROM frames").iterate() as IterableIterator<{
+    const frameIterator = db
+      .prepare("SELECT module_scope FROM frames")
+      .iterate() as IterableIterator<{
       module_scope: string;
     }>;
 
@@ -1034,9 +1041,9 @@ export async function dbStats(options: DbStatsOptions = {}): Promise<void> {
     // Get receipts count (check if table exists first)
     let receiptsCount = 0;
     try {
-      const receiptsCountResult = db
-        .prepare("SELECT COUNT(*) as count FROM receipts")
-        .get() as { count: number };
+      const receiptsCountResult = db.prepare("SELECT COUNT(*) as count FROM receipts").get() as {
+        count: number;
+      };
       receiptsCount = receiptsCountResult.count;
     } catch {
       // Table doesn't exist yet (pre-migration V8)
@@ -1114,8 +1121,11 @@ export async function dbStats(options: DbStatsOptions = {}): Promise<void> {
         }
 
         if (!options.detailed && otherCount > 0) {
-          const otherPercentage = totalFrames > 0 ? Math.round((otherCount / totalFrames) * 100) : 0;
-          output.info(`  ${"(other)".padEnd(maxModuleLength)} ${otherCount} frames (${otherPercentage}%)`);
+          const otherPercentage =
+            totalFrames > 0 ? Math.round((otherCount / totalFrames) * 100) : 0;
+          output.info(
+            `  ${"(other)".padEnd(maxModuleLength)} ${otherCount} frames (${otherPercentage}%)`
+          );
         }
         output.info("");
       }

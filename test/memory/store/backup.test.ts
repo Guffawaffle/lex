@@ -73,10 +73,7 @@ describe("Database Backup and Maintenance", () => {
   test("should create database backup", () => {
     const backupPath = backupDatabase(testDbPath, 0, testWorkspaceRoot);
     assert.ok(existsSync(backupPath), "Backup file should exist");
-    assert.ok(
-      backupPath.includes("memory-"),
-      "Backup filename should start with memory-"
-    );
+    assert.ok(backupPath.includes("memory-"), "Backup filename should start with memory-");
     assert.ok(backupPath.endsWith(".sqlite"), "Backup filename should end with .sqlite");
   });
 
@@ -92,9 +89,7 @@ describe("Database Backup and Maintenance", () => {
     // Rotate, keeping only 3
     rotateBackups(backupDir, 3);
 
-    const backups = readdirSync(backupDir).filter((f) =>
-      f.startsWith("memory-")
-    );
+    const backups = readdirSync(backupDir).filter((f) => f.startsWith("memory-"));
     assert.strictEqual(backups.length, 3, "Should keep only 3 backups");
   });
 
@@ -106,9 +101,7 @@ describe("Database Backup and Maintenance", () => {
       backupDatabase(testDbPath, 2, testWorkspaceRoot);
     }
 
-    const backups = readdirSync(backupDir).filter((f) =>
-      f.startsWith("memory-")
-    );
+    const backups = readdirSync(backupDir).filter((f) => f.startsWith("memory-"));
     assert.ok(backups.length <= 2, "Should keep at most 2 backups");
   });
 
@@ -137,7 +130,7 @@ describe("Database Backup and Maintenance", () => {
 
   test("should vacuum database", () => {
     const db = createDatabase(testDbPath);
-    
+
     // Vacuum should not throw
     assert.doesNotThrow(() => {
       vacuumDatabase(db);
