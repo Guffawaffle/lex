@@ -110,6 +110,7 @@
     "copy-canon": "node scripts/copy-canon.js",
     "clean": "tsc -b tsconfig.build.json --clean && rimraf dist prompts schemas",
     "validate-schemas": "node scripts/validate-schemas.js",
+    "validate-docs": "node scripts/validate-docs.mjs",
     "prompts:lint": "node scripts/lint-prompts.js",
     "type-check": "tsc -p tsconfig.build.json --noEmit",
     "check-sqlite": "npx tsx scripts/check-sqlite-bindings.ts",

@@ -81,7 +81,7 @@ If you're capturing more than 5–10 Frames per day, you're probably over-captur
 You're working on `TICKET-123`. Tests are failing. You've identified the blocker:
 
 ```bash
-lexbrain remember \
+lex remember \
   --jira TICKET-123 \
   --branch feature/TICKET-123_auth_handshake_fix \
   --summary "Auth handshake timeout; Add User button still disabled" \
@@ -92,7 +92,7 @@ lexbrain remember \
 The next morning:
 
 ```bash
-lexbrain recall TICKET-123
+lex recall TICKET-123
 ```
 
 You get:
@@ -108,7 +108,7 @@ Your assistant can now continue from there without you re-explaining.
 
 - **Be specific in `--summary`** — "Auth timeout" is vague; "Auth handshake timeout on connect_handshake_ms; Add User button still disabled" is useful
 - **Always set `--next`** — this is for Future You; make it actionable
-- **Use `--context`** — point to logs, diffs, or error output; LexBrain will render them in the memory card
+- **Use `--context`** — point to logs, diffs, or error output; Lex will render them in the memory card
 
 ---
 
@@ -135,7 +135,7 @@ When you call `/remember`, always provide:
 ### Example
 
 ```bash
-lexbrain remember \
+lex remember \
   --jira TICKET-123 \
   --branch feature/TICKET-123_auth_handshake_fix \
   --summary "Auth handshake timeout; Add User button still disabled" \
@@ -158,13 +158,13 @@ All of these return the same Frame.
 
 ### Goal
 
-Wire LexBrain to LexMap so `module_scope` gets populated with canonical module IDs from your architecture policy.
+Wire Lex to LexMap so `module_scope` gets populated with canonical module IDs from your architecture policy.
 
 ### Why This Matters
 
-Without `module_scope`, LexBrain gives you continuity ("what was I doing yesterday?").
+Without `module_scope`, Lex gives you continuity ("what was I doing yesterday?").
 
-With `module_scope`, LexBrain + LexMap gives you **policy-aware reasoning** ("why is this button still disabled? Because the UI is calling a forbidden module, which violates policy.").
+With `module_scope`, Lex + LexMap gives you **policy-aware reasoning** ("why is this button still disabled? Because the UI is calling a forbidden module, which violates policy.").
 
 ### THE CRITICAL RULE
 
@@ -189,9 +189,9 @@ This rule is the bridge.
    pnpm install
    ```
 
-2. **Configure LexBrain to call LexMap for module resolution**
+2. **Configure Lex to call LexMap for module resolution**
 
-   Edit `lexbrain.config.json`:
+   Edit `lex.config.json`:
 
    ```json
    {
@@ -205,7 +205,7 @@ This rule is the bridge.
 3. **Capture a Frame and verify `module_scope` is populated**
 
    ```bash
-   lexbrain remember \
+   lex remember \
      --jira TICKET-123 \
      --branch feature/TICKET-123_auth_handshake_fix \
      --summary "Auth handshake timeout; Add User button still disabled" \
@@ -216,7 +216,7 @@ This rule is the bridge.
    Recall it:
 
    ```bash
-   lexbrain recall TICKET-123
+   lex recall TICKET-123
    ```
 
    You should see:
@@ -233,7 +233,7 @@ This rule is the bridge.
    **Important:** Module IDs are validated strictly. If you make a typo, you'll get a helpful error:
 
    ```bash
-   lexbrain remember --jira TICKET-123 \
+   lex remember --jira TICKET-123 \
      --summary "Auth work" \
      --modules "auth-cor"  # Typo!
 
@@ -265,18 +265,18 @@ This rule is the bridge.
 
 ### Goal
 
-Wire your assistant (GitHub Copilot, Claude, etc.) to call `lexbrain recall <ticket>` when you ask about past work.
+Wire your assistant (GitHub Copilot, Claude, etc.) to call `lex recall <ticket>` when you ask about past work.
 
 ### How to Do This
 
-1. **Configure your assistant to call LexBrain via MCP**
+1. **Configure your assistant to call Lex via MCP**
 
    Add this to your MCP config (e.g. `mcp-config.json`):
 
    ```json
    {
      "mcpServers": {
-       "lexbrain": {
+       "lex": {
          "command": "/srv/lex-brain/mcp-stdio.mjs",
          "env": {
            "LEXBRAIN_DB": "/srv/lex-brain/thoughts.db"
@@ -293,7 +293,7 @@ Wire your assistant (GitHub Copilot, Claude, etc.) to call `lexbrain recall <tic
    > "What was I doing on TICKET-123?"
 
    The assistant should:
-   - Call `lexbrain recall TICKET-123` via MCP
+   - Call `lex recall TICKET-123` via MCP
    - Get the Frame
    - Answer: "You were diagnosing an auth handshake timeout. The Add User button was still disabled. You left a note to enable it for the `can_manage_users` role. Here's the memory card from 11:04 PM last night."
 
@@ -309,7 +309,7 @@ Wire your assistant (GitHub Copilot, Claude, etc.) to call `lexbrain recall <tic
 
 ## Strong Guidance: Do NOT Auto-Capture Everything
 
-LexBrain is **not** surveillance.
+Lex is **not** surveillance.
 
 You should capture 5–10 Frames per day, max. Only capture "this matters" moments:
 
@@ -334,7 +334,7 @@ The rule: **If it's not worth explaining to a teammate, don't capture it.**
 
 | Phase | Goal | Key Action |
 |-------|------|------------|
-| **Phase 1** | Prove LexBrain works | Capture and recall a test Frame |
+| **Phase 1** | Prove Lex works | Capture and recall a test Frame |
 | **Phase 2** | Build muscle memory | Use `/remember` at meaningful checkpoints |
 | **Phase 3** | Make Frames searchable | Always tag with ticket ID, summary, and next action |
 | **Phase 4** | Add policy-aware reasoning | Wire LexMap so `module_scope` is populated |
@@ -353,7 +353,7 @@ By Phase 6 (Mind Palace), you can also:
 - Get structural context via Atlas Frames (module neighborhoods + policy boundaries)
 - Use fold radius to control context expansion
 
-That's the value of LexBrain.
+That's the value of Lex.
 
 ---
 
@@ -365,7 +365,7 @@ Upgrade to reference point-based recall with Atlas Frames for even faster, more 
 
 ### What is Mind Palace?
 
-Mind Palace extends LexBrain with:
+Mind Palace extends Lex with:
 - **Reference points** - human-memorable anchor phrases ("Add User button still disabled")
 - **Atlas Frames** - structural snapshots of relevant module neighborhoods
 - **Fold radius** - controlled context expansion to prevent token bloat
@@ -378,7 +378,7 @@ Instead of searching by ticket ID, you recall by natural phrasing.
 
 ### Prerequisites
 
-1. **LexBrain working** - Phases 1-5 complete
+1. **Lex working** - Phases 1-5 complete
 2. **LexMap configured** - Mind Palace requires LexMap for module coordinates
 3. **Policy has coordinates** - Your `lexmap.policy.json` must include module coordinates
 
@@ -446,9 +446,9 @@ You should see:
 }
 ```
 
-### Step 3: Enable Mind Palace in LexBrain
+### Step 3: Enable Mind Palace in Lex
 
-Edit `lexbrain.config.json`:
+Edit `lex.config.json`:
 
 ```json
 {
@@ -467,7 +467,7 @@ Edit `lexbrain.config.json`:
 ### Step 4: Capture a Frame with Reference Point
 
 ```bash
-lexbrain remember \
+lex remember \
   --jira TICKET-456 \
   --branch feature/TICKET-456_payment_fix \
   --reference-point "Payment webhook timeout on staging" \
@@ -479,7 +479,7 @@ lexbrain remember \
 ### Step 5: Recall by Reference Point
 
 ```bash
-lexbrain recall "Payment webhook"
+lex recall "Payment webhook"
 ```
 
 Or ask your assistant:
@@ -528,10 +528,10 @@ If you have existing Frames without reference points, you can backfill them:
 
 ```bash
 # Manual approach: recall and re-capture with reference point
-lexbrain recall TICKET-123
+lex recall TICKET-123
 
 # Copy the summary to create a reference point
-lexbrain remember \
+lex remember \
   --jira TICKET-123 \
   --reference-point "Add User button still disabled" \
   --summary "<copy from previous Frame>" \
@@ -541,7 +541,7 @@ lexbrain remember \
 Or use the migration tool (if available):
 
 ```bash
-lexbrain migrate add-reference-points \
+lex migrate add-reference-points \
   --dry-run \
   --strategy extract-from-summary
 ```
@@ -552,17 +552,17 @@ Test different recall patterns:
 
 **By reference point:**
 ```bash
-lexbrain recall "payment webhook"
+lex recall "payment webhook"
 ```
 
 **By ticket ID (still works):**
 ```bash
-lexbrain recall TICKET-456
+lex recall TICKET-456
 ```
 
 **By keyword (fallback):**
 ```bash
-lexbrain recall "timeout"
+lex recall "timeout"
 ```
 
 All should return the same Frame + Atlas Frame.
@@ -572,7 +572,7 @@ All should return the same Frame + Atlas Frame.
 If you need more context, increase the fold radius:
 
 ```bash
-lexbrain recall "payment webhook" --fold-radius 2
+lex recall "payment webhook" --fold-radius 2
 ```
 
 This includes 2-hop neighbors instead of just 1-hop.
@@ -595,35 +595,35 @@ Start with radius 1 (default). Only increase if needed.
 
 ### "My `module_scope` is empty"
 
-- Check that LexMap is configured in `lexbrain.config.json`
+- Check that LexMap is configured in `lex.config.json`
 - Check that the files you touched are recognized by LexMap (run `lexmap scan` and verify the output)
-- Check that the module IDs in `lexmap.policy.json` match what LexBrain is trying to resolve
+- Check that the module IDs in `lexmap.policy.json` match what Lex is trying to resolve
 
 ### "My assistant isn't calling `/recall`"
 
-- Check that LexBrain is configured in your MCP config
-- Check that the assistant has access to the `lexbrain` MCP server
-- Try calling it manually via MCP to verify it works: `mcp call lexbrain recall TICKET-123`
+- Check that Lex is configured in your MCP config
+- Check that the assistant has access to the `lex` MCP server
+- Try calling it manually via MCP to verify it works: `mcp call lex recall TICKET-123`
 
 ### "Atlas Frames aren't being generated"
 
 - Verify LexMap is configured and accessible: `lexmap version`
 - Check that your `lexmap.policy.json` includes coordinates for modules
 - Test adjacency export manually: `lexmap export-adjacency --reference-module <module> --fold-radius 1`
-- Check `mind_palace.enabled` is `true` in `lexbrain.config.json`
+- Check `mind_palace.enabled` is `true` in `lex.config.json`
 
 ### "Reference point recall doesn't find my Frame"
 
-- Check the exact reference point text: `lexbrain list-references`
+- Check the exact reference point text: `lex list-references`
 - Try a shorter query: "payment webhook" instead of "payment webhook timeout on staging"
-- Verify normalization: `lexbrain debug-normalize "payment webhook"`
+- Verify normalization: `lex debug-normalize "payment webhook"`
 - Fall back to ticket ID if fuzzy matching fails: `/recall TICKET-456`
 
 ### "Atlas Frame shows stale modules"
 
 - Your policy may have changed since the Frame was captured
 - Atlas Frames snapshot policy **at capture time**
-- Re-capture the Frame to get updated Atlas Frame: `lexbrain remember --jira TICKET-456 --reference-point "..." --summary "..."`
+- Re-capture the Frame to get updated Atlas Frame: `lex remember --jira TICKET-456 --reference-point "..." --summary "..."`
 
 ---
 
@@ -633,4 +633,4 @@ Start with radius 1 (default). Only increase if needed.
 - Read [Mind Palace Architecture](./MIND_PALACE_ARCHITECTURE.md) for implementation details
 - Read [Architecture Loop](./ARCHITECTURE_LOOP.md) to understand the full explainability story
 - Read [FAQ](./FAQ.md) for privacy, security, and compliance questions
-- Read [Contributing](../CONTRIBUTING.md) to extend LexBrain safely
+- Read [Contributing](../CONTRIBUTING.md) to extend Lex safely
