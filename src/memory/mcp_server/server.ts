@@ -364,10 +364,14 @@ export class MCPServer {
       lex_get_frame: "frame_get",
       list_frames: "frame_list",
       lex_list_frames: "frame_list",
+      // Note: lex_policy_check is the v2.0.x prefixed version (deprecated)
+      // but policy_check itself is the canonical name (already compliant)
       lex_policy_check: "policy_check",
+      timeline: "timeline_show",
       lex_timeline: "timeline_show",
       code_atlas: "atlas_analyze",
       lex_code_atlas: "atlas_analyze",
+      introspect: "system_introspect",
       lex_introspect: "system_introspect",
       get_hints: "hints_get",
       lex_help: "help",

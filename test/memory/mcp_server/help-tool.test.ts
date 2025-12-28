@@ -283,7 +283,7 @@ describe("Help MCP Tool (AX #577)", () => {
   });
 
   describe("Related tools", () => {
-    test("remember should list recall as related", async () => {
+    test("frame_create should list frame_search as related", async () => {
       const srv = setup();
       try {
         const response = await srv.handleRequest({
@@ -297,13 +297,16 @@ describe("Help MCP Tool (AX #577)", () => {
         const data = response.data as Record<string, unknown>;
         const relatedTools = data.relatedTools as string[];
 
-        assert.ok(relatedTools.includes("frame_search"), "remember should be related to recall");
+        assert.ok(
+          relatedTools.includes("frame_search"),
+          "frame_create should be related to frame_search"
+        );
       } finally {
         await teardown();
       }
     });
 
-    test("recall should list remember as related", async () => {
+    test("frame_search should list frame_create as related", async () => {
       const srv = setup();
       try {
         const response = await srv.handleRequest({
@@ -317,7 +320,10 @@ describe("Help MCP Tool (AX #577)", () => {
         const data = response.data as Record<string, unknown>;
         const relatedTools = data.relatedTools as string[];
 
-        assert.ok(relatedTools.includes("frame_create"), "recall should be related to remember");
+        assert.ok(
+          relatedTools.includes("frame_create"),
+          "frame_search should be related to frame_create"
+        );
       } finally {
         await teardown();
       }
