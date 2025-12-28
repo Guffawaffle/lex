@@ -1,0 +1,32 @@
+{
+  "id": "frame-2025-12-16-mcp-naming",
+  "timestamp": "2025-12-16T14:30:00Z",
+  "branch": "main",
+  "module_scope": ["memory/mcp_server", "mcp/tools"],
+  "summary_caption": "Fixed MCP tool naming to match GitHub MCP pattern - removed redundant namespace prefix causing tools to display as mcp_lex_lex_* instead of mcp_lex_*",
+  "reference_point": "MCP tool names showing double prefix in VS Code",
+  "status_snapshot": {
+    "next_action": "Publish lex@2.1.0 to npm with naming fix",
+    "blockers": [],
+    "merge_blockers": [],
+    "tests_failing": []
+  },
+  "jira": "LEX-242",
+  "keywords": ["mcp", "naming", "breaking-change", "vs-code"],
+  "feature_flags": [],
+  "permissions": [],
+  "runId": "manual-dev-session-001",
+  "spend": {
+    "prompts": 8,
+    "tokens_estimated": 3500
+  },
+  "capabilityTier": "senior",
+  "taskComplexity": {
+    "tier": "senior",
+    "assignedModel": "gpt-4",
+    "actualModel": "gpt-4",
+    "escalated": false,
+    "retryCount": 0,
+    "tierMismatch": false
+  }
+}

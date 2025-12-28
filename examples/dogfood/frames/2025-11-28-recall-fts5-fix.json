@@ -1,0 +1,32 @@
+{
+  "id": "frame-2025-11-28-recall-fts5",
+  "timestamp": "2025-11-28T10:15:00Z",
+  "branch": "fix/recall-hyphen-handling",
+  "module_scope": ["memory/store", "memory/frames"],
+  "summary_caption": "Fixed FTS5 hyphen handling - compound queries like 'recall-fix' now work correctly with case-insensitive search per AX Contract §2.4",
+  "reference_point": "Recall failing on hyphenated reference points",
+  "status_snapshot": {
+    "next_action": "Add regression tests for hyphenated search terms",
+    "blockers": [],
+    "merge_blockers": [],
+    "tests_failing": []
+  },
+  "jira": "LEX-185",
+  "keywords": ["recall", "fts5", "search", "ax-contract"],
+  "feature_flags": [],
+  "permissions": [],
+  "runId": "bugfix-session-recall",
+  "spend": {
+    "prompts": 12,
+    "tokens_estimated": 5200
+  },
+  "capabilityTier": "mid",
+  "taskComplexity": {
+    "tier": "mid",
+    "assignedModel": "gpt-4",
+    "actualModel": "gpt-4",
+    "escalated": false,
+    "retryCount": 2,
+    "tierMismatch": false
+  }
+}
