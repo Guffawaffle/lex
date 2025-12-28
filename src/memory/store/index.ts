@@ -219,3 +219,7 @@ export type { PassphraseValidationResult } from "./db.js";
 
 // Export SQLite store implementations
 export { SqliteCodeAtlasStore } from "./sqlite/index.js";
+
+// Export AttachmentManager for external file storage (AX-011)
+export { AttachmentManager } from "./attachments.js";
+export type { AttachmentRef } from "./attachments.js";
