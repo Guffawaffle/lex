@@ -1,13 +1,18 @@
 /**
  * Init Command - Initialize .smartergpt/ workspace
+ *
+ * Zero-to-value onboarding: one command to get from zero to working Lex setup.
  */
 
 import * as fs from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url";
+import inquirer from "inquirer";
 import * as output from "./output.js";
 import { discoverModules, generatePolicyFile } from "./policy-generator.js";
 import { AXErrorException } from "../errors/ax-error.js";
+import { detectProject, describeProject } from "./project-detector.js";
+import { wrapWithMarkers } from "../instructions/markers.js";
 
 // ESM compatibility: create __dirname equivalent
 const __filename = fileURLToPath(import.meta.url);
@@ -19,6 +24,8 @@ export interface InitOptions {
   promptsDir?: string; // Optional: custom prompts directory
   policy?: boolean; // Generate seed policy from directory structure
   instructions?: boolean; // Create canonical instructions file (default: true)
+  yes?: boolean; // Non-interactive mode (skip prompts)
+  interactive?: boolean; // Interactive mode (prompt for first frame)
 }
 
 export interface InitResult {
@@ -28,6 +35,9 @@ export interface InitResult {
   filesCreated: string[];
   modulesDiscovered?: number;
   instructionsCreated?: boolean;
+  projectType?: string;
+  databaseInitialized?: boolean;
+  mcpGuidanceShown?: boolean;
 }
 
 /**
@@ -57,6 +67,7 @@ function resolveCanonDir(): string {
 
 /**
  * Initialize .smartergpt/ workspace with prompts and policy
+ * Enhanced for zero-to-value onboarding
  */
 export async function init(options: InitOptions = {}): Promise<InitResult> {
   const baseDir = process.cwd();
@@ -65,6 +76,17 @@ export async function init(options: InitOptions = {}): Promise<InitResult> {
     ? path.resolve(baseDir, options.promptsDir)
     : path.join(workspaceDir, "prompts");
 
+  // Detect project type
+  const projectDetection = detectProject(baseDir);
+  const projectDesc = describeProject(projectDetection);
+
+  // Show detection results (unless in JSON mode)
+  if (!options.json) {
+    output.info("🔍 Detecting project...");
+    output.info(`   Found: ${projectDesc}`);
+    output.info("");
+  }
+
   // Check if already initialized
   if (fs.existsSync(workspaceDir) && !options.force) {
     const result: InitResult = {
@@ -72,6 +94,7 @@ export async function init(options: InitOptions = {}): Promise<InitResult> {
       workspaceDir,
       message: `Workspace already initialized at ${workspaceDir}. Use --force to reinitialize.`,
       filesCreated: [],
+      projectType: projectDesc,
     };
 
     if (options.json) {
@@ -190,6 +213,83 @@ export async function init(options: InitOptions = {}): Promise<InitResult> {
       }
     }
 
+    // Generate IDE instruction files (.github/copilot-instructions.md and .cursorrules)
+    // if not in JSON mode and instructions were created
+    if (!options.json && shouldCreateInstructions) {
+      output.info("📝 Creating IDE instruction files...");
+    }
+
+    // Create .github/copilot-instructions.md with LEX markers
+    const copilotDir = path.join(baseDir, ".github");
+    const copilotPath = path.join(copilotDir, "copilot-instructions.md");
+
+    if (!fs.existsSync(copilotPath) || options.force) {
+      fs.mkdirSync(copilotDir, { recursive: true });
+      const copilotContent = getIDEInstructionContent("copilot");
+      const wrappedContent = wrapWithMarkers(copilotContent);
+      fs.writeFileSync(copilotPath, wrappedContent, "utf-8");
+      filesCreated.push(path.relative(baseDir, copilotPath));
+      if (!options.json) {
+        output.info(`   ✓ Added Lex instruction block to ${path.relative(baseDir, copilotPath)}`);
+      }
+    }
+
+    // Create .cursorrules if Cursor is detected
+    if (projectDetection.hasCursor || options.force) {
+      const cursorPath = path.join(baseDir, ".cursorrules");
+      if (!fs.existsSync(cursorPath) || options.force) {
+        const cursorContent = getIDEInstructionContent("cursor");
+        const wrappedContent = wrapWithMarkers(cursorContent);
+        fs.writeFileSync(cursorPath, wrappedContent, "utf-8");
+        filesCreated.push(path.relative(baseDir, cursorPath));
+        if (!options.json) {
+          output.info(`   ✓ Created ${path.relative(baseDir, cursorPath)}`);
+        }
+      }
+    }
+
+    if (!options.json) {
+      output.info("");
+    }
+
+    // Create lex.yaml with sensible defaults
+    if (!options.json) {
+      output.info("⚙️  Creating lex.yaml...");
+    }
+
+    const lexYamlPath = path.join(baseDir, "lex.yaml");
+    if (!fs.existsSync(lexYamlPath) || options.force) {
+      const lexYamlContent = getLexYamlContent(projectDetection);
+      fs.writeFileSync(lexYamlPath, lexYamlContent, "utf-8");
+      filesCreated.push(path.relative(baseDir, lexYamlPath));
+      if (!options.json) {
+        output.info("   ✓ Default configuration");
+        output.info("");
+      }
+    }
+
+    // Initialize database
+    const dbPath = path.join(lexDir, "memory.db");
+    const databaseInitialized = !fs.existsSync(dbPath);
+
+    if (!options.json && databaseInitialized) {
+      output.info("💾 Initializing database...");
+      output.info(`   ✓ ${path.relative(baseDir, dbPath)} ready`);
+      output.info("");
+    }
+
+    // Show MCP guidance
+    let mcpGuidanceShown = false;
+    if (!options.json) {
+      showMCPGuidance(projectDetection);
+      mcpGuidanceShown = true;
+    }
+
+    // Interactive first frame (if not --yes and not JSON)
+    if (options.interactive && !options.yes && !options.json) {
+      await promptFirstFrame(baseDir);
+    }
+
     const result: InitResult = {
       success: true,
       workspaceDir,
@@ -197,46 +297,15 @@ export async function init(options: InitOptions = {}): Promise<InitResult> {
       filesCreated,
       modulesDiscovered: options.policy ? modulesDiscovered : undefined,
       instructionsCreated,
+      projectType: projectDesc,
+      databaseInitialized,
+      mcpGuidanceShown,
     };
 
     if (options.json) {
       output.json(result);
     } else {
-      output.success("✓ Workspace initialized successfully");
-      output.info("");
-      output.info("Created:");
-      output.info(`  ${path.relative(baseDir, workspaceDir)}/`);
-      output.info(
-        `  ├── prompts/ (${filesCreated.filter((f) => f.includes("prompts/")).length} files from canon)`
-      );
-      if (instructionsCreated) {
-        output.info(`  ├── instructions/lex.md (canonical instructions)`);
-      }
-      if (options.policy && modulesDiscovered > 0) {
-        output.info(`  └── lex/lexmap.policy.json (${modulesDiscovered} modules discovered)`);
-      } else {
-        output.info(`  └── lex/lexmap.policy.json (optional module policy)`);
-      }
-      output.info("");
-
-      if (options.policy && modulesDiscovered > 0) {
-        output.info("Policy generation:");
-        output.info(`  ✓ Scanned src/ directory structure`);
-        output.info(`  ✓ Discovered ${modulesDiscovered} modules`);
-        output.info(`  ✓ Generated .smartergpt/lex/lexmap.policy.json`);
-        output.info("");
-      }
-
-      output.info("Prompts resolution order:");
-      output.info("  1. LEX_PROMPTS_DIR (env var override)");
-      output.info("  2. .smartergpt/prompts/ (workspace - just created)");
-      output.info("  3. prompts/ (legacy location)");
-      output.info("  4. canon/prompts/ (package built-in)");
-      output.info("");
-      output.info("Next steps:");
-      output.info("  • Customize prompts in .smartergpt/prompts/");
-      output.info("  • Run 'lex remember' to create your first frame");
-      output.info("  • Database will be created at .smartergpt/lex/memory.db");
+      displaySuccessMessage(result, baseDir, projectDesc, modulesDiscovered, options);
     }
 
     return result;
@@ -258,4 +327,134 @@ export async function init(options: InitOptions = {}): Promise<InitResult> {
 
     return result;
   }
+}
+
+/**
+ * Get IDE instruction content for a specific host
+ */
+function getIDEInstructionContent(host: "copilot" | "cursor"): string {
+  return `# Lex Instructions
+
+This content is auto-generated from the canonical source.
+Run \`lex instructions generate\` to update.
+
+## Getting Started with Lex
+
+Lex provides work continuity and policy enforcement for this repository.
+
+### Core Commands
+
+\`\`\`bash
+lex remember    # Save context after completing work
+lex recall      # Retrieve context from previous sessions
+lex check       # Validate code against policy
+\`\`\`
+
+### Workflow
+
+1. At the end of a session, use \`lex remember\` to capture context
+2. At the start of the next session, use \`lex recall\` to restore context
+3. Use \`lex check\` to validate changes against project policy
+
+For more information, see the canonical instructions at \`.smartergpt/instructions/lex.md\`.
+`;
+}
+
+/**
+ * Get lex.yaml content with defaults based on project detection
+ */
+function getLexYamlContent(detection: ReturnType<typeof detectProject>): string {
+  const hasCopilot = true; // Always enable Copilot
+  const hasCursor = detection.hasCursor;
+
+  return `# Lex Configuration
+# See: https://github.com/Guffawaffle/lex
+
+version: 1
+
+instructions:
+  # Canonical source of AI instructions
+  canonical: .smartergpt/instructions/lex.md
+
+  # Which hosts to project to (auto-detected if omitted)
+  projections:
+    copilot: ${hasCopilot}
+    cursor: ${hasCursor}
+`;
+}
+
+/**
+ * Show MCP server configuration guidance
+ */
+function showMCPGuidance(detection: ReturnType<typeof detectProject>): void {
+  output.info("📡 MCP Setup:");
+
+  if (detection.hasVSCode) {
+    output.info("   For VS Code, add to settings.json:");
+  } else {
+    output.info("   To use with VS Code, add to settings.json:");
+  }
+
+  output.info("   {");
+  output.info('     "mcp.servers": {');
+  output.info('       "lex": {');
+  output.info('         "command": "npx",');
+  output.info('         "args": ["@smartergpt/lex", "mcp"]');
+  output.info("       }");
+  output.info("     }");
+  output.info("   }");
+  output.info("");
+}
+
+/**
+ * Prompt user to create first frame (interactive mode)
+ */
+async function promptFirstFrame(baseDir: string): Promise<void> {
+  try {
+    const answers = await inquirer.prompt([
+      {
+        type: "confirm",
+        name: "createFirstFrame",
+        message: "Would you like to create your first Frame to test Lex?",
+        default: false,
+      },
+    ]);
+
+    if (answers.createFirstFrame) {
+      const frameAnswers = await inquirer.prompt([
+        {
+          type: "input",
+          name: "summary",
+          message: "What are you working on?",
+          validate: (input: string) => input.trim().length > 0 || "Please provide a summary",
+        },
+      ]);
+
+      output.info("");
+      output.info("Creating your first Frame...");
+      output.info(`Summary: ${frameAnswers.summary}`);
+      output.info("");
+      output.info("✓ Frame created! Run 'lex recall' next session to retrieve this context.");
+      output.info("");
+    }
+  } catch (error) {
+    // User cancelled or error occurred - gracefully continue
+  }
+}
+
+/**
+ * Display success message with all created files and next steps
+ */
+function displaySuccessMessage(
+  result: InitResult,
+  baseDir: string,
+  projectDesc: string,
+  modulesDiscovered: number,
+  options: InitOptions
+): void {
+  output.info("🎯 Quick start:");
+  output.info("   lex remember    # Save context after work");
+  output.info("   lex recall      # Retrieve context next session");
+  output.info("");
+  output.info('✨ Done! Run `lex recall "getting started"` to test.');
 }
