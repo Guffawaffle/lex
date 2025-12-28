@@ -192,10 +192,7 @@ describe("LexSona Schemas", () => {
 
     test("should throw on invalid BehaviorRule data", () => {
       const invalidData = { rule_id: "" };
-      assert.throws(
-        () => parseBehaviorRule(invalidData),
-        "Should throw on invalid data"
-      );
+      assert.throws(() => parseBehaviorRule(invalidData), "Should throw on invalid data");
     });
   });
 
@@ -245,10 +242,7 @@ describe("LexSona Schemas", () => {
 
     test("should throw on invalid Correction data", () => {
       const invalidData = { correction: "" };
-      assert.throws(
-        () => parseCorrection(invalidData),
-        "Should throw on invalid data"
-      );
+      assert.throws(() => parseCorrection(invalidData), "Should throw on invalid data");
     });
   });
 

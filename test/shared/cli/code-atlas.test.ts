@@ -69,7 +69,11 @@ export class User {
       const classUnit = result.output.units.find((u) => u.kind === "class" && u.name === "User");
       assert.ok(classUnit, "Should find User class");
       assert.strictEqual(classUnit.language, "ts", "Should be TypeScript");
-      assert.strictEqual(classUnit.schemaVersion, "code-unit-v0", "Should have correct schema version");
+      assert.strictEqual(
+        classUnit.schemaVersion,
+        "code-unit-v0",
+        "Should have correct schema version"
+      );
 
       // Check for method
       const methodUnit = result.output.units.find(
@@ -298,9 +302,7 @@ def create_user(name: str) -> User:
       assert.ok(result.output, "Should have output");
 
       // Should only find the src file, not node_modules
-      const nodeModuleFile = result.output.run.filesScanned.find((f) =>
-        f.includes("node_modules")
-      );
+      const nodeModuleFile = result.output.run.filesScanned.find((f) => f.includes("node_modules"));
       assert.strictEqual(nodeModuleFile, undefined, "Should not include node_modules files");
     } finally {
       cleanup();

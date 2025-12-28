@@ -94,12 +94,7 @@ export function generateProjections(config: ProjectionConfig): ProjectionResult[
 
   // Process Copilot projection
   if (hosts.copilot.available && projectionSettings.copilot && hosts.copilot.path) {
-    const projection = createProjection(
-      "copilot",
-      hosts.copilot.path,
-      canonical.content,
-      readFile
-    );
+    const projection = createProjection("copilot", hosts.copilot.path, canonical.content, readFile);
     results.push(projection);
   }
 

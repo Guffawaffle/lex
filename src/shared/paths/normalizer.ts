@@ -87,7 +87,7 @@ export function normalizePath(
       // Convert to Windows path format
       // Return early to avoid further resolution which would make it relative
       const windowsPath = `${driveLetter}:${pathAfterDrive.replace(/\//g, "\\")}`;
-      
+
       // For WSL paths, we can't validate traversal or resolve symlinks
       // since we're representing Windows paths that may not exist on Linux
       return windowsPath;
@@ -113,14 +113,15 @@ export function normalizePath(
 
   // Step 6: Validate against path traversal
   if (validateTraversal) {
-    const rootToValidate = allowedRoot || findRepoRoot() || process.env.LEX_WORKSPACE_ROOT || basePath;
+    const rootToValidate =
+      allowedRoot || findRepoRoot() || process.env.LEX_WORKSPACE_ROOT || basePath;
     const normalizedRoot = path.resolve(rootToValidate);
 
     // Check if resolved path is within the allowed root
     if (!isPathWithin(resolved, normalizedRoot)) {
       throw new Error(
         `Path traversal detected: "${resolved}" is outside allowed root "${normalizedRoot}". ` +
-        `To bypass this check, set LEX_APP_ROOT or use validateTraversal: false option.`
+          `To bypass this check, set LEX_APP_ROOT or use validateTraversal: false option.`
       );
     }
   }
@@ -186,15 +187,15 @@ export function findRepoRoot(startPath: string = process.cwd()): string | null {
  */
 export function getRepoRoot(startPath: string = process.cwd()): string {
   const root = findRepoRoot(startPath);
-  
+
   if (!root) {
     throw new Error(
       "Repository root not found. " +
-      "Ensure you are inside a git repository. " +
-      "If you need to work outside a repo, set LEX_APP_ROOT explicitly."
+        "Ensure you are inside a git repository. " +
+        "If you need to work outside a repo, set LEX_APP_ROOT explicitly."
     );
   }
-  
+
   return root;
 }
 
@@ -235,9 +236,6 @@ export function getWorkspaceRoot(): string {
  * @param options - Normalization options
  * @returns Normalized absolute path
  */
-export function expandPath(
-  input: string,
-  options?: Parameters<typeof normalizePath>[1]
-): string {
+export function expandPath(input: string, options?: Parameters<typeof normalizePath>[1]): string {
   return normalizePath(input, options);
 }

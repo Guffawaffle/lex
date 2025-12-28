@@ -94,10 +94,7 @@ describe("generatePolicySeed", () => {
     assert.ok(modelsModule.kinds.includes("method"));
     assert.ok(modelsModule.kinds.includes("function"));
     // Should be sorted
-    assert.deepStrictEqual(
-      modelsModule.kinds,
-      [...modelsModule.kinds].sort()
-    );
+    assert.deepStrictEqual(modelsModule.kinds, [...modelsModule.kinds].sort());
   });
 
   test("generates notes for test directories", () => {
@@ -112,10 +109,7 @@ describe("generatePolicySeed", () => {
     const testModule = seed.modules.find((m) => m.id.includes("test"));
     assert.ok(testModule);
     assert.ok(testModule.notes, "Test module should have notes");
-    assert.ok(
-      testModule.notes.toLowerCase().includes("test"),
-      "Notes should mention test"
-    );
+    assert.ok(testModule.notes.toLowerCase().includes("test"), "Notes should mention test");
   });
 
   test("generates notes for utility directories", () => {

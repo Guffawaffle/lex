@@ -118,4 +118,8 @@ export {
   resetAtlasRebuildManager,
   AtlasRebuildManager,
 } from "./shared/atlas/trigger.js";
-export type { RebuildResult, RebuildCallback, AtlasRebuildManagerConfig } from "./shared/atlas/trigger.js";
+export type {
+  RebuildResult,
+  RebuildCallback,
+  AtlasRebuildManagerConfig,
+} from "./shared/atlas/trigger.js";

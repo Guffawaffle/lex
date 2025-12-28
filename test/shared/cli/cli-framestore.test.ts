@@ -65,27 +65,28 @@ describe("CLI Commands with FrameStore Dependency Injection", () => {
     test("should create a SqliteFrameStore by default", async () => {
       // Use in-memory SQLite for test
       const store = createFrameStore(":memory:");
-      
+
       // Verify store is functional
       await store.saveFrame(testFrame1);
       const retrieved = await store.getFrameById("frame-001");
-      
+
       assert.ok(retrieved, "Should retrieve saved frame");
       assert.strictEqual(retrieved!.id, "frame-001");
-      
+
       await store.close();
     });
 
     test("should accept custom database path", async () => {
       const tempPath = ":memory:";
       const store = createFrameStore(tempPath);
-      
+
       // Verify store is functional with custom path
       await store.saveFrame(testFrame1);
-      const result = await store.listFrames(); const frames = result.frames;
-      
+      const result = await store.listFrames();
+      const frames = result.frames;
+
       assert.strictEqual(frames.length, 1);
-      
+
       await store.close();
     });
   });
@@ -112,7 +113,7 @@ describe("CLI Commands with FrameStore Dependency Injection", () => {
       };
 
       await store.saveFrame(newFrame);
-      
+
       const retrieved = await store.getFrameById("frame-new");
       assert.ok(retrieved, "Frame should be saved and retrievable");
       assert.strictEqual(retrieved!.summary_caption, "Test summary");
@@ -120,10 +121,10 @@ describe("CLI Commands with FrameStore Dependency Injection", () => {
 
     test("should support getFrameById for recall command", async () => {
       await store.saveFrame(testFrame1);
-      
+
       // Simulate recall by ID
       const frame = await store.getFrameById("frame-001");
-      
+
       assert.ok(frame, "Should find frame by ID");
       assert.strictEqual(frame!.reference_point, "that auth deadlock");
     });
@@ -131,13 +132,13 @@ describe("CLI Commands with FrameStore Dependency Injection", () => {
     test("should support searchFrames for recall command", async () => {
       await store.saveFrame(testFrame1);
       await store.saveFrame(testFrame2);
-      
+
       // Simulate recall by search query
       const results = await store.searchFrames({ query: "auth" });
-      
+
       assert.ok(results.length > 0, "Should find frames matching query");
       assert.ok(
-        results.some(f => f.id === "frame-001"),
+        results.some((f) => f.id === "frame-001"),
         "Should include frame with 'auth' in reference_point"
       );
     });
@@ -146,15 +147,15 @@ describe("CLI Commands with FrameStore Dependency Injection", () => {
       await store.saveFrame(testFrame1);
       await store.saveFrame(testFrame2);
       await store.saveFrame(testFrame3);
-      
+
       // Simulate timeline filtering by Jira
       const result = await store.listFrames();
       const allFrames = result.frames;
-      const framesByJira = allFrames.filter(f => f.jira === "TICKET-123");
-      
+      const framesByJira = allFrames.filter((f) => f.jira === "TICKET-123");
+
       assert.strictEqual(framesByJira.length, 2, "Should find 2 frames for TICKET-123");
       assert.ok(
-        framesByJira.every(f => f.jira === "TICKET-123"),
+        framesByJira.every((f) => f.jira === "TICKET-123"),
         "All filtered frames should have the same Jira ID"
       );
     });
@@ -163,51 +164,53 @@ describe("CLI Commands with FrameStore Dependency Injection", () => {
       await store.saveFrame(testFrame1);
       await store.saveFrame(testFrame2);
       await store.saveFrame(testFrame3);
-      
+
       // Simulate timeline filtering by branch
       const result = await store.listFrames();
       const allFrames = result.frames;
-      const framesByBranch = allFrames.filter(f => f.branch === "feature/auth-fix");
-      
-      assert.strictEqual(framesByBranch.length, 2, "Should find 2 frames for feature/auth-fix branch");
+      const framesByBranch = allFrames.filter((f) => f.branch === "feature/auth-fix");
+
+      assert.strictEqual(
+        framesByBranch.length,
+        2,
+        "Should find 2 frames for feature/auth-fix branch"
+      );
     });
 
     test("should support listFrames for export command", async () => {
       await store.saveFrame(testFrame1);
       await store.saveFrame(testFrame2);
       await store.saveFrame(testFrame3);
-      
+
       // Simulate export - get all frames
-      const result = await store.listFrames(); const frames = result.frames;
-      
+      const result = await store.listFrames();
+      const frames = result.frames;
+
       assert.strictEqual(frames.length, 3, "Should export all 3 frames");
-      
+
       // Verify frames are returned in descending timestamp order
-      assert.ok(
-        frames[0].timestamp >= frames[1].timestamp,
-        "Frames should be in descending order"
-      );
+      assert.ok(frames[0].timestamp >= frames[1].timestamp, "Frames should be in descending order");
     });
 
     test("should support searchFrames with since filter for export command", async () => {
       await store.saveFrame(testFrame1);
       await store.saveFrame(testFrame2);
       await store.saveFrame(testFrame3);
-      
+
       // Simulate export with since filter
       const since = new Date("2025-11-02T00:00:00Z");
       const frames = await store.searchFrames({ since });
-      
+
       assert.strictEqual(frames.length, 2, "Should find 2 frames since Nov 2");
       assert.ok(
-        frames.every(f => new Date(f.timestamp).getTime() >= since.getTime()),
+        frames.every((f) => new Date(f.timestamp).getTime() >= since.getTime()),
         "All frames should be on or after since date"
       );
     });
 
     test("should support close without error", async () => {
       await store.saveFrame(testFrame1);
-      
+
       // close() should be a no-op for MemoryFrameStore
       await assert.doesNotReject(async () => {
         await store.close();
@@ -219,15 +222,15 @@ describe("CLI Commands with FrameStore Dependency Injection", () => {
     test("MemoryFrameStore instances should be isolated", async () => {
       const store1 = new MemoryFrameStore();
       const store2 = new MemoryFrameStore();
-      
+
       await store1.saveFrame(testFrame1);
       await store2.saveFrame(testFrame2);
-      
+
       const result1 = await store1.listFrames();
       const result2 = await store2.listFrames();
       const store1Frames = result1.frames;
       const store2Frames = result2.frames;
-      
+
       assert.strictEqual(store1Frames.length, 1, "Store 1 should have 1 frame");
       assert.strictEqual(store2Frames.length, 1, "Store 2 should have 1 frame");
       assert.strictEqual(store1Frames[0].id, "frame-001", "Store 1 should have frame-001");
@@ -236,11 +239,11 @@ describe("CLI Commands with FrameStore Dependency Injection", () => {
 
     test("Pre-populated MemoryFrameStore should work correctly", async () => {
       const prePopulatedStore = new MemoryFrameStore([testFrame1, testFrame2]);
-      
+
       const result = await prePopulatedStore.listFrames();
       const frames = result.frames;
       assert.strictEqual(frames.length, 2, "Pre-populated store should have 2 frames");
-      
+
       const frame1 = await prePopulatedStore.getFrameById("frame-001");
       assert.ok(frame1, "Should find pre-populated frame-001");
     });
@@ -249,7 +252,7 @@ describe("CLI Commands with FrameStore Dependency Injection", () => {
   describe("FrameStore Interface Compliance", () => {
     test("MemoryFrameStore should implement all required FrameStore methods", async () => {
       const store = new MemoryFrameStore();
-      
+
       // Verify all required methods exist
       assert.strictEqual(typeof store.saveFrame, "function");
       assert.strictEqual(typeof store.saveFrames, "function");
@@ -261,13 +264,17 @@ describe("CLI Commands with FrameStore Dependency Injection", () => {
 
     test("saveFrames should work with MemoryFrameStore", async () => {
       const store = new MemoryFrameStore();
-      
+
       const results = await store.saveFrames([testFrame1, testFrame2, testFrame3]);
-      
+
       assert.strictEqual(results.length, 3, "Should return 3 results");
-      assert.ok(results.every(r => r.success), "All saves should succeed");
-      
-      const result = await store.listFrames(); const frames = result.frames;
+      assert.ok(
+        results.every((r) => r.success),
+        "All saves should succeed"
+      );
+
+      const result = await store.listFrames();
+      const frames = result.frames;
       assert.strictEqual(frames.length, 3, "Store should have 3 frames");
     });
   });
@@ -286,8 +293,9 @@ describe("CLI Commands with FrameStore Dependency Injection", () => {
       await store.saveFrame(testFrame3);
 
       // List with default limit
-      const result = await store.listFrames({ limit: 10 }); const frames = result.frames;
-      
+      const result = await store.listFrames({ limit: 10 });
+      const frames = result.frames;
+
       assert.strictEqual(frames.length, 3, "Should return all 3 frames when limit is 10");
     });
 
@@ -298,8 +306,9 @@ describe("CLI Commands with FrameStore Dependency Injection", () => {
       await store.saveFrame(testFrame3);
 
       // List with limit of 2
-      const result = await store.listFrames({ limit: 2 }); const frames = result.frames;
-      
+      const result = await store.listFrames({ limit: 2 });
+      const frames = result.frames;
+
       assert.strictEqual(frames.length, 2, "Should return only 2 frames");
     });
 
@@ -308,8 +317,9 @@ describe("CLI Commands with FrameStore Dependency Injection", () => {
       await store.saveFrame(testFrame2); // 2025-11-02
       await store.saveFrame(testFrame3); // 2025-11-03
 
-      const result = await store.listFrames({ limit: 10 }); const frames = result.frames;
-      
+      const result = await store.listFrames({ limit: 10 });
+      const frames = result.frames;
+
       assert.strictEqual(frames.length, 3, "Should return all frames");
       // Most recent first
       assert.strictEqual(frames[0].id, "frame-003", "Most recent frame should be first");
@@ -318,8 +328,9 @@ describe("CLI Commands with FrameStore Dependency Injection", () => {
     });
 
     test("should return empty array when no frames exist", async () => {
-      const result = await store.listFrames({ limit: 10 }); const frames = result.frames;
-      
+      const result = await store.listFrames({ limit: 10 });
+      const frames = result.frames;
+
       assert.strictEqual(frames.length, 0, "Should return empty array when no frames exist");
     });
 
@@ -328,8 +339,9 @@ describe("CLI Commands with FrameStore Dependency Injection", () => {
       await store.saveFrame(testFrame2);
       await store.saveFrame(testFrame3);
 
-      const result = await store.listFrames({ limit: 1 }); const frames = result.frames;
-      
+      const result = await store.listFrames({ limit: 1 });
+      const frames = result.frames;
+
       assert.strictEqual(frames.length, 1, "Should return exactly 1 frame");
       assert.strictEqual(frames[0].id, "frame-003", "Should return the most recent frame");
     });

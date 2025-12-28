@@ -55,11 +55,10 @@ function cleanup() {
 test("CLI-004: recall with no matches exits with code 0", () => {
   setupTest();
   try {
-    const result = spawnSync(
-      process.execPath,
-      [lexBin, "recall", "nonexistent topic"],
-      { encoding: "utf-8", env: getTestEnv() }
-    );
+    const result = spawnSync(process.execPath, [lexBin, "recall", "nonexistent topic"], {
+      encoding: "utf-8",
+      env: getTestEnv(),
+    });
 
     assert.strictEqual(result.status, 0, "Should exit with code 0 when no matches found");
     const output = result.stdout + result.stderr;
@@ -89,11 +88,10 @@ test("CLI-004: recall with --strict and no matches exits with code 1", () => {
 test("CLI-004: recall --json with no matches returns empty array and exits 0", () => {
   setupTest();
   try {
-    const result = spawnSync(
-      process.execPath,
-      [lexBin, "--json", "recall", "nonexistent topic"],
-      { encoding: "utf-8", env: getTestEnv() }
-    );
+    const result = spawnSync(process.execPath, [lexBin, "--json", "recall", "nonexistent topic"], {
+      encoding: "utf-8",
+      env: getTestEnv(),
+    });
 
     assert.strictEqual(result.status, 0, "Should exit with code 0 in JSON mode");
     const json = JSON.parse(result.stdout.trim());
@@ -109,11 +107,10 @@ test("CLI-004: recall --json with no matches returns empty array and exits 0", (
 test("CLI-004: recall --list with empty DB exits with code 0", () => {
   setupTest();
   try {
-    const result = spawnSync(
-      process.execPath,
-      [lexBin, "recall", "--list"],
-      { encoding: "utf-8", env: getTestEnv() }
-    );
+    const result = spawnSync(process.execPath, [lexBin, "recall", "--list"], {
+      encoding: "utf-8",
+      env: getTestEnv(),
+    });
 
     assert.strictEqual(result.status, 0, "Should exit with code 0 when DB is empty");
     const output = result.stdout + result.stderr;
@@ -126,11 +123,10 @@ test("CLI-004: recall --list with empty DB exits with code 0", () => {
 test("CLI-004: recall --list --strict with empty DB exits with code 1", () => {
   setupTest();
   try {
-    const result = spawnSync(
-      process.execPath,
-      [lexBin, "recall", "--list", "--strict"],
-      { encoding: "utf-8", env: getTestEnv() }
-    );
+    const result = spawnSync(process.execPath, [lexBin, "recall", "--list", "--strict"], {
+      encoding: "utf-8",
+      env: getTestEnv(),
+    });
 
     assert.strictEqual(result.status, 1, "Should exit with code 1 with --strict flag");
     const output = result.stdout + result.stderr;
@@ -162,11 +158,10 @@ test("CLI-004: recall with matches exits with code 0", () => {
     );
 
     // Now recall it
-    const result = spawnSync(
-      process.execPath,
-      [lexBin, "recall", "test frame for recall"],
-      { encoding: "utf-8", env: getTestEnv() }
-    );
+    const result = spawnSync(process.execPath, [lexBin, "recall", "test frame for recall"], {
+      encoding: "utf-8",
+      env: getTestEnv(),
+    });
 
     assert.strictEqual(result.status, 0, "Should exit with code 0 when frames found");
     const output = result.stdout + result.stderr;
@@ -179,11 +174,10 @@ test("CLI-004: recall with matches exits with code 0", () => {
 test("CLI-004: recall --json --list with empty DB returns empty array", () => {
   setupTest();
   try {
-    const result = spawnSync(
-      process.execPath,
-      [lexBin, "--json", "recall", "--list"],
-      { encoding: "utf-8", env: getTestEnv() }
-    );
+    const result = spawnSync(process.execPath, [lexBin, "--json", "recall", "--list"], {
+      encoding: "utf-8",
+      env: getTestEnv(),
+    });
 
     assert.strictEqual(result.status, 0, "Should exit with code 0");
     const json = JSON.parse(result.stdout.trim());

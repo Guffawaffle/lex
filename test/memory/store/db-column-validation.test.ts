@@ -118,10 +118,7 @@ describe("Database Column Name Validation", () => {
       // Validate all column names
       const validIdentifierPattern = /^[a-zA-Z0-9_]+$/;
       for (const col of columns) {
-        assert.ok(
-          validIdentifierPattern.test(col),
-          `Column '${col}' should pass validation`
-        );
+        assert.ok(validIdentifierPattern.test(col), `Column '${col}' should pass validation`);
       }
 
       db.close();
@@ -161,14 +158,8 @@ describe("Database Column Name Validation", () => {
 
       if (!validIdentifierPattern.test(invalidColumn)) {
         const errorMessage = `Invalid column name detected in table "${tableName}": ${invalidColumn}`;
-        assert.ok(
-          errorMessage.includes(tableName),
-          "Error should include table name"
-        );
-        assert.ok(
-          errorMessage.includes(invalidColumn),
-          "Error should include invalid column name"
-        );
+        assert.ok(errorMessage.includes(tableName), "Error should include table name");
+        assert.ok(errorMessage.includes(invalidColumn), "Error should include invalid column name");
       }
     });
   });

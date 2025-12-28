@@ -31,28 +31,25 @@ export interface DiscoveredModule {
 
 export interface PolicyFile {
   schemaVersion: string;
-  modules: Record<string, {
-    description: string;
-    match: string[];
-  }>;
+  modules: Record<
+    string,
+    {
+      description: string;
+      match: string[];
+    }
+  >;
 }
 
 /**
  * Directories to exclude from module scanning
  */
-const EXCLUDED_DIRECTORIES = [
-  'node_modules',
-  'dist',
-  'build',
-  '.git',
-  'vendor',
-];
+const EXCLUDED_DIRECTORIES = ["node_modules", "dist", "build", ".git", "vendor"];
 
 /**
  * Check if a directory should be excluded from scanning
  */
 function isExcludedDirectory(name: string): boolean {
-  return EXCLUDED_DIRECTORIES.includes(name) || name.startsWith('.');
+  return EXCLUDED_DIRECTORIES.includes(name) || name.startsWith(".");
 }
 
 /**

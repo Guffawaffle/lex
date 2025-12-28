@@ -13,9 +13,7 @@
 
 import { test, describe } from "node:test";
 import assert from "node:assert";
-import {
-  validateFramePayload,
-} from "@app/memory/validation/index.js";
+import { validateFramePayload } from "@app/memory/validation/index.js";
 
 describe("Frame Payload Validation", () => {
   describe("Valid Payloads", () => {
@@ -470,7 +468,9 @@ describe("Frame Payload Validation", () => {
 
       assert.strictEqual(result.valid, false, "Payload with invalid nested field should fail");
       assert.ok(
-        result.errors.some((e) => e.path.includes("status_snapshot") && e.path.includes("next_action")),
+        result.errors.some(
+          (e) => e.path.includes("status_snapshot") && e.path.includes("next_action")
+        ),
         "Should have error with nested path for status_snapshot.next_action"
       );
     });
@@ -785,7 +785,10 @@ describe("Frame Payload Validation", () => {
       assert.strictEqual(result.valid, true, "Valid v4 payload should pass");
       // Should not warn about v4 fields since they are all known
       const v4Warnings = result.warnings.filter(
-        (w) => w.path.includes("turnCost") || w.path.includes("taskComplexity") || w.path.includes("capabilityTier")
+        (w) =>
+          w.path.includes("turnCost") ||
+          w.path.includes("taskComplexity") ||
+          w.path.includes("capabilityTier")
       );
       assert.strictEqual(v4Warnings.length, 0, "Should have no warnings for known v4 fields");
     });

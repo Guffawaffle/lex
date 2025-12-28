@@ -18,7 +18,7 @@ import type { FrameInput } from "../src/memory/batch.js";
  */
 async function runWorkflow(workflowId: string, steps: string[]) {
   console.log(`\n🚀 Starting workflow: ${workflowId}`);
-  console.log(`   Steps: ${steps.join(' → ')}\n`);
+  console.log(`   Steps: ${steps.join(" → ")}\n`);
 
   // Create Frame store
   const store = createFrameStore(":memory:");
@@ -110,13 +110,13 @@ async function runFailingWorkflow() {
 
 /**
  * Example: Batch ingestion with Atlas rebuild hook
- * 
+ *
  * Demonstrates using the onSuccess callback to trigger Atlas rebuilds
  * after successful batch ingestion.
  */
 async function runWorkflowWithAtlasRebuild(workflowId: string, steps: string[]) {
   console.log(`\n🔄 Running workflow with Atlas rebuild hook: ${workflowId}`);
-  console.log(`   Steps: ${steps.join(' → ')}\n`);
+  console.log(`   Steps: ${steps.join(" → ")}\n`);
 
   const store = createFrameStore(":memory:");
 
@@ -134,17 +134,17 @@ async function runWorkflowWithAtlasRebuild(workflowId: string, steps: string[]) 
   }));
 
   console.log(`📦 Ingesting ${frames.length} Frames with rebuild hook...`);
-  
+
   const result = await insertFramesBatch(store, frames, {
     // Hook to trigger after successful batch ingestion
     onSuccess: async (batchResult) => {
       console.log(`   🔄 onSuccess hook triggered!`);
       console.log(`   📊 Batch result: ${batchResult.count} frames ingested`);
-      
+
       // In a real application, you would trigger Atlas rebuild here:
       // import { triggerAtlasRebuild } from '@smartergpt/lex/atlas';
       // await triggerAtlasRebuild();
-      
+
       console.log(`   ✨ Simulated Atlas rebuild scheduling`);
     },
   });

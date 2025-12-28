@@ -233,7 +233,8 @@ export const MCP_TOOLS: MCPTool[] = [
         },
         cursor: {
           type: "string",
-          description: "Opaque cursor for pagination - use nextCursor from previous response to get next page",
+          description:
+            "Opaque cursor for pagination - use nextCursor from previous response to get next page",
         },
       },
     },

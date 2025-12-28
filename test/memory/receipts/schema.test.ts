@@ -160,7 +160,10 @@ describe("Receipt Schema", () => {
       );
 
       assert.strictEqual(escalated.escalationRequired, true);
-      assert.strictEqual(escalated.escalationReason, "Cannot determine correct approach without domain expertise");
+      assert.strictEqual(
+        escalated.escalationReason,
+        "Cannot determine correct approach without domain expertise"
+      );
       assert.strictEqual(escalated.escalatedTo, "security-team");
     });
 
@@ -248,7 +251,12 @@ describe("Receipt Schema", () => {
 
   describe("Schema validation", () => {
     test("should validate receipt with all confidence levels", () => {
-      const levels: Array<"high" | "medium" | "low" | "uncertain"> = ["high", "medium", "low", "uncertain"];
+      const levels: Array<"high" | "medium" | "low" | "uncertain"> = [
+        "high",
+        "medium",
+        "low",
+        "uncertain",
+      ];
 
       for (const level of levels) {
         const receipt = createReceipt({
@@ -434,7 +442,10 @@ describe("Receipt Schema", () => {
       assert.strictEqual(receipt.outcome, "failure");
       assert.strictEqual(receipt.failureClass, "context_overflow");
       assert.strictEqual(receipt.failureDetails, "File exceeded 100MB limit");
-      assert.strictEqual(receipt.recoverySuggestion, "Chunk task into smaller units with focused context");
+      assert.strictEqual(
+        receipt.recoverySuggestion,
+        "Chunk task into smaller units with focused context"
+      );
     });
 
     test("should validate all failure classes", () => {
@@ -510,7 +521,10 @@ describe("Receipt Schema", () => {
       assert.strictEqual(receipt.outcome, "failure");
       assert.strictEqual(receipt.confidence, "low");
       assert.strictEqual(receipt.failureClass, "context_overflow");
-      assert.strictEqual(receipt.recoverySuggestion, "Chunk task into smaller units with focused context");
+      assert.strictEqual(
+        receipt.recoverySuggestion,
+        "Chunk task into smaller units with focused context"
+      );
     });
 
     test("should allow custom confidence level", () => {

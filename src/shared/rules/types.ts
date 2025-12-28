@@ -30,7 +30,7 @@ export interface RuleScope {
 /**
  * Enforcement mode for behavioral rules
  */
-export type EnforcementMode = 'zero-tolerance' | 'should' | 'style';
+export type EnforcementMode = "zero-tolerance" | "should" | "style";
 
 /**
  * Behavioral rule definition
@@ -144,7 +144,7 @@ export interface ResolvedRule extends BehavioralRule {
   /**
    * Source of the rule (for debugging/precedence tracking)
    */
-  source: 'env' | 'workspace' | 'package';
+  source: "env" | "workspace" | "package";
 
   /**
    * Full path to the rule file

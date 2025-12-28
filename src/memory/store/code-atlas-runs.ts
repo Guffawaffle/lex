@@ -146,9 +146,7 @@ export function getAllCodeAtlasRuns(db: Database.Database, limit?: number): Code
     ${limit ? "LIMIT ?" : ""}
   `);
 
-  const rows = limit
-    ? (stmt.all(limit) as CodeAtlasRunRow[])
-    : (stmt.all() as CodeAtlasRunRow[]);
+  const rows = limit ? (stmt.all(limit) as CodeAtlasRunRow[]) : (stmt.all() as CodeAtlasRunRow[]);
 
   const duration = Date.now() - startTime;
   logger.debug("All CodeAtlasRuns retrieved", {

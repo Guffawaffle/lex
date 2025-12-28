@@ -477,10 +477,7 @@ describe("Frame Type Validation", () => {
       },
     };
 
-    assert.ok(
-      validateFrameMetadata(frame),
-      "Frame with minimal taskComplexity should be valid"
-    );
+    assert.ok(validateFrameMetadata(frame), "Frame with minimal taskComplexity should be valid");
   });
 
   test("should validate Frame with escalated taskComplexity", () => {
@@ -505,10 +502,7 @@ describe("Frame Type Validation", () => {
       },
     };
 
-    assert.ok(
-      validateFrameMetadata(frame),
-      "Frame with escalated taskComplexity should be valid"
-    );
+    assert.ok(validateFrameMetadata(frame), "Frame with escalated taskComplexity should be valid");
   });
 
   test("should reject taskComplexity with invalid tier", () => {

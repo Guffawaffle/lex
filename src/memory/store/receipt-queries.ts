@@ -135,7 +135,7 @@ function rowToReceipt(row: ReceiptRow): Receipt {
  */
 export function storeReceipt(db: Database.Database, receipt: Receipt, userId?: string): string {
   const row = receiptToRow(receipt, userId);
-  
+
   const stmt = db.prepare(`
     INSERT INTO receipts (
       id, schema_version, kind, action, outcome, rationale,
@@ -153,11 +153,28 @@ export function storeReceipt(db: Database.Database, receipt: Receipt, userId?: s
   `);
 
   stmt.run(
-    row.id, row.schema_version, row.kind, row.action, row.outcome, row.rationale,
-    row.failure_class, row.failure_details, row.recovery_suggestion,
-    row.confidence, row.uncertainty_notes, row.reversibility, row.rollback_path, row.rollback_tested,
-    row.escalation_required, row.escalation_reason, row.escalated_to,
-    row.timestamp, row.agent_id, row.session_id, row.frame_id, row.user_id
+    row.id,
+    row.schema_version,
+    row.kind,
+    row.action,
+    row.outcome,
+    row.rationale,
+    row.failure_class,
+    row.failure_details,
+    row.recovery_suggestion,
+    row.confidence,
+    row.uncertainty_notes,
+    row.reversibility,
+    row.rollback_path,
+    row.rollback_tested,
+    row.escalation_required,
+    row.escalation_reason,
+    row.escalated_to,
+    row.timestamp,
+    row.agent_id,
+    row.session_id,
+    row.frame_id,
+    row.user_id
   );
 
   return row.id;
@@ -193,7 +210,9 @@ export function getReceiptsBySession(
   let rows;
 
   if (userId) {
-    stmt = db.prepare("SELECT * FROM receipts WHERE session_id = ? AND user_id = ? ORDER BY timestamp DESC");
+    stmt = db.prepare(
+      "SELECT * FROM receipts WHERE session_id = ? AND user_id = ? ORDER BY timestamp DESC"
+    );
     rows = stmt.all(sessionId, userId) as ReceiptRow[];
   } else {
     stmt = db.prepare("SELECT * FROM receipts WHERE session_id = ? ORDER BY timestamp DESC");

@@ -5,7 +5,13 @@
  * Uses Map<string, Frame> for storage with simple in-memory filtering.
  */
 
-import type { FrameStore, FrameSearchCriteria, FrameListOptions, FrameListResult, SaveResult } from "../frame-store.js";
+import type {
+  FrameStore,
+  FrameSearchCriteria,
+  FrameListOptions,
+  FrameListResult,
+  SaveResult,
+} from "../frame-store.js";
 import type { Frame } from "../../frames/types.js";
 import { Frame as FrameSchema } from "../../frames/types.js";
 
@@ -129,9 +135,7 @@ export class MemoryFrameStore implements FrameStore {
     // Filter by moduleScope (any match)
     if (criteria.moduleScope && criteria.moduleScope.length > 0) {
       const moduleScope = criteria.moduleScope;
-      results = results.filter((f) =>
-        f.module_scope.some((m) => moduleScope.includes(m))
-      );
+      results = results.filter((f) => f.module_scope.some((m) => moduleScope.includes(m)));
     }
 
     // Filter by since (timestamp >= since)
@@ -183,7 +187,7 @@ export class MemoryFrameStore implements FrameStore {
         results = results.filter((frame) => {
           const frameTime = new Date(frame.timestamp).getTime();
           const cursorTime = new Date(cursorData.timestamp).getTime();
-          
+
           // If timestamps are different, compare them
           if (frameTime !== cursorTime) {
             return frameTime < cursorTime;

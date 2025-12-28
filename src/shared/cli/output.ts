@@ -40,7 +40,8 @@ export function createOutput(opts: OutputOptions = {}): CliOutput {
   const envMode = (process.env.LEX_CLI_OUTPUT_MODE ?? "").toLowerCase();
   const mode = opts.mode ?? (envMode === "jsonl" ? "jsonl" : "plain");
   const scope = opts.scope;
-  const verbose = opts.verbose ?? (process.env.LEX_DEBUG === "1" || process.env.LEX_VERBOSE === "1");
+  const verbose =
+    opts.verbose ?? (process.env.LEX_DEBUG === "1" || process.env.LEX_VERBOSE === "1");
   const diag = opts.logger ?? getLogger("cli:output");
 
   function nowIso(): string {

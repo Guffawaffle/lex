@@ -295,10 +295,10 @@ describe("MemoryFrameStore", () => {
       // Get second page using cursor
       const page2 = await store.listFrames({ limit: 2, cursor: page1.page.nextCursor! });
       assert.strictEqual(page2.frames.length, 1, "Second page should have 1 frame");
-      
+
       // Ensure no duplicates between pages
-      const page1Ids = new Set(page1.frames.map(f => f.id));
-      const page2Ids = new Set(page2.frames.map(f => f.id));
+      const page1Ids = new Set(page1.frames.map((f) => f.id));
+      const page2Ids = new Set(page2.frames.map((f) => f.id));
       for (const id of page2Ids) {
         assert.ok(!page1Ids.has(id), `Frame ${id} should not appear in both pages`);
       }
@@ -376,8 +376,16 @@ describe("MemoryFrameStore", () => {
   describe("FrameStore interface compliance", () => {
     test("should implement all required methods", () => {
       assert.strictEqual(typeof store.saveFrame, "function", "saveFrame should be a function");
-      assert.strictEqual(typeof store.getFrameById, "function", "getFrameById should be a function");
-      assert.strictEqual(typeof store.searchFrames, "function", "searchFrames should be a function");
+      assert.strictEqual(
+        typeof store.getFrameById,
+        "function",
+        "getFrameById should be a function"
+      );
+      assert.strictEqual(
+        typeof store.searchFrames,
+        "function",
+        "searchFrames should be a function"
+      );
       assert.strictEqual(typeof store.listFrames, "function", "listFrames should be a function");
       assert.strictEqual(typeof store.close, "function", "close should be a function");
     });

@@ -100,7 +100,12 @@ const DEFAULT_MAX_FILES = 500;
 /**
  * Generate a stable hash for a code unit
  */
-function generateCodeUnitId(repoId: string, filePath: string, symbol: string, kind: string): string {
+function generateCodeUnitId(
+  repoId: string,
+  filePath: string,
+  symbol: string,
+  kind: string
+): string {
   const hash = createHash("sha256");
   hash.update(`${repoId}:${filePath}:${symbol}:${kind}`);
   return hash.digest("hex").substring(0, 16);
@@ -156,7 +161,7 @@ function detectLanguage(filePath: string): string {
  */
 /**
  * Parse .gitignore patterns from a directory
- * 
+ *
  * NOTE: This is a simplified implementation for v0. It handles common patterns
  * but may not cover all gitignore edge cases (negation, escaping, etc.).
  * Consider using a dedicated gitignore parsing library for more robust handling.
@@ -190,7 +195,7 @@ function parseGitignore(repoDir: string): string[] {
 
 /**
  * Extract JSDoc comment from a node
- * 
+ *
  * NOTE: This uses TypeScript's getJSDocTags API for type-safe extraction.
  * May return undefined if no JSDoc is present or if the structure is unexpected.
  */
@@ -238,9 +243,7 @@ function extractTypeScriptUnits(
       content,
       ts.ScriptTarget.Latest,
       true,
-      filePath.endsWith(".tsx") || filePath.endsWith(".jsx")
-        ? ts.ScriptKind.TSX
-        : ts.ScriptKind.TS
+      filePath.endsWith(".tsx") || filePath.endsWith(".jsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS
     );
 
     const visit = (node: ts.Node, containerName?: string) => {
@@ -329,8 +332,7 @@ function extractTypeScriptUnits(
               ts.isArrowFunction(decl.initializer)
             ) {
               const funcName = decl.name.text;
-              const startLine =
-                sourceFile.getLineAndCharacterOfPosition(node.getStart()).line + 1;
+              const startLine = sourceFile.getLineAndCharacterOfPosition(node.getStart()).line + 1;
               const endLine = sourceFile.getLineAndCharacterOfPosition(node.getEnd()).line + 1;
               const symbolPath = `${relativePath}::${funcName}`;
 
@@ -365,7 +367,7 @@ function extractTypeScriptUnits(
 
 /**
  * Extract code units from a Python file using regex patterns
- * 
+ *
  * NOTE: This is a simplified v0 implementation using regex patterns.
  * Limitations:
  * - Assumes 4-space indentation for method detection
@@ -435,7 +437,8 @@ function extractPythonUnits(
 
       const className = classMatch[1];
       const symbolPath = `${relativePath}::${className}`;
-      const docComment = pendingDocComment.length > 0 ? pendingDocComment.join("\n").trim() : undefined;
+      const docComment =
+        pendingDocComment.length > 0 ? pendingDocComment.join("\n").trim() : undefined;
 
       units.push({
         id: generateCodeUnitId(repoId, relativePath, className, "class"),
@@ -472,10 +475,16 @@ function extractPythonUnits(
 
       const methodName = methodMatch[1];
       const symbolPath = `${relativePath}::${currentClass.name}.${methodName}`;
-      const docComment = pendingDocComment.length > 0 ? pendingDocComment.join("\n").trim() : undefined;
+      const docComment =
+        pendingDocComment.length > 0 ? pendingDocComment.join("\n").trim() : undefined;
 
       units.push({
-        id: generateCodeUnitId(repoId, relativePath, `${currentClass.name}.${methodName}`, "method"),
+        id: generateCodeUnitId(
+          repoId,
+          relativePath,
+          `${currentClass.name}.${methodName}`,
+          "method"
+        ),
         repoId,
         filePath: relativePath,
         language,
@@ -510,7 +519,8 @@ function extractPythonUnits(
 
       const funcName = functionMatch[1];
       const symbolPath = `${relativePath}::${funcName}`;
-      const docComment = pendingDocComment.length > 0 ? pendingDocComment.join("\n").trim() : undefined;
+      const docComment =
+        pendingDocComment.length > 0 ? pendingDocComment.join("\n").trim() : undefined;
 
       units.push({
         id: generateCodeUnitId(repoId, relativePath, funcName, "function"),
@@ -614,7 +624,7 @@ export async function codeAtlas(options: CodeAtlasOptions = {}): Promise<CodeAtl
 
   try {
     // Preprocess ignore patterns for efficiency
-    const resolvedIgnorePatterns = ignorePatterns.map((p) => 
+    const resolvedIgnorePatterns = ignorePatterns.map((p) =>
       p.startsWith("**/") ? p : path.join(repoDir, p)
     );
 
@@ -647,7 +657,9 @@ export async function codeAtlas(options: CodeAtlasOptions = {}): Promise<CodeAtl
 
         // Progress indicator for large repos
         if (!options.json && filesProcessed % 50 === 0) {
-          output.info(`Processed ${filesProcessed}/${filesToScan.length} files (${units.length} units)...`);
+          output.info(
+            `Processed ${filesProcessed}/${filesToScan.length} files (${units.length} units)...`
+          );
         }
       } catch {
         // Skip files that can't be read
@@ -718,7 +730,9 @@ export async function codeAtlas(options: CodeAtlasOptions = {}): Promise<CodeAtl
       } else {
         output.success(`\n✅ Code Atlas extraction complete`);
         output.info(`Output written to: ${outPath}`);
-        output.info(`Files scanned: ${filesToScan.length}${truncated ? ` (limited from ${allFiles.length})` : ""}`);
+        output.info(
+          `Files scanned: ${filesToScan.length}${truncated ? ` (limited from ${allFiles.length})` : ""}`
+        );
         output.info(`Units extracted: ${units.length}`);
         output.info(`Duration: ${duration}s`);
       }
@@ -736,7 +750,9 @@ export async function codeAtlas(options: CodeAtlasOptions = {}): Promise<CodeAtl
       } else {
         // Human-readable summary first, then JSON
         output.success(`\n✅ Code Atlas extraction complete`);
-        output.info(`Files scanned: ${filesToScan.length}${truncated ? ` (limited from ${allFiles.length})` : ""}`);
+        output.info(
+          `Files scanned: ${filesToScan.length}${truncated ? ` (limited from ${allFiles.length})` : ""}`
+        );
         output.info(`Units extracted: ${units.length}`);
         output.info(`Duration: ${duration}s`);
         output.info(`\nOutput:`);

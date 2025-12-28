@@ -10,11 +10,7 @@ import assert from "node:assert";
 import { unlinkSync, existsSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
-import {
-  createDatabase,
-  deriveEncryptionKey,
-  getEncryptionKey,
-} from "@app/memory/store/db.js";
+import { createDatabase, deriveEncryptionKey, getEncryptionKey } from "@app/memory/store/db.js";
 import { saveFrame, getFrameById, deleteFrame } from "@app/memory/store/index.js";
 import type { Frame } from "../frames/types.js";
 import Database from "better-sqlite3-multiple-ciphers";
@@ -132,17 +128,21 @@ describe("Database Encryption Tests", () => {
     test("should create encrypted database successfully", () => {
       const db = createDatabase(TEST_DB_PATH);
       assert.ok(db, "Database should be created");
-      
+
       // Verify database is accessible
       const result = db.prepare("SELECT COUNT(*) as count FROM frames").get() as { count: number };
-      assert.strictEqual(typeof result.count, "number", "Should be able to query encrypted database");
-      
+      assert.strictEqual(
+        typeof result.count,
+        "number",
+        "Should be able to query encrypted database"
+      );
+
       db.close();
     });
 
     test("should save and retrieve data from encrypted database", () => {
       const db = createDatabase(TEST_DB_PATH);
-      
+
       const testFrame: Frame = {
         id: "encrypted-frame-001",
         timestamp: new Date().toISOString(),
@@ -158,12 +158,12 @@ describe("Database Encryption Tests", () => {
 
       saveFrame(db, testFrame);
       const retrieved = getFrameById(db, "encrypted-frame-001");
-      
+
       assert.ok(retrieved, "Frame should be retrieved from encrypted database");
       assert.strictEqual(retrieved!.id, testFrame.id);
       assert.strictEqual(retrieved!.summary_caption, testFrame.summary_caption);
       assert.deepStrictEqual(retrieved!.keywords, testFrame.keywords);
-      
+
       deleteFrame(db, "encrypted-frame-001");
       db.close();
     });
@@ -175,13 +175,13 @@ describe("Database Encryption Tests", () => {
 
       // Try to open with wrong key (still meets diversity requirements)
       process.env.LEX_DB_KEY = "Wrong-Passphrase@77";
-      
+
       assert.throws(
         () => createDatabase(TEST_DB_PATH),
         /Failed to open encrypted database/,
         "Should throw error when opening with wrong key"
       );
-      
+
       // Restore correct key for cleanup
       process.env.LEX_DB_KEY = TEST_PASSPHRASE;
     });
@@ -194,18 +194,18 @@ describe("Database Encryption Tests", () => {
       // Try to open without key
       delete process.env.LEX_DB_KEY;
       process.env.NODE_ENV = "test"; // Ensure we're not in production
-      
+
       const db2 = new Database(TEST_DB_PATH);
-      
+
       // Attempting to read from encrypted database without key should fail
       assert.throws(
         () => db2.prepare("SELECT 1").get(),
         /file is not a database/,
         "Should fail to query encrypted database without key"
       );
-      
+
       db2.close();
-      
+
       // Restore key for cleanup
       process.env.LEX_DB_KEY = TEST_PASSPHRASE;
     });
@@ -237,7 +237,7 @@ describe("Database Encryption Tests", () => {
     test("should create unencrypted database when LEX_DB_KEY not set", () => {
       const db = createDatabase(TEST_DB_PATH);
       assert.ok(db, "Unencrypted database should be created");
-      
+
       const testFrame: Frame = {
         id: "unencrypted-frame-001",
         timestamp: new Date().toISOString(),
@@ -252,10 +252,10 @@ describe("Database Encryption Tests", () => {
 
       saveFrame(db, testFrame);
       const retrieved = getFrameById(db, "unencrypted-frame-001");
-      
+
       assert.ok(retrieved, "Frame should be retrieved from unencrypted database");
       assert.strictEqual(retrieved!.id, testFrame.id);
-      
+
       deleteFrame(db, "unencrypted-frame-001");
       db.close();
     });
@@ -263,15 +263,19 @@ describe("Database Encryption Tests", () => {
     test("unencrypted database should be readable without encryption", () => {
       // Create unencrypted database
       const db1 = createDatabase(TEST_DB_PATH);
-      db1.prepare("INSERT INTO frames (id, timestamp, branch, module_scope, summary_caption, reference_point, status_snapshot) VALUES (?, ?, ?, ?, ?, ?, ?)").run(
-        "test-frame",
-        new Date().toISOString(),
-        "main",
-        JSON.stringify(["core"]),
-        "Test",
-        "Test reference",
-        JSON.stringify({ next_action: "test" })
-      );
+      db1
+        .prepare(
+          "INSERT INTO frames (id, timestamp, branch, module_scope, summary_caption, reference_point, status_snapshot) VALUES (?, ?, ?, ?, ?, ?, ?)"
+        )
+        .run(
+          "test-frame",
+          new Date().toISOString(),
+          "main",
+          JSON.stringify(["core"]),
+          "Test",
+          "Test reference",
+          JSON.stringify({ next_action: "test" })
+        );
       db1.close();
 
       // Open again without encryption
@@ -283,4 +287,6 @@ describe("Database Encryption Tests", () => {
   });
 });
 
-console.log("\n✅ Database Encryption Tests - covering key derivation, encrypted operations, and error handling\n");
+console.log(
+  "\n✅ Database Encryption Tests - covering key derivation, encrypted operations, and error handling\n"
+);

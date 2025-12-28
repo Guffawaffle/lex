@@ -82,7 +82,10 @@ function readFramesFromFile(filepath: string): Frame[] {
 /**
  * Read all JSON files from a directory
  */
-function readFramesFromDirectory(dirpath: string): { filesMap: Map<string, Frame[]>; readErrors: number } {
+function readFramesFromDirectory(dirpath: string): {
+  filesMap: Map<string, Frame[]>;
+  readErrors: number;
+} {
   if (!existsSync(dirpath)) {
     throw new AXErrorException(
       "IMPORT_DIR_NOT_FOUND",

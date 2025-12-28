@@ -82,11 +82,21 @@ describe("Projection Engine", () => {
       assert.ok(cursorResult, "Should have cursor projection");
 
       assert.strictEqual(copilotResult.action, "create", "Copilot should be create action");
-      assert.strictEqual(cursorResult.action, "update", "Cursor should be update action (file exists)");
+      assert.strictEqual(
+        cursorResult.action,
+        "update",
+        "Cursor should be update action (file exists)"
+      );
 
-      assert.ok(copilotResult.content.includes(LEX_BEGIN), "Copilot content should have BEGIN marker");
+      assert.ok(
+        copilotResult.content.includes(LEX_BEGIN),
+        "Copilot content should have BEGIN marker"
+      );
       assert.ok(copilotResult.content.includes(LEX_END), "Copilot content should have END marker");
-      assert.ok(copilotResult.content.includes("Test content"), "Copilot content should include canonical content");
+      assert.ok(
+        copilotResult.content.includes("Test content"),
+        "Copilot content should include canonical content"
+      );
     });
 
     it("should use default projection settings when not specified in config", () => {

@@ -224,7 +224,7 @@ describe("Atlas Frame generation edge cases", () => {
 
     test("handles unicode module names", () => {
       const policy = createTestPolicy({
-        "модуль": { allowed_callers: ["another"] },
+        модуль: { allowed_callers: ["another"] },
         another: {},
       });
 
@@ -409,7 +409,9 @@ describe("Atlas validation edge cases", () => {
       const result = validateAtlas(atlas);
 
       assert.ok(!result.valid);
-      assert.ok(result.errors.some((e) => e.includes("Dangling edge") && e.includes("nonexistent")));
+      assert.ok(
+        result.errors.some((e) => e.includes("Dangling edge") && e.includes("nonexistent"))
+      );
     });
 
     test("detects dangling edge target", () => {
@@ -420,7 +422,9 @@ describe("Atlas validation edge cases", () => {
       const result = validateAtlas(atlas);
 
       assert.ok(!result.valid);
-      assert.ok(result.errors.some((e) => e.includes("Dangling edge") && e.includes("nonexistent")));
+      assert.ok(
+        result.errors.some((e) => e.includes("Dangling edge") && e.includes("nonexistent"))
+      );
     });
 
     test("detects edge weight out of range (negative)", () => {

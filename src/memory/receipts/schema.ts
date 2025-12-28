@@ -105,7 +105,10 @@ export const Receipt = z.object({
   // Failure classification (Wave 2)
   failureClass: FailureClass.optional().describe("Classification of failure for governance"),
   failureDetails: z.string().optional().describe("Additional context about the failure"),
-  recoverySuggestion: z.string().optional().describe("Suggested recovery action based on failure class"),
+  recoverySuggestion: z
+    .string()
+    .optional()
+    .describe("Suggested recovery action based on failure class"),
 
   // Uncertainty handling
   confidence: ConfidenceLevel,

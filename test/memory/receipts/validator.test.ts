@@ -151,7 +151,10 @@ describe("Receipt Validation", () => {
       const result = validateReceiptPayload(invalid);
 
       assert.strictEqual(result.valid, false);
-      assert.ok(result.errors.some((e) => e.path === "confidence"), "Should have error for confidence field");
+      assert.ok(
+        result.errors.some((e) => e.path === "confidence"),
+        "Should have error for confidence field"
+      );
     });
 
     test("should reject receipt with invalid reversibility", () => {
@@ -170,7 +173,10 @@ describe("Receipt Validation", () => {
       const result = validateReceiptPayload(invalid);
 
       assert.strictEqual(result.valid, false);
-      assert.ok(result.errors.some((e) => e.path === "reversibility"), "Should have error for reversibility field");
+      assert.ok(
+        result.errors.some((e) => e.path === "reversibility"),
+        "Should have error for reversibility field"
+      );
     });
 
     test("should reject receipt with invalid outcome", () => {
@@ -189,7 +195,10 @@ describe("Receipt Validation", () => {
       const result = validateReceiptPayload(invalid);
 
       assert.strictEqual(result.valid, false);
-      assert.ok(result.errors.some((e) => e.path === "outcome"), "Should have error for outcome field");
+      assert.ok(
+        result.errors.some((e) => e.path === "outcome"),
+        "Should have error for outcome field"
+      );
     });
 
     test("should reject receipt with invalid timestamp", () => {
@@ -208,7 +217,10 @@ describe("Receipt Validation", () => {
       const result = validateReceiptPayload(invalid);
 
       assert.strictEqual(result.valid, false);
-      assert.ok(result.errors.some((e) => e.path === "timestamp"), "Should have error for timestamp field");
+      assert.ok(
+        result.errors.some((e) => e.path === "timestamp"),
+        "Should have error for timestamp field"
+      );
     });
 
     test("should reject receipt with wrong schemaVersion", () => {
@@ -227,7 +239,10 @@ describe("Receipt Validation", () => {
       const result = validateReceiptPayload(invalid);
 
       assert.strictEqual(result.valid, false);
-      assert.ok(result.errors.some((e) => e.path === "schemaVersion"), "Should have error for schemaVersion field");
+      assert.ok(
+        result.errors.some((e) => e.path === "schemaVersion"),
+        "Should have error for schemaVersion field"
+      );
     });
 
     test("should reject receipt with wrong kind", () => {
@@ -246,7 +261,10 @@ describe("Receipt Validation", () => {
       const result = validateReceiptPayload(invalid);
 
       assert.strictEqual(result.valid, false);
-      assert.ok(result.errors.some((e) => e.path === "kind"), "Should have error for kind field");
+      assert.ok(
+        result.errors.some((e) => e.path === "kind"),
+        "Should have error for kind field"
+      );
     });
 
     test("should reject receipt with invalid uncertainty marker", () => {
@@ -292,7 +310,10 @@ describe("Receipt Validation", () => {
       const result = validateReceiptPayload(payload);
 
       assert.strictEqual(result.valid, true, "Should be valid despite unknown field");
-      assert.ok(result.warnings.some((w) => w.path === "unknownField"), "Should warn about unknown field");
+      assert.ok(
+        result.warnings.some((w) => w.path === "unknownField"),
+        "Should warn about unknown field"
+      );
     });
 
     test("should warn about unknown fields in uncertainty markers", () => {
@@ -375,7 +396,10 @@ describe("Receipt Validation", () => {
       const result = validateUncertaintyMarkerPayload(invalid);
 
       assert.strictEqual(result.valid, false);
-      assert.ok(result.errors.some((e) => e.path === "confidence"), "Should have error for confidence field");
+      assert.ok(
+        result.errors.some((e) => e.path === "confidence"),
+        "Should have error for confidence field"
+      );
     });
 
     test("should reject null uncertainty marker", () => {
@@ -397,7 +421,10 @@ describe("Receipt Validation", () => {
       const result = validateUncertaintyMarkerPayload(payload);
 
       assert.strictEqual(result.valid, true);
-      assert.ok(result.warnings.some((w) => w.path === "unknownField"), "Should warn about unknown field");
+      assert.ok(
+        result.warnings.some((w) => w.path === "unknownField"),
+        "Should warn about unknown field"
+      );
     });
   });
 });

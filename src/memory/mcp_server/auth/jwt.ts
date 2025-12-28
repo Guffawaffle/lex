@@ -59,16 +59,12 @@ export function signAccessToken(payload: JwtPayload, privateKey: string): string
  * Sign a JWT refresh token
  */
 export function signRefreshToken(userId: string, privateKey: string): string {
-  return jwt.sign(
-    { sub: userId, type: "refresh" },
-    privateKey,
-    {
-      algorithm: "RS256",
-      expiresIn: TOKEN_EXPIRATION.REFRESH_TOKEN,
-      issuer: "lex-memory-server",
-      audience: "lex-api",
-    }
-  );
+  return jwt.sign({ sub: userId, type: "refresh" }, privateKey, {
+    algorithm: "RS256",
+    expiresIn: TOKEN_EXPIRATION.REFRESH_TOKEN,
+    issuer: "lex-memory-server",
+    audience: "lex-api",
+  });
 }
 
 /**

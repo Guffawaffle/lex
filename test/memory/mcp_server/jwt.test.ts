@@ -96,21 +96,15 @@ describe("JWT Token Management", () => {
       const token = signAccessToken(payload, keys.privateKey);
       const wrongKeys = generateKeyPair();
 
-      assert.throws(
-        () => verifyToken(token, wrongKeys.publicKey),
-        {
-          message: /Invalid token/,
-        }
-      );
+      assert.throws(() => verifyToken(token, wrongKeys.publicKey), {
+        message: /Invalid token/,
+      });
     });
 
     it("should reject a malformed token", () => {
-      assert.throws(
-        () => verifyToken("not-a-valid-token", keys.publicKey),
-        {
-          message: /Invalid token/,
-        }
-      );
+      assert.throws(() => verifyToken("not-a-valid-token", keys.publicKey), {
+        message: /Invalid token/,
+      });
     });
 
     it("should decode a token without verification", () => {

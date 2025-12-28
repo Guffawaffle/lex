@@ -87,11 +87,7 @@ describe("MCP Server - Introspect Tool", () => {
 
       // Verify error codes are sorted (deterministic ordering)
       const sortedErrorCodes = [...errorCodes].sort();
-      assert.deepStrictEqual(
-        errorCodes,
-        sortedErrorCodes,
-        "Error codes should be in sorted order"
-      );
+      assert.deepStrictEqual(errorCodes, sortedErrorCodes, "Error codes should be in sorted order");
 
       // Check error code metadata
       assert.ok(data.errorCodeMetadata, "Should have error code metadata");
@@ -107,10 +103,7 @@ describe("MCP Server - Introspect Tool", () => {
 
       // Verify metadata exists for all error codes
       for (const code of errorCodes) {
-        assert.ok(
-          errorCodeMetadata[code],
-          `Metadata should exist for error code ${code}`
-        );
+        assert.ok(errorCodeMetadata[code], `Metadata should exist for error code ${code}`);
         assert.ok(
           "category" in errorCodeMetadata[code],
           `Metadata for ${code} should have category`
@@ -204,8 +197,11 @@ describe("MCP Server - Introspect Tool", () => {
       assert.ok(Array.isArray(errs), "Errs should be an array");
       assert.ok(errs.length > 0, "Should have at least one abbreviated error code");
       // Should have abbreviated forms like VAL_REQ, VAL_INV, etc.
-      assert.ok(errs.some((err) => err.includes("_")), "Error codes should be abbreviated");
-      
+      assert.ok(
+        errs.some((err) => err.includes("_")),
+        "Error codes should be abbreviated"
+      );
+
       // Verify error codes are sorted (deterministic ordering)
       const sortedErrs = [...errs].sort();
       assert.deepStrictEqual(errs, sortedErrs, "Error codes should be in sorted order");
@@ -237,11 +233,7 @@ describe("MCP Server - Introspect Tool", () => {
         const moduleCount = policy.moduleCount as number;
 
         assert.ok(Array.isArray(modules), "Modules should be an array");
-        assert.strictEqual(
-          modules.length,
-          moduleCount,
-          "Module count should match array length"
-        );
+        assert.strictEqual(modules.length, moduleCount, "Module count should match array length");
       }
     } finally {
       await teardown();
@@ -306,14 +298,10 @@ describe("MCP Server - Introspect Tool", () => {
       assert.ok(response.tools, "Response should have tools array");
       const toolNames = response.tools.map((t) => t.name);
       assert.ok(toolNames.includes("introspect"), "Should include introspect tool");
-      
+
       // Verify tools are sorted (deterministic ordering)
       const sortedToolNames = [...toolNames].sort();
-      assert.deepStrictEqual(
-        toolNames,
-        sortedToolNames,
-        "Tools should be in sorted order by name"
-      );
+      assert.deepStrictEqual(toolNames, sortedToolNames, "Tools should be in sorted order by name");
     } finally {
       await teardown();
     }
@@ -336,14 +324,10 @@ describe("MCP Server - Introspect Tool", () => {
       if (data.policy !== null) {
         const policy = data.policy as Record<string, unknown>;
         const modules = policy.modules as string[];
-        
+
         // Verify modules are sorted (deterministic ordering)
         const sortedModules = [...modules].sort();
-        assert.deepStrictEqual(
-          modules,
-          sortedModules,
-          "Policy modules should be in sorted order"
-        );
+        assert.deepStrictEqual(modules, sortedModules, "Policy modules should be in sorted order");
       }
     } finally {
       await teardown();
