@@ -4,7 +4,7 @@
  * Detects project type and framework based on configuration files and directory structure.
  */
 
-import { existsSync, readFileSync } from "fs";
+import { existsSync, readFileSync, readdirSync } from "fs";
 import { join } from "path";
 
 export interface ProjectDetection {
@@ -96,7 +96,8 @@ export function detectProject(projectRoot: string): ProjectDetection {
   }
 
   // .NET detection
-  if (existsSync(join(projectRoot, "*.csproj")) || existsSync(join(projectRoot, "*.sln"))) {
+  const files = readdirSync(projectRoot);
+  if (files.some((f) => f.endsWith(".csproj") || f.endsWith(".sln"))) {
     types.push("dotnet");
   }
 

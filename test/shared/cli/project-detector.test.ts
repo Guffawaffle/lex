@@ -83,6 +83,34 @@ test("detectProject: detects Go project", () => {
   }
 });
 
+test("detectProject: detects .NET project", () => {
+  setupTest();
+
+  try {
+    writeFileSync(join(testDir, "MyApp.csproj"), "<Project />");
+
+    const result = detectProject(testDir);
+
+    assert.ok(result.type.includes("dotnet"), "Should detect dotnet");
+  } finally {
+    cleanup();
+  }
+});
+
+test("detectProject: detects Java project", () => {
+  setupTest();
+
+  try {
+    writeFileSync(join(testDir, "pom.xml"), "<project />");
+
+    const result = detectProject(testDir);
+
+    assert.ok(result.type.includes("java"), "Should detect java");
+  } finally {
+    cleanup();
+  }
+});
+
 test("detectProject: detects React framework", () => {
   setupTest();
 
