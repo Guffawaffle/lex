@@ -9,6 +9,7 @@ import { ImageManager } from "../store/images.js";
 import type { Frame } from "../frames/types.js";
 import { MCP_TOOLS } from "./tools.js";
 import { MCPError, MCPErrorCode, MCP_ERROR_METADATA, createModuleIdError } from "./errors.js";
+import { IdempotencyCache } from "./idempotency.js";
 // @ts-ignore - importing from compiled dist directories
 import { generateAtlasFrame, formatAtlasFrame } from "../../shared/atlas/atlas-frame.js";
 // @ts-ignore - importing from compiled dist directories
@@ -63,6 +64,7 @@ interface RememberArgs {
   keywords?: string[];
   atlas_frame_id?: string;
   images?: { data: string; mime_type: string }[];
+  request_id?: string;
 }
 
 interface RecallArgs {
@@ -161,6 +163,7 @@ export class MCPServer {
   private imageManager: ImageManager | null;
   private policy: Policy | null; // Cached policy for validation (null if not available)
   private repoRoot: string | null; // Repository root path
+  private idempotencyCache: IdempotencyCache; // Idempotency cache for mutation tools
 
   /**
    * Create a new MCPServer instance.
@@ -210,6 +213,9 @@ export class MCPServer {
     }
 
     this.repoRoot = options.repoRoot || null;
+
+    // Initialize idempotency cache (24 hour TTL by default)
+    this.idempotencyCache = new IdempotencyCache();
 
     // Load policy once at initialization for better performance
     // If policy is not found, operate without policy enforcement
@@ -414,7 +420,17 @@ export class MCPServer {
       keywords,
       atlas_frame_id,
       images,
+      request_id,
     } = args as unknown as RememberArgs;
+
+    // Check idempotency cache if request_id is provided
+    if (request_id) {
+      const cachedResponse = this.idempotencyCache.getCached(request_id);
+      if (cachedResponse) {
+        logger.info(`[remember] Returning cached response for request_id: ${request_id}`);
+        return cachedResponse;
+      }
+    }
 
     // Validate required fields
     if (!reference_point || !summary_caption || !status_snapshot || !module_scope) {
@@ -556,7 +572,7 @@ export class MCPServer {
       responseData.atlas_frame_id = frame.atlas_frame_id;
     }
 
-    return {
+    const response: MCPResponse = {
       content: [
         {
           type: "text",
@@ -574,6 +590,13 @@ export class MCPServer {
       ],
       data: responseData,
     };
+
+    // Cache the response if request_id was provided
+    if (request_id) {
+      this.idempotencyCache.setCached(request_id, response);
+    }
+
+    return response;
   }
 
   /**

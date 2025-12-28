@@ -291,7 +291,7 @@ The rule: **If it's not worth explaining to a teammate, don't capture it.**
 Frames are stored in a local database. You can delete them manually:
 
 ```bash
-lexbrain delete TICKET-123
+lex delete TICKET-123
 ```
 
 Or you can directly edit the database (it's just SQLite):
@@ -312,7 +312,7 @@ No cloud sync means no "you can never delete this" problem.
 You can export Frames to JSON:
 
 ```bash
-lexbrain export --output /path/to/backup.json
+lex export --output /path/to/backup.json
 ```
 
 You can also just copy the database file:
@@ -370,17 +370,17 @@ Lex exposes Frames through **MCP over `stdio`**. If your assistant supports MCP,
 ```json
 {
   "mcpServers": {
-    "lexbrain": {
+    "lex": {
       "command": "/srv/lex-brain/mcp-stdio.mjs",
       "env": {
-        "LEXBRAIN_DB": "/srv/lex-brain/thoughts.db"
+        "LEX_DB_PATH": "/srv/lex-brain/memory.db"
       }
     }
   }
 }
 ```
 
-Then your assistant can call `lexbrain recall TICKET-123` to pull Frames.
+Then your assistant can call `lex recall TICKET-123` to pull Frames.
 
 If your assistant doesn't support MCP yet, you can still use Lex manually via CLI and copy/paste the memory card or summary into the assistant.
 
@@ -393,7 +393,7 @@ If your assistant doesn't support MCP yet, you can still use Lex manually via CL
 You don't have to use Jira or any ticketing system. You can capture Frames with just a summary and keywords:
 
 ```bash
-lexbrain remember \
+lex remember \
   --summary "Auth handshake timeout; Add User button still disabled" \
   --next "Fix UserAccessController wiring" \
   --keywords "auth timeout,Add User disabled"
@@ -416,7 +416,7 @@ Frames are flexible. Ticket IDs just make them easier to organize.
 The memory card renderer is just a script that takes raw text and outputs an image. You can replace it with your own:
 
 ```bash
-lexbrain config set renderer_path /path/to/your/custom-renderer.sh
+lex config set renderer_path /path/to/your/custom-renderer.sh
 ```
 
 Your custom renderer should:
