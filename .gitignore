@@ -47,6 +47,11 @@ shared/**/*.d.ts
 !shared/**/*.mjs
 memory/frames/*.js
 memory/frames/*.d.ts
+src/**/*.js
+src/**/*.d.ts
+!src/**/*.test.ts
+!src/**/*.test.mjs
+!src/**/*.mjs
 
 # Python
 .venv/

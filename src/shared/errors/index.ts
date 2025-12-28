@@ -34,3 +34,27 @@ export {
   isLexErrorCode,
   type LexErrorCode,
 } from "./error-codes.js";
+
+// Compact error envelope (AX-012)
+export {
+  CompactErrorEnvelopeSchema,
+  type CompactErrorEnvelope,
+  type CompactError,
+  toCompactError,
+  mcpErrorToCompactError,
+  createCompactErrorEnvelope,
+  axErrorToCompactEnvelope,
+  mcpErrorToCompactEnvelope,
+} from "./compact-error.js";
+
+// Hint registry (AX-012)
+export {
+  HINT_REGISTRY,
+  ERROR_CODE_TO_HINT_ID,
+  getHint,
+  getHints,
+  getHintIdForErrorCode,
+  isValidHintId,
+  type Hint,
+  type HintId,
+} from "./hint-registry.js";

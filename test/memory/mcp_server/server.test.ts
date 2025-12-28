@@ -54,6 +54,7 @@ describe("MCP Server - Protocol", () => {
       const expectedTools = [
         "code_atlas",
         "get_frame",
+        "get_hints",
         "help",
         "introspect",
         "list_frames",
