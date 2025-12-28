@@ -233,7 +233,10 @@ if (warningCount > 0) {
 }
 if (errorCount > 0) {
   console.log(`${RED}Errors:${RESET} ${errorCount}`);
+  console.log(`\n${RED}✗ Documentation audit failed${RESET}`);
+  console.log(`\nFix the errors above and run: npm run validate-docs`);
   process.exit(1);
 } else {
   console.log(`\n${GREEN}✓ Documentation audit passed${RESET}`);
+  process.exit(0);
 }

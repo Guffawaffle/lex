@@ -373,7 +373,7 @@ Lex exposes Frames through **MCP over `stdio`**. If your assistant supports MCP,
     "lex": {
       "command": "/srv/lex-brain/mcp-stdio.mjs",
       "env": {
-        "LEXBRAIN_DB": "/srv/lex-brain/thoughts.db"
+        "LEX_DB_PATH": "/srv/lex-brain/memory.db"
       }
     }
   }

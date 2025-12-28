@@ -279,7 +279,7 @@ Wire your assistant (GitHub Copilot, Claude, etc.) to call `lex recall <ticket>`
        "lex": {
          "command": "/srv/lex-brain/mcp-stdio.mjs",
          "env": {
-           "LEXBRAIN_DB": "/srv/lex-brain/thoughts.db"
+           "LEX_DB_PATH": "/srv/lex-brain/memory.db"
          }
        }
      }
