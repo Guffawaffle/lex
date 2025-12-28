@@ -79,11 +79,7 @@ export function toCompactError(error: AXError): CompactError {
 /**
  * Convert an MCP error response to a compact error
  */
-export function mcpErrorToCompactError(
-  code: string,
-  message: string,
-  metadata?: Record<string, unknown>
-): CompactError {
+export function mcpErrorToCompactError(code: string, message: string): CompactError {
   // Check if error is retryable based on error code
   const retry = MCP_RETRYABLE_ERRORS.has(code);
 
@@ -124,11 +120,7 @@ export function axErrorToCompactEnvelope(error: AXError): CompactErrorEnvelope {
 /**
  * Create a compact error envelope from MCP error details
  */
-export function mcpErrorToCompactEnvelope(
-  code: string,
-  message: string,
-  metadata?: Record<string, unknown>
-): CompactErrorEnvelope {
-  const compactError = mcpErrorToCompactError(code, message, metadata);
+export function mcpErrorToCompactEnvelope(code: string, message: string): CompactErrorEnvelope {
+  const compactError = mcpErrorToCompactError(code, message);
   return createCompactErrorEnvelope(compactError);
 }

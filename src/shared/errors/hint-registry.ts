@@ -7,8 +7,6 @@
  * @module shared/errors/hint-registry
  */
 
-import { LexErrorCode, LEX_ERROR_CODES } from "./error-codes.js";
-
 /**
  * Hint advice structure
  */
