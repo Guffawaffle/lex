@@ -61,7 +61,39 @@ npm run test:git
 
 # All tests including integration
 npm run test:all
+
+# Recall quality tests (validates search accuracy and relevance)
+npm run test:recall-quality
 ```
+
+## Recall Quality Tests
+
+The `test/recall-quality/` directory contains specialized tests to validate the quality and accuracy of Frame recall/search:
+
+- **`recall-quality.test.ts`**: Comprehensive test suite with 10+ scenarios testing:
+  - Exact topic matching
+  - Semantic similarity
+  - Irrelevant frame filtering
+  - Module scope filtering
+  - Keyword-based retrieval
+  - Case-insensitive matching
+  - Partial word matching
+  - Precision/Recall/F1 metrics
+
+- **`before-after-comparison.test.ts`**: Demonstrates the value proposition of `lex recall`:
+  - Token efficiency (99.6% reduction)
+  - Time to productivity (86.7% reduction)
+  - Multi-day project tracking
+  - Team handoff scenarios
+
+### Test Corpus
+
+The `test/fixtures/recall-corpus/` directory contains:
+- 55 diverse test Frames across 5 topic clusters
+- 15 labeled queries with known relevance scores
+- Used for calculating precision, recall, and F1 metrics
+
+See `docs/RECALL_QUALITY.md` for detailed documentation on recall quality metrics and benchmarks.
 
 ### Test Mode Configuration
 

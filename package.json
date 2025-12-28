@@ -121,6 +121,7 @@
     "lint:baseline:update": "npx eslint . --format=json 2>&1 | grep -v '^>' > lint-baseline.json && echo 'Baseline updated. Please commit lint-baseline.json.'",
     "test": "npx tsx --import ./test/helpers/setup.ts --test --test-force-exit $(find test -name '*.test.ts' -o -name '*.test.mts' | grep -v 'test/shared/git/' | grep -v 'normalizer.test' | grep -v 'export.test' | grep -v 'expander.test' | grep -v 'api-ingestion.perf.test' | tr '\\n' ' ') && npx tsx --import ./test/helpers/setup.ts --test --test-force-exit $(find test -name '*.test.mjs' | tr '\\n' ' ')",
     "test:perf": "npx tsx --import ./test/helpers/setup.ts --test --test-force-exit test/memory/api-ingestion.perf.test.ts",
+    "test:recall-quality": "npx tsx --import ./test/helpers/setup.ts --test --test-force-exit test/recall-quality/*.test.ts",
     "test:git": "echo 'WARNING: Git tests require LEX_GIT_MODE=live and non-interactive git signing. Skipped by default.' && LEX_GIT_MODE=live npx tsx --test 'test/shared/git/**/*.test.ts' 'test/shared/paths/normalizer.test.ts' 'test/shared/cli/export.test.ts' 'test/shared/tokens/expander.test.ts'",
     "test:cli:slow": "LEX_ENABLE_SLOW_CLI_TESTS=1 LEX_GIT_MODE=live npx tsx --test 'test/shared/cli/export.test.ts'",
     "test:aliases": "npx tsx --import ./test/helpers/setup.ts --test test/shared/aliases/substring.spec.mjs test/shared/aliases/collision.spec.mjs test/shared/aliases/case-sensitivity.spec.mjs test/shared/aliases/resolution.spec.mjs",

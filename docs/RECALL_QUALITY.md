@@ -287,6 +287,8 @@ To improve recall quality:
 npm run test:recall-quality
 ```
 
+This runs both the recall quality test suite and the before/after comparison tests.
+
 ### Individual Tests
 
 ```bash
@@ -301,6 +303,12 @@ npx tsx --test test/recall-quality/before-after-comparison.test.ts
 
 ```bash
 npm run test:benchmarks
+```
+
+### All Tests (including recall quality)
+
+```bash
+npm test  # Includes recall quality tests automatically
 ```
 
 ## References
