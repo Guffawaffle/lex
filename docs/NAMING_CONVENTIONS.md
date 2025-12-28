@@ -78,13 +78,21 @@ New categories require justification and should be added sparingly.
 
 **Lex (displayed as `mcp_lex_{name}`):**
 ```
-remember           → mcp_lex_remember
-recall             → mcp_lex_recall
-list_frames        → mcp_lex_list_frames
-timeline           → mcp_lex_timeline
+frame_create       → mcp_lex_frame_create (replaces: remember)
+frame_validate     → mcp_lex_frame_validate (replaces: validate_remember)
+frame_search       → mcp_lex_frame_search (replaces: recall)
+frame_get          → mcp_lex_frame_get (replaces: get_frame)
+frame_list         → mcp_lex_frame_list (replaces: list_frames)
 policy_check       → mcp_lex_policy_check
-code_atlas         → mcp_lex_code_atlas
+timeline_show      → mcp_lex_timeline_show (replaces: timeline)
+atlas_analyze      → mcp_lex_atlas_analyze (replaces: code_atlas)
+system_introspect  → mcp_lex_system_introspect (replaces: introspect)
+hints_get          → mcp_lex_hints_get (replaces: get_hints)
+help               → mcp_lex_help
 ```
+
+**Note**: Old names (shown in parentheses) are deprecated but maintained as aliases.
+See ADR-0009 for the migration plan.
 
 **LexRunner (displayed as `mcp_lexrunner_{name}`):**
 ```

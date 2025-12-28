@@ -17,11 +17,14 @@ export interface MCPTool {
 
 /**
  * Tool definitions for MCP protocol
+ *
+ * Following ADR-0009, tools use the resource_action naming convention.
+ * Old names (remember, recall, etc.) are maintained as aliases in server.ts.
  */
 export const MCP_TOOLS: MCPTool[] = [
   {
-    name: "remember",
-    description: "Store a Frame (episodic memory snapshot)",
+    name: "frame_create",
+    description: "Store a Frame (episodic memory snapshot). Alias: remember (deprecated)",
     inputSchema: {
       type: "object",
       required: ["reference_point", "summary_caption", "status_snapshot", "module_scope"],
@@ -96,8 +99,9 @@ export const MCP_TOOLS: MCPTool[] = [
     },
   },
   {
-    name: "validate_remember",
-    description: "Validate remember input without storing (dry-run validation)",
+    name: "frame_validate",
+    description:
+      "Validate frame input without storing (dry-run validation). Alias: validate_remember (deprecated)",
     inputSchema: {
       type: "object",
       required: ["reference_point", "summary_caption", "status_snapshot", "module_scope"],
@@ -167,9 +171,9 @@ export const MCP_TOOLS: MCPTool[] = [
     },
   },
   {
-    name: "recall",
+    name: "frame_search",
     description:
-      "Search Frames by reference point, branch, or Jira ticket. Returns Frame + Atlas Frame neighborhood.",
+      "Search Frames by reference point, branch, or Jira ticket. Returns Frame + Atlas Frame neighborhood. Alias: recall (deprecated)",
     inputSchema: {
       type: "object",
       properties: {
@@ -200,8 +204,9 @@ export const MCP_TOOLS: MCPTool[] = [
     },
   },
   {
-    name: "get_frame",
-    description: "Retrieve a specific frame by ID. Use when you know the exact frame ID.",
+    name: "frame_get",
+    description:
+      "Retrieve a specific frame by ID. Use when you know the exact frame ID. Alias: get_frame (deprecated)",
     inputSchema: {
       type: "object",
       required: ["frame_id"],
@@ -225,9 +230,9 @@ export const MCP_TOOLS: MCPTool[] = [
     },
   },
   {
-    name: "list_frames",
+    name: "frame_list",
     description:
-      "List recent Frames, optionally filtered by branch or module. Returns Frame + Atlas Frame for each result.",
+      "List recent Frames, optionally filtered by branch or module. Returns Frame + Atlas Frame for each result. Alias: list_frames (deprecated)",
     inputSchema: {
       type: "object",
       properties: {
@@ -284,8 +289,9 @@ export const MCP_TOOLS: MCPTool[] = [
     },
   },
   {
-    name: "timeline",
-    description: "Show visual timeline of Frame evolution for a ticket or branch",
+    name: "timeline_show",
+    description:
+      "Show visual timeline of Frame evolution for a ticket or branch. Alias: timeline (deprecated)",
     inputSchema: {
       type: "object",
       required: ["ticketOrBranch"],
@@ -313,8 +319,9 @@ export const MCP_TOOLS: MCPTool[] = [
     },
   },
   {
-    name: "code_atlas",
-    description: "Analyze code structure and dependencies across modules",
+    name: "atlas_analyze",
+    description:
+      "Analyze code structure and dependencies across modules. Alias: code_atlas (deprecated)",
     inputSchema: {
       type: "object",
       properties: {
@@ -331,9 +338,9 @@ export const MCP_TOOLS: MCPTool[] = [
     },
   },
   {
-    name: "introspect",
+    name: "system_introspect",
     description:
-      "Discover the current state of Lex (available modules, policy, frame count, capabilities, error codes with metadata). Returns error code categories (validation, storage, policy, internal) and retryability hints for autonomous error handling.",
+      "Discover the current state of Lex (available modules, policy, frame count, capabilities, error codes with metadata). Returns error code categories (validation, storage, policy, internal) and retryability hints for autonomous error handling. Alias: introspect (deprecated)",
     inputSchema: {
       type: "object",
       properties: {
@@ -373,9 +380,9 @@ export const MCP_TOOLS: MCPTool[] = [
     },
   },
   {
-    name: "get_hints",
+    name: "hints_get",
     description:
-      "Retrieve hint details by hint ID. Hints are stable, cacheable advice snippets for error recovery. Hint IDs are provided in compact error responses (hintId field). Fetch hints once and cache them to minimize token usage.",
+      "Retrieve hint details by hint ID. Hints are stable, cacheable advice snippets for error recovery. Hint IDs are provided in compact error responses (hintId field). Fetch hints once and cache them to minimize token usage. Alias: get_hints (deprecated)",
     inputSchema: {
       type: "object",
       required: ["hintIds"],

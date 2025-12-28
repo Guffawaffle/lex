@@ -352,48 +352,86 @@ export class MCPServer {
   private async handleToolsCall(params: ToolCallParams): Promise<MCPResponse> {
     const { name, arguments: args } = params;
 
+    // Log deprecation warnings for old tool names (AX-014)
+    const deprecatedNames: Record<string, string> = {
+      remember: "frame_create",
+      lex_remember: "frame_create",
+      validate_remember: "frame_validate",
+      lex_validate_remember: "frame_validate",
+      recall: "frame_search",
+      lex_recall: "frame_search",
+      get_frame: "frame_get",
+      lex_get_frame: "frame_get",
+      list_frames: "frame_list",
+      lex_list_frames: "frame_list",
+      lex_policy_check: "policy_check",
+      lex_timeline: "timeline_show",
+      code_atlas: "atlas_analyze",
+      lex_code_atlas: "atlas_analyze",
+      lex_introspect: "system_introspect",
+      get_hints: "hints_get",
+      lex_help: "help",
+    };
+
+    if (deprecatedNames[name]) {
+      logger.warn(
+        `[MCP] Tool "${name}" is deprecated. Use "${deprecatedNames[name]}" instead. ` +
+          `See ADR-0009 for migration guide.`
+      );
+    }
+
     switch (name) {
-      // Canonical names - VS Code adds mcp_lex_ prefix automatically
+      // Standardized names (AX-014: resource_action pattern)
+      case "frame_create":
+      // Legacy aliases (deprecated)
       case "remember":
-      case "lex_remember": // Deprecated alias (v2.0.x)
+      case "lex_remember":
         return await this.handleRemember(args);
 
+      case "frame_validate":
       case "validate_remember":
-      case "lex_validate_remember": // Deprecated alias (v2.0.x)
+      case "lex_validate_remember":
         return await this.handleValidateRemember(args);
 
+      case "frame_search":
       case "recall":
-      case "lex_recall": // Deprecated alias (v2.0.x)
+      case "lex_recall":
         return await this.handleRecall(args);
 
+      case "frame_get":
       case "get_frame":
-      case "lex_get_frame": // Deprecated alias (v2.0.x)
+      case "lex_get_frame":
         return await this.handleGetFrame(args);
 
+      case "frame_list":
       case "list_frames":
-      case "lex_list_frames": // Deprecated alias (v2.0.x)
+      case "lex_list_frames":
         return await this.handleListFrames(args);
 
       case "policy_check":
-      case "lex_policy_check": // Deprecated alias (v2.0.x)
+      case "lex_policy_check":
         return await this.handlePolicyCheck(args);
 
+      case "timeline_show":
       case "timeline":
-      case "lex_timeline": // Deprecated alias (v2.0.x)
+      case "lex_timeline":
         return await this.handleTimeline(args);
 
+      case "atlas_analyze":
       case "code_atlas":
-      case "lex_code_atlas": // Deprecated alias (v2.0.x)
+      case "lex_code_atlas":
         return await this.handleCodeAtlas(args);
 
+      case "system_introspect":
       case "introspect":
-      case "lex_introspect": // Deprecated alias (v2.0.x)
+      case "lex_introspect":
         return await this.handleIntrospect(args);
 
       case "help":
-      case "lex_help": // Deprecated alias (v2.0.x)
+      case "lex_help":
         return await this.handleHelp(args);
 
+      case "hints_get":
       case "get_hints":
         return await this.handleGetHints(args);
 
@@ -401,17 +439,17 @@ export class MCPServer {
         throw new MCPError(MCPErrorCode.INTERNAL_UNKNOWN_TOOL, `Unknown tool: ${name}`, {
           requestedTool: name,
           availableTools: [
-            "remember",
-            "validate_remember",
-            "recall",
-            "get_frame",
-            "list_frames",
+            "frame_create",
+            "frame_validate",
+            "frame_search",
+            "frame_get",
+            "frame_list",
             "policy_check",
-            "timeline",
-            "code_atlas",
-            "introspect",
+            "timeline_show",
+            "atlas_analyze",
+            "system_introspect",
             "help",
-            "get_hints",
+            "hints_get",
           ],
         });
     }
@@ -1740,6 +1778,7 @@ export class MCPServer {
    * - Executable examples
    * - Related tools for common workflows
    * - Common workflow patterns
+   * - Naming convention guidance (AX-014)
    */
   private async handleHelp(args: Record<string, unknown>): Promise<MCPResponse> {
     const {
@@ -1752,7 +1791,7 @@ export class MCPServer {
       format?: string;
     };
 
-    // Define tool help data
+    // Define tool help data (using standardized names per ADR-0009)
     const toolHelp: Record<
       string,
       {
@@ -1763,9 +1802,10 @@ export class MCPServer {
         microExamples?: Record<string, { in: string; out: string }>;
         relatedTools: string[];
         workflows: string[];
+        deprecatedAliases?: string[];
       }
     > = {
-      remember: {
+      frame_create: {
         description:
           "Store a Frame (episodic memory snapshot) capturing your current work context.",
         requiredFields: ["reference_point", "summary_caption", "status_snapshot", "module_scope"],
@@ -1810,12 +1850,13 @@ export class MCPServer {
             out: "{ok:true,id:'frame_xyz789'}",
           },
         },
-        relatedTools: ["recall", "list_frames", "validate_remember"],
+        relatedTools: ["frame_search", "frame_list", "frame_validate"],
         workflows: ["store-then-recall", "timeline-tracking", "validate-before-store"],
+        deprecatedAliases: ["remember"],
       },
-      validate_remember: {
+      frame_validate: {
         description:
-          "Validate remember input without storing (dry-run). Use to check inputs before committing.",
+          "Validate frame input without storing (dry-run). Use to check inputs before committing.",
         requiredFields: ["reference_point", "summary_caption", "status_snapshot", "module_scope"],
         optionalFields: ["branch", "jira", "keywords", "atlas_frame_id", "images"],
         examples: [
@@ -1835,10 +1876,11 @@ export class MCPServer {
             out: "{ok:true,valid:true}",
           },
         },
-        relatedTools: ["remember"],
+        relatedTools: ["frame_create"],
         workflows: ["validate-before-store"],
+        deprecatedAliases: ["validate_remember"],
       },
-      recall: {
+      frame_search: {
         description:
           "Search Frames by reference point, branch, or Jira ticket. Returns matching Frames with Atlas neighborhoods.",
         requiredFields: [],
@@ -1871,10 +1913,11 @@ export class MCPServer {
             out: "{frames:[{id:'f3',branch:'feature/auth'}]}",
           },
         },
-        relatedTools: ["remember", "list_frames", "get_frame"],
+        relatedTools: ["frame_create", "frame_list", "frame_get"],
         workflows: ["store-then-recall", "context-recovery"],
+        deprecatedAliases: ["recall"],
       },
-      get_frame: {
+      frame_get: {
         description:
           "Retrieve a specific frame by ID. Use when you know the exact frame ID from a previous response.",
         requiredFields: ["frame_id"],
@@ -1899,10 +1942,11 @@ export class MCPServer {
             out: "{frame:{id:'frame-abc123',ref:'Auth work'}}",
           },
         },
-        relatedTools: ["recall", "list_frames"],
+        relatedTools: ["frame_search", "frame_list"],
         workflows: ["direct-frame-access"],
+        deprecatedAliases: ["get_frame"],
       },
-      list_frames: {
+      frame_list: {
         description:
           "List recent Frames, optionally filtered by branch or module. Good for getting an overview.",
         requiredFields: [],
@@ -1935,8 +1979,9 @@ export class MCPServer {
             out: "{frames:[{id:'f3',created:'2024-01-15'}]}",
           },
         },
-        relatedTools: ["recall", "timeline"],
+        relatedTools: ["frame_search", "timeline_show"],
         workflows: ["timeline-tracking", "context-recovery"],
+        deprecatedAliases: ["list_frames"],
       },
       policy_check: {
         description:
@@ -1963,10 +2008,11 @@ export class MCPServer {
             out: "{ok:true,violations:[]}",
           },
         },
-        relatedTools: ["introspect", "code_atlas"],
+        relatedTools: ["system_introspect", "atlas_analyze"],
         workflows: ["pre-commit-check", "ci-validation"],
+        deprecatedAliases: [],
       },
-      timeline: {
+      timeline_show: {
         description:
           "Show visual timeline of Frame evolution for a ticket or branch. Great for understanding work history.",
         requiredFields: ["ticketOrBranch"],
@@ -1995,10 +2041,11 @@ export class MCPServer {
             out: "{timeline:[{at:'2024-01-15',status:'In progress'}]}",
           },
         },
-        relatedTools: ["list_frames", "recall"],
+        relatedTools: ["frame_list", "frame_search"],
         workflows: ["timeline-tracking", "context-recovery"],
+        deprecatedAliases: ["timeline"],
       },
-      code_atlas: {
+      atlas_analyze: {
         description:
           "Analyze code structure and dependencies across modules. Visualizes the dependency graph.",
         requiredFields: [],
@@ -2023,10 +2070,11 @@ export class MCPServer {
             out: "{graph:{nodes:['memory/store','memory/mcp']}}",
           },
         },
-        relatedTools: ["policy_check", "introspect"],
+        relatedTools: ["policy_check", "system_introspect"],
         workflows: ["dependency-analysis", "refactoring-planning"],
+        deprecatedAliases: ["code_atlas"],
       },
-      introspect: {
+      system_introspect: {
         description:
           "Discover the current state of Lex including available modules, policy, frame count, and error codes.",
         requiredFields: [],
@@ -2053,6 +2101,7 @@ export class MCPServer {
         },
         relatedTools: ["help", "policy_check"],
         workflows: ["initial-discovery", "error-handling"],
+        deprecatedAliases: ["introspect"],
       },
       help: {
         description:
@@ -2066,37 +2115,58 @@ export class MCPServer {
           },
           {
             description: "Get help for a specific tool",
-            input: { tool: "remember" },
+            input: { tool: "frame_create" },
           },
           {
             description: "Get help without examples",
-            input: { tool: "recall", examples: false },
+            input: { tool: "frame_search", examples: false },
           },
         ],
         microExamples: {
           "all-tools": {
             in: "{}",
-            out: "{tools:{remember:{desc:'Store frame'}}}",
+            out: "{tools:{frame_create:{desc:'Store frame'}}}",
           },
           "single-tool": {
-            in: "{tool:'remember'}",
-            out: "{tool:'remember',desc:'Store frame'}",
+            in: "{tool:'frame_create'}",
+            out: "{tool:'frame_create',desc:'Store frame'}",
           },
           "no-examples": {
-            in: "{tool:'recall',examples:false}",
-            out: "{tool:'recall',desc:'Search frames'}",
+            in: "{tool:'frame_search',examples:false}",
+            out: "{tool:'frame_search',desc:'Search frames'}",
           },
           micro: {
-            in: "{tool:'remember',format:'micro'}",
+            in: "{tool:'frame_create',format:'micro'}",
             out: "{microExamples:{'store-work':{in:'...',out:'...'}}}",
           },
         },
-        relatedTools: ["introspect"],
+        relatedTools: ["system_introspect"],
         workflows: ["initial-discovery"],
+        deprecatedAliases: [],
+      },
+      hints_get: {
+        description: "Retrieve hint details by hint ID for error recovery guidance.",
+        requiredFields: ["hintIds"],
+        optionalFields: [],
+        examples: [
+          {
+            description: "Get hints by IDs",
+            input: { hintIds: ["hint_mod_invalid_001"] },
+          },
+        ],
+        microExamples: {
+          "get-hints": {
+            in: "{hintIds:['hint_mod_invalid_001']}",
+            out: "{hints:{'hint_mod_invalid_001':{text:'...',actions:[...]}}}",
+          },
+        },
+        relatedTools: ["system_introspect"],
+        workflows: ["error-handling"],
+        deprecatedAliases: ["get_hints"],
       },
     };
 
-    // Define workflow descriptions
+    // Define workflow descriptions (updated tool names)
     const workflows: Record<
       string,
       {
@@ -2108,65 +2178,65 @@ export class MCPServer {
       "store-then-recall": {
         description: "Store work context and retrieve it later",
         steps: [
-          "Use `remember` to store your current work context",
-          "Use `recall` with reference_point to find it later",
-          "Optionally use `get_frame` if you have the exact frame ID",
+          "Use `frame_create` to store your current work context",
+          "Use `frame_search` with reference_point to find it later",
+          "Optionally use `frame_get` if you have the exact frame ID",
         ],
-        tools: ["remember", "recall", "get_frame"],
+        tools: ["frame_create", "frame_search", "frame_get"],
       },
       "timeline-tracking": {
         description: "Track work evolution over time for a ticket or branch",
         steps: [
-          "Use `remember` regularly to capture work progress",
-          "Use `timeline` to visualize the evolution",
-          "Use `list_frames` to see recent work",
+          "Use `frame_create` regularly to capture work progress",
+          "Use `timeline_show` to visualize the evolution",
+          "Use `frame_list` to see recent work",
         ],
-        tools: ["remember", "timeline", "list_frames"],
+        tools: ["frame_create", "timeline_show", "frame_list"],
       },
       "validate-before-store": {
         description: "Validate inputs before committing to storage",
         steps: [
-          "Use `validate_remember` to check your inputs",
+          "Use `frame_validate` to check your inputs",
           "Fix any validation errors",
-          "Use `remember` to store the validated frame",
+          "Use `frame_create` to store the validated frame",
         ],
-        tools: ["validate_remember", "remember"],
+        tools: ["frame_validate", "frame_create"],
       },
       "context-recovery": {
         description: "Recover context when resuming work",
         steps: [
-          "Use `recall` to search for relevant frames",
-          "Use `timeline` to see work history",
-          "Use `get_frame` to get detailed frame content",
+          "Use `frame_search` to search for relevant frames",
+          "Use `timeline_show` to see work history",
+          "Use `frame_get` to get detailed frame content",
         ],
-        tools: ["recall", "timeline", "get_frame"],
+        tools: ["frame_search", "timeline_show", "frame_get"],
       },
       "initial-discovery": {
         description: "Discover Lex capabilities when starting",
         steps: [
           "Use `help` to understand available tools",
-          "Use `introspect` to see system state and available modules",
-          "Use `recall` or `list_frames` to see existing memory",
+          "Use `system_introspect` to see system state and available modules",
+          "Use `frame_search` or `frame_list` to see existing memory",
         ],
-        tools: ["help", "introspect", "recall", "list_frames"],
+        tools: ["help", "system_introspect", "frame_search", "frame_list"],
       },
       "dependency-analysis": {
         description: "Understand code structure and dependencies",
         steps: [
-          "Use `introspect` to see available modules",
-          "Use `code_atlas` to visualize dependencies",
+          "Use `system_introspect` to see available modules",
+          "Use `atlas_analyze` to visualize dependencies",
           "Use `policy_check` to validate boundaries",
         ],
-        tools: ["introspect", "code_atlas", "policy_check"],
+        tools: ["system_introspect", "atlas_analyze", "policy_check"],
       },
       "pre-commit-check": {
         description: "Validate code before committing",
         steps: [
           "Use `policy_check` to validate module boundaries",
           "Fix any policy violations",
-          "Use `remember` to capture the work context",
+          "Use `frame_create` to capture the work context",
         ],
-        tools: ["policy_check", "remember"],
+        tools: ["policy_check", "frame_create"],
       },
     };
 
@@ -2202,11 +2272,22 @@ export class MCPServer {
       }
 
       // Format text output
-      const textOutput = [
-        `# ${tool}`,
-        "",
-        helpData.description,
-        "",
+      const textOutput = [`# ${tool}`, "", helpData.description, ""];
+
+      // Add deprecated alias notice if applicable (AX-014)
+      if (helpData.deprecatedAliases && helpData.deprecatedAliases.length > 0) {
+        textOutput.push(
+          "## Deprecated Aliases",
+          helpData.deprecatedAliases
+            .map((alias) => `  - \`${alias}\` (use \`${tool}\` instead)`)
+            .join("\n"),
+          "",
+          "See ADR-0009 for the naming convention migration guide.",
+          ""
+        );
+      }
+
+      textOutput.push(
         "## Required Fields",
         helpData.requiredFields.length > 0
           ? helpData.requiredFields.map((f) => `  - ${f}`).join("\n")
@@ -2221,8 +2302,8 @@ export class MCPServer {
         helpData.relatedTools.map((t) => `  - ${t}`).join("\n"),
         "",
         "## Workflows",
-        helpData.workflows.map((w) => `  - ${w}: ${workflows[w]?.description || ""}`).join("\n"),
-      ];
+        helpData.workflows.map((w) => `  - ${w}: ${workflows[w]?.description || ""}`).join("\n")
+      );
 
       if (examples) {
         if (format === "micro" && helpData.microExamples) {
@@ -2289,6 +2370,17 @@ export class MCPServer {
       // Format text output
       const textOutput = [
         "# Lex MCP Tools Help",
+        "",
+        "## Naming Convention (ADR-0009)",
+        "",
+        "All tools follow the **resource_action** pattern for predictability:",
+        "  - `frame_create` (create a frame)",
+        "  - `frame_search` (search frames)",
+        "  - `frame_list` (list frames)",
+        "  - `frame_get` (get a specific frame)",
+        "",
+        "Old names (remember, recall, etc.) are deprecated but still work.",
+        "You'll see deprecation warnings when using old names.",
         "",
         "## Available Tools",
         ...Object.entries(toolHelp).map(
