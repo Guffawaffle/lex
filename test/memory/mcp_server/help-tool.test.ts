@@ -80,16 +80,17 @@ describe("Help MCP Tool (AX #577)", () => {
         // Verify all expected tools are documented
         const tools = data.tools as Record<string, unknown>;
         const expectedTools = [
-          "remember",
-          "validate_remember",
-          "recall",
-          "get_frame",
-          "list_frames",
+          "frame_create",
+          "frame_validate",
+          "frame_search",
+          "frame_get",
+          "frame_list",
           "policy_check",
-          "timeline",
-          "code_atlas",
-          "introspect",
+          "timeline_show",
+          "atlas_analyze",
+          "system_introspect",
           "help",
+          "hints_get",
         ];
         for (const toolName of expectedTools) {
           assert.ok(tools[toolName], `Should have help for ${toolName}`);
@@ -131,13 +132,13 @@ describe("Help MCP Tool (AX #577)", () => {
           method: "tools/call",
           params: {
             name: "help",
-            arguments: { tool: "remember" },
+            arguments: { tool: "frame_create" },
           },
         });
 
         const data = response.data as Record<string, unknown>;
 
-        assert.strictEqual(data.tool, "remember");
+        assert.strictEqual(data.tool, "frame_create");
         assert.ok(data.description, "Should have description");
         assert.ok(Array.isArray(data.requiredFields), "Should have requiredFields array");
         assert.ok(Array.isArray(data.optionalFields), "Should have optionalFields array");
@@ -163,13 +164,13 @@ describe("Help MCP Tool (AX #577)", () => {
           method: "tools/call",
           params: {
             name: "help",
-            arguments: { tool: "recall" },
+            arguments: { tool: "frame_search" },
           },
         });
 
         const data = response.data as Record<string, unknown>;
 
-        assert.strictEqual(data.tool, "recall");
+        assert.strictEqual(data.tool, "frame_search");
         assert.ok(data.description, "Should have description");
 
         // recall has no required fields
@@ -216,7 +217,7 @@ describe("Help MCP Tool (AX #577)", () => {
           method: "tools/call",
           params: {
             name: "help",
-            arguments: { tool: "remember" },
+            arguments: { tool: "frame_create" },
           },
         });
 
@@ -241,7 +242,7 @@ describe("Help MCP Tool (AX #577)", () => {
           method: "tools/call",
           params: {
             name: "help",
-            arguments: { tool: "remember", examples: false },
+            arguments: { tool: "frame_create", examples: false },
           },
         });
 
@@ -259,7 +260,7 @@ describe("Help MCP Tool (AX #577)", () => {
           method: "tools/call",
           params: {
             name: "help",
-            arguments: { tool: "remember" },
+            arguments: { tool: "frame_create" },
           },
         });
 
@@ -289,14 +290,14 @@ describe("Help MCP Tool (AX #577)", () => {
           method: "tools/call",
           params: {
             name: "help",
-            arguments: { tool: "remember" },
+            arguments: { tool: "frame_create" },
           },
         });
 
         const data = response.data as Record<string, unknown>;
         const relatedTools = data.relatedTools as string[];
 
-        assert.ok(relatedTools.includes("recall"), "remember should be related to recall");
+        assert.ok(relatedTools.includes("frame_search"), "remember should be related to recall");
       } finally {
         await teardown();
       }
@@ -309,14 +310,14 @@ describe("Help MCP Tool (AX #577)", () => {
           method: "tools/call",
           params: {
             name: "help",
-            arguments: { tool: "recall" },
+            arguments: { tool: "frame_search" },
           },
         });
 
         const data = response.data as Record<string, unknown>;
         const relatedTools = data.relatedTools as string[];
 
-        assert.ok(relatedTools.includes("remember"), "recall should be related to remember");
+        assert.ok(relatedTools.includes("frame_create"), "recall should be related to remember");
       } finally {
         await teardown();
       }
@@ -331,13 +332,13 @@ describe("Help MCP Tool (AX #577)", () => {
           method: "tools/call",
           params: {
             name: "help",
-            arguments: { tool: "remember" },
+            arguments: { tool: "frame_create" },
           },
         });
 
         const text = (response.content as Array<{ text: string }>)[0].text;
 
-        assert.ok(text.includes("# remember"), "Should have tool name as header");
+        assert.ok(text.includes("# frame_create"), "Should have tool name as header");
         assert.ok(text.includes("## Required Fields"), "Should have Required Fields section");
         assert.ok(text.includes("## Optional Fields"), "Should have Optional Fields section");
         assert.ok(text.includes("## Related Tools"), "Should have Related Tools section");
@@ -372,15 +373,15 @@ describe("Help MCP Tool (AX #577)", () => {
 
   describe("All tools documentation completeness", () => {
     const allTools = [
-      "remember",
-      "validate_remember",
-      "recall",
-      "get_frame",
-      "list_frames",
+      "frame_create",
+      "frame_validate",
+      "frame_search",
+      "frame_get",
+      "frame_list",
       "policy_check",
-      "timeline",
-      "code_atlas",
-      "introspect",
+      "timeline_show",
+      "atlas_analyze",
+      "system_introspect",
       "help",
     ];
 
@@ -432,7 +433,7 @@ describe("Help MCP Tool (AX #577)", () => {
           method: "tools/call",
           params: {
             name: "help",
-            arguments: { tool: "remember", format: "micro" },
+            arguments: { tool: "frame_create", format: "micro" },
           },
         });
 
@@ -451,7 +452,7 @@ describe("Help MCP Tool (AX #577)", () => {
           method: "tools/call",
           params: {
             name: "help",
-            arguments: { tool: "remember", format: "micro" },
+            arguments: { tool: "frame_create", format: "micro" },
           },
         });
 
@@ -479,7 +480,7 @@ describe("Help MCP Tool (AX #577)", () => {
           method: "tools/call",
           params: {
             name: "help",
-            arguments: { tool: "remember", format: "micro" },
+            arguments: { tool: "frame_create", format: "micro" },
           },
         });
 
@@ -516,7 +517,7 @@ describe("Help MCP Tool (AX #577)", () => {
           method: "tools/call",
           params: {
             name: "help",
-            arguments: { tool: "remember", format: "full" },
+            arguments: { tool: "frame_create", format: "full" },
           },
         });
 
@@ -525,7 +526,7 @@ describe("Help MCP Tool (AX #577)", () => {
           method: "tools/call",
           params: {
             name: "help",
-            arguments: { tool: "remember", format: "micro" },
+            arguments: { tool: "frame_create", format: "micro" },
           },
         });
 
@@ -552,7 +553,7 @@ describe("Help MCP Tool (AX #577)", () => {
           method: "tools/call",
           params: {
             name: "help",
-            arguments: { tool: "remember", format: "micro" },
+            arguments: { tool: "frame_create", format: "micro" },
           },
         });
 
@@ -579,7 +580,7 @@ describe("Help MCP Tool (AX #577)", () => {
           method: "tools/call",
           params: {
             name: "help",
-            arguments: { tool: "remember", format: "full" },
+            arguments: { tool: "frame_create", format: "full" },
           },
         });
 
@@ -598,7 +599,7 @@ describe("Help MCP Tool (AX #577)", () => {
           method: "tools/call",
           params: {
             name: "help",
-            arguments: { tool: "remember" },
+            arguments: { tool: "frame_create" },
           },
         });
 
@@ -617,7 +618,7 @@ describe("Help MCP Tool (AX #577)", () => {
           method: "tools/call",
           params: {
             name: "help",
-            arguments: { tool: "remember", format: "micro" },
+            arguments: { tool: "frame_create", format: "micro" },
           },
         });
 
@@ -633,15 +634,15 @@ describe("Help MCP Tool (AX #577)", () => {
     test("all tools should have micro examples", async () => {
       const srv = setup();
       const allTools = [
-        "remember",
-        "validate_remember",
-        "recall",
-        "get_frame",
-        "list_frames",
+        "frame_create",
+        "frame_validate",
+        "frame_search",
+        "frame_get",
+        "frame_list",
         "policy_check",
-        "timeline",
-        "code_atlas",
-        "introspect",
+        "timeline_show",
+        "atlas_analyze",
+        "system_introspect",
         "help",
       ];
 
