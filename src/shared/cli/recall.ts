@@ -15,6 +15,8 @@ import {
   type AtlasFrame,
 } from "../atlas/index.js";
 import { output, json } from "./output.js";
+// @ts-ignore - importing from compiled dist directories
+import { compactFrameList } from "../../memory/renderer/compact.js";
 
 export interface RecallOptions {
   json?: boolean;
@@ -25,6 +27,7 @@ export interface RecallOptions {
   exact?: boolean; // If true, disable fuzzy matching (prefix wildcards)
   list?: number | boolean; // If set, list recent frames instead of searching (true = use default limit)
   strict?: boolean; // If true, exit with code 1 when no frames found (for backwards compatibility)
+  summary?: boolean; // If true, enable compact format mode for small-context agents
 }
 
 /**
@@ -105,34 +108,46 @@ export async function recall(
     }
 
     // Output results
-    if (options.json) {
-      // JSON output
+    if (options.json || options.summary) {
+      // JSON or compact summary output
       if (options.list !== undefined) {
-        // For list mode, output minimal frame info
-        const results = frames.map((frame) => ({
-          id: frame.id,
-          timestamp: frame.timestamp,
-          summary_caption: frame.summary_caption,
-          keywords: frame.keywords || [],
-          module_scope: frame.module_scope,
-          jira: frame.jira,
-          branch: frame.branch,
-        }));
-        json({ frames: results });
-      } else {
-        // For search mode, include frames and their Atlas Frames
-        const results = [];
-        for (const frame of frames) {
-          const atlasResult = await generateAtlasFrameWithAutoTune(frame, options);
-          results.push({
-            frame,
-            atlasFrame: atlasResult.atlasFrame,
-            foldRadius: atlasResult.actualRadius,
-            autoTuned: atlasResult.autoTuned,
-            tokens: atlasResult.tokens,
-          });
+        // For list mode with summary, output compact format
+        if (options.summary) {
+          const compactResult = compactFrameList(frames);
+          json(compactResult);
+        } else {
+          // For list mode, output minimal frame info
+          const results = frames.map((frame) => ({
+            id: frame.id,
+            timestamp: frame.timestamp,
+            summary_caption: frame.summary_caption,
+            keywords: frame.keywords || [],
+            module_scope: frame.module_scope,
+            jira: frame.jira,
+            branch: frame.branch,
+          }));
+          json({ frames: results });
         }
-        json(results);
+      } else {
+        // For search mode with summary, use compact format
+        if (options.summary) {
+          const compactResult = compactFrameList(frames);
+          json(compactResult);
+        } else {
+          // For search mode, include frames and their Atlas Frames
+          const results = [];
+          for (const frame of frames) {
+            const atlasResult = await generateAtlasFrameWithAutoTune(frame, options);
+            results.push({
+              frame,
+              atlasFrame: atlasResult.atlasFrame,
+              foldRadius: atlasResult.actualRadius,
+              autoTuned: atlasResult.autoTuned,
+              tokens: atlasResult.tokens,
+            });
+          }
+          json(results);
+        }
       }
     } else {
       // Pretty print results
