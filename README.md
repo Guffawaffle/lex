@@ -149,18 +149,37 @@ npm install @smartergpt/lex
 ### Initialize
 
 ```bash
-# Basic initialization
-lex init
-# Creates .smartergpt/ workspace with:
-#   .smartergpt/prompts/ - Shared prompts (organization-level)
-#   .smartergpt/lex/ - Lex-specific files (policy, memory.db, logs, backups)
+# Zero-to-value initialization (new in v2.1.0!)
+npx @smartergpt/lex init --yes
+# Auto-detects project type (Node.js, Python, Rust, Go, etc.)
+# Creates:
+#   .smartergpt/ - Workspace with prompts, policy, and instructions
+#   .github/copilot-instructions.md - IDE instructions with LEX markers
+#   .cursorrules - Cursor IDE instructions (if Cursor detected)
+#   lex.yaml - Configuration with sensible defaults
+#   .smartergpt/lex/memory.db - SQLite database (initialized on first use)
+# Shows MCP server configuration guidance
+# Idempotent: safe to run multiple times
+
+# Interactive mode (prompts for first Frame)
+lex init --interactive
 
 # Generate seed policy from directory structure
 lex init --policy
 # Scans src/ for TypeScript/JavaScript modules
 # Generates .smartergpt/lex/lexmap.policy.json with discovered modules
 # Example: src/memory/store/ → memory/store module with src/memory/store/** match pattern
+
+# Force reinitialize (overwrite existing files)
+lex init --force
 ```
+
+**What happens during init:**
+1. 🔍 **Project Detection** — Identifies Node.js, Python, Rust, Go, Java, .NET, Ruby projects and frameworks
+2. 📝 **IDE Setup** — Creates `.github/copilot-instructions.md` and `.cursorrules` (if Cursor detected) with LEX markers for safe updates
+3. ⚙️ **Configuration** — Generates `lex.yaml` with defaults based on your project
+4. 💾 **Database** — Initializes SQLite database at `.smartergpt/lex/memory.db`
+5. 📡 **MCP Guidance** — Shows configuration for VS Code MCP server integration
 
 ### Capture Your First Frame
 

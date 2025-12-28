@@ -439,3 +439,181 @@ test("init: creates instructions directory even if template is missing", async (
     cleanup();
   }
 });
+
+// ============ Enhanced Init Tests (Zero-to-Value) ============
+
+test("init: detects Node.js project and creates IDE files", async () => {
+  setupTest();
+  const originalCwd = process.cwd();
+
+  try {
+    process.chdir(testDir);
+
+    // Create package.json to simulate Node.js project
+    writeFileSync(
+      join(testDir, "package.json"),
+      JSON.stringify({
+        name: "test-project",
+        dependencies: { react: "^18.0.0", typescript: "^5.0.0" },
+      })
+    );
+
+    const result = await init({ json: true, yes: true });
+
+    assert.strictEqual(result.success, true, "Should succeed");
+    assert.strictEqual(
+      result.projectType,
+      "TypeScript, React",
+      "Should detect TypeScript and React"
+    );
+
+    // Should create .github/copilot-instructions.md
+    assert.ok(
+      existsSync(join(testDir, ".github/copilot-instructions.md")),
+      "Should create copilot instructions"
+    );
+
+    // Should create lex.yaml
+    assert.ok(existsSync(join(testDir, "lex.yaml")), "Should create lex.yaml");
+
+    // Verify copilot instructions has LEX markers
+    const copilotContent = readFileSync(join(testDir, ".github/copilot-instructions.md"), "utf-8");
+    assert.ok(copilotContent.includes("<!-- LEX:BEGIN -->"), "Should have LEX:BEGIN marker");
+    assert.ok(copilotContent.includes("<!-- LEX:END -->"), "Should have LEX:END marker");
+    assert.ok(copilotContent.includes("lex remember"), "Should include lex commands");
+  } finally {
+    process.chdir(originalCwd);
+    cleanup();
+  }
+});
+
+test("init: detects Python project", async () => {
+  setupTest();
+  const originalCwd = process.cwd();
+
+  try {
+    process.chdir(testDir);
+
+    // Create pyproject.toml to simulate Python project
+    writeFileSync(
+      join(testDir, "pyproject.toml"),
+      `[tool.poetry]
+name = "test-app"
+dependencies.fastapi = "^0.100.0"
+`
+    );
+
+    const result = await init({ json: true, yes: true });
+
+    assert.strictEqual(result.success, true, "Should succeed");
+    assert.ok(result.projectType?.includes("Python"), "Should detect Python");
+  } finally {
+    process.chdir(originalCwd);
+    cleanup();
+  }
+});
+
+test("init: creates lex.yaml with sensible defaults", async () => {
+  setupTest();
+  const originalCwd = process.cwd();
+
+  try {
+    process.chdir(testDir);
+
+    const result = await init({ json: true, yes: true });
+
+    assert.strictEqual(result.success, true, "Should succeed");
+
+    const lexYamlPath = join(testDir, "lex.yaml");
+    assert.ok(existsSync(lexYamlPath), "Should create lex.yaml");
+
+    const content = readFileSync(lexYamlPath, "utf-8");
+    assert.ok(content.includes("version: 1"), "Should have version");
+    assert.ok(content.includes("instructions:"), "Should have instructions config");
+    assert.ok(content.includes("canonical:"), "Should have canonical path");
+  } finally {
+    process.chdir(originalCwd);
+    cleanup();
+  }
+});
+
+test("init: is idempotent (running twice doesn't break)", async () => {
+  setupTest();
+  const originalCwd = process.cwd();
+
+  try {
+    process.chdir(testDir);
+
+    // First init
+    const result1 = await init({ json: true, yes: true });
+    assert.strictEqual(result1.success, true, "First init should succeed");
+
+    // Second init (without --force) should fail gracefully
+    const result2 = await init({ json: true, yes: true });
+    assert.strictEqual(result2.success, false, "Second init should fail gracefully");
+    assert.match(result2.message, /already initialized/, "Should indicate already initialized");
+
+    // Verify files are intact
+    assert.ok(
+      existsSync(join(testDir, ".github/copilot-instructions.md")),
+      "Files should still exist"
+    );
+  } finally {
+    process.chdir(originalCwd);
+    cleanup();
+  }
+});
+
+test("init: --force allows reinitializing", async () => {
+  setupTest();
+  const originalCwd = process.cwd();
+
+  try {
+    process.chdir(testDir);
+
+    // First init
+    await init({ json: true, yes: true });
+
+    // Modify a file
+    const copilotPath = join(testDir, ".github/copilot-instructions.md");
+    writeFileSync(copilotPath, "# Custom content");
+
+    // Second init with --force
+    const result = await init({ json: true, yes: true, force: true });
+    assert.strictEqual(result.success, true, "Should succeed with --force");
+
+    // Verify file was overwritten
+    const content = readFileSync(copilotPath, "utf-8");
+    assert.ok(content.includes("LEX:BEGIN"), "Should restore LEX markers");
+  } finally {
+    process.chdir(originalCwd);
+    cleanup();
+  }
+});
+
+test("init: creates .cursorrules when Cursor is detected", async () => {
+  setupTest();
+  const originalCwd = process.cwd();
+
+  try {
+    process.chdir(testDir);
+
+    // Create .cursor directory to simulate Cursor IDE
+    mkdirSync(join(testDir, ".cursor"), { recursive: true });
+
+    const result = await init({ json: true, yes: true });
+
+    assert.strictEqual(result.success, true, "Should succeed");
+
+    // Should create .cursorrules
+    assert.ok(existsSync(join(testDir, ".cursorrules")), "Should create .cursorrules");
+
+    // Verify .cursorrules has LEX markers
+    const cursorContent = readFileSync(join(testDir, ".cursorrules"), "utf-8");
+    assert.ok(cursorContent.includes("<!-- LEX:BEGIN -->"), "Should have LEX:BEGIN marker");
+    assert.ok(cursorContent.includes("<!-- LEX:END -->"), "Should have LEX:END marker");
+  } finally {
+    process.chdir(originalCwd);
+    cleanup();
+  }
+});
