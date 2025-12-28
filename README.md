@@ -245,6 +245,18 @@ export LEX_BACKUP_RETENTION=14  # Keep 14 most recent backups
 - **Track technical debt** with kill patterns and forbidden edges
 - **Maintain consistency** across multi-module projects
 
+### 📸 See It In Action
+
+**Want to see how Lex is used in practice?** Check out our [dogfooding examples](./examples/dogfood/) — real Frames from building Lex with Lex.
+
+See how we:
+- Use `lex recall` to resume work after breaks
+- Capture context with `lex remember` at key checkpoints
+- Handle blockers and escalations in real development
+- Track complexity and turn costs for governance
+
+[View Dogfood Examples →](./examples/dogfood/)
+
 ---
 
 ## 🏗️ Architecture

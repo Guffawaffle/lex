@@ -1,0 +1,32 @@
+{
+  "id": "frame-2025-11-20-instructions",
+  "timestamp": "2025-11-20T16:00:00Z",
+  "branch": "feature/instructions-management",
+  "module_scope": ["shared/cli", "instructions"],
+  "summary_caption": "Implemented 'lex instructions' CLI - init/generate/check commands for syncing AI instructions across IDEs (Copilot, Cursor) with marker-based safe updates",
+  "reference_point": "Instructions management for multi-IDE support",
+  "status_snapshot": {
+    "next_action": "Document marker system and projection patterns in INSTRUCTIONS.md",
+    "blockers": [],
+    "merge_blockers": ["Need confirmation on .cursorrules format"],
+    "tests_failing": []
+  },
+  "jira": "LEX-156",
+  "keywords": ["instructions", "cli", "copilot", "cursor", "markers"],
+  "feature_flags": ["instructions-v2"],
+  "permissions": [],
+  "runId": "feature-dev-instructions",
+  "spend": {
+    "prompts": 28,
+    "tokens_estimated": 12800
+  },
+  "capabilityTier": "senior",
+  "taskComplexity": {
+    "tier": "senior",
+    "assignedModel": "gpt-4",
+    "actualModel": "gpt-4",
+    "escalated": false,
+    "retryCount": 3,
+    "tierMismatch": false
+  }
+}
