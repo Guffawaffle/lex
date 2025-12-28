@@ -110,6 +110,10 @@ interface IntrospectArgs {
   format?: "full" | "compact";
 }
 
+interface GetHintsArgs {
+  hintIds: string[];
+}
+
 export interface MCPRequest {
   method: string;
   params?: unknown;
@@ -385,6 +389,9 @@ export class MCPServer {
       case "lex_help": // Deprecated alias (v2.0.x)
         return await this.handleHelp(args);
 
+      case "get_hints":
+        return await this.handleGetHints(args);
+
       default:
         throw new MCPError(MCPErrorCode.INTERNAL_UNKNOWN_TOOL, `Unknown tool: ${name}`, {
           requestedTool: name,
@@ -399,6 +406,7 @@ export class MCPServer {
             "code_atlas",
             "introspect",
             "help",
+            "get_hints",
           ],
         });
     }
@@ -2215,6 +2223,57 @@ export class MCPServer {
     } catch {
       return 0;
     }
+  }
+
+  /**
+   * Handle get_hints tool - retrieve hint details by hint IDs
+   *
+   * Per AX-012, provides cacheable advice snippets for error recovery.
+   * Agents can fetch hints once and cache them to minimize token usage.
+   */
+  private async handleGetHints(args: Record<string, unknown>): Promise<MCPResponse> {
+    const typedArgs = args as Partial<GetHintsArgs>;
+    const { hintIds } = typedArgs;
+
+    if (!hintIds || !Array.isArray(hintIds)) {
+      throw new MCPError(MCPErrorCode.VALIDATION_REQUIRED_FIELD, "hintIds array is required", {
+        field: "hintIds",
+      });
+    }
+
+    if (hintIds.length === 0) {
+      throw new MCPError(MCPErrorCode.VALIDATION_INVALID_FORMAT, "hintIds array cannot be empty", {
+        field: "hintIds",
+      });
+    }
+
+    // Import hint registry utilities
+    const { getHints } = await import("../../shared/errors/hint-registry.js");
+
+    const hints = getHints(hintIds);
+
+    // Check which hints were not found
+    const notFound = hintIds.filter((id) => !(id in hints));
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(
+            {
+              hints,
+              ...(notFound.length > 0 && { notFound }),
+            },
+            null,
+            2
+          ),
+        },
+      ],
+      data: {
+        hints,
+        ...(notFound.length > 0 && { notFound }),
+      },
+    };
   }
 
   /**

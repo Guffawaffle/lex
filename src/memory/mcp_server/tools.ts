@@ -353,4 +353,20 @@ export const MCP_TOOLS: MCPTool[] = [
       },
     },
   },
+  {
+    name: "get_hints",
+    description:
+      "Retrieve hint details by hint ID. Hints are stable, cacheable advice snippets for error recovery. Hint IDs are provided in compact error responses (hintId field). Fetch hints once and cache them to minimize token usage.",
+    inputSchema: {
+      type: "object",
+      required: ["hintIds"],
+      properties: {
+        hintIds: {
+          type: "array",
+          items: { type: "string" },
+          description: "Array of hint IDs to retrieve (e.g., ['hint_mod_invalid_001'])",
+        },
+      },
+    },
+  },
 ];
