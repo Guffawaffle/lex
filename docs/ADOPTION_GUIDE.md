@@ -603,7 +603,7 @@ Start with radius 1 (default). Only increase if needed.
 
 - Check that Lex is configured in your MCP config
 - Check that the assistant has access to the `lex` MCP server
-- Try calling it manually via MCP to verify it works: `mcp call lex recall TICKET-123`
+- Try calling it manually via MCP to verify it works: `mcp call lex frame_search TICKET-123` (or use deprecated alias `recall`)
 
 ### "Atlas Frames aren't being generated"
 

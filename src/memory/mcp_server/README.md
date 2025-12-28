@@ -2,6 +2,8 @@
 
 **Model Context Protocol server and HTTP API for Frame storage and recall**
 
+> **⚠️ Tool Naming Update (v2.1.0+):** As of v2.1.0, all MCP tools use the standardized `resource_action` naming convention (e.g., `frame_create`, `frame_search`). Old names (`remember`, `recall`, etc.) still work as deprecated aliases but will be removed in v3.0.0. See [ADR-0009](../../../docs/adr/0009-mcp-tool-naming-convention.md) for details.
+
 Provides two interfaces:
 1. **MCP Server** - Exposes Frame memory to AI assistants via stdio
 2. **HTTP API** - RESTful endpoint for programmatic Frame ingestion from external tools
@@ -15,7 +17,8 @@ Provides two interfaces:
 - ✅ SQLite + FTS5 for fuzzy Frame recall
 - ✅ Atlas Frame generation (spatial neighborhood context)
 - ✅ Module ID validation with fuzzy suggestions (THE CRITICAL RULE)
-- ✅ Eight MCP tools: `lex.remember`, `lex.validate_remember`, `lex.recall`, `lex.list_frames`, `lex.policy_check`, `lex.timeline`, `lex.code_atlas`, `lex.introspect`
+- ✅ Eleven MCP tools: `frame_create`, `frame_validate`, `frame_search`, `frame_get`, `frame_list`, `policy_check`, `timeline_show`, `atlas_analyze`, `system_introspect`, `help`, `hints_get`
+- ✅ Backward compatibility: Old tool names (`remember`, `recall`, etc.) work as deprecated aliases
 - ✅ Local-first (no cloud sync, no telemetry)
 - ✅ Comprehensive test suite (integration + alias resolution + performance)
 
