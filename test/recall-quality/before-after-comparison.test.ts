@@ -39,7 +39,7 @@ function simulateDiscoveryWithoutRecall(): {
   timeEstimate: number;
 } {
   // Simulate reading multiple files to understand context
-  const filesRead = [
+  const _filesRead = [
     "src/auth/middleware.ts", // ~500 lines
     "src/auth/jwt.ts", // ~300 lines
     "test/auth/middleware.test.ts", // ~400 lines

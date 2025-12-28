@@ -13,7 +13,7 @@
  * Run with: npx tsx --test test/recall-quality/recall-quality.test.ts
  */
 
-import { test, describe, before, after, beforeEach, afterEach } from "node:test";
+import { test, describe, before, after } from "node:test";
 import assert from "node:assert";
 import { unlinkSync, existsSync } from "fs";
 import { tmpdir } from "os";
@@ -274,7 +274,7 @@ describe("Recall Quality Tests", () => {
       const result = searchFrames(db, "api performance optimization");
 
       // Should find frames matching multiple keywords
-      const relevantFrames = result.frames.filter(
+      const _relevantFrames = result.frames.filter(
         (f) =>
           (f.keywords?.includes("api") && f.keywords?.includes("performance")) ||
           (f.summary_caption.toLowerCase().includes("api") &&
