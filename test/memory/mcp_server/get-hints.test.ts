@@ -11,7 +11,7 @@ import { MemoryFrameStore } from "../../../src/memory/store/memory/index.js";
 
 describe("get_hints MCP tool (AX-012)", () => {
   describe("Tool definition", () => {
-    it("should include get_hints in available tools", async () => {
+    it("should include hints_get in available tools", async () => {
       const store = new MemoryFrameStore();
       const server = new MCPServer({ frameStore: store });
 
@@ -24,9 +24,9 @@ describe("get_hints MCP tool (AX-012)", () => {
 
         assert.ok(response.tools, "Response should include tools");
         const tools = response.tools as Array<{ name: string }>;
-        const getHintsTool = tools.find((t) => t.name === "get_hints");
+        const hintsGetTool = tools.find((t) => t.name === "hints_get");
 
-        assert.ok(getHintsTool, "Should have get_hints tool");
+        assert.ok(hintsGetTool, "Should have hints_get tool");
       } finally {
         await server.close();
         await store.close();
@@ -45,18 +45,18 @@ describe("get_hints MCP tool (AX-012)", () => {
         const response = await server.handleRequest(request);
 
         const tools = response.tools as Array<{ name: string; inputSchema: any }>;
-        const getHintsTool = tools.find((t) => t.name === "get_hints");
+        const hintsGetTool = tools.find((t) => t.name === "hints_get");
 
-        assert.ok(getHintsTool, "Should have get_hints tool");
-        assert.ok(getHintsTool.inputSchema, "Tool should have input schema");
-        assert.ok(getHintsTool.inputSchema.required, "Schema should have required fields");
+        assert.ok(hintsGetTool, "Should have hints_get tool");
+        assert.ok(hintsGetTool.inputSchema, "Tool should have input schema");
+        assert.ok(hintsGetTool.inputSchema.required, "Schema should have required fields");
         assert.ok(
-          getHintsTool.inputSchema.required.includes("hintIds"),
+          hintsGetTool.inputSchema.required.includes("hintIds"),
           "hintIds should be required"
         );
-        assert.ok(getHintsTool.inputSchema.properties.hintIds, "Should have hintIds property");
+        assert.ok(hintsGetTool.inputSchema.properties.hintIds, "Should have hintIds property");
         assert.equal(
-          getHintsTool.inputSchema.properties.hintIds.type,
+          hintsGetTool.inputSchema.properties.hintIds.type,
           "array",
           "hintIds should be array"
         );

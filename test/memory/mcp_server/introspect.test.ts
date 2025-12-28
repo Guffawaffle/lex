@@ -297,7 +297,7 @@ describe("MCP Server - Introspect Tool", () => {
 
       assert.ok(response.tools, "Response should have tools array");
       const toolNames = response.tools.map((t) => t.name);
-      assert.ok(toolNames.includes("introspect"), "Should include introspect tool");
+      assert.ok(toolNames.includes("system_introspect"), "Should include system_introspect tool");
 
       // Verify tools are sorted (deterministic ordering)
       const sortedToolNames = [...toolNames].sort();

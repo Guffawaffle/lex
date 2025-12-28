@@ -50,19 +50,20 @@ describe("MCP Server - Protocol", () => {
       assert.ok(response.tools, "Response should have tools array");
 
       // Canonical tool registry test: owns the exact set of expected tools
+      // Updated for resource_action naming convention (AX-014)
       const toolNames = response.tools.map((t) => t.name).sort();
       const expectedTools = [
-        "code_atlas",
-        "get_frame",
-        "get_hints",
+        "atlas_analyze",
+        "frame_create",
+        "frame_get",
+        "frame_list",
+        "frame_search",
+        "frame_validate",
         "help",
-        "introspect",
-        "list_frames",
+        "hints_get",
         "policy_check",
-        "recall",
-        "remember",
-        "timeline",
-        "validate_remember",
+        "system_introspect",
+        "timeline_show",
       ].sort();
 
       assert.deepStrictEqual(

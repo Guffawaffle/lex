@@ -38,17 +38,17 @@ describe("MCP Server - Timeline Tool", () => {
     }
   }
 
-  test("lex_timeline tool is listed in tools/list", async () => {
+  test("timeline_show tool is listed in tools/list", async () => {
     const srv = setup();
     try {
       const response = await srv.handleRequest({ method: "tools/list" });
 
       assert.ok(response.tools, "Response should have tools array");
       const toolNames = response.tools.map((t: { name: string }) => t.name);
-      assert.ok(toolNames.includes("timeline"), "Should include lex_timeline");
+      assert.ok(toolNames.includes("timeline_show"), "Should include timeline_show");
 
       // Find the timeline tool and check its schema
-      const timelineTool = response.tools.find((t: { name: string }) => t.name === "timeline");
+      const timelineTool = response.tools.find((t: { name: string }) => t.name === "timeline_show");
       assert.ok(timelineTool, "Timeline tool should exist");
       assert.ok(timelineTool.inputSchema, "Timeline tool should have inputSchema");
       assert.ok(

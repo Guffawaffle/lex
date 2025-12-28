@@ -687,15 +687,16 @@ describe("MCP Server Integration Tests", () => {
 
         // Test only what this test cares about: presence of key tools
         const toolNames = response.tools.map((t) => t.name);
-        assert.ok(toolNames.includes("remember"), "Should include remember");
-        assert.ok(toolNames.includes("validate_remember"), "Should include validate_remember");
-        assert.ok(toolNames.includes("recall"), "Should include recall");
-        assert.ok(toolNames.includes("get_frame"), "Should include get_frame");
-        assert.ok(toolNames.includes("list_frames"), "Should include list_frames");
+        // Updated for resource_action naming convention (AX-014)
+        assert.ok(toolNames.includes("frame_create"), "Should include frame_create");
+        assert.ok(toolNames.includes("frame_validate"), "Should include frame_validate");
+        assert.ok(toolNames.includes("frame_search"), "Should include frame_search");
+        assert.ok(toolNames.includes("frame_get"), "Should include frame_get");
+        assert.ok(toolNames.includes("frame_list"), "Should include frame_list");
         assert.ok(toolNames.includes("policy_check"), "Should include policy_check");
-        assert.ok(toolNames.includes("timeline"), "Should include timeline");
-        assert.ok(toolNames.includes("code_atlas"), "Should include code_atlas");
-        assert.ok(toolNames.includes("introspect"), "Should include introspect");
+        assert.ok(toolNames.includes("timeline_show"), "Should include timeline_show");
+        assert.ok(toolNames.includes("atlas_analyze"), "Should include atlas_analyze");
+        assert.ok(toolNames.includes("system_introspect"), "Should include system_introspect");
       } finally {
         await teardown();
       }
@@ -708,10 +709,10 @@ describe("MCP Server Integration Tests", () => {
           method: "tools/list",
         });
 
-        const rememberTool = response.tools?.find((t) => t.name === "remember");
-        assert.ok(rememberTool, "Should include lex_remember");
-        assert.ok(rememberTool.inputSchema, "Should include input schema");
-        assert.ok(rememberTool.inputSchema.properties, "Schema should have properties");
+        const frameCreateTool = response.tools?.find((t) => t.name === "frame_create");
+        assert.ok(frameCreateTool, "Should include frame_create");
+        assert.ok(frameCreateTool.inputSchema, "Should include input schema");
+        assert.ok(frameCreateTool.inputSchema.properties, "Schema should have properties");
       } finally {
         await teardown();
       }
