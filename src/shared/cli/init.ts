@@ -332,7 +332,7 @@ export async function init(options: InitOptions = {}): Promise<InitResult> {
 /**
  * Get IDE instruction content for a specific host
  */
-function getIDEInstructionContent(host: "copilot" | "cursor"): string {
+function getIDEInstructionContent(_host: "copilot" | "cursor"): string {
   return `# Lex Instructions
 
 This content is auto-generated from the canonical source.
@@ -409,7 +409,7 @@ function showMCPGuidance(detection: ReturnType<typeof detectProject>): void {
 /**
  * Prompt user to create first frame (interactive mode)
  */
-async function promptFirstFrame(baseDir: string): Promise<void> {
+async function promptFirstFrame(_baseDir: string): Promise<void> {
   try {
     const answers = await inquirer.prompt([
       {
@@ -437,7 +437,7 @@ async function promptFirstFrame(baseDir: string): Promise<void> {
       output.info("✓ Frame created! Run 'lex recall' next session to retrieve this context.");
       output.info("");
     }
-  } catch (error) {
+  } catch (_error) {
     // User cancelled or error occurred - gracefully continue
   }
 }
@@ -446,11 +446,11 @@ async function promptFirstFrame(baseDir: string): Promise<void> {
  * Display success message with all created files and next steps
  */
 function displaySuccessMessage(
-  result: InitResult,
-  baseDir: string,
-  projectDesc: string,
-  modulesDiscovered: number,
-  options: InitOptions
+  _result: InitResult,
+  _baseDir: string,
+  _projectDesc: string,
+  _modulesDiscovered: number,
+  _options: InitOptions
 ): void {
   output.info("🎯 Quick start:");
   output.info("   lex remember    # Save context after work");
