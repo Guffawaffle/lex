@@ -146,6 +146,7 @@ export function createProgram(): Command {
     .option("--cache-stats", "Show cache statistics")
     .option("--exact", "Disable fuzzy matching (prefix wildcards)")
     .option("--strict", "Exit with code 1 when no frames found (for CI/scripts)")
+    .option("--summary", "Enable compact format mode for small-context agents")
     .action(async (query, cmdOptions) => {
       const globalOptions = program.opts();
       const options: RecallOptions = {
@@ -157,6 +158,7 @@ export function createProgram(): Command {
         exact: cmdOptions.exact || false,
         strict: cmdOptions.strict || false,
         json: globalOptions.json || false,
+        summary: cmdOptions.summary || false,
       };
 
       // Validate auto-radius options

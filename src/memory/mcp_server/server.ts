@@ -38,6 +38,8 @@ import {
   renderTimelineJSON,
   type TimelineOptions,
 } from "../renderer/timeline.js";
+// @ts-ignore - importing from compiled dist directories
+import { compactFrame, compactFrameList } from "../renderer/compact.js";
 
 const logger = getLogger("memory:mcp_server:server");
 
@@ -72,11 +74,13 @@ interface RecallArgs {
   jira?: string;
   branch?: string;
   limit?: number;
+  format?: "full" | "compact";
 }
 
 interface GetFrameArgs {
   frame_id: string;
   include_atlas?: boolean;
+  format?: "full" | "compact";
 }
 
 interface ListFramesArgs {
@@ -85,6 +89,7 @@ interface ListFramesArgs {
   limit?: number;
   since?: string;
   cursor?: string;
+  format?: "full" | "compact";
 }
 
 interface PolicyCheckArgs {
@@ -97,7 +102,7 @@ interface TimelineArgs {
   ticketOrBranch: string;
   since?: string;
   until?: string;
-  format?: "text" | "json";
+  format?: "text" | "json" | "compact";
 }
 
 interface CodeAtlasArgs {
@@ -792,7 +797,7 @@ export class MCPServer {
    * Handle mcp_lex_frame_recall tool - search Frames with Atlas Frame
    */
   private async handleRecall(args: Record<string, unknown>): Promise<MCPResponse> {
-    const { reference_point, jira, branch, limit = 10 } = args as unknown as RecallArgs;
+    const { reference_point, jira, branch, limit = 10, format = "full" } = args as unknown as RecallArgs;
 
     // Track search timing for metadata (AX #578)
     const searchStart = Date.now();
@@ -883,7 +888,21 @@ export class MCPServer {
       };
     }
 
-    // Format results with Atlas Frame for each
+    // Handle compact format
+    if (format === "compact") {
+      const compactResult = compactFrameList(frames);
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(compactResult, null, 2),
+          },
+        ],
+        data: { ...compactResult, meta },
+      };
+    }
+
+    // Format results with Atlas Frame for each (full format)
     const results = frames
       .map((f: Frame, idx: number) => {
         const nextAction = f.status_snapshot?.next_action || "None specified";
@@ -931,7 +950,7 @@ export class MCPServer {
    * Handle get_frame tool - retrieve a specific frame by ID
    */
   private async handleGetFrame(args: Record<string, unknown>): Promise<MCPResponse> {
-    const { frame_id, include_atlas = true } = args as unknown as GetFrameArgs;
+    const { frame_id, include_atlas = true, format = "full" } = args as unknown as GetFrameArgs;
 
     // Validate required field
     if (!frame_id) {
@@ -951,7 +970,21 @@ export class MCPServer {
       });
     }
 
-    // Format the frame data
+    // Handle compact format
+    if (format === "compact") {
+      const compactResult = compactFrame(frame);
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(compactResult, null, 2),
+          },
+        ],
+        data: compactResult,
+      };
+    }
+
+    // Format the frame data (full format)
     const nextAction = frame.status_snapshot?.next_action || "None specified";
     const blockers = frame.status_snapshot?.blockers || [];
     const mergeBlockers = frame.status_snapshot?.merge_blockers || [];
@@ -998,7 +1031,7 @@ export class MCPServer {
    * Handle mcp_lex_frame_list tool - list recent Frames
    */
   private async handleListFrames(args: Record<string, unknown>): Promise<MCPResponse> {
-    const { branch, module, limit = 10, since, cursor } = args as unknown as ListFramesArgs;
+    const { branch, module, limit = 10, since, cursor, format = "full" } = args as unknown as ListFramesArgs;
 
     // Get frames using frameStore.listFrames with new pagination API
     // Note: When filters are applied (branch, module, since), we need to fetch more
@@ -1055,7 +1088,31 @@ export class MCPServer {
       };
     }
 
-    // Format results with Atlas Frame for each
+    // Handle compact format
+    if (format === "compact") {
+      const compactResult = compactFrameList(frames);
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(compactResult, null, 2),
+          },
+        ],
+        data: {
+          ...compactResult,
+          page: needsFiltering
+            ? {
+                limit: result.page.limit,
+                nextCursor: null,
+                hasMore: false,
+              }
+            : result.page,
+          order: result.order,
+        },
+      };
+    }
+
+    // Format results with Atlas Frame for each (full format)
     const results = frames
       .map((f: Frame, idx: number) => {
         const atlasFrame = generateAtlasFrame(f.module_scope);
@@ -1278,6 +1335,25 @@ export class MCPServer {
       let result: string;
 
       switch (format) {
+        case "compact": {
+          // Compact format: return compact frames with timeline metadata
+          const compactResult = compactFrameList(frames);
+          const timelineMetadata = {
+            title,
+            count: frames.length,
+            firstTimestamp: frames[frames.length - 1]?.timestamp,
+            lastTimestamp: frames[0]?.timestamp,
+          };
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({ ...compactResult, timeline: timelineMetadata }, null, 2),
+              },
+            ],
+            data: { ...compactResult, timeline: timelineMetadata },
+          };
+        }
         case "json":
           result = renderTimelineJSON(timelineData);
           break;

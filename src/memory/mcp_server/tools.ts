@@ -190,6 +190,12 @@ export const MCP_TOOLS: MCPTool[] = [
           description: "Max results to return (default: 10)",
           default: 10,
         },
+        format: {
+          type: "string",
+          enum: ["full", "compact"],
+          description: "Output format: 'full' (default) or 'compact' for small-context agents",
+          default: "full",
+        },
       },
     },
   },
@@ -208,6 +214,12 @@ export const MCP_TOOLS: MCPTool[] = [
           type: "boolean",
           description: "Include Atlas Frame neighborhood in response (default: true)",
           default: true,
+        },
+        format: {
+          type: "string",
+          enum: ["full", "compact"],
+          description: "Output format: 'full' (default) or 'compact' for small-context agents",
+          default: "full",
         },
       },
     },
@@ -240,6 +252,12 @@ export const MCP_TOOLS: MCPTool[] = [
           type: "string",
           description:
             "Opaque cursor for pagination - use nextCursor from previous response to get next page",
+        },
+        format: {
+          type: "string",
+          enum: ["full", "compact"],
+          description: "Output format: 'full' (default) or 'compact' for small-context agents",
+          default: "full",
         },
       },
     },
@@ -286,8 +304,9 @@ export const MCP_TOOLS: MCPTool[] = [
         },
         format: {
           type: "string",
-          enum: ["text", "json"],
-          description: "Output format (default: text). HTML not suitable for MCP.",
+          enum: ["text", "json", "compact"],
+          description:
+            "Output format (default: text). 'compact' returns JSON with abbreviated fields for small-context agents.",
           default: "text",
         },
       },
