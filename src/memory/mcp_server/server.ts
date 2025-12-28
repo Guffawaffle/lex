@@ -797,7 +797,13 @@ export class MCPServer {
    * Handle mcp_lex_frame_recall tool - search Frames with Atlas Frame
    */
   private async handleRecall(args: Record<string, unknown>): Promise<MCPResponse> {
-    const { reference_point, jira, branch, limit = 10, format = "full" } = args as unknown as RecallArgs;
+    const {
+      reference_point,
+      jira,
+      branch,
+      limit = 10,
+      format = "full",
+    } = args as unknown as RecallArgs;
 
     // Track search timing for metadata (AX #578)
     const searchStart = Date.now();
@@ -898,7 +904,12 @@ export class MCPServer {
             text: JSON.stringify(compactResult, null, 2),
           },
         ],
-        data: { ...compactResult, meta },
+        data: {
+          frames: compactResult.frames,
+          count: compactResult.count,
+          ...(compactResult._truncated && { _truncated: true }),
+          meta,
+        },
       };
     }
 
@@ -980,7 +991,7 @@ export class MCPServer {
             text: JSON.stringify(compactResult, null, 2),
           },
         ],
-        data: compactResult,
+        data: compactResult as unknown as Record<string, unknown>,
       };
     }
 
@@ -1031,7 +1042,14 @@ export class MCPServer {
    * Handle mcp_lex_frame_list tool - list recent Frames
    */
   private async handleListFrames(args: Record<string, unknown>): Promise<MCPResponse> {
-    const { branch, module, limit = 10, since, cursor, format = "full" } = args as unknown as ListFramesArgs;
+    const {
+      branch,
+      module,
+      limit = 10,
+      since,
+      cursor,
+      format = "full",
+    } = args as unknown as ListFramesArgs;
 
     // Get frames using frameStore.listFrames with new pagination API
     // Note: When filters are applied (branch, module, since), we need to fetch more
@@ -1099,7 +1117,9 @@ export class MCPServer {
           },
         ],
         data: {
-          ...compactResult,
+          frames: compactResult.frames,
+          count: compactResult.count,
+          ...(compactResult._truncated && { _truncated: true }),
           page: needsFiltering
             ? {
                 limit: result.page.limit,
@@ -1348,10 +1368,24 @@ export class MCPServer {
             content: [
               {
                 type: "text",
-                text: JSON.stringify({ ...compactResult, timeline: timelineMetadata }, null, 2),
+                text: JSON.stringify(
+                  {
+                    frames: compactResult.frames,
+                    count: compactResult.count,
+                    ...(compactResult._truncated && { _truncated: true }),
+                    timeline: timelineMetadata,
+                  },
+                  null,
+                  2
+                ),
               },
             ],
-            data: { ...compactResult, timeline: timelineMetadata },
+            data: {
+              frames: compactResult.frames,
+              count: compactResult.count,
+              ...(compactResult._truncated && { _truncated: true }),
+              timeline: timelineMetadata,
+            },
           };
         }
         case "json":
