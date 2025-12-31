@@ -27,9 +27,20 @@ Per [MCP Registry Authentication Docs](https://github.com/modelcontextprotocol/r
 
 ### Current State
 
-- npm package: `@smartergpt/lex`
+- npm package: `@smartergpt/lex` (core library)
+- npm package: `@smartergpt/lex-mcp` (MCP server wrapper, **to be created**)
 - GitHub repo: `github.com/Guffawaffle/lex`
 - Domain ownership: `smartergpt.io` (UNKNOWN: verify ownership)
+
+### Package Architecture Decision
+
+**Key insight:** The registry validates `mcpName` by fetching the npm package specified in `identifier`. Additionally, `npx <package>` runs the **default bin**. If we added a `lex-mcp` bin to `@smartergpt/lex`, users running `npx @smartergpt/lex` would get the CLI, not the MCP server.
+
+**Solution:** Create a dedicated `@smartergpt/lex-mcp` package:
+- Single bin that IS the MCP server (no arguments needed)
+- `mcpName` lives in this package
+- Depends on `@smartergpt/lex` and imports server implementation
+- Clean separation, no execution ambiguity
 
 ## 2. Decision
 
@@ -55,11 +66,20 @@ io.github.guffawaffle/lex
 
 **Implementation:**
 ```json
-// package.json
-{ "mcpName": "io.github.guffawaffle/lex" }
+// @smartergpt/lex-mcp/package.json
+{
+  "name": "@smartergpt/lex-mcp",
+  "mcpName": "io.github.guffawaffle/lex",
+  "bin": "./index.mjs"
+}
 
-// server.json
-{ "name": "io.github.guffawaffle/lex" }
+// server.json (in lex/ repo)
+{
+  "name": "io.github.guffawaffle/lex",
+  "packages": [{
+    "identifier": "@smartergpt/lex-mcp"
+  }]
+}
 ```
 
 ### Option B: Custom Domain Namespace
@@ -124,8 +144,9 @@ If custom domain becomes important:
 
 ### If we accept Option A:
 
-- `mcpName` in package.json: `io.github.guffawaffle/lex`
+- `mcpName` in `@smartergpt/lex-mcp/package.json`: `io.github.guffawaffle/lex`
 - `name` in server.json: `io.github.guffawaffle/lex`
+- `identifier` in server.json: `@smartergpt/lex-mcp`
 - CI workflow uses `mcp-publisher login github-oidc`
 - No secrets required beyond existing npm token
 - Users search for "guffawaffle/lex" or "lex" in registry
@@ -142,17 +163,20 @@ If custom domain becomes important:
     "url": "https://github.com/Guffawaffle/lex",
     "source": "github"
   },
-  "version": "2.1.1",
+  "version": "1.0.0",
   "packages": [
     {
       "registryType": "npm",
-      "identifier": "@smartergpt/lex",
-      "version": "2.1.1",
-      "transport": { "type": "stdio" }
+      "identifier": "@smartergpt/lex-mcp",
+      "version": "1.0.0",
+      "transport": { "type": "stdio" },
+      "runtimes": ["node"]
     }
   ]
 }
 ```
+
+**Note:** No `arguments` field needed — `@smartergpt/lex-mcp`'s default bin IS the MCP server.
 
 ## 6. Decision Outcome
 
@@ -160,8 +184,9 @@ If custom domain becomes important:
 
 1. [ ] Confirm GitHub namespace is acceptable for initial launch
 2. [ ] Document domain ownership status for future Option B
-3. [ ] Update #634 with exact `mcpName` value
-4. [ ] Update #635 with exact `name` value
+3. [ ] Create `@smartergpt/lex-mcp` wrapper package (#634)
+4. [ ] Add `mcpName: "io.github.guffawaffle/lex"` to wrapper package
+5. [ ] Update server.json with `identifier: "@smartergpt/lex-mcp"` (#635)
 
 ## 7. References
 
