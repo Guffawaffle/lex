@@ -1,0 +1,45 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.guffawaffle/lex",
+  "title": "Lex",
+  "description": "Episodic memory and architectural policy for AI agents. Capture work context with Frames, navigate codebases with token-efficient Atlas Frames, and enforce architectural boundaries.",
+  "repository": {
+    "url": "https://github.com/Guffawaffle/lex",
+    "source": "github"
+  },
+  "version": "1.0.0",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "@smartergpt/lex-mcp",
+      "version": "1.0.0",
+      "transport": {
+        "type": "stdio"
+      },
+      "runtimes": ["node"],
+      "environmentVariables": [
+        {
+          "name": "LEX_WORKSPACE_ROOT",
+          "description": "Root directory for the workspace. Defaults to current working directory.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        },
+        {
+          "name": "LEX_MEMORY_DB",
+          "description": "Path to SQLite database file. Defaults to .smartergpt/lex/lex.db in workspace root.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        },
+        {
+          "name": "LEX_DEBUG",
+          "description": "Set to any value to enable debug logging to stderr.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        }
+      ]
+    }
+  ]
+}
