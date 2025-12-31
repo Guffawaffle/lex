@@ -1,4 +1,4 @@
-# Yellow Brick Pipeline v1.0.0
+# Replayable Analysis Pipeline (Yellow Brick) v1.0.0
 
 > **The path contract. D0 → D1 → D2 → D3 → D4.**
 
@@ -27,8 +27,8 @@ Each phase produces a versioned artifact with a digest. The digest of phase N is
 **Output:** `HarvestBundle`
 
 **Constraints:**
-- All entities pinned to immutable identifiers (see Stone Table §4)
-- Unknown/truncated signals are first-class (see Stone Table §3)
+- All entities pinned to immutable identifiers (see Non-Negotiables §4)
+- Unknown/truncated signals are first-class (see Non-Negotiables §3)
 - No analysis, no recommendations, no judgments
 - Pure fetch and normalize
 
@@ -205,4 +205,4 @@ Stochastic decisions riding on deterministic rails.
 
 | Version | Date | Changes |
 |---------|------|---------|
-| 1.0.0 | 2025-12-31 | Initial Yellow Brick pipeline |
+| 1.0.0 | 2025-12-31 | Initial pipeline contract |

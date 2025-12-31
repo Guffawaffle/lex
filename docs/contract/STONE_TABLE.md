@@ -1,6 +1,6 @@
-# Stone Table v1.0.0
+# Non-Negotiables (Stone Table) v1.0.0
 
-> **The constitution layer. Non-negotiable. Binary. Testable.**
+> **The constitution layer. Binary. Testable. Non-negotiable.**
 
 This document defines the invariants that all Lex ecosystem tooling must satisfy. Violations do not ship.
 
@@ -16,7 +16,7 @@ Lex is a **truth-preserving work compiler**:
 
 ---
 
-## Stone Table Rules
+## Non-Negotiable Rules
 
 ### 1. Receipts Over Claims
 
@@ -94,14 +94,14 @@ Concurrency, token budgets, and risk gates are explicit inputs:
 
 | Version | Date | Changes |
 |---------|------|---------|
-| 1.0.0 | 2025-12-31 | Initial Stone Table |
+| 1.0.0 | 2025-12-31 | Initial non-negotiables |
 
 ---
 
 ## Enforcement
 
-- **CI check:** Stone Table violations fail the build
-- **Code review:** Reviewers must verify Stone Table compliance
+- **CI check:** Non-negotiable violations fail the build
+- **Code review:** Reviewers must verify non-negotiable compliance
 - **MCP tools:** Must emit structured errors for violations
 
-If it violates Stone Table, it doesn't merge.
+If it violates the non-negotiables, it doesn't merge.
