@@ -1,0 +1,202 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://smartergpt.dev/schemas/analysis-pool.v1.schema.json",
+  "title": "AnalysisPool",
+  "description": "D1 output: deterministic facts extracted from HarvestBundle (no recommendations)",
+  "type": "object",
+  "required": ["schemaVersion", "phase", "timestamp", "inputDigest", "pool", "outputDigest"],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "phase": {
+      "type": "string",
+      "const": "D1"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp"
+    },
+    "inputDigest": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$",
+      "description": "Must match HarvestBundle.outputDigest"
+    },
+    "pool": {
+      "$ref": "#/$defs/Pool"
+    },
+    "outputDigest": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$",
+      "description": "SHA256 digest of pool content"
+    }
+  },
+  "$defs": {
+    "Pool": {
+      "type": "object",
+      "required": ["entities", "relations", "conflicts", "blockers"],
+      "properties": {
+        "entities": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Entity" },
+          "description": "Normalized entities with EIDs"
+        },
+        "relations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Relation" },
+          "description": "Relationships between entities"
+        },
+        "conflicts": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Conflict" },
+          "description": "Detected merge conflicts"
+        },
+        "blockers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Blocker" },
+          "description": "Facts that prevent forward progress"
+        }
+      }
+    },
+    "Entity": {
+      "type": "object",
+      "required": ["eid", "type", "ref", "facts"],
+      "properties": {
+        "eid": {
+          "type": "string",
+          "pattern": "^(PR|ISSUE|COMMIT|BRANCH):[0-9a-f]+$",
+          "description": "Unique entity ID (e.g., PR:42, COMMIT:abc123)"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["pull_request", "issue", "commit", "branch"]
+        },
+        "ref": {
+          "type": "string",
+          "description": "Source reference (e.g., '#42', 'abc1234')"
+        },
+        "facts": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Fact" },
+          "description": "Verified facts about this entity"
+        }
+      }
+    },
+    "Fact": {
+      "type": "object",
+      "required": ["key", "value", "source"],
+      "properties": {
+        "key": {
+          "type": "string",
+          "description": "Fact name (e.g., 'ci_status', 'review_state', 'has_conflicts')"
+        },
+        "value": {
+          "oneOf": [
+            { "type": "string" },
+            { "type": "boolean" },
+            { "type": "integer" },
+            { "type": "array", "items": { "type": "string" } }
+          ]
+        },
+        "source": {
+          "type": "string",
+          "enum": ["api", "computed", "inferred"],
+          "description": "How this fact was derived"
+        },
+        "confidence": {
+          "type": "string",
+          "enum": ["known", "unknown", "unavailable"],
+          "default": "known",
+          "description": "Confidence level (unknown means not enough data)"
+        }
+      }
+    },
+    "Relation": {
+      "type": "object",
+      "required": ["type", "from", "to", "source"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "depends_on",
+            "blocks",
+            "implements",
+            "references",
+            "modifies_same_file",
+            "branches_from"
+          ]
+        },
+        "from": {
+          "type": "string",
+          "description": "Source entity EID"
+        },
+        "to": {
+          "type": "string",
+          "description": "Target entity EID"
+        },
+        "source": {
+          "type": "string",
+          "enum": ["label", "body_parse", "file_overlap", "git", "explicit"],
+          "description": "How this relation was discovered"
+        },
+        "confidence": {
+          "type": "string",
+          "enum": ["known", "inferred"],
+          "default": "known"
+        }
+      }
+    },
+    "Conflict": {
+      "type": "object",
+      "required": ["type", "entities"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["merge_conflict", "file_overlap", "semantic_conflict"]
+        },
+        "entities": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "List of EIDs involved in conflict"
+        },
+        "files": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "File paths involved (if applicable)"
+        },
+        "resolution": {
+          "type": "string",
+          "enum": ["unknown", "requires_rebase", "requires_manual"],
+          "description": "Known resolution strategy (or unknown)"
+        }
+      }
+    },
+    "Blocker": {
+      "type": "object",
+      "required": ["type", "entity", "reason"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "ci_failed",
+            "review_pending",
+            "review_rejected",
+            "merge_conflict",
+            "missing_dependency",
+            "draft"
+          ]
+        },
+        "entity": {
+          "type": "string",
+          "description": "EID of the blocked entity"
+        },
+        "reason": {
+          "type": "string",
+          "description": "Factual description (no prose, no recommendations)"
+        }
+      }
+    }
+  }
+}

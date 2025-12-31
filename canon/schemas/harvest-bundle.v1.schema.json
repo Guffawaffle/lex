@@ -1,0 +1,181 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://smartergpt.dev/schemas/harvest-bundle.v1.schema.json",
+  "title": "HarvestBundle",
+  "description": "D0 output: normalized, pinned entities from external sources",
+  "type": "object",
+  "required": ["schemaVersion", "phase", "timestamp", "inputDigest", "bundle", "outputDigest"],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "phase": {
+      "type": "string",
+      "const": "D0"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp"
+    },
+    "inputDigest": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$",
+      "description": "SHA256 digest of input parameters"
+    },
+    "bundle": {
+      "$ref": "#/$defs/Bundle"
+    },
+    "outputDigest": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$",
+      "description": "SHA256 digest of bundle content"
+    }
+  },
+  "$defs": {
+    "Bundle": {
+      "type": "object",
+      "required": ["repository", "harvestedAt"],
+      "properties": {
+        "repository": {
+          "$ref": "#/$defs/Repository"
+        },
+        "pullRequests": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/PullRequest" }
+        },
+        "issues": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Issue" }
+        },
+        "harvestedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "Repository": {
+      "type": "object",
+      "required": ["owner", "name", "defaultBranch", "defaultBranchSha"],
+      "properties": {
+        "owner": { "type": "string" },
+        "name": { "type": "string" },
+        "defaultBranch": { "type": "string" },
+        "defaultBranchSha": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{40}$",
+          "description": "Pinned SHA of default branch HEAD"
+        }
+      }
+    },
+    "PullRequest": {
+      "type": "object",
+      "required": ["number", "title", "state", "headSha", "baseSha"],
+      "properties": {
+        "number": { "type": "integer" },
+        "title": { "type": "string" },
+        "state": { "type": "string", "enum": ["open", "closed", "merged"] },
+        "draft": { "type": "boolean" },
+        "headSha": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{40}$",
+          "description": "Pinned SHA of PR head"
+        },
+        "baseSha": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{40}$",
+          "description": "Pinned SHA of PR base"
+        },
+        "mergeBaseSha": {
+          "oneOf": [
+            { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+            { "type": "string", "enum": ["unknown", "unavailable"] }
+          ],
+          "description": "Pinned SHA of merge base, or 'unknown'/'unavailable'"
+        },
+        "author": { "type": "string" },
+        "labels": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "ciStatus": {
+          "oneOf": [
+            { "type": "string", "enum": ["pass", "fail", "pending"] },
+            { "type": "string", "enum": ["unknown", "unavailable"] }
+          ],
+          "description": "CI status or 'unknown'/'unavailable'"
+        },
+        "reviewStatus": {
+          "oneOf": [
+            { "type": "string", "enum": ["approved", "changes_requested", "pending", "none"] },
+            { "type": "string", "enum": ["unknown", "unavailable"] }
+          ]
+        },
+        "conflictStatus": {
+          "oneOf": [
+            { "type": "string", "enum": ["clean", "conflicted"] },
+            { "type": "string", "enum": ["unknown", "unavailable"] }
+          ]
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "body": {
+          "oneOf": [
+            { "type": "string" },
+            { "type": "string", "enum": ["truncated"] }
+          ]
+        },
+        "changedFiles": {
+          "oneOf": [
+            { "type": "integer" },
+            { "type": "string", "enum": ["unknown", "unavailable"] }
+          ]
+        },
+        "additions": {
+          "oneOf": [
+            { "type": "integer" },
+            { "type": "string", "enum": ["unknown", "unavailable"] }
+          ]
+        },
+        "deletions": {
+          "oneOf": [
+            { "type": "integer" },
+            { "type": "string", "enum": ["unknown", "unavailable"] }
+          ]
+        }
+      }
+    },
+    "Issue": {
+      "type": "object",
+      "required": ["number", "title", "state", "updatedAt"],
+      "properties": {
+        "number": { "type": "integer" },
+        "title": { "type": "string" },
+        "state": { "type": "string", "enum": ["open", "closed"] },
+        "author": { "type": "string" },
+        "labels": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Pinned timestamp for issue state"
+        },
+        "body": {
+          "oneOf": [
+            { "type": "string" },
+            { "type": "string", "enum": ["truncated"] }
+          ]
+        },
+        "assignees": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    }
+  }
+}

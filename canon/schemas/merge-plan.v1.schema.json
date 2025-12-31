@@ -1,0 +1,162 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://smartergpt.dev/schemas/merge-plan.v1.schema.json",
+  "title": "MergePlan",
+  "description": "D2 output: ordered action plan with EID citations (human-reviewable)",
+  "type": "object",
+  "required": ["schemaVersion", "phase", "timestamp", "inputDigest", "plan", "outputDigest"],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "phase": {
+      "type": "string",
+      "const": "D2"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp"
+    },
+    "inputDigest": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$",
+      "description": "Must match AnalysisPool.outputDigest"
+    },
+    "plan": {
+      "$ref": "#/$defs/Plan"
+    },
+    "outputDigest": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$",
+      "description": "SHA256 digest of plan content"
+    }
+  },
+  "$defs": {
+    "Plan": {
+      "type": "object",
+      "required": ["strategy", "steps", "budget"],
+      "properties": {
+        "strategy": {
+          "type": "string",
+          "enum": ["serial", "pyramid", "umbrella"],
+          "description": "Merge strategy to use"
+        },
+        "steps": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Step" },
+          "description": "Ordered list of actions"
+        },
+        "budget": {
+          "$ref": "#/$defs/Budget"
+        },
+        "secondStar": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{40}$",
+          "description": "Target SHA - the point of truth we're merging toward"
+        },
+        "umbranchName": {
+          "type": "string",
+          "description": "Umbrella branch name (if strategy is umbrella)"
+        }
+      }
+    },
+    "Step": {
+      "type": "object",
+      "required": ["stepId", "action", "entity", "citations"],
+      "properties": {
+        "stepId": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Sequential step number"
+        },
+        "action": {
+          "type": "string",
+          "enum": [
+            "merge",
+            "rebase",
+            "wait_ci",
+            "request_review",
+            "resolve_conflict",
+            "skip",
+            "create_umbrella",
+            "finalize_umbrella"
+          ]
+        },
+        "entity": {
+          "type": "string",
+          "description": "EID of the entity this step operates on"
+        },
+        "dependsOn": {
+          "type": "array",
+          "items": { "type": "integer" },
+          "description": "Step IDs that must complete first"
+        },
+        "citations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Citation" },
+          "minItems": 1,
+          "description": "Facts from AnalysisPool that justify this step"
+        },
+        "rationale": {
+          "type": "string",
+          "description": "Human-readable explanation citing EIDs"
+        },
+        "gated": {
+          "type": "boolean",
+          "default": false,
+          "description": "Requires human approval before execution"
+        },
+        "retryable": {
+          "type": "boolean",
+          "default": true,
+          "description": "Can be retried on transient failure"
+        }
+      }
+    },
+    "Citation": {
+      "type": "object",
+      "required": ["eid", "factKey"],
+      "properties": {
+        "eid": {
+          "type": "string",
+          "description": "Entity ID from AnalysisPool"
+        },
+        "factKey": {
+          "type": "string",
+          "description": "Fact key being cited"
+        },
+        "value": {
+          "description": "The fact value at plan time (for audit)"
+        }
+      }
+    },
+    "Budget": {
+      "type": "object",
+      "required": ["maxSteps", "maxMerges", "maxRetries"],
+      "properties": {
+        "maxSteps": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum total steps allowed"
+        },
+        "maxMerges": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum merge operations allowed"
+        },
+        "maxRetries": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Maximum retry attempts per step"
+        },
+        "timeoutSeconds": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Maximum execution time (0 = no limit)"
+        }
+      }
+    }
+  }
+}

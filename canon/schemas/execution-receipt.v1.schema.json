@@ -1,0 +1,248 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://smartergpt.dev/schemas/execution-receipt.v1.schema.json",
+  "title": "ExecutionReceipt",
+  "description": "D3 output: immutable record of what happened (not what was intended)",
+  "type": "object",
+  "required": ["schemaVersion", "phase", "timestamp", "inputDigest", "receipt", "outputDigest"],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "phase": {
+      "type": "string",
+      "const": "D3"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp"
+    },
+    "inputDigest": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$",
+      "description": "Must match MergePlan.outputDigest"
+    },
+    "receipt": {
+      "$ref": "#/$defs/Receipt"
+    },
+    "outputDigest": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$",
+      "description": "SHA256 digest of receipt content"
+    }
+  },
+  "$defs": {
+    "Receipt": {
+      "type": "object",
+      "required": ["outcome", "stepResults", "links", "budget"],
+      "properties": {
+        "outcome": {
+          "type": "string",
+          "enum": ["success", "partial", "failed", "aborted"],
+          "description": "Overall execution result"
+        },
+        "stepResults": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/StepResult" }
+        },
+        "links": {
+          "$ref": "#/$defs/Links",
+          "description": "Verifiable artifacts produced"
+        },
+        "budget": {
+          "$ref": "#/$defs/BudgetUsage"
+        },
+        "failures": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Failure" },
+          "description": "Classified failures with evidence"
+        }
+      }
+    },
+    "StepResult": {
+      "type": "object",
+      "required": ["stepId", "status", "startedAt", "completedAt"],
+      "properties": {
+        "stepId": {
+          "type": "integer",
+          "description": "Matches step from MergePlan"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["success", "failed", "skipped", "blocked", "aborted"]
+        },
+        "startedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "completedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "durationMs": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "attempt": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 1
+        },
+        "evidence": {
+          "$ref": "#/$defs/Evidence"
+        },
+        "error": {
+          "$ref": "#/$defs/Error"
+        }
+      }
+    },
+    "Evidence": {
+      "type": "object",
+      "description": "Proof that action was taken",
+      "properties": {
+        "mergeSha": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{40}$",
+          "description": "Resulting commit SHA from merge"
+        },
+        "prUrl": {
+          "type": "string",
+          "format": "uri",
+          "description": "Link to PR"
+        },
+        "commitUrl": {
+          "type": "string",
+          "format": "uri",
+          "description": "Link to commit"
+        },
+        "ciRunUrl": {
+          "type": "string",
+          "format": "uri",
+          "description": "Link to CI run"
+        },
+        "reviewUrl": {
+          "type": "string",
+          "format": "uri"
+        },
+        "umbranchSha": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{40}$",
+          "description": "SHA of umbrella branch after step"
+        }
+      }
+    },
+    "Error": {
+      "type": "object",
+      "required": ["code", "message"],
+      "properties": {
+        "code": {
+          "type": "string",
+          "description": "Machine-readable error code"
+        },
+        "message": {
+          "type": "string",
+          "description": "Human-readable message"
+        },
+        "details": {
+          "type": "object",
+          "description": "Additional context"
+        }
+      }
+    },
+    "Links": {
+      "type": "object",
+      "description": "Verifiable links to artifacts",
+      "properties": {
+        "finalSha": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{40}$",
+          "description": "Final state of target branch"
+        },
+        "pullRequests": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["number", "url", "status"],
+            "properties": {
+              "number": { "type": "integer" },
+              "url": { "type": "string", "format": "uri" },
+              "status": { "type": "string", "enum": ["merged", "open", "closed"] }
+            }
+          }
+        },
+        "commits": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["sha", "url"],
+            "properties": {
+              "sha": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+              "url": { "type": "string", "format": "uri" }
+            }
+          }
+        },
+        "ciRuns": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uri"
+          }
+        }
+      }
+    },
+    "BudgetUsage": {
+      "type": "object",
+      "required": ["stepsExecuted", "mergesPerformed", "retriesUsed", "durationMs"],
+      "properties": {
+        "stepsExecuted": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "mergesPerformed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "retriesUsed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "durationMs": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "Failure": {
+      "type": "object",
+      "required": ["class", "stepId", "description"],
+      "properties": {
+        "class": {
+          "type": "string",
+          "enum": [
+            "transient",
+            "deterministic",
+            "external",
+            "budget_exceeded",
+            "policy_violation"
+          ],
+          "description": "Failure classification for retry decisions"
+        },
+        "stepId": {
+          "type": "integer"
+        },
+        "description": {
+          "type": "string"
+        },
+        "retryable": {
+          "type": "boolean"
+        },
+        "rootCause": {
+          "type": "string",
+          "description": "Best-effort root cause analysis"
+        }
+      }
+    }
+  }
+}
