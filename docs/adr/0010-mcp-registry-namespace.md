@@ -30,7 +30,8 @@ Per [MCP Registry Authentication Docs](https://github.com/modelcontextprotocol/r
 - npm package: `@smartergpt/lex` (core library)
 - npm package: `@smartergpt/lex-mcp` (MCP server wrapper, **to be created**)
 - GitHub repo: `github.com/Guffawaffle/lex`
-- Domain ownership: `smartergpt.io` (UNKNOWN: verify ownership)
+- Domain ownership: `smartergpt.dev` (**owned** — would yield `dev.smartergpt/*` namespace)
+- Multi-repo layout: `/srv/lex-mcp/` contains sibling repos `lex/`, `lexrunner/`, `lexsona/`
 
 ### Package Architecture Decision
 
@@ -85,20 +86,20 @@ io.github.guffawaffle/lex
 ### Option B: Custom Domain Namespace
 
 ```
-io.smartergpt/lex
+dev.smartergpt/lex
 ```
 
 **Pros:**
 - ✅ Brand-durable: domain stays even if GitHub org changes
 - ✅ Professional appearance in registry listings
 - ✅ Could support multiple servers under same namespace
+- ✅ We own `smartergpt.dev` (no purchase needed)
 
 **Cons:**
 - ❌ Requires domain ownership verification (DNS TXT or HTTP file)
 - ❌ Key management: Ed25519 or ECDSA private key needed for signing
 - ❌ CI complexity: secrets management for private key
 - ❌ Domain may expire or transfer → breaks publishing
-- ❌ UNKNOWN: Do we control `smartergpt.io` DNS?
 
 **Implementation (if chosen):**
 ```bash
@@ -106,10 +107,10 @@ io.smartergpt/lex
 openssl genpkey -algorithm Ed25519 -out key.pem
 
 # Create DNS TXT record
-# smartergpt.io. IN TXT "v=MCPv1; k=ed25519; p={PUBLIC_KEY}"
+# smartergpt.dev. IN TXT "v=MCPv1; k=ed25519; p={PUBLIC_KEY}"
 
 # Or HTTP file
-# https://smartergpt.io/.well-known/mcp-registry-auth
+# https://smartergpt.dev/.well-known/mcp-registry-auth
 ```
 
 ## 3. Rationale for Recommendation
@@ -124,8 +125,8 @@ We recommend **Option A (GitHub namespace)** for the initial publication:
 ### Future Migration Path
 
 If custom domain becomes important:
-1. Verify domain ownership (DNS or HTTP)
-2. Publish **new** registry entry: `io.smartergpt/lex`
+1. Verify domain ownership via DNS TXT record on `smartergpt.dev`
+2. Publish **new** registry entry: `dev.smartergpt/lex`
 3. Update documentation to point to new namespace
 4. (Optional) Deprecate GitHub namespace entry
 
@@ -135,10 +136,10 @@ If custom domain becomes important:
 
 | Question | Status | Owner |
 |----------|--------|-------|
-| Do we own/control `smartergpt.io` DNS? | UNKNOWN | @Guffawaffle |
 | Can we publish to multiple namespaces simultaneously? | Likely yes (need verification) | Research |
 | What happens if GitHub username changes? | UNKNOWN | Research |
 | Is there a "migrate namespace" feature? | UNKNOWN (likely no) | Research |
+| Can MCP clients invoke non-default npm bins? | UNKNOWN (wrapper package avoids this) | Research |
 
 ## 5. Consequences
 
