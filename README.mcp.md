@@ -63,7 +63,7 @@ npx @smartergpt/lex-mcp
 | `help` | Usage help and examples |
 | `hints_get` | Retrieve error recovery hints |
 
-**Note:** Old tool names (`remember`, `recall`, etc.) still work as deprecated aliases. See [ADR-0009](./docs/adr/0009-mcp-tool-naming-convention.md) for details.
+**Note:** Old tool names (`remember`, `recall`, etc.) still work as deprecated aliases. See [ADR-0009: MCP Tool Naming Convention](./docs/adr/0009-mcp-tool-naming-convention.md) for details.
 
 ## Environment Variables
 
@@ -86,5 +86,5 @@ npx @smartergpt/lex-mcp
 - [Full Documentation](./README.md)
 - [Frame Memory Guide](./docs/MIND_PALACE.md)
 - [Atlas Guide](./docs/atlas/README.md)
-- [ADR-0009: Tool Naming](./docs/adr/0009-mcp-tool-naming-convention.md)
-- [MCP Server Integration](./src/memory/mcp_server/README.md)
+- [ADR-0009: MCP Tool Naming Convention](./docs/adr/0009-mcp-tool-naming-convention.md)
+- [MCP Server Implementation Details](./src/memory/mcp_server/README.md)
