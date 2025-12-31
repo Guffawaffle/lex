@@ -273,8 +273,88 @@ On non-tag branches or manual dispatch:
 
 1. CHANGELOG.md is automatically updated via changesets
 2. GitHub Release is created automatically
-3. Announce in relevant channels
-4. Update documentation if needed
+3. **MCP Registry is automatically updated** (see below)
+4. Announce in relevant channels
+5. Update documentation if needed
+
+### MCP Registry Publication
+
+The MCP (Model Context Protocol) Registry is automatically updated when a new release is published.
+
+#### Automatic Publication
+
+When a GitHub release is published (via the release workflow):
+1. The `.github/workflows/mcp-publish.yml` workflow triggers automatically
+2. Version sync: `server.json` version is synced with `package.json` version
+3. Validation: `server.json` is validated against MCP schema
+4. Authentication: GitHub OIDC is used for secure authentication
+5. Publication: Package is published to the MCP Registry
+
+**No manual intervention required** - the workflow handles everything automatically.
+
+#### Manual Testing/Publication
+
+To manually test or publish to the MCP Registry:
+
+```bash
+# Via GitHub Actions (dry run - validation only)
+gh workflow run mcp-publish.yml -f dry_run=true
+
+# Via GitHub Actions (actual publish)
+gh workflow run mcp-publish.yml -f dry_run=false
+```
+
+#### Local Testing
+
+For local testing before release:
+
+```bash
+# Install mcp-publisher
+curl -L "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_linux_amd64.tar.gz" | tar xz
+sudo mv mcp-publisher /usr/local/bin/
+
+# Sync versions (automated in workflow)
+VERSION=$(jq -r '.version' package.json)
+jq --arg v "$VERSION" '.version = $v | .packages[0].version = $v' server.json > server.json.tmp
+mv server.json.tmp server.json
+
+# Validate server.json
+mcp-publisher validate
+
+# Authenticate (requires GitHub OAuth)
+mcp-publisher login github
+
+# Publish (requires authentication)
+mcp-publisher publish
+```
+
+#### Version Synchronization
+
+The workflow automatically ensures `server.json` stays in sync with `package.json`:
+- Top-level `version` field
+- `packages[0].version` field (npm package version)
+
+**Important:** Both versions must match the npm package version for successful publication.
+
+#### Registry Entry
+
+- **Registry Name:** `io.github.guffawaffle/lex`
+- **Package Name:** `@smartergpt/lex-mcp`
+- **Registry Type:** npm
+- **Transport:** stdio
+- **Runtimes:** node
+
+#### Troubleshooting
+
+If MCP registry publication fails:
+
+1. **Check GitHub OIDC permissions**: Ensure `id-token: write` permission is granted
+2. **Validate server.json**: Run `mcp-publisher validate` locally
+3. **Check version sync**: Ensure `server.json` versions match `package.json`
+4. **Review workflow logs**: Check `.github/workflows/mcp-publish.yml` run logs
+5. **Manual publish**: Use workflow dispatch with `dry_run=false`
+
+For registry-specific issues, see [MCP Registry Documentation](https://github.com/modelcontextprotocol/registry)
 
 ## Notes
 
