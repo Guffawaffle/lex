@@ -80,7 +80,6 @@ Thumbs.db
 
 # IDEs
 .vscode/
-!.vscode/mcp.json
 .idea/
 
 # Testing

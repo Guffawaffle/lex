@@ -24,6 +24,7 @@ export interface InitOptions {
   promptsDir?: string; // Optional: custom prompts directory
   policy?: boolean; // Generate seed policy from directory structure
   instructions?: boolean; // Create canonical instructions file (default: true)
+  mcp?: boolean; // Generate .vscode/mcp.json for MCP server configuration
   yes?: boolean; // Non-interactive mode (skip prompts)
   interactive?: boolean; // Interactive mode (prompt for first frame)
 }
@@ -35,6 +36,7 @@ export interface InitResult {
   filesCreated: string[];
   modulesDiscovered?: number;
   instructionsCreated?: boolean;
+  mcpConfigCreated?: boolean;
   projectType?: string;
   databaseInitialized?: boolean;
   mcpGuidanceShown?: boolean;
@@ -278,9 +280,30 @@ export async function init(options: InitOptions = {}): Promise<InitResult> {
       output.info("");
     }
 
-    // Show MCP guidance
+    // Generate MCP config if requested
+    let mcpConfigCreated = false;
+    if (options.mcp) {
+      const vscodeDir = path.join(baseDir, ".vscode");
+      const mcpConfigPath = path.join(vscodeDir, "mcp.json");
+
+      if (!fs.existsSync(mcpConfigPath) || options.force) {
+        fs.mkdirSync(vscodeDir, { recursive: true });
+        const mcpConfig = getMCPConfig();
+        fs.writeFileSync(mcpConfigPath, JSON.stringify(mcpConfig, null, 4) + "\n");
+        filesCreated.push(path.relative(baseDir, mcpConfigPath));
+        mcpConfigCreated = true;
+
+        if (!options.json) {
+          output.info("📡 MCP Configuration:");
+          output.info(`   ✓ Created ${path.relative(baseDir, mcpConfigPath)}`);
+          output.info("");
+        }
+      }
+    }
+
+    // Show MCP guidance (only if not creating config)
     let mcpGuidanceShown = false;
-    if (!options.json) {
+    if (!options.json && !mcpConfigCreated) {
       showMCPGuidance(projectDetection);
       mcpGuidanceShown = true;
     }
@@ -297,6 +320,7 @@ export async function init(options: InitOptions = {}): Promise<InitResult> {
       filesCreated,
       modulesDiscovered: options.policy ? modulesDiscovered : undefined,
       instructionsCreated,
+      mcpConfigCreated,
       projectType: projectDesc,
       databaseInitialized,
       mcpGuidanceShown,
@@ -381,6 +405,25 @@ instructions:
     copilot: ${hasCopilot}
     cursor: ${hasCursor}
 `;
+}
+
+/**
+ * Generate MCP server configuration for VS Code
+ */
+function getMCPConfig(): object {
+  return {
+    servers: {
+      lex: {
+        type: "stdio",
+        command: "npx",
+        args: ["@smartergpt/lex", "mcp"],
+        env: {
+          LEX_WORKSPACE_ROOT: "${workspaceFolder}",
+          LEX_MEMORY_DB: "${workspaceFolder}/.smartergpt/lex/lex.db",
+        },
+      },
+    },
+  };
 }
 
 /**

@@ -75,6 +75,7 @@ export function createProgram(): Command {
     .option("--policy", "Generate seed policy from src/ directory structure")
     .option("--prompts-dir <path>", "Custom prompts directory (default: .smartergpt/prompts)")
     .option("--no-instructions", "Skip creating canonical instructions file")
+    .option("--mcp", "Generate .vscode/mcp.json for MCP server configuration")
     .option("-y, --yes", "Non-interactive mode (skip prompts)")
     .option("-i, --interactive", "Interactive mode (prompt for first frame)")
     .action(async (cmdOptions) => {
@@ -85,6 +86,7 @@ export function createProgram(): Command {
         json: globalOptions.json || false,
         promptsDir: cmdOptions.promptsDir,
         instructions: cmdOptions.instructions,
+        mcp: cmdOptions.mcp || false,
         yes: cmdOptions.yes || false,
         interactive: cmdOptions.interactive || false,
       };
