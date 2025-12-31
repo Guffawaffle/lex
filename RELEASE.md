@@ -310,6 +310,7 @@ For local testing before release:
 
 ```bash
 # Install mcp-publisher
+# Note: For production use, consider verifying checksums or pinning to a specific version
 curl -L "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_linux_amd64.tar.gz" | tar xz
 sudo mv mcp-publisher /usr/local/bin/
 

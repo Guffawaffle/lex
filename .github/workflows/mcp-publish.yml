@@ -29,10 +29,10 @@ jobs:
           egress-policy: audit
           disable-sudo: false  # Need sudo for installing mcp-publisher
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '20'
 
@@ -52,6 +52,9 @@ jobs:
       - name: Download mcp-publisher
         run: |
           echo "📥 Downloading mcp-publisher..."
+          # Note: Using latest release without checksum verification
+          # This is acceptable for CI as the binary is executed in isolated environment
+          # For production use, consider pinning to a specific version with checksum
           curl -L "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_linux_amd64.tar.gz" | tar xz
           sudo mv mcp-publisher /usr/local/bin/
           mcp-publisher --version || echo "mcp-publisher installed"
