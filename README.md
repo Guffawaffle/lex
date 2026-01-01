@@ -223,6 +223,52 @@ export LEX_BACKUP_RETENTION=14  # Keep 14 most recent backups
 
 [Full Quick Start Guide →](./QUICK_START.md)
 
+### MCP Server Integration
+
+Use Lex with any MCP-compatible AI assistant (VS Code, Claude Desktop, etc.):
+
+```bash
+# Install the MCP wrapper
+npm install -g @smartergpt/lex-mcp
+
+# Or run directly
+npx @smartergpt/lex-mcp
+```
+
+**VS Code Configuration (`.vscode/mcp.json`):**
+```json
+{
+  "servers": {
+    "lex": {
+      "command": "npx",
+      "args": ["@smartergpt/lex-mcp"],
+      "env": {
+        "LEX_WORKSPACE_ROOT": "${workspaceFolder}"
+      }
+    }
+  }
+}
+```
+
+**Claude Desktop Configuration:**
+```json
+{
+  "mcpServers": {
+    "lex": {
+      "command": "npx",
+      "args": ["@smartergpt/lex-mcp"]
+    }
+  }
+}
+```
+
+The MCP server exposes 11 tools for episodic memory, policy validation, and architectural analysis:
+- `frame_create`, `frame_search`, `frame_get`, `frame_list`, `frame_validate`
+- `policy_check`, `timeline_show`, `atlas_analyze`
+- `system_introspect`, `help`, `hints_get`
+
+[MCP Server Documentation →](./README.mcp.md)
+
 ---
 
 ## 💡 Use Cases
