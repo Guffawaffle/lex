@@ -1,0 +1,108 @@
+name: Publish to MCP Registry
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (validate only, do not publish)'
+        required: false
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+
+permissions:
+  id-token: write  # Required for OIDC authentication
+  contents: read
+
+jobs:
+  sync-and-publish:
+    name: Sync Version and Publish to MCP Registry
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@v2
+        with:
+          egress-policy: audit
+          disable-sudo: false  # Need sudo for installing mcp-publisher
+
+      - uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+
+      - name: Sync server.json version with package.json
+        run: |
+          echo "📦 Syncing versions..."
+          VERSION=$(jq -r '.version' package.json)
+          echo "Package version: $VERSION"
+          
+          # Update both top-level version and packages[0].version
+          jq --arg v "$VERSION" '.version = $v | .packages[0].version = $v' server.json > server.json.tmp
+          mv server.json.tmp server.json
+          
+          echo "✅ server.json updated to version $VERSION"
+          cat server.json | jq '{version: .version, packages: [.packages[0] | {version: .version}]}'
+
+      - name: Download mcp-publisher
+        run: |
+          echo "📥 Downloading mcp-publisher..."
+          # Note: Using latest release without checksum verification
+          # This is acceptable for CI as the binary is executed in isolated environment
+          # For production use, consider pinning to a specific version with checksum
+          curl -L "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_linux_amd64.tar.gz" | tar xz
+          sudo mv mcp-publisher /usr/local/bin/
+          mcp-publisher --version || echo "mcp-publisher installed"
+          echo "✅ mcp-publisher installed"
+
+      - name: Validate server.json
+        run: |
+          echo "🔍 Validating server.json..."
+          mcp-publisher validate
+          echo "✅ Validation passed"
+
+      - name: Authenticate with MCP Registry (OIDC)
+        if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == 'false')
+        run: |
+          echo "🔐 Authenticating with GitHub OIDC..."
+          mcp-publisher login github-oidc
+          echo "✅ Authentication successful"
+
+      - name: Publish to MCP Registry (Dry Run)
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == 'true'
+        run: |
+          echo "🧪 Running dry-run validation..."
+          echo "✅ Dry run complete - server.json is valid"
+          echo "ℹ️  To publish, re-run with dry_run=false or wait for a release event"
+
+      - name: Publish to MCP Registry
+        if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == 'false')
+        run: |
+          echo "🚀 Publishing to MCP Registry..."
+          mcp-publisher publish
+          echo "✅ Published successfully"
+          
+      - name: Summary
+        if: always()
+        run: |
+          echo "### MCP Registry Publication Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ github.event_name }}" = "release" ]; then
+            echo "✅ Triggered by release: ${{ github.event.release.tag_name }}" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+              echo "🧪 Dry run completed - validation only" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "✅ Manual publish completed" >> $GITHUB_STEP_SUMMARY
+            fi
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          VERSION=$(jq -r '.version' package.json)
+          echo "📦 Version: \`$VERSION\`" >> $GITHUB_STEP_SUMMARY
+          echo "📋 Registry: MCP Registry" >> $GITHUB_STEP_SUMMARY
+          echo "🔗 Package: \`io.github.guffawaffle/lex\`" >> $GITHUB_STEP_SUMMARY
