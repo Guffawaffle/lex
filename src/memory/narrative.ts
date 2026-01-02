@@ -25,26 +25,42 @@ export interface NarrativeResponse {
   followUp: string; // Suggested next question
 }
 
+// Month name constants to avoid duplication
+const MONTH_NAMES_SHORT = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
+const MONTH_NAMES_FULL = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+
 /**
  * Format a date as a short readable string (e.g., "Dec 15")
  */
 function formatDate(timestamp: string): string {
   const date = new Date(timestamp);
-  const months = [
-    "Jan",
-    "Feb",
-    "Mar",
-    "Apr",
-    "May",
-    "Jun",
-    "Jul",
-    "Aug",
-    "Sep",
-    "Oct",
-    "Nov",
-    "Dec",
-  ];
-  return `${months[date.getMonth()]} ${date.getDate()}`;
+  return `${MONTH_NAMES_SHORT[date.getMonth()]} ${date.getDate()}`;
 }
 
 /**
@@ -52,21 +68,7 @@ function formatDate(timestamp: string): string {
  */
 function formatMonthYear(timestamp: string): string {
   const date = new Date(timestamp);
-  const months = [
-    "January",
-    "February",
-    "March",
-    "April",
-    "May",
-    "June",
-    "July",
-    "August",
-    "September",
-    "October",
-    "November",
-    "December",
-  ];
-  return `${months[date.getMonth()]} ${date.getFullYear()}`;
+  return `${MONTH_NAMES_FULL[date.getMonth()]} ${date.getFullYear()}`;
 }
 
 /**

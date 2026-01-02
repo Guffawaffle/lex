@@ -96,25 +96,26 @@ export function extractTimeHints(text: string): TimeRange | null {
   }
 
   // Month names (e.g., "in November", "during December")
-  const monthMatch = lowerText.match(
-    /\b(in|during|from)?\s*(january|february|march|april|may|june|july|august|september|october|november|december)\b/i
-  );
+  const MONTH_NAMES = [
+    "january",
+    "february",
+    "march",
+    "april",
+    "may",
+    "june",
+    "july",
+    "august",
+    "september",
+    "october",
+    "november",
+    "december",
+  ];
+  const monthPattern = new RegExp(`\\b(in|during|from)?\\s*(${MONTH_NAMES.join("|")})\\b`, "i");
+  const monthMatch = lowerText.match(monthPattern);
+
   if (monthMatch) {
     const monthName = monthMatch[2];
-    const monthIndex = [
-      "january",
-      "february",
-      "march",
-      "april",
-      "may",
-      "june",
-      "july",
-      "august",
-      "september",
-      "october",
-      "november",
-      "december",
-    ].indexOf(monthName.toLowerCase());
+    const monthIndex = MONTH_NAMES.indexOf(monthName.toLowerCase());
 
     const year = now.getFullYear();
     const since = new Date(year, monthIndex, 1);

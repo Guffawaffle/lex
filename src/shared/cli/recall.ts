@@ -52,6 +52,7 @@ export async function recall(
 
   try {
     let frames: Frame[] = [];
+    let naturalQuery: ReturnType<typeof parseNaturalQuery> | null = null;
 
     // Handle --list mode: show recent frames
     if (options.list !== undefined) {
@@ -86,7 +87,7 @@ export async function recall(
       }
 
       // Parse natural query for metadata extraction
-      const naturalQuery = parseNaturalQuery(query);
+      naturalQuery = parseNaturalQuery(query);
 
       // Use extracted topic for search if query is conversational
       const searchQuery = naturalQuery.isConversational ? naturalQuery.extractedTopic : query;
@@ -179,12 +180,11 @@ export async function recall(
       }
     } else if (outputFormat === "prose") {
       // Narrative prose output
-      if (!query) {
+      if (!query || !naturalQuery) {
         // Shouldn't happen, but fallback to default
         output.error(`\n❌ Error: Query required for prose format\n`);
         process.exit(1);
       }
-      const naturalQuery = parseNaturalQuery(query);
       const narrative = formatAsNarrative(frames, naturalQuery);
       output.info(`\n${narrative}\n`);
     } else {
