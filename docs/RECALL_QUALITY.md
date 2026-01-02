@@ -36,6 +36,35 @@ The `recall` command tries multiple strategies in order:
 3. **Fuzzy matching**: By default, applies prefix wildcards (e.g., "auth" matches "authentication")
 4. **Exact matching**: With `--exact` flag, only matches complete words
 
+### Search Modes (AND vs OR)
+
+By default, multi-term queries use **AND logic** - all terms must match:
+```bash
+# Default AND mode: requires BOTH "credential" AND "checking" to match
+lex recall "credential checking"
+# → May return 0 results if no Frame contains both terms
+```
+
+Use **OR mode** when you want frames matching ANY term:
+```bash
+# OR mode: matches frames containing "credential" OR "checking" (or both)
+lex recall "credential checking" --mode any
+# → Returns frames with "credentials", "credential", etc. even if "checking" is absent
+```
+
+**When to use each mode:**
+
+- **AND mode (`--mode all`)** (default):
+  - Use when all terms must be present
+  - Narrower, more precise results
+  - Example: `lex recall "api performance optimization"` finds frames about API performance optimization specifically
+  
+- **OR mode (`--mode any`)**: 
+  - Use for exploratory searches
+  - Broader results, better recall
+  - Useful when unsure of exact keywords
+  - Example: `lex recall "credential password token" --mode any` finds any security-related frames
+
 ## What Makes a "Good" Frame
 
 A high-quality Frame that supports effective recall has:
@@ -138,6 +167,21 @@ lex recall "auth"
 lex recall "auth" --exact
 ```
 
+**AND vs OR Mode**
+```bash
+# AND mode (default): All terms must match
+lex recall "api performance optimization"
+# → Returns only frames containing ALL three terms
+
+# OR mode: Any term can match
+lex recall "api performance optimization" --mode any
+# → Returns frames containing api OR performance OR optimization
+
+# Combined with exact matching
+lex recall "jwt token" --exact --mode any
+# → Exact word match for either "jwt" OR "token"
+```
+
 **Result Limits**
 ```bash
 # Default: Returns all matching Frames
@@ -235,20 +279,22 @@ Create new Frames when context changes significantly:
 **Problem**: `lex recall` returns no results for a query you know should match.
 
 **Solutions**:
-1. Try broader terms: "authentication" instead of "jwt token validation"
-2. Check spelling and keywords in Frames: `lex recall --list` to see recent Frames
-3. Try fuzzy matching: remove `--exact` flag if used
-4. Search by Frame ID: `lex recall <frame-id>`
+1. Try OR mode for broader search: `lex recall "query terms" --mode any`
+2. Try broader terms: "authentication" instead of "jwt token validation"
+3. Check spelling and keywords in Frames: `lex recall --list` to see recent Frames
+4. Try fuzzy matching: remove `--exact` flag if used
+5. Search by Frame ID: `lex recall <frame-id>`
 
 ### Irrelevant Results
 
 **Problem**: Search returns Frames that don't match your intent.
 
 **Solutions**:
-1. Use more specific keywords in query
-2. Use `--exact` flag for precise matching
-3. Review Frame keywords - update if they're misleading
-4. Use module scope in your Frames to improve filtering
+1. Use AND mode (default) for more precise results
+2. Use more specific keywords in query
+3. Use `--exact` flag for precise matching
+4. Review Frame keywords - update if they're misleading
+5. Use module scope in your Frames to improve filtering
 
 ### Too Many Results
 
@@ -264,11 +310,15 @@ Create new Frames when context changes significantly:
 
 ### Planned Improvements
 
-1. **Semantic Search**: Use embeddings for better semantic matching beyond keyword search
+1. **Semantic Search (Phase 2)**: Use embeddings for better semantic matching beyond keyword search
+   - Vector-based similarity search for synonyms and related concepts
+   - Cosine similarity scoring for relevance ranking
 2. **Time Decay**: Rank recent Frames higher for same relevance score
 3. **User Feedback**: Learn from which Frames users actually use
 4. **Relevance Tuning**: Adjust BM25 parameters based on user corpus
 5. **Smart Suggestions**: Suggest related Frames based on current context
+
+**Note**: OR-mode search (Phase 1) has been implemented to address the most common recall issues. Phase 2 semantic search with embeddings is planned for a future release.
 
 ### Contributing
 
