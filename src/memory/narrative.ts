@@ -99,10 +99,6 @@ function generateSummary(query: NaturalQuery, frameCount: number): string {
   const topic = query.extractedTopic;
   const timeContext = query.timeHints ? ` from ${query.timeHints.description}` : "";
 
-  if (frameCount === 1) {
-    return `Here's what I remember about ${topic}${timeContext}:`;
-  }
-
   return `Here's what I remember about ${topic}${timeContext}:`;
 }
 
@@ -113,8 +109,6 @@ function generateFollowUp(frames: Frame[]): string {
   if (frames.length === 0) {
     return "Would you like to search for something else?";
   }
-
-  const mostRecent = frames[0];
 
   // Get the most common keyword
   const allKeywords = frames.flatMap((f) => f.keywords || []);

@@ -137,9 +137,8 @@ export function extractTimeHints(text: string): TimeRange | null {
  */
 export function extractModuleHints(text: string): string[] {
   const hints: string[] = [];
-  const lowerText = text.toLowerCase();
 
-  // Common module patterns
+  // Common module patterns (case-insensitive)
   const modulePatterns = [
     /\bui\/[\w-]+/gi,
     /\bapi\/[\w-]+/gi,
