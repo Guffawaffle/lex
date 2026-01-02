@@ -207,7 +207,8 @@ test("CLI: lex recall retrieves created frame", () => {
       env: getTestEnv(),
     });
 
-    assert.match(output, /recall test frame/, "Should show reference point");
+    // Natural language output shows "test frame" (query with common words stripped)
+    assert.match(output, /test frame/, "Should show query topic");
     assert.match(output, /Test recall/, "Should show summary");
   } finally {
     cleanup();
