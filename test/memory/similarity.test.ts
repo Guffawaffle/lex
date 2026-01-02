@@ -10,7 +10,6 @@ import {
   computeTemporalSimilarity,
   computeSimilarity,
   detectDuplicates,
-  DEFAULT_WEIGHTS,
 } from "@app/memory/similarity.js";
 import type { Frame } from "@app/memory/frames/types.js";
 

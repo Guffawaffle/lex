@@ -6,7 +6,7 @@
  */
 
 import { createFrameStore, type FrameStore } from "../../memory/store/index.js";
-import { detectDuplicateFrames, type DeduplicationOptions } from "../../memory/deduplication.js";
+import { detectDuplicateFrames } from "../../memory/deduplication.js";
 import { consolidateViaSupersede, consolidateViaMerge } from "../../memory/store/consolidate.js";
 import { createOutput } from "./output.js";
 
