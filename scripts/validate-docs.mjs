@@ -17,6 +17,7 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const ROOT = join(__dirname, "..");
+const CLI_PATH = join(ROOT, "dist/shared/cli/lex.js");
 
 // ANSI colors
 const RED = "\x1b[31m";
@@ -65,18 +66,16 @@ function readFile(path) {
 
 // Check if CLI is built
 function checkCliAvailable() {
-  const cliPath = join(ROOT, "dist/shared/cli/lex.js");
-  return existsSync(cliPath);
+  return existsSync(CLI_PATH);
 }
 
 // Get CLI help output
 function getCliHelp(command = "") {
   try {
-    const cliPath = join(ROOT, "dist/shared/cli/lex.js");
-    if (!existsSync(cliPath)) {
+    if (!existsSync(CLI_PATH)) {
       return null;
     }
-    const cmd = command ? `node "${cliPath}" ${command} --help` : `node "${cliPath}" --help`;
+    const cmd = command ? `node "${CLI_PATH}" ${command} --help` : `node "${CLI_PATH}" --help`;
     return execSync(cmd, { encoding: "utf-8", cwd: ROOT });
   } catch (e) {
     return e.stdout || "";
@@ -165,7 +164,7 @@ if (!cliAvailable) {
   info("CLI validation requires: npm run build");
 } else {
   const mainHelp = getCliHelp();
-  if (mainHelp === null) {
+  if (mainHelp === null || mainHelp === "") {
     error("CLI binary exists but failed to execute");
   } else {
     const cliCommands = [...mainHelp.matchAll(/^  (\S+)/gm)]
@@ -177,7 +176,9 @@ if (!cliAvailable) {
     // Verify each command's help works
     for (const cmd of cliCommands) {
       const help = getCliHelp(cmd);
-      if (help && help.includes("Usage:")) {
+      if (help === null || help === "") {
+        error(`CLI command "${cmd}" failed to execute`);
+      } else if (help.includes("Usage:")) {
         pass(`CLI command "${cmd}" has help output`);
       } else {
         error(`CLI command "${cmd}" missing help output`);
@@ -207,12 +208,16 @@ if (!cliAvailable) {
 
     // Check db subcommands
     const dbHelp = getCliHelp("db");
-    const dbSubcommands = ["vacuum", "backup", "encrypt", "stats"];
-    for (const subcmd of dbSubcommands) {
-      if (dbHelp && dbHelp.includes(subcmd)) {
-        pass(`db subcommand "${subcmd}" exists`);
-      } else {
-        warn(`db subcommand "${subcmd}" mentioned but not found`);
+    if (dbHelp === null || dbHelp === "") {
+      error("Failed to get help for db command");
+    } else {
+      const dbSubcommands = ["vacuum", "backup", "encrypt", "stats"];
+      for (const subcmd of dbSubcommands) {
+        if (dbHelp.includes(subcmd)) {
+          pass(`db subcommand "${subcmd}" exists`);
+        } else {
+          warn(`db subcommand "${subcmd}" mentioned but not found`);
+        }
       }
     }
   }
