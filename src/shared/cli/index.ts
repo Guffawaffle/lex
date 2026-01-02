@@ -155,6 +155,12 @@ export function createProgram(): Command {
     .option("--exact", "Disable fuzzy matching (prefix wildcards)")
     .option("--strict", "Exit with code 1 when no frames found (for CI/scripts)")
     .option("--summary", "Enable compact format mode for small-context agents")
+    .option(
+      "--format <type>",
+      "Output format: json, prose (narrative), or default (pretty print)",
+      /^(json|prose|default)$/,
+      undefined
+    )
     .action(async (query, cmdOptions) => {
       const globalOptions = program.opts();
       const options: RecallOptions = {
@@ -167,6 +173,7 @@ export function createProgram(): Command {
         strict: cmdOptions.strict || false,
         json: globalOptions.json || false,
         summary: cmdOptions.summary || false,
+        format: cmdOptions.format,
       };
 
       // Validate auto-radius options
