@@ -27,6 +27,7 @@ export interface RecallOptions {
   maxTokens?: number;
   showCacheStats?: boolean;
   exact?: boolean; // If true, disable fuzzy matching (prefix wildcards)
+  mode?: "all" | "any"; // Search mode: 'all' (AND, default) or 'any' (OR)
   list?: number | boolean; // If set, list recent frames instead of searching (true = use default limit)
   strict?: boolean; // If true, exit with code 1 when no frames found (for backwards compatibility)
   summary?: boolean; // If true, enable compact format mode for small-context agents
@@ -103,6 +104,7 @@ export async function recall(
         const searchResults = await store.searchFrames({
           query: searchQuery,
           exact: options.exact,
+          mode: options.mode,
         });
         frames = searchResults;
       }

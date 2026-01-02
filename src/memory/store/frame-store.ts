@@ -26,6 +26,14 @@ export interface FrameSearchCriteria {
    */
   exact?: boolean;
 
+  /**
+   * Search mode: 'all' (AND, default) or 'any' (OR).
+   * - 'all': All terms must match (implicit AND in FTS5)
+   * - 'any': Any term can match (explicit OR in FTS5)
+   * Default is 'all'.
+   */
+  mode?: "all" | "any";
+
   /** Filter by module IDs (any match). */
   moduleScope?: string[];
 

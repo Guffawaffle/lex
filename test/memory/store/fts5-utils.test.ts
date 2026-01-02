@@ -146,4 +146,53 @@ describe("normalizeFTS5Query", () => {
       assert.strictEqual(normalizeFTS5Query("AX-001", true), "AX 001");
     });
   });
+
+  describe("OR mode (any term matching)", () => {
+    it("joins terms with OR when mode='any'", () => {
+      assert.strictEqual(
+        normalizeFTS5Query("credential checking", false, "any"),
+        "credential* OR checking*"
+      );
+    });
+
+    it("joins multiple terms with OR when mode='any'", () => {
+      assert.strictEqual(
+        normalizeFTS5Query("api performance optimization", false, "any"),
+        "api* OR performance* OR optimization*"
+      );
+    });
+
+    it("uses implicit AND when mode='all' (default)", () => {
+      assert.strictEqual(
+        normalizeFTS5Query("credential checking", false, "all"),
+        "credential* checking*"
+      );
+    });
+
+    it("uses implicit AND when mode is not specified", () => {
+      assert.strictEqual(normalizeFTS5Query("credential checking"), "credential* checking*");
+    });
+
+    it("handles single term with OR mode", () => {
+      assert.strictEqual(normalizeFTS5Query("credential", false, "any"), "credential*");
+    });
+
+    it("normalizes hyphens and uses OR mode", () => {
+      assert.strictEqual(
+        normalizeFTS5Query("senior-dev api", false, "any"),
+        "senior* OR dev* OR api*"
+      );
+    });
+
+    it("combines exact mode with OR mode", () => {
+      assert.strictEqual(
+        normalizeFTS5Query("credential checking", true, "any"),
+        "credential OR checking"
+      );
+    });
+
+    it("handles OR mode with preserved wildcards", () => {
+      assert.strictEqual(normalizeFTS5Query("test* search", false, "any"), "test* OR search*");
+    });
+  });
 });

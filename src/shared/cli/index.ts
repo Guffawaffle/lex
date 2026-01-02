@@ -153,6 +153,12 @@ export function createProgram(): Command {
     )
     .option("--cache-stats", "Show cache statistics")
     .option("--exact", "Disable fuzzy matching (prefix wildcards)")
+    .option(
+      "--mode <type>",
+      "Search mode: 'all' (AND - all terms must match, default) or 'any' (OR - any term can match)",
+      /^(all|any)$/,
+      "all"
+    )
     .option("--strict", "Exit with code 1 when no frames found (for CI/scripts)")
     .option("--summary", "Enable compact format mode for small-context agents")
     .option(
@@ -170,6 +176,7 @@ export function createProgram(): Command {
         maxTokens: cmdOptions.maxTokens,
         showCacheStats: cmdOptions.cacheStats || false,
         exact: cmdOptions.exact || false,
+        mode: cmdOptions.mode || "all",
         strict: cmdOptions.strict || false,
         json: globalOptions.json || false,
         summary: cmdOptions.summary || false,

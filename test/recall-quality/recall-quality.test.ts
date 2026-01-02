@@ -116,6 +116,37 @@ describe("Recall Quality Tests", () => {
       );
     });
 
+    test("should retrieve related Frames using OR mode for multi-term queries", () => {
+      // Test OR mode: 'credential checking' with mode='any' should match frames with EITHER term
+      const result = searchFrames(db, "credential checking", { mode: "any" });
+
+      // Should find frames with 'credentials' keyword (corpus-002, corpus-007)
+      // even though 'checking' doesn't appear in any frame
+      const passwordFrame = result.frames.find((f) => f.id === "corpus-002");
+      const credentialSecurityFrame = result.frames.find((f) => f.id === "corpus-007");
+
+      assert.ok(
+        passwordFrame || credentialSecurityFrame,
+        "Should find frames with 'credentials' keyword using OR mode"
+      );
+      assert.ok(
+        result.frames.length > 0,
+        "OR mode should return results when at least one term matches"
+      );
+    });
+
+    test("should retrieve more results with OR mode than AND mode", () => {
+      // Compare AND vs OR mode for the same query
+      const andResult = searchFrames(db, "api performance optimization", { mode: "all" });
+      const orResult = searchFrames(db, "api performance optimization", { mode: "any" });
+
+      // OR mode should return more results since it matches ANY term instead of ALL terms
+      assert.ok(
+        orResult.frames.length >= andResult.frames.length,
+        "OR mode should return at least as many results as AND mode"
+      );
+    });
+
     test("should retrieve related Frames for semantic similarity (dark theme → dark mode)", () => {
       const result = searchFrames(db, "dark theme");
 

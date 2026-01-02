@@ -194,6 +194,13 @@ export const MCP_TOOLS: MCPTool[] = [
           description: "Max results to return (default: 10)",
           default: 10,
         },
+        mode: {
+          type: "string",
+          enum: ["all", "any"],
+          description:
+            "Search mode: 'all' (AND - all terms must match, default) or 'any' (OR - any term can match)",
+          default: "all",
+        },
         format: {
           type: "string",
           enum: ["full", "compact"],
