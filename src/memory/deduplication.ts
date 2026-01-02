@@ -52,8 +52,17 @@ function isSuperset(frameA: Frame, frameB: Frame): boolean {
   const modulesB = new Set(frameB.module_scope);
   const hasAllModules = [...modulesB].every((m) => modulesA.has(m));
 
+  // Check if A's blockers contain all of B's blockers
+  const blockersA = new Set(frameA.status_snapshot?.blockers || []);
+  const blockersB = new Set(frameB.status_snapshot?.blockers || []);
+  const hasAllBlockers = [...blockersB].every((b) => blockersA.has(b));
+
+  // Check if reference points are the same (if B has a different reference point, merge is needed)
+  const sameReferencePoint =
+    !frameB.reference_point || frameA.reference_point === frameB.reference_point;
+
   // A supersedes B if it's newer and contains all of B's information
-  return hasAllKeywords && hasAllModules;
+  return hasAllKeywords && hasAllModules && hasAllBlockers && sameReferencePoint;
 }
 
 /**
