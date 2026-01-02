@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Documentation Audit Script
- * 
+ *
  * Validates that documentation matches implementation:
  * - CLI commands and options exist
  * - MCP tool names follow conventions
@@ -9,25 +9,26 @@
  * - No outdated terminology (e.g., "lexbrain")
  */
 
-import { readFileSync, existsSync } from 'fs';
-import { execSync } from 'child_process';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
+import { readFileSync, existsSync } from "fs";
+import { execSync } from "child_process";
+import { join, dirname } from "path";
+import { fileURLToPath } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const ROOT = join(__dirname, '..');
+const ROOT = join(__dirname, "..");
 
 // ANSI colors
-const RED = '\x1b[31m';
-const GREEN = '\x1b[32m';
-const YELLOW = '\x1b[33m';
-const BLUE = '\x1b[34m';
-const RESET = '\x1b[0m';
+const RED = "\x1b[31m";
+const GREEN = "\x1b[32m";
+const YELLOW = "\x1b[33m";
+const BLUE = "\x1b[34m";
+const RESET = "\x1b[0m";
 
 let errorCount = 0;
 let warningCount = 0;
 let passCount = 0;
+let cliAvailable = false;
 
 function error(msg) {
   console.error(`${RED}✗${RESET} ${msg}`);
@@ -59,27 +60,33 @@ function readFile(path) {
     error(`File not found: ${path}`);
     return null;
   }
-  return readFileSync(fullPath, 'utf-8');
+  return readFileSync(fullPath, "utf-8");
+}
+
+// Check if CLI is built
+function checkCliAvailable() {
+  const cliPath = join(ROOT, "dist/shared/cli/lex.js");
+  return existsSync(cliPath);
 }
 
 // Get CLI help output
-function getCliHelp(command = '') {
+function getCliHelp(command = "") {
   try {
-    const cliPath = join(ROOT, 'dist/shared/cli/lex.js');
+    const cliPath = join(ROOT, "dist/shared/cli/lex.js");
     if (!existsSync(cliPath)) {
-      throw new Error('CLI not built. Run npm run build first.');
+      return null;
     }
     const cmd = command ? `node "${cliPath}" ${command} --help` : `node "${cliPath}" --help`;
-    return execSync(cmd, { encoding: 'utf-8', cwd: ROOT });
+    return execSync(cmd, { encoding: "utf-8", cwd: ROOT });
   } catch (e) {
-    return e.stdout || '';
+    return e.stdout || "";
   }
 }
 
 // Check version consistency
-section('Version Consistency');
-const packageJson = JSON.parse(readFile('package.json'));
-const readme = readFile('README.md');
+section("Version Consistency");
+const packageJson = JSON.parse(readFile("package.json"));
+const readme = readFile("README.md");
 const currentVersion = packageJson.version;
 
 if (readme.includes(`**Current Version:** \`${currentVersion}\``)) {
@@ -89,26 +96,33 @@ if (readme.includes(`**Current Version:** \`${currentVersion}\``)) {
   if (match) {
     error(`README.md shows version ${match[1]} but package.json has ${currentVersion}`);
   } else {
-    error('Could not find version in README.md');
+    error("Could not find version in README.md");
   }
 }
 
+// Check if CLI is available for later validation
+cliAvailable = checkCliAvailable();
+if (!cliAvailable) {
+  warn("CLI not built - CLI validation will be skipped");
+  info('Run "npm run build" to enable full validation');
+}
+
 // Check for outdated terminology
-section('Outdated Terminology Check');
+section("Outdated Terminology Check");
 const docsToCheck = [
-  'README.md',
-  'QUICK_START.md',
-  'docs/ADOPTION_GUIDE.md',
-  'docs/FAQ.md',
-  'docs/MIND_PALACE.md',
-  'docs/CONTRACT_SURFACE.md',
+  "README.md",
+  "QUICK_START.md",
+  "docs/ADOPTION_GUIDE.md",
+  "docs/FAQ.md",
+  "docs/MIND_PALACE.md",
+  "docs/CONTRACT_SURFACE.md",
 ];
 
 let foundLexbrain = false;
 for (const docPath of docsToCheck) {
   const content = readFile(docPath);
   if (!content) continue;
-  
+
   const matches = content.match(/lexbrain/gi);
   if (matches && matches.length > 0) {
     error(`${docPath} contains ${matches.length} references to "lexbrain" (should be "lex")`);
@@ -121,100 +135,111 @@ if (!foundLexbrain) {
 }
 
 // Check MCP tool naming conventions
-section('MCP Tool Naming Conventions');
-const toolsFile = readFile('src/memory/mcp_server/tools.ts');
+section("MCP Tool Naming Conventions");
+const toolsFile = readFile("src/memory/mcp_server/tools.ts");
 if (toolsFile) {
-  const toolNames = [...toolsFile.matchAll(/name: "([^"]+)"/g)].map(m => m[1]);
-  
+  const toolNames = [...toolsFile.matchAll(/name: "([^"]+)"/g)].map((m) => m[1]);
+
   // Check naming convention compliance
   for (const name of toolNames) {
     // Should be snake_case
-    if (name.includes('-')) {
+    if (name.includes("-")) {
       error(`MCP tool "${name}" uses hyphens (should be snake_case)`);
     } else if (/[A-Z]/.test(name)) {
       error(`MCP tool "${name}" uses uppercase (should be lowercase)`);
-    } else if (name.startsWith('mcp_') || name.startsWith('lex_')) {
+    } else if (name.startsWith("mcp_") || name.startsWith("lex_")) {
       error(`MCP tool "${name}" has namespace prefix (VS Code adds this automatically)`);
     } else {
       pass(`MCP tool "${name}" follows naming conventions`);
     }
   }
-  
-  info(`Found ${toolNames.length} MCP tools: ${toolNames.join(', ')}`);
+
+  info(`Found ${toolNames.length} MCP tools: ${toolNames.join(", ")}`);
 }
 
 // Check CLI commands match documentation
-section('CLI Commands Validation');
-const mainHelp = getCliHelp();
-const cliCommands = [...mainHelp.matchAll(/^  (\S+)/gm)]
-  .map(m => m[1])
-  .filter(cmd => !cmd.startsWith('-') && cmd !== 'help');
+section("CLI Commands Validation");
 
-info(`Found CLI commands: ${cliCommands.join(', ')}`);
-
-// Verify each command's help works
-for (const cmd of cliCommands) {
-  const help = getCliHelp(cmd);
-  if (help.includes('Usage:')) {
-    pass(`CLI command "${cmd}" has help output`);
+if (!cliAvailable) {
+  warn("Skipping CLI validation - CLI not built");
+  info("CLI validation requires: npm run build");
+} else {
+  const mainHelp = getCliHelp();
+  if (mainHelp === null) {
+    error("CLI binary exists but failed to execute");
   } else {
-    error(`CLI command "${cmd}" missing help output`);
-  }
-}
+    const cliCommands = [...mainHelp.matchAll(/^  (\S+)/gm)]
+      .map((m) => m[1])
+      .filter((cmd) => !cmd.startsWith("-") && cmd !== "help");
 
-// Check specific commands mentioned in README
-const readmeCommands = [
-  'init',
-  'remember',
-  'recall',
-  'check',
-  'timeline',
-  'db',
-  'policy',
-  'instructions',
-  'code-atlas',
-];
+    info(`Found CLI commands: ${cliCommands.join(", ")}`);
 
-for (const cmd of readmeCommands) {
-  if (cliCommands.includes(cmd)) {
-    pass(`README command "${cmd}" exists in CLI`);
-  } else {
-    error(`README mentions command "${cmd}" but it doesn't exist in CLI`);
-  }
-}
+    // Verify each command's help works
+    for (const cmd of cliCommands) {
+      const help = getCliHelp(cmd);
+      if (help && help.includes("Usage:")) {
+        pass(`CLI command "${cmd}" has help output`);
+      } else {
+        error(`CLI command "${cmd}" missing help output`);
+      }
+    }
 
-// Check db subcommands
-const dbHelp = getCliHelp('db');
-const dbSubcommands = ['vacuum', 'backup', 'encrypt', 'stats'];
-for (const subcmd of dbSubcommands) {
-  if (dbHelp.includes(subcmd)) {
-    pass(`db subcommand "${subcmd}" exists`);
-  } else {
-    warn(`db subcommand "${subcmd}" mentioned but not found`);
+    // Check specific commands mentioned in README
+    const readmeCommands = [
+      "init",
+      "remember",
+      "recall",
+      "check",
+      "timeline",
+      "db",
+      "policy",
+      "instructions",
+      "code-atlas",
+    ];
+
+    for (const cmd of readmeCommands) {
+      if (cliCommands.includes(cmd)) {
+        pass(`README command "${cmd}" exists in CLI`);
+      } else {
+        error(`README mentions command "${cmd}" but it doesn't exist in CLI`);
+      }
+    }
+
+    // Check db subcommands
+    const dbHelp = getCliHelp("db");
+    const dbSubcommands = ["vacuum", "backup", "encrypt", "stats"];
+    for (const subcmd of dbSubcommands) {
+      if (dbHelp && dbHelp.includes(subcmd)) {
+        pass(`db subcommand "${subcmd}" exists`);
+      } else {
+        warn(`db subcommand "${subcmd}" mentioned but not found`);
+      }
+    }
   }
 }
 
 // Check README example commands are valid
-section('README Example Validation');
-const rememberExample = readme.includes('--reference-point') && 
-                        readme.includes('--summary') && 
-                        readme.includes('--next') &&
-                        readme.includes('--modules');
+section("README Example Validation");
+const rememberExample =
+  readme.includes("--reference-point") &&
+  readme.includes("--summary") &&
+  readme.includes("--next") &&
+  readme.includes("--modules");
 if (rememberExample) {
-  pass('README remember examples use correct flags');
+  pass("README remember examples use correct flags");
 } else {
-  warn('README remember examples may have incorrect flags');
+  warn("README remember examples may have incorrect flags");
 }
 
 // Check for required environment variables in README
-section('Environment Variables Documentation');
+section("Environment Variables Documentation");
 const envVars = [
-  'LEX_LOG_LEVEL',
-  'LEX_LOG_PRETTY',
-  'LEX_POLICY_PATH',
-  'LEX_DB_PATH',
-  'LEX_DB_KEY',
-  'LEX_GIT_MODE',
+  "LEX_LOG_LEVEL",
+  "LEX_LOG_PRETTY",
+  "LEX_POLICY_PATH",
+  "LEX_DB_PATH",
+  "LEX_DB_KEY",
+  "LEX_GIT_MODE",
 ];
 
 for (const envVar of envVars) {
@@ -226,7 +251,7 @@ for (const envVar of envVars) {
 }
 
 // Summary
-section('Summary');
+section("Summary");
 console.log(`${GREEN}Passed:${RESET} ${passCount}`);
 if (warningCount > 0) {
   console.log(`${YELLOW}Warnings:${RESET} ${warningCount}`);
