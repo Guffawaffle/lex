@@ -15,7 +15,6 @@
     { "path": "../../shared/logger" },
     { "path": "../../atlas/schemas" },
     { "path": "../receipts" },
-    { "path": "../validation" },
-    { "path": "../../shared/types" }
+    { "path": "../validation" }
   ]
 }

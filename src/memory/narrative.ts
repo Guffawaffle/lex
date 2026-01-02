@@ -4,7 +4,7 @@
  * Formats Frame search results as natural language prose instead of JSON.
  */
 
-import type { Frame } from "../shared/types/frame.js";
+import type { Frame } from "./frames/types.js";
 import type { NaturalQuery } from "./natural-query.js";
 
 export interface NarrativeItem {
