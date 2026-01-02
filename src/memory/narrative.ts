@@ -119,7 +119,7 @@ function generateFollowUp(frames: Frame[]): string {
     }
     const topKeyword = Array.from(keywordCounts.entries()).sort((a, b) => b[1] - a[1])[0][0];
 
-    return `The most recent work focused on ${topKeyword}. Would you like more details on any of these?`;
+    return `Most of the work was related to ${topKeyword}. Would you like more details on any of these?`;
   }
 
   return "Would you like more details on any of these?";
