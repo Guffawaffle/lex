@@ -8,6 +8,7 @@ import { Command } from "commander";
 import { remember, type RememberOptions } from "./remember.js";
 import { recall, type RecallOptions } from "./recall.js";
 import { check, type CheckOptions } from "./check.js";
+import { checkContradictions, type CheckContradictionsOptions } from "./check-contradictions.js";
 import { timeline, type TimelineCommandOptions } from "./timeline.js";
 import { init, type InitOptions } from "./init.js";
 import { exportFrames, type ExportCommandOptions } from "./export.js";
@@ -501,6 +502,20 @@ export function createProgram(): Command {
         json: globalOptions.json || false,
       };
       await dedupe(options);
+    });
+
+  // lex check contradictions command
+  program
+    .command("check-contradictions")
+    .description("Scan all frames for contradictions")
+    .option("--module <id>", "Filter by module ID")
+    .action(async (cmdOptions) => {
+      const globalOptions = program.opts();
+      const options: CheckContradictionsOptions = {
+        module: cmdOptions.module,
+        json: globalOptions.json || false,
+      };
+      await checkContradictions(options);
     });
 
   return program;
