@@ -89,6 +89,17 @@ function containsNegation(text: string): boolean {
 }
 
 /**
+ * Minimum word length for keyword extraction
+ */
+const MIN_KEYWORD_LENGTH = 3;
+
+/**
+ * Minimum word length for negation contradiction detection
+ * Use longer words to reduce false positives
+ */
+const MIN_NEGATION_WORD_LENGTH = 4;
+
+/**
  * Extract keywords from a frame
  * Combines explicit keywords with words from summary and reference point
  */
@@ -102,7 +113,7 @@ function extractFrameKeywords(frame: Frame): Set<string> {
 
   // Extract words from summary and reference point (minimum 3 chars)
   const text = `${frame.summary_caption} ${frame.reference_point}`.toLowerCase();
-  const words = text.match(/\b\w{3,}\b/g) || [];
+  const words = text.match(new RegExp(`\\b\\w{${MIN_KEYWORD_LENGTH},}\\b`, "g")) || [];
   words.forEach((w) => keywords.add(w));
 
   return keywords;
@@ -144,9 +155,13 @@ function detectNegationContradiction(textA: string, textB: string): boolean {
 
   // If only one has negation, check if they share keywords
   if (aHasNegation !== bHasNegation) {
-    // Extract words from both texts
-    const wordsA = new Set(textALower.match(/\b\w{4,}\b/g) || []);
-    const wordsB = new Set(textBLower.match(/\b\w{4,}\b/g) || []);
+    // Extract words from both texts (using longer words to reduce false positives)
+    const wordsA = new Set(
+      textALower.match(new RegExp(`\\b\\w{${MIN_NEGATION_WORD_LENGTH},}\\b`, "g")) || []
+    );
+    const wordsB = new Set(
+      textBLower.match(new RegExp(`\\b\\w{${MIN_NEGATION_WORD_LENGTH},}\\b`, "g")) || []
+    );
 
     // Check for significant overlap (at least 2 words)
     const overlap = [...wordsA].filter((w) => wordsB.has(w) && !NEGATION_WORDS.includes(w));

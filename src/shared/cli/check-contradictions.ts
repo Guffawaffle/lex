@@ -110,11 +110,11 @@ export async function checkContradictions(
       const frameA = frames.find((f) => f.id === contradiction.frameA);
       const frameB = frames.find((f) => f.id === contradiction.frameB);
 
-      if (!frameA || !frameB) continue;
+      if (!frameA || !frameB || !contradiction.signal) continue;
 
       out.info(`${"=".repeat(70)}`);
       out.info(
-        `CONTRADICTION ${i + 1} (confidence: ${(contradiction.signal!.confidence * 100).toFixed(0)}%)`
+        `CONTRADICTION ${i + 1} (confidence: ${(contradiction.signal.confidence * 100).toFixed(0)}%)`
       );
       out.info(`${"=".repeat(70)}`);
       out.info("");
@@ -142,8 +142,8 @@ export async function checkContradictions(
       }
       out.info("");
 
-      out.warn(`⚠️  Conflict: ${contradiction.signal!.explanation}`);
-      out.info(`   Type: ${contradiction.signal!.type}`);
+      out.warn(`⚠️  Conflict: ${contradiction.signal.explanation}`);
+      out.info(`   Type: ${contradiction.signal.type}`);
       out.info("");
     }
 
