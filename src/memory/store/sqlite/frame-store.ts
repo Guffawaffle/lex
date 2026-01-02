@@ -318,8 +318,9 @@ export class SqliteFrameStore implements FrameStore {
 
     // Handle FTS5 query - normalize for compatibility with hyphenated terms
     // By default, adds prefix wildcards for fuzzy matching unless exact=true
+    // Use mode='any' for OR logic, mode='all' (default) for AND logic
     if (criteria.query) {
-      const normalizedQuery = normalizeFTS5Query(criteria.query, criteria.exact);
+      const normalizedQuery = normalizeFTS5Query(criteria.query, criteria.exact, criteria.mode);
       if (normalizedQuery) {
         try {
           baseQuery = `

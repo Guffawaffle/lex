@@ -147,12 +147,13 @@ export interface SearchResult {
 
 export interface SearchOptions {
   exact?: boolean; // If true, disable automatic prefix wildcards for exact matching
+  mode?: "all" | "any"; // Search mode: 'all' (AND, default) or 'any' (OR)
 }
 
 /**
  * Search Frames using FTS5 full-text search
  * @param query Natural language query string (searches reference_point, summary_caption, keywords)
- * @param options Search options (exact: disable fuzzy matching)
+ * @param options Search options (exact: disable fuzzy matching, mode: 'all' for AND / 'any' for OR)
  * @returns SearchResult with frames array and optional hint for FTS5 syntax errors
  */
 export function searchFrames(
@@ -164,7 +165,8 @@ export function searchFrames(
 
   // Normalize query for FTS5 compatibility
   // By default, adds prefix wildcards for fuzzy matching unless exact=true
-  const normalizedQuery = normalizeFTS5Query(query, options.exact);
+  // Use mode='any' for OR logic, mode='all' (default) for AND logic
+  const normalizedQuery = normalizeFTS5Query(query, options.exact, options.mode);
 
   // If normalization resulted in empty query, return empty results
   if (!normalizedQuery) {

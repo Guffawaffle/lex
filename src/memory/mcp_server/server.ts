@@ -75,6 +75,7 @@ interface RecallArgs {
   branch?: string;
   limit?: number;
   format?: "full" | "compact";
+  mode?: "all" | "any";
 }
 
 interface GetFrameArgs {
@@ -853,6 +854,7 @@ export class MCPServer {
       branch,
       limit = 10,
       format = "full",
+      mode = "all",
     } = args as unknown as RecallArgs;
 
     // Track search timing for metadata (AX #578)
@@ -880,8 +882,9 @@ export class MCPServer {
       if (reference_point) {
         // Use FTS5 full-text search for reference_point
         criteria.query = reference_point;
+        criteria.mode = mode;
         frames = await this.frameStore.searchFrames(criteria);
-        matchStrategy = "fts";
+        matchStrategy = mode === "any" ? "fts:or" : "fts";
       } else if (jira) {
         // For jira/branch filtering, we need to search all and filter
         // The FrameStore interface doesn't have specific jira/branch methods

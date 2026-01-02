@@ -26,19 +26,26 @@
  * Fuzzy matching allows "debug" to match "debugging", "AX" to match "AX-006", etc.
  *
  * @example
- * normalizeFTS5Query("senior-dev")     // "senior* dev*"
- * normalizeFTS5Query("AX-001")         // "AX* 001*"
- * normalizeFTS5Query("datab*")         // "datab*" (preserved - already has wildcard)
- * normalizeFTS5Query("debug")          // "debug*" (adds wildcard for fuzzy matching)
- * normalizeFTS5Query("*test")          // "test*" (leading asterisk removed, trailing added)
- * normalizeFTS5Query("merge:weave")    // "merge* weave*"
- * normalizeFTS5Query("test  search")   // "test* search*"
+ * normalizeFTS5Query("senior-dev")                    // "senior* dev*"
+ * normalizeFTS5Query("AX-001")                        // "AX* 001*"
+ * normalizeFTS5Query("datab*")                        // "datab*" (preserved - already has wildcard)
+ * normalizeFTS5Query("debug")                         // "debug*" (adds wildcard for fuzzy matching)
+ * normalizeFTS5Query("*test")                         // "test*" (leading asterisk removed, trailing added)
+ * normalizeFTS5Query("merge:weave")                   // "merge* weave*"
+ * normalizeFTS5Query("test  search")                  // "test* search*"
+ * normalizeFTS5Query("credential checking", false, "any")  // "credential* OR checking*"
+ * normalizeFTS5Query("api performance", false, "all")      // "api* performance*" (default AND)
  *
  * @param query - User's raw search query
  * @param exact - If true, skip automatic prefix wildcards for exact matching (default: false)
+ * @param mode - Search mode: 'all' (AND, default) or 'any' (OR)
  * @returns Normalized query safe for FTS5 MATCH
  */
-export function normalizeFTS5Query(query: string, exact = false): string {
+export function normalizeFTS5Query(
+  query: string,
+  exact = false,
+  mode: "all" | "any" = "all"
+): string {
   const normalized = query
     // Replace hyphens with spaces (FTS5 treats hyphens as negation)
     .replace(/-/g, " ")
@@ -54,23 +61,34 @@ export function normalizeFTS5Query(query: string, exact = false): string {
     // Trim leading/trailing whitespace
     .trim();
 
-  // If exact matching is requested, return without adding wildcards
-  if (exact || !normalized) {
+  // If exact matching is requested, return without adding wildcards but still apply mode
+  if (!normalized) {
     return normalized;
   }
 
-  // Add prefix wildcards to each term for fuzzy matching
-  // Only add if the term doesn't already end with *
-  return normalized
+  // Split into terms and optionally add wildcards
+  const terms = normalized
     .split(" ")
     .map((term) => {
       // Skip empty terms
       if (!term) return "";
+
+      // If exact mode, don't add wildcards (but preserve user-provided ones)
+      if (exact) return term;
+
       // Don't add wildcard if term already has one
       if (term.endsWith("*")) return term;
       // Add prefix wildcard for fuzzy matching
       return term + "*";
     })
-    .filter((term) => term.length > 0)
-    .join(" ");
+    .filter((term) => term.length > 0);
+
+  // Join terms based on search mode
+  if (mode === "any") {
+    // OR mode: join with " OR " for FTS5
+    return terms.join(" OR ");
+  } else {
+    // AND mode (default): join with space (implicit AND in FTS5)
+    return terms.join(" ");
+  }
 }
