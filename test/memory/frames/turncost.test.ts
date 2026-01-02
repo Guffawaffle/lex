@@ -264,8 +264,8 @@ describe("Frame Schema Integration", () => {
     assert.strictEqual(result.data?.turnCost, undefined, "turnCost should be undefined");
   });
 
-  test("FRAME_SCHEMA_VERSION should be 5", () => {
-    assert.strictEqual(FRAME_SCHEMA_VERSION, 5, "Frame schema version should be 5");
+  test("FRAME_SCHEMA_VERSION should be 6", () => {
+    assert.strictEqual(FRAME_SCHEMA_VERSION, 6, "Frame schema version should be 6");
   });
 });
 
