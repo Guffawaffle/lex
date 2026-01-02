@@ -34,6 +34,7 @@ import {
   type InstructionsCheckOptions,
 } from "./instructions.js";
 import { turncost, type TurnCostOptions } from "./turncost.js";
+import { dedupe, type DedupeOptions } from "./dedupe.js";
 import * as output from "./output.js";
 import { readFileSync } from "fs";
 import { join, dirname } from "path";
@@ -480,6 +481,26 @@ export function createProgram(): Command {
         period: cmdOptions.period,
       };
       await turncost(options);
+    });
+
+  // lex dedupe command
+  program
+    .command("dedupe")
+    .description("Detect and consolidate duplicate frames based on similarity scoring")
+    .option("--dry-run", "Show what would be consolidated without making changes")
+    .option("--threshold <number>", "Similarity threshold (0.0-1.0, default: 0.85)", parseFloat)
+    .option("--auto", "Automatically consolidate duplicates without prompting")
+    .option("--show-candidates", "Show duplicate candidates")
+    .action(async (cmdOptions) => {
+      const globalOptions = program.opts();
+      const options: DedupeOptions = {
+        dryRun: cmdOptions.dryRun || false,
+        threshold: cmdOptions.threshold,
+        auto: cmdOptions.auto || false,
+        showCandidates: cmdOptions.showCandidates || false,
+        json: globalOptions.json || false,
+      };
+      await dedupe(options);
     });
 
   return program;

@@ -80,6 +80,9 @@ export interface Frame {
   // Capability tier classification (v4)
   capabilityTier?: CapabilityTier;
   taskComplexity?: TaskComplexity;
+  // Deduplication metadata (v5)
+  superseded_by?: string; // Frame ID that supersedes this one
+  merged_from?: string[]; // Frame IDs that were merged into this one
 }
 
 /**
@@ -88,8 +91,9 @@ export interface Frame {
  * v2: Added runId, planHash, spend fields for execution provenance (0.4.0)
  * v3: Added executorRole, toolCalls, guardrailProfile for LexRunner (0.5.0)
  * v4: Added turnCost, capabilityTier, taskComplexity for governance model (2.0.0)
+ * v5: Added superseded_by, merged_from for deduplication (2.2.0)
  */
-export const FRAME_SCHEMA_VERSION = 4;
+export const FRAME_SCHEMA_VERSION = 5;
 
 export function validateFrameMetadata(frame: unknown): frame is Frame {
   if (typeof frame !== "object" || frame === null) return false;
