@@ -17,6 +17,8 @@ import {
 import { output, json } from "./output.js";
 // @ts-ignore - importing from compiled dist directories
 import { compactFrameList } from "../../memory/renderer/compact.js";
+import { parseNaturalQuery, isConversationalQuery } from "../../memory/natural-query.js";
+import { formatAsNarrative } from "../../memory/narrative.js";
 
 export interface RecallOptions {
   json?: boolean;
@@ -28,6 +30,7 @@ export interface RecallOptions {
   list?: number | boolean; // If set, list recent frames instead of searching (true = use default limit)
   strict?: boolean; // If true, exit with code 1 when no frames found (for backwards compatibility)
   summary?: boolean; // If true, enable compact format mode for small-context agents
+  format?: "json" | "prose" | "default"; // Output format: json, prose (narrative), or default (pretty print)
 }
 
 /**
@@ -49,6 +52,7 @@ export async function recall(
 
   try {
     let frames: Frame[] = [];
+    let naturalQuery: ReturnType<typeof parseNaturalQuery> | null = null;
 
     // Handle --list mode: show recent frames
     if (options.list !== undefined) {
@@ -82,24 +86,38 @@ export async function recall(
         process.exit(1);
       }
 
+      // Parse natural query for metadata extraction
+      naturalQuery = parseNaturalQuery(query);
+
+      // Use extracted topic for search if query is conversational
+      const searchQuery = naturalQuery.isConversational ? naturalQuery.extractedTopic : query;
+
       // Try different search strategies
       // 1. Try as Frame ID (exact match)
-      const frameById = await store.getFrameById(query);
+      const frameById = await store.getFrameById(searchQuery);
       if (frameById) {
         frames = [frameById];
       } else {
         // 2. Try as search query (full-text search)
         // Semantics depend on FrameStore implementation
         const searchResults = await store.searchFrames({
-          query,
+          query: searchQuery,
           exact: options.exact,
         });
         frames = searchResults;
       }
 
       if (frames.length === 0) {
-        if (options.json) {
+        // Determine output format
+        const outputFormat =
+          options.format ||
+          (options.json ? "json" : naturalQuery.isConversational ? "prose" : "default");
+
+        if (outputFormat === "json") {
           json({ frames: [], query, matchCount: 0 });
+        } else if (outputFormat === "prose") {
+          const narrative = formatAsNarrative([], naturalQuery);
+          output.info(`\n${narrative}\n`);
         } else {
           output.info(`\nNo frames found matching: "${query}"\n`);
         }
@@ -107,8 +125,19 @@ export async function recall(
       }
     }
 
+    // Determine output format
+    // Priority: explicit --format flag > --json flag > auto-detect based on query
+    let outputFormat: "json" | "prose" | "default" = "default";
+    if (options.format) {
+      outputFormat = options.format;
+    } else if (options.json || options.summary) {
+      outputFormat = "json";
+    } else if (query && isConversationalQuery(query)) {
+      outputFormat = "prose";
+    }
+
     // Output results
-    if (options.json || options.summary) {
+    if (outputFormat === "json" || options.summary) {
       // JSON or compact summary output
       if (options.list !== undefined) {
         // For list mode with summary, output compact format
@@ -149,8 +178,17 @@ export async function recall(
           json(results);
         }
       }
+    } else if (outputFormat === "prose") {
+      // Narrative prose output
+      if (!query || !naturalQuery) {
+        // Shouldn't happen, but fallback to default
+        output.error(`\n❌ Error: Query required for prose format\n`);
+        process.exit(1);
+      }
+      const narrative = formatAsNarrative(frames, naturalQuery);
+      output.info(`\n${narrative}\n`);
     } else {
-      // Pretty print results
+      // Default pretty print results
       if (options.list !== undefined) {
         // List mode: show compact list
         output.info(`\nRecent frames (${frames.length} most recent):\n`);
