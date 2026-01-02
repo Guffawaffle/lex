@@ -35,6 +35,9 @@ function frameToRow(frame: Frame): FrameRow {
     spend: frame.spend ? JSON.stringify(frame.spend) : null,
     // OAuth2/JWT user isolation (v3)
     user_id: frame.userId || null,
+    // Deduplication metadata (v5)
+    superseded_by: frame.superseded_by || null,
+    merged_from: frame.merged_from ? JSON.stringify(frame.merged_from) : null,
   };
 }
 
@@ -61,6 +64,9 @@ function rowToFrame(row: FrameRow): Frame {
     spend: row.spend ? (JSON.parse(row.spend) as FrameSpendMetadata) : undefined,
     // OAuth2/JWT user isolation (v3) - backward compatible, defaults to undefined
     userId: row.user_id || undefined,
+    // Deduplication metadata (v5) - backward compatible, defaults to undefined
+    superseded_by: row.superseded_by || undefined,
+    merged_from: row.merged_from ? (JSON.parse(row.merged_from) as string[]) : undefined,
   };
 }
 
@@ -75,8 +81,9 @@ export function saveFrame(db: Database.Database, frame: Frame): void {
     INSERT OR REPLACE INTO frames (
       id, timestamp, branch, jira, module_scope, summary_caption,
       reference_point, status_snapshot, keywords, atlas_frame_id,
-      feature_flags, permissions, run_id, plan_hash, spend, user_id
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      feature_flags, permissions, run_id, plan_hash, spend, user_id,
+      superseded_by, merged_from
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   stmt.run(
@@ -95,7 +102,9 @@ export function saveFrame(db: Database.Database, frame: Frame): void {
     row.run_id,
     row.plan_hash,
     row.spend,
-    row.user_id
+    row.user_id,
+    row.superseded_by,
+    row.merged_from
   );
 
   const duration = Date.now() - startTime;

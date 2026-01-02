@@ -80,6 +80,9 @@ function frameToRow(frame: Frame): FrameRow {
     spend: frame.spend ? JSON.stringify(frame.spend) : null,
     // OAuth2/JWT user isolation (v3)
     user_id: frame.userId || null,
+    // Deduplication metadata (v5)
+    superseded_by: frame.superseded_by || null,
+    merged_from: frame.merged_from ? JSON.stringify(frame.merged_from) : null,
   };
 }
 
@@ -110,6 +113,9 @@ function rowToFrame(row: FrameRow): Frame {
     spend: row.spend ? (JSON.parse(row.spend) as FrameSpendMetadata) : undefined,
     // OAuth2/JWT user isolation (v3) - backward compatible, defaults to undefined
     userId: row.user_id || undefined,
+    // Deduplication metadata (v5) - backward compatible, defaults to undefined
+    superseded_by: row.superseded_by || undefined,
+    merged_from: row.merged_from ? (JSON.parse(row.merged_from) as string[]) : undefined,
   };
 }
 

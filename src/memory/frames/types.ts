@@ -121,6 +121,9 @@ export const Frame = z.object({
   // Capability tier classification (v4)
   capabilityTier: CapabilityTier.optional(),
   taskComplexity: TaskComplexity.optional(),
+  // Deduplication metadata (v5)
+  superseded_by: z.string().optional(),
+  merged_from: z.array(z.string()).optional(),
 });
 
 export type Frame = z.infer<typeof Frame>;
@@ -131,8 +134,9 @@ export type Frame = z.infer<typeof Frame>;
  * v2: Added runId, planHash, spend fields for execution provenance (0.4.0)
  * v3: Added executorRole, toolCalls, guardrailProfile for LexRunner (0.5.0)
  * v4: Added turnCost, capabilityTier, taskComplexity for governance model (2.0.0)
+ * v5: Added superseded_by, merged_from for deduplication (2.2.0)
  */
-export const FRAME_SCHEMA_VERSION = 4;
+export const FRAME_SCHEMA_VERSION = 5;
 
 /**
  * Frame search query interface

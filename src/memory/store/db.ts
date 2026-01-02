@@ -46,6 +46,9 @@ export interface FrameRow {
   spend: string | null; // JSON stringified object
   // OAuth2/JWT user isolation (v3)
   user_id: string | null;
+  // Deduplication metadata (v5)
+  superseded_by: string | null;
+  merged_from: string | null; // JSON stringified array
 }
 
 /**
@@ -363,6 +366,10 @@ export function initializeDatabase(db: Database.Database): void {
   if (currentVersion < 10) {
     applyMigrationV10(db);
     db.prepare("INSERT INTO schema_version (version) VALUES (?)").run(10);
+  }
+  if (currentVersion < 11) {
+    applyMigrationV11(db);
+    db.prepare("INSERT INTO schema_version (version) VALUES (?)").run(11);
   }
 }
 
@@ -836,6 +843,31 @@ function applyMigrationV10(db: Database.Database): void {
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_personas_updated
     ON personas(updated_at DESC);
+  `);
+}
+
+/**
+ * Migration V11: Add deduplication fields to frames table
+ *
+ * Adds superseded_by and merged_from fields to support frame deduplication.
+ * - superseded_by: ID of frame that supersedes this one
+ * - merged_from: JSON array of frame IDs that were merged into this one
+ */
+function applyMigrationV11(db: Database.Database): void {
+  // Add superseded_by column
+  db.exec(`
+    ALTER TABLE frames ADD COLUMN superseded_by TEXT;
+  `);
+
+  // Add merged_from column (JSON array)
+  db.exec(`
+    ALTER TABLE frames ADD COLUMN merged_from TEXT;
+  `);
+
+  // Create index for superseded_by to efficiently filter out superseded frames
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_frames_superseded_by
+    ON frames(superseded_by);
   `);
 }
 

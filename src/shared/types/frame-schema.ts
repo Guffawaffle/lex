@@ -216,8 +216,9 @@ export type Frame = z.infer<typeof FrameSchema>;
  * v2: Added runId, planHash, spend fields for execution provenance (0.4.0)
  * v3: Added executorRole, toolCalls, guardrailProfile for LexRunner (0.5.0)
  * v4: Added turnCost for governance Turn Cost measurement (2.0.0-alpha.1)
+ * v5: Added superseded_by, merged_from for frame deduplication (2.1.x)
  */
-export const FRAME_SCHEMA_VERSION = 4;
+export const FRAME_SCHEMA_VERSION = 5;
 
 /**
  * Validate a Frame using Zod schema
