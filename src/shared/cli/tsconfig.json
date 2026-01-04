@@ -27,6 +27,8 @@
     { "path": "../../atlas" },
     { "path": "../../memory/store" },
     { "path": "../../memory/renderer" },
-    { "path": "../../memory/receipts" }
+    { "path": "../../memory/receipts" },
+    { "path": "../../memory/frames" },
+    { "path": "../../github" }
   ]
 }
