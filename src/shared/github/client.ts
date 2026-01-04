@@ -6,6 +6,9 @@
  */
 
 import { execFileSync } from "child_process";
+import { promises as fsPromises } from "fs";
+import { tmpdir } from "os";
+import { join, sep } from "path";
 
 export interface GitHubIssue {
   number: number;
@@ -84,6 +87,30 @@ export async function getIssue(ref: IssueReference): Promise<GitHubIssue | null>
 }
 
 /**
+ * Fetch issue body from GitHub using gh CLI
+ */
+export async function getIssueBody(ref: IssueReference): Promise<string | null> {
+  try {
+    // Validate input to prevent injection
+    validateIssueRef(ref);
+
+    const repoRef = ref.owner ? `${ref.owner}/${ref.repo}` : ref.repo;
+    const args = ["issue", "view", ref.number.toString(), "--repo", repoRef, "--json", "body"];
+
+    const output = execFileSync("gh", args, {
+      encoding: "utf-8",
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+
+    const data = JSON.parse(output) as { body: string };
+    return data.body || "";
+  } catch (_error) {
+    // Issue not found or gh CLI not available
+    return null;
+  }
+}
+
+/**
  * Batch fetch multiple issues
  */
 export async function batchGetIssues(
@@ -126,16 +153,12 @@ export async function updateIssue(
 
     if (update.body !== undefined) {
       // Write body to temp file to avoid command line length limits
-      const fs = await import("fs");
-
       // Use secure temp file creation
-      const tmpDir = await fs.promises.mkdtemp(
-        (await import("os")).tmpdir() + (await import("path")).sep + "gh-issue-"
-      );
-      const tempFile = (await import("path")).join(tmpDir, "body.md");
+      const tmpDir = await fsPromises.mkdtemp(tmpdir() + sep + "gh-issue-");
+      const tempFile = join(tmpDir, "body.md");
 
       try {
-        await fs.promises.writeFile(tempFile, update.body);
+        await fsPromises.writeFile(tempFile, update.body);
 
         // Use execFileSync with argument array to prevent injection
         const args = [
@@ -155,8 +178,8 @@ export async function updateIssue(
       } finally {
         // Clean up temp file and directory
         try {
-          await fs.promises.unlink(tempFile);
-          await fs.promises.rmdir(tmpDir);
+          await fsPromises.unlink(tempFile);
+          await fsPromises.rmdir(tmpDir);
         } catch {
           // Ignore cleanup errors
         }

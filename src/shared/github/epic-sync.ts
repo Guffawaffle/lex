@@ -9,7 +9,13 @@ import {
   extractStatusTables,
   updateMarkdownTables,
 } from "../markdown/status-table.js";
-import { getIssue, batchGetIssues, updateIssue, type IssueReference } from "./client.js";
+import {
+  getIssue,
+  getIssueBody,
+  batchGetIssues,
+  updateIssue,
+  type IssueReference,
+} from "./client.js";
 
 export interface EpicSyncChange {
   issueRef: string;
@@ -65,18 +71,11 @@ export async function syncEpicStatus(epicRef: string): Promise<EpicSyncResult> {
     throw new Error(`Epic not found: ${epicRef}`);
   }
 
-  // Get current body using gh CLI with proper argument handling
-  const { execFileSync } = await import("child_process");
-  const repoRef = issueRef.owner ? `${issueRef.owner}/${issueRef.repo}` : issueRef.repo;
-  const bodyOutput = execFileSync(
-    "gh",
-    ["issue", "view", issueRef.number.toString(), "--repo", repoRef, "--json", "body"],
-    {
-      encoding: "utf-8",
-    }
-  );
-  const bodyData = JSON.parse(bodyOutput) as { body: string };
-  const originalBody = bodyData.body || "";
+  // Get current body using client function
+  const originalBody = await getIssueBody(issueRef);
+  if (originalBody === null) {
+    throw new Error(`Could not fetch epic body: ${epicRef}`);
+  }
 
   // Extract status tables
   const tables = extractStatusTables(originalBody);
