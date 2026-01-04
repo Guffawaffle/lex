@@ -195,6 +195,10 @@
       "optional": true
     }
   },
+  "overrides": {
+    "tar-stream": "^3.1.7",
+    "tar-fs": "^3.1.1"
+  },
   "dependencies": {
     "@smartergpt/lex": "^2.0.3",
     "@types/express": "^5.0.5",
