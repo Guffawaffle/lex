@@ -39,7 +39,10 @@ export interface GitHubPullRequest {
  * 3. Calculate metrics from PR diffs and test files
  * 4. Count test additions from test files
  */
-export async function aggregateWaveMetrics(epicRef: string, waveId: string): Promise<WaveMetrics> {
+export async function aggregateWaveMetrics(
+  _epicRef: string,
+  _waveId: string
+): Promise<WaveMetrics> {
   // Stub implementation - returns example metrics
   // In production, this would use GitHub API to fetch actual data
   return {
@@ -64,7 +67,7 @@ export async function aggregateWaveMetrics(epicRef: string, waveId: string): Pro
  * 2. Use GitHub API to fetch issues with wave label
  * 3. Map to WaveIssue format
  */
-export async function fetchWaveIssues(epicRef: string, waveId: string): Promise<WaveIssue[]> {
+export async function fetchWaveIssues(_epicRef: string, _waveId: string): Promise<WaveIssue[]> {
   // Stub implementation
   return [];
 }
@@ -81,7 +84,7 @@ export async function fetchWaveIssues(epicRef: string, waveId: string): Promise<
  * 2. Filter for test files (*.test.ts, *.spec.ts, etc.)
  * 3. Count new test cases using AST parsing or regex patterns
  */
-export async function calculateTestsAdded(prRef: string): Promise<number> {
+export async function calculateTestsAdded(_prRef: string): Promise<number> {
   // Stub implementation
   return 0;
 }
@@ -98,7 +101,7 @@ export async function calculateTestsAdded(prRef: string): Promise<number> {
  * 2. Apply priority/dependency heuristics
  * 3. Return top N candidates for next wave
  */
-export async function suggestNextWave(epicRef: string): Promise<string[]> {
+export async function suggestNextWave(_epicRef: string): Promise<string[]> {
   // Stub implementation
   return [];
 }

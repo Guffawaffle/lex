@@ -202,7 +202,7 @@ export async function waveComplete(
     process.exit(1);
   } finally {
     if (ownsStore) {
-      store.close();
+      await store.close();
     }
   }
 }
