@@ -36,6 +36,7 @@ import {
 } from "./instructions.js";
 import { turncost, type TurnCostOptions } from "./turncost.js";
 import { dedupe, type DedupeOptions } from "./dedupe.js";
+import { epicSync, type EpicSyncOptions } from "./epic.js";
 import { waveComplete, type WaveCompleteOptions } from "./wave.js";
 import * as output from "./output.js";
 import { readFileSync } from "fs";
@@ -531,6 +532,21 @@ export function createProgram(): Command {
         json: globalOptions.json || false,
       };
       await checkContradictions(options);
+    });
+
+  // lex epic command group
+  const epicCommand = program.command("epic").description("Epic/tracking issue operations");
+
+  // lex epic sync
+  epicCommand
+    .command("sync <epic-ref>")
+    .description("Sync epic status with actual sub-issue states (e.g., lexrunner#653)")
+    .action(async (epicRef, _cmdOptions) => {
+      const globalOptions = program.opts();
+      const options: EpicSyncOptions = {
+        json: globalOptions.json || false,
+      };
+      await epicSync(epicRef, options);
     });
 
   // lex wave command group

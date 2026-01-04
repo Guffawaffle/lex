@@ -18,6 +18,8 @@
     { "path": "../policy" },
     { "path": "../module_ids" },
     { "path": "../git" },
+    { "path": "../github" },
+    { "path": "../markdown" },
     { "path": "../atlas" },
     { "path": "../config" },
     { "path": "../instructions" },

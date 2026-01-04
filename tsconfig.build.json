@@ -13,6 +13,8 @@
     { "path": "src/shared/lexsona" },
     { "path": "src/shared/atlas" },
     { "path": "src/shared/errors" },
+    { "path": "src/shared/markdown" },
+    { "path": "src/shared/github" },
     { "path": "src/atlas/schemas" },
     { "path": "src/shared/git" },
     { "path": "src/shared/config" },
