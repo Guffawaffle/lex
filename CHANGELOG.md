@@ -28,6 +28,38 @@ _No unreleased changes._
 
 ---
 
+## [2.1.1] - 2025-01-01
+
+### Added
+
+- **MCP Registry Publication** - Automated GitHub Actions workflow for MCP registry publication
+- **README.mcp.md** - Dedicated MCP configuration guide for Claude Desktop and VS Code
+- **Wave Completion Frame Emission** (LEX-MCP-001) - Emit frames when integration waves complete
+- **Epic Status Auto-sync** (LEX-MCP-002) - Automatically sync parent epic status from sub-issue states
+- **Natural Language Recall** (LEX-TSF-003) - Fuzzy matching for recall queries
+- **Contradiction Detection** (LEX-TSF-002) - Detect contradicting information in stored frames
+- **Frame Deduplication** - Consolidate duplicate frames automatically
+- **OR-mode Search** (#656) - Multi-term queries now use OR logic for broader recall
+- **AX CLI/MCP Parity** (#664, #665) - Added missing CLI and MCP tool equivalents:
+  - CLI: `lex remember --dry-run`, `lex introspect`, `lex hints <ids>`
+  - MCP: `db_stats`, `turncost_calculate`, `contradictions_scan`
+
+### Changed
+
+- Bumped MCP registry to 1.0.2
+- MCP server module now exported for wrapper package integration
+
+### Fixed
+
+- Gracefully handle missing CLI build in validate-docs (#657)
+- Aligned recall-quality tests with FTS5 AND behavior (#653)
+
+### Security
+
+- Bumped qs to 6.14.1 (GHSA-6rw7-vpxm-498p)
+
+---
+
 ## [2.1.0] - 2025-12-16
 
 ### ⚠️ BREAKING CHANGE: MCP Tool Names
