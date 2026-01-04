@@ -5,7 +5,7 @@
  * variables for authentication.
  */
 
-import { execSync } from "child_process";
+import { execFileSync } from "child_process";
 
 export interface GitHubIssue {
   number: number;
@@ -21,15 +21,46 @@ export interface IssueReference {
 }
 
 /**
+ * Validate issue reference to prevent injection
+ */
+function validateIssueRef(ref: IssueReference): void {
+  // Validate number is actually a number
+  if (!Number.isInteger(ref.number) || ref.number < 1) {
+    throw new Error(`Invalid issue number: ${ref.number}`);
+  }
+
+  // Validate repo name (alphanumeric, hyphens, underscores)
+  if (!/^[a-zA-Z0-9_-]+$/.test(ref.repo)) {
+    throw new Error(`Invalid repo name: ${ref.repo}`);
+  }
+
+  // Validate owner name if present
+  if (ref.owner && !/^[a-zA-Z0-9_-]+$/.test(ref.owner)) {
+    throw new Error(`Invalid owner name: ${ref.owner}`);
+  }
+}
+
+/**
  * Fetch issue state from GitHub using gh CLI
  */
 export async function getIssue(ref: IssueReference): Promise<GitHubIssue | null> {
   try {
-    // Use gh CLI to fetch issue
-    const repoRef = ref.owner ? `${ref.owner}/${ref.repo}` : ref.repo;
-    const command = `gh issue view ${ref.number} --repo ${repoRef} --json number,state,title,url`;
+    // Validate input to prevent injection
+    validateIssueRef(ref);
 
-    const output = execSync(command, {
+    // Use gh CLI to fetch issue with properly escaped arguments
+    const repoRef = ref.owner ? `${ref.owner}/${ref.repo}` : ref.repo;
+    const args = [
+      "issue",
+      "view",
+      ref.number.toString(),
+      "--repo",
+      repoRef,
+      "--json",
+      "number,state,title,url",
+    ];
+
+    const output = execFileSync("gh", args, {
       encoding: "utf-8",
       stdio: ["pipe", "pipe", "pipe"],
     });
@@ -88,28 +119,48 @@ export async function updateIssue(
   update: { body?: string }
 ): Promise<boolean> {
   try {
-    const repoRef = ref.owner ? `${ref.owner}/${ref.repo}` : ref.repo;
-    const command = `gh issue edit ${ref.number} --repo ${repoRef}`;
+    // Validate input to prevent injection
+    validateIssueRef(ref);
 
-    const args: string[] = [];
+    const repoRef = ref.owner ? `${ref.owner}/${ref.repo}` : ref.repo;
+
     if (update.body !== undefined) {
       // Write body to temp file to avoid command line length limits
       const fs = await import("fs");
-      const os = await import("os");
-      const path = await import("path");
 
-      const tempFile = path.join(os.tmpdir(), `gh-issue-body-${Date.now()}.md`);
-      fs.writeFileSync(tempFile, update.body);
+      // Use secure temp file creation
+      const tmpDir = await fs.promises.mkdtemp(
+        (await import("os")).tmpdir() + (await import("path")).sep + "gh-issue-"
+      );
+      const tempFile = (await import("path")).join(tmpDir, "body.md");
 
-      args.push(`--body-file ${tempFile}`);
+      try {
+        await fs.promises.writeFile(tempFile, update.body);
 
-      execSync(`${command} ${args.join(" ")}`, {
-        encoding: "utf-8",
-        stdio: ["pipe", "pipe", "pipe"],
-      });
+        // Use execFileSync with argument array to prevent injection
+        const args = [
+          "issue",
+          "edit",
+          ref.number.toString(),
+          "--repo",
+          repoRef,
+          "--body-file",
+          tempFile,
+        ];
 
-      // Clean up temp file
-      fs.unlinkSync(tempFile);
+        execFileSync("gh", args, {
+          encoding: "utf-8",
+          stdio: ["pipe", "pipe", "pipe"],
+        });
+      } finally {
+        // Clean up temp file and directory
+        try {
+          await fs.promises.unlink(tempFile);
+          await fs.promises.rmdir(tmpDir);
+        } catch {
+          // Ignore cleanup errors
+        }
+      }
     }
 
     return true;

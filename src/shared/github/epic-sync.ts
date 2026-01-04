@@ -65,13 +65,16 @@ export async function syncEpicStatus(epicRef: string): Promise<EpicSyncResult> {
     throw new Error(`Epic not found: ${epicRef}`);
   }
 
-  // Get current body (would need to fetch full issue with body)
-  // For now, we'll use gh CLI to get the body
-  const { execSync } = await import("child_process");
+  // Get current body using gh CLI with proper argument handling
+  const { execFileSync } = await import("child_process");
   const repoRef = issueRef.owner ? `${issueRef.owner}/${issueRef.repo}` : issueRef.repo;
-  const bodyOutput = execSync(`gh issue view ${issueRef.number} --repo ${repoRef} --json body`, {
-    encoding: "utf-8",
-  });
+  const bodyOutput = execFileSync(
+    "gh",
+    ["issue", "view", issueRef.number.toString(), "--repo", repoRef, "--json", "body"],
+    {
+      encoding: "utf-8",
+    }
+  );
   const bodyData = JSON.parse(bodyOutput) as { body: string };
   const originalBody = bodyData.body || "";
 
