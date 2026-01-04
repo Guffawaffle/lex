@@ -402,4 +402,54 @@ export const MCP_TOOLS: MCPTool[] = [
       },
     },
   },
+  {
+    name: "db_stats",
+    description:
+      "Get database statistics including frame count, storage size, and activity metrics. Useful for understanding memory usage and recent activity.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        detailed: {
+          type: "boolean",
+          description: "Include detailed module distribution (default: false)",
+          default: false,
+        },
+      },
+    },
+  },
+  {
+    name: "turncost_calculate",
+    description:
+      "Calculate Turn Cost governance metrics for a time period. Returns frame count, estimated tokens, and prompt count to help measure coordination overhead.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        period: {
+          type: "string",
+          description:
+            "Time period for metrics. Format: duration string (e.g., '24h', '7d', '30d') or ISO 8601 timestamp. Default: '24h'",
+          default: "24h",
+        },
+      },
+    },
+  },
+  {
+    name: "contradictions_scan",
+    description:
+      "Scan frames for potential contradictions (conflicting information across frames). Returns pairs of frames with detected conflicts and confidence scores.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        module: {
+          type: "string",
+          description: "Optional module ID filter to limit scan to specific module",
+        },
+        limit: {
+          type: "number",
+          description: "Maximum number of frames to scan (default: 10000)",
+          default: 10000,
+        },
+      },
+    },
+  },
 ];
