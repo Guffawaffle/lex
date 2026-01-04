@@ -54,6 +54,8 @@ describe("MCP Server - Protocol", () => {
       const toolNames = response.tools.map((t) => t.name).sort();
       const expectedTools = [
         "atlas_analyze",
+        "contradictions_scan",
+        "db_stats",
         "frame_create",
         "frame_get",
         "frame_list",
@@ -64,6 +66,7 @@ describe("MCP Server - Protocol", () => {
         "policy_check",
         "system_introspect",
         "timeline_show",
+        "turncost_calculate",
       ].sort();
 
       assert.deepStrictEqual(

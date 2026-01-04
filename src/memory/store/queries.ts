@@ -384,7 +384,7 @@ export function getTurnCostMetrics(
   const whereClause = whereClauses.length > 0 ? `WHERE ${whereClauses.join(" AND ")}` : "";
 
   const stmt = db.prepare(`
-    SELECT 
+    SELECT
       COUNT(*) as frameCount,
       SUM(CASE WHEN spend IS NOT NULL THEN json_extract(spend, '$.tokens_estimated') ELSE 0 END) as estimatedTokens,
       SUM(CASE WHEN spend IS NOT NULL THEN json_extract(spend, '$.prompts') ELSE 0 END) as prompts
@@ -403,4 +403,102 @@ export function getTurnCostMetrics(
     estimatedTokens: result.estimatedTokens || 0,
     prompts: result.prompts || 0,
   };
+}
+
+/**
+ * Database statistics for MCP db_stats tool
+ */
+export interface DbStatsResult {
+  totalFrames: number;
+  thisWeek: number;
+  thisMonth: number;
+  oldestDate: string | null;
+  newestDate: string | null;
+  moduleDistribution?: Record<string, number>;
+}
+
+/**
+ * Get database statistics for frame counts and date ranges
+ * Used by MCP db_stats tool
+ */
+export function getDbStats(db: Database.Database, detailed: boolean = false): DbStatsResult {
+  // Get total frame count
+  const totalCountResult = db.prepare("SELECT COUNT(*) as count FROM frames").get() as {
+    count: number;
+  };
+  const totalFrames = totalCountResult.count;
+
+  // Calculate date for one week ago
+  const oneWeekAgo = new Date();
+  oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+  const oneWeekAgoISO = oneWeekAgo.toISOString();
+
+  // Get frames from this week
+  const weekCountResult = db
+    .prepare("SELECT COUNT(*) as count FROM frames WHERE timestamp >= ?")
+    .get(oneWeekAgoISO) as { count: number };
+  const thisWeek = weekCountResult.count;
+
+  // Calculate date for one month ago
+  const oneMonthAgo = new Date();
+  oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+  const oneMonthAgoISO = oneMonthAgo.toISOString();
+
+  // Get frames from this month
+  const monthCountResult = db
+    .prepare("SELECT COUNT(*) as count FROM frames WHERE timestamp >= ?")
+    .get(oneMonthAgoISO) as { count: number };
+  const thisMonth = monthCountResult.count;
+
+  // Get date range (oldest and newest)
+  let oldestDate: string | null = null;
+  let newestDate: string | null = null;
+
+  if (totalFrames > 0) {
+    const oldestResult = db.prepare("SELECT MIN(timestamp) as oldest FROM frames").get() as {
+      oldest: string | null;
+    };
+    oldestDate = oldestResult.oldest;
+
+    const newestResult = db.prepare("SELECT MAX(timestamp) as newest FROM frames").get() as {
+      newest: string | null;
+    };
+    newestDate = newestResult.newest;
+  }
+
+  const result: DbStatsResult = {
+    totalFrames,
+    thisWeek,
+    thisMonth,
+    oldestDate,
+    newestDate,
+  };
+
+  // Get module distribution if detailed
+  if (detailed && totalFrames > 0) {
+    const moduleDistribution: Record<string, number> = {};
+    const frameIterator = db
+      .prepare("SELECT module_scope FROM frames")
+      .iterate() as IterableIterator<{ module_scope: string }>;
+
+    for (const frame of frameIterator) {
+      try {
+        const modules = JSON.parse(frame.module_scope) as string[];
+        for (const module of modules) {
+          moduleDistribution[module] = (moduleDistribution[module] || 0) + 1;
+        }
+      } catch {
+        // Skip frames with invalid JSON
+      }
+    }
+
+    // Sort by count descending and take top 20
+    const sortedModules = Object.entries(moduleDistribution)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 20);
+
+    result.moduleDistribution = Object.fromEntries(sortedModules);
+  }
+
+  return result;
 }

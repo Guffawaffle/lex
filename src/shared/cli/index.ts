@@ -38,6 +38,8 @@ import { turncost, type TurnCostOptions } from "./turncost.js";
 import { dedupe, type DedupeOptions } from "./dedupe.js";
 import { epicSync, type EpicSyncOptions } from "./epic.js";
 import { waveComplete, type WaveCompleteOptions } from "./wave.js";
+import { introspect, type IntrospectOptions } from "./introspect.js";
+import { hints, type HintsOptions } from "./hints.js";
 import * as output from "./output.js";
 import { readFileSync } from "fs";
 import { join, dirname } from "path";
@@ -116,6 +118,7 @@ export function createProgram(): Command {
     .option("--strict", "Disable auto-correction for typos (for CI)")
     .option("--no-substring", "Disable substring matching for module IDs (for CI)")
     .option("--skip-policy", "Skip policy validation (allow any module ID)")
+    .option("--dry-run", "Validate frame without storing (matches frame_validate MCP tool)")
     .action(async (cmdOptions) => {
       const globalOptions = program.opts();
       const options: RememberOptions = {
@@ -135,6 +138,7 @@ export function createProgram(): Command {
         strict: cmdOptions.strict || false,
         noSubstring: cmdOptions.noSubstring || false,
         noPolicy: cmdOptions.skipPolicy || false,
+        dryRun: cmdOptions.dryRun || false,
       };
       await remember(options);
     });
@@ -568,6 +572,39 @@ export function createProgram(): Command {
         json: globalOptions.json || false,
       };
       await waveComplete(options);
+    });
+
+  // lex introspect command
+  program
+    .command("introspect")
+    .description("Discover current Lex state, policy, capabilities, and error codes")
+    .option(
+      "--format <type>",
+      "Output format: full (default) or compact",
+      /^(full|compact)$/,
+      "full"
+    )
+    .action(async (cmdOptions) => {
+      const globalOptions = program.opts();
+      const options: IntrospectOptions = {
+        json: globalOptions.json || false,
+        format: cmdOptions.format,
+      };
+      await introspect(options);
+    });
+
+  // lex hints command
+  program
+    .command("hints [ids...]")
+    .description("Retrieve hint details by hint ID (stable advice for error recovery)")
+    .option("--list", "List all available hint IDs")
+    .action(async (hintIds: string[], cmdOptions) => {
+      const globalOptions = program.opts();
+      const options: HintsOptions = {
+        json: globalOptions.json || false,
+        list: cmdOptions.list || false,
+      };
+      await hints(hintIds || [], options);
     });
 
   return program;

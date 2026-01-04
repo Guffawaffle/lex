@@ -35,6 +35,7 @@ export interface RememberOptions {
   strict?: boolean;
   noSubstring?: boolean;
   noPolicy?: boolean;
+  dryRun?: boolean;
 }
 
 /**
@@ -202,6 +203,37 @@ export async function remember(
       feature_flags: answers.featureFlags,
       permissions: answers.permissions,
     };
+
+    // Dry-run mode: validate but don't store (matches frame_validate MCP tool)
+    if (options.dryRun) {
+      if (options.json) {
+        out.json({
+          level: "success",
+          message: "Frame validation passed (dry-run)",
+          code: "FRAME_VALID",
+          data: {
+            valid: true,
+            dryRun: true,
+            frame: {
+              id: frame.id,
+              branch: frame.branch,
+              modules: frame.module_scope,
+              referencePoint: frame.reference_point,
+              summary: frame.summary_caption,
+              nextAction: frame.status_snapshot.next_action,
+            },
+          },
+        });
+      } else {
+        out.success("✅ Frame validation passed (dry-run mode - not stored)");
+        out.info(`Frame ID: ${frame.id}`);
+        out.info(`Branch: ${frame.branch}`);
+        out.info(`Modules: ${frame.module_scope.join(", ")}`);
+        out.info(`Summary: ${frame.summary_caption}`);
+        out.info(`Next: ${frame.status_snapshot.next_action || "(none)"}`);
+      }
+      return;
+    }
 
     // Save Frame to database using FrameStore
     await store.saveFrame(frame);

@@ -146,3 +146,35 @@ export function getHintIdForErrorCode(code: string): HintId | undefined {
 export function isValidHintId(hintId: string): hintId is HintId {
   return hintId in HINT_REGISTRY;
 }
+
+/**
+ * Get all available hint IDs
+ */
+export function getAvailableHintIds(): HintId[] {
+  return Object.keys(HINT_REGISTRY);
+}
+
+/**
+ * Get hints for codes (alias for getHints with text formatting for CLI/MCP)
+ * Returns hints with 'text' field combining action, tool, and field info
+ */
+export function getHintsForCodes(
+  hintIds: HintId[]
+): Record<HintId, { text: string; docLink?: string }> {
+  const result: Record<HintId, { text: string; docLink?: string }> = {};
+  for (const id of hintIds) {
+    const hint = HINT_REGISTRY[id];
+    if (hint) {
+      // Build text from hint components
+      let text = hint.action;
+      if (hint.tool) {
+        text += ` (use: ${hint.tool})`;
+      }
+      if (hint.field) {
+        text += ` [check: ${hint.field}]`;
+      }
+      result[id] = { text };
+    }
+  }
+  return result;
+}

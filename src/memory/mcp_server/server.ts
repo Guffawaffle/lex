@@ -1,7 +1,7 @@
 import { getLogger } from "@smartergpt/lex/logger";
 import { SqliteFrameStore } from "../store/sqlite/index.js";
 import type { FrameStore, FrameSearchCriteria } from "../store/frame-store.js";
-import { deleteFrame, getFrameCount as getFrameCountQuery } from "../store/queries.js";
+import { deleteFrame, getFrameCount as getFrameCountQuery, getDbStats } from "../store/queries.js";
 import type Database from "better-sqlite3-multiple-ciphers";
 // @ts-ignore - importing from compiled dist directories
 import { ImageManager } from "../store/images.js";
@@ -440,6 +440,15 @@ export class MCPServer {
       case "get_hints":
         return await this.handleGetHints(args);
 
+      case "db_stats":
+        return await this.handleDbStats(args);
+
+      case "turncost_calculate":
+        return await this.handleTurncostCalculate(args);
+
+      case "contradictions_scan":
+        return await this.handleContradictionsScan(args);
+
       default:
         throw new MCPError(MCPErrorCode.INTERNAL_UNKNOWN_TOOL, `Unknown tool: ${name}`, {
           requestedTool: name,
@@ -455,6 +464,9 @@ export class MCPServer {
             "system_introspect",
             "help",
             "hints_get",
+            "db_stats",
+            "turncost_calculate",
+            "contradictions_scan",
           ],
         });
     }
@@ -2482,6 +2494,202 @@ export class MCPServer {
         hints,
         ...(notFound.length > 0 && { notFound }),
       },
+    };
+  }
+
+  /**
+   * Handle db_stats tool - get database statistics
+   */
+  private async handleDbStats(args: Record<string, unknown>): Promise<MCPResponse> {
+    const { detailed = false } = args as { detailed?: boolean };
+
+    // Import required functions
+    const { getDb, getDefaultDbPath } = await import("../store/index.js");
+    const { existsSync, statSync } = await import("fs");
+
+    const dbPath = getDefaultDbPath();
+
+    // Check if database exists
+    if (!existsSync(dbPath)) {
+      throw new MCPError(
+        MCPErrorCode.STORAGE_READ_FAILED,
+        "Database not found. Run 'lex init' to create it.",
+        {
+          dbPath,
+        }
+      );
+    }
+
+    const db = getDb();
+
+    // Get file size
+    const stats = statSync(dbPath);
+    const sizeBytes = stats.size;
+    const sizeMB = parseFloat((sizeBytes / (1024 * 1024)).toFixed(2));
+
+    // Use curated query function for DB stats
+    const dbStats = getDbStats(db, detailed);
+
+    const result: Record<string, unknown> = {
+      database: {
+        path: dbPath,
+        sizeBytes,
+        sizeMB,
+      },
+      frames: {
+        total: dbStats.totalFrames,
+        thisWeek: dbStats.thisWeek,
+        thisMonth: dbStats.thisMonth,
+        dateRange: {
+          oldest: dbStats.oldestDate,
+          newest: dbStats.newestDate,
+        },
+      },
+    };
+
+    // Add module distribution if detailed and available
+    if (dbStats.moduleDistribution) {
+      result.moduleDistribution = dbStats.moduleDistribution;
+    }
+
+    return {
+      content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+      data: result,
+    };
+  }
+
+  /**
+   * Handle turncost_calculate tool - calculate turn cost metrics
+   */
+  private async handleTurncostCalculate(args: Record<string, unknown>): Promise<MCPResponse> {
+    const { period = "24h" } = args as { period?: string };
+
+    // Parse period to ISO timestamp
+    let sinceTimestamp: string;
+
+    if (period.match(/^\d{4}-\d{2}-\d{2}T/)) {
+      // Already an ISO timestamp
+      sinceTimestamp = period;
+    } else {
+      // Parse duration strings (e.g., "24h", "7d", "30d")
+      const match = period.match(/^(\d+)(h|d|w|m)$/);
+      if (!match) {
+        throw new MCPError(
+          MCPErrorCode.VALIDATION_INVALID_FORMAT,
+          `Invalid period format: ${period}. Use format like "24h", "7d", "30d" or ISO 8601 timestamp`,
+          { field: "period", provided: period }
+        );
+      }
+
+      const value = parseInt(match[1], 10);
+      const unit = match[2];
+      const now = new Date();
+
+      switch (unit) {
+        case "h":
+          now.setHours(now.getHours() - value);
+          break;
+        case "d":
+          now.setDate(now.getDate() - value);
+          break;
+        case "w":
+          now.setDate(now.getDate() - value * 7);
+          break;
+        case "m":
+          now.setMonth(now.getMonth() - value);
+          break;
+      }
+
+      sinceTimestamp = now.toISOString();
+    }
+
+    // Import required functions
+    const { getDb } = await import("../store/index.js");
+    const { getTurnCostMetrics } = await import("../store/queries.js");
+
+    const db = getDb();
+    const metrics = getTurnCostMetrics(db, sinceTimestamp);
+
+    const result = {
+      period,
+      since: sinceTimestamp,
+      turnCost: {
+        frames: metrics.frameCount,
+        estimatedTokens: metrics.estimatedTokens,
+        prompts: metrics.prompts,
+      },
+      derived: {
+        avgTokensPerFrame:
+          metrics.frameCount > 0 ? Math.round(metrics.estimatedTokens / metrics.frameCount) : 0,
+      },
+    };
+
+    return {
+      content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+      data: result,
+    };
+  }
+
+  /**
+   * Handle contradictions_scan tool - scan for frame contradictions
+   */
+  private async handleContradictionsScan(args: Record<string, unknown>): Promise<MCPResponse> {
+    const { module, limit = 10000 } = args as { module?: string; limit?: number };
+
+    // Get frames from store
+    const result = await this.frameStore.listFrames({ limit });
+    const frames = result.frames;
+
+    if (frames.length === 0) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(
+              { contradictions: [], totalFrames: 0, moduleFilter: module },
+              null,
+              2
+            ),
+          },
+        ],
+        data: { contradictions: [], totalFrames: 0, moduleFilter: module },
+      };
+    }
+
+    // Import contradiction scanning
+    const { scanForContradictions } = await import("../contradictions.js");
+
+    const contradictions = scanForContradictions(frames, module);
+
+    const scanResult = {
+      totalFrames: frames.length,
+      moduleFilter: module || null,
+      contradictionsFound: contradictions.length,
+      contradictions: contradictions.map((c) => {
+        const frameA = frames.find((f) => f.id === c.frameA);
+        const frameB = frames.find((f) => f.id === c.frameB);
+        return {
+          frameA: {
+            id: frameA?.id,
+            timestamp: frameA?.timestamp,
+            summary: frameA?.summary_caption,
+            modules: frameA?.module_scope,
+          },
+          frameB: {
+            id: frameB?.id,
+            timestamp: frameB?.timestamp,
+            summary: frameB?.summary_caption,
+            modules: frameB?.module_scope,
+          },
+          signal: c.signal,
+          moduleOverlap: c.moduleOverlap,
+        };
+      }),
+    };
+
+    return {
+      content: [{ type: "text", text: JSON.stringify(scanResult, null, 2) }],
+      data: scanResult,
     };
   }
 
