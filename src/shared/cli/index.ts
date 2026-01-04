@@ -540,7 +540,7 @@ export function createProgram(): Command {
   epicCommand
     .command("sync <epic-ref>")
     .description("Sync epic status with actual sub-issue states (e.g., lexrunner#653)")
-    .action(async (epicRef, cmdOptions) => {
+    .action(async (epicRef, _cmdOptions) => {
       const globalOptions = program.opts();
       const options: EpicSyncOptions = {
         json: globalOptions.json || false,

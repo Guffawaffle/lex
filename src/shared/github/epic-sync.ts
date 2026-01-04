@@ -72,7 +72,7 @@ export async function syncEpicStatus(epicRef: string): Promise<EpicSyncResult> {
   const bodyOutput = execSync(`gh issue view ${issueRef.number} --repo ${repoRef} --json body`, {
     encoding: "utf-8",
   });
-  const bodyData = JSON.parse(bodyOutput);
+  const bodyData = JSON.parse(bodyOutput) as { body: string };
   const originalBody = bodyData.body || "";
 
   // Extract status tables

@@ -34,14 +34,19 @@ export async function getIssue(ref: IssueReference): Promise<GitHubIssue | null>
       stdio: ["pipe", "pipe", "pipe"],
     });
 
-    const data = JSON.parse(output);
+    const data = JSON.parse(output) as {
+      number: number;
+      state: string;
+      title: string;
+      url: string;
+    };
     return {
       number: data.number,
       state: data.state.toLowerCase() === "open" ? "open" : "closed",
       title: data.title,
       url: data.url,
     };
-  } catch (error) {
+  } catch (_error) {
     // Issue not found or gh CLI not available
     return null;
   }
@@ -108,7 +113,7 @@ export async function updateIssue(
     }
 
     return true;
-  } catch (error) {
+  } catch (_error) {
     return false;
   }
 }

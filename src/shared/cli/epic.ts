@@ -31,7 +31,7 @@ export async function epicSync(epicRef: string, options: EpicSyncOptions = {}): 
 
     // Output results
     if (options.json) {
-      console.log(JSON.stringify(result, null, 2));
+      output.json(result);
     } else {
       if (!result.updated) {
         output.success(`✓ Epic ${epicRef} is already up to date`);
@@ -62,7 +62,7 @@ export async function epicSync(epicRef: string, options: EpicSyncOptions = {}): 
     }
   } catch (error) {
     if (options.json) {
-      console.error(JSON.stringify({ error: String(error) }));
+      output.json({ error: String(error) });
     } else {
       output.error(`Error syncing epic: ${String(error)}`);
     }
