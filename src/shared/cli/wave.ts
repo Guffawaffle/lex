@@ -48,12 +48,12 @@ export async function waveComplete(
   });
 
   // Validate required options
-  if (options.json) {
-    const missingRequired: string[] = [];
-    if (!options.epic) missingRequired.push("--epic");
-    if (!options.wave) missingRequired.push("--wave");
+  const missingRequired: string[] = [];
+  if (!options.epic) missingRequired.push("--epic");
+  if (!options.wave) missingRequired.push("--wave");
 
-    if (missingRequired.length > 0) {
+  if (missingRequired.length > 0) {
+    if (options.json) {
       const axError = createAXError(
         "MISSING_REQUIRED_PARAMS",
         `Missing required parameters: ${missingRequired.join(", ")}`,
@@ -64,8 +64,11 @@ export async function waveComplete(
         { missingParams: missingRequired }
       );
       out.json({ level: "error", message: axError.message, data: axError, code: axError.code });
-      process.exit(1);
+    } else {
+      out.error(`\n❌ Error: Missing required parameters: ${missingRequired.join(", ")}\n`);
+      out.info("Example: lex wave complete --epic lexrunner#653 --wave 2\n");
     }
+    process.exit(1);
   }
 
   const store = frameStore ?? createFrameStore();
@@ -102,9 +105,12 @@ export async function waveComplete(
     const metrics = await aggregateWaveMetrics(options.epic, waveId);
 
     // Calculate duration
+    // Note: Currently using closedAt for both start and end as a simplification
+    // In production with GitHub API, started should be the earliest assignment/creation time
     const sortedIssues = [...issues].sort(
       (a, b) => new Date(a.closedAt).getTime() - new Date(b.closedAt).getTime()
     );
+    // TODO: Replace with actual assignment/creation timestamp when GitHub API is available
     const started = sortedIssues[0]?.closedAt ?? new Date().toISOString();
     const completed = sortedIssues[sortedIssues.length - 1]?.closedAt ?? new Date().toISOString();
     const elapsed = formatElapsedTime(started, completed);
@@ -163,9 +169,9 @@ export async function waveComplete(
     if (!options.json) {
       out.success(`\n✓ Frame created: wave-complete-${waveId}`);
       out.info(`  ${metrics.issueCount} issues, ${elapsed} elapsed`);
-      out.info(
-        `  ${metrics.linesAdded > 0 ? "+" : ""}${metrics.linesAdded} lines, ${metrics.testsAdded} tests added\n`
-      );
+      const netLines = metrics.linesAdded - metrics.linesRemoved;
+      const lineChange = netLines >= 0 ? `+${netLines}` : `${netLines}`;
+      out.info(`  ${lineChange} lines, ${metrics.testsAdded} tests added\n`);
 
       if (nextWave) {
         out.info(`\n💡 Suggested next wave:`);
