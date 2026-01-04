@@ -36,6 +36,7 @@ import {
 } from "./instructions.js";
 import { turncost, type TurnCostOptions } from "./turncost.js";
 import { dedupe, type DedupeOptions } from "./dedupe.js";
+import { waveComplete, type WaveCompleteOptions } from "./wave.js";
 import * as output from "./output.js";
 import { readFileSync } from "fs";
 import { join, dirname } from "path";
@@ -530,6 +531,27 @@ export function createProgram(): Command {
         json: globalOptions.json || false,
       };
       await checkContradictions(options);
+    });
+
+  // lex wave command group
+  const waveCommand = program.command("wave").description("Wave management operations");
+
+  // lex wave complete command
+  waveCommand
+    .command("complete")
+    .description("Emit wave completion frame with aggregated metrics")
+    .option("--epic <ref>", "Epic issue reference (e.g., lexrunner#653)")
+    .option("--wave <id>", "Wave identifier (e.g., 2 or wave-2)")
+    .option("--epic-labels <labels>", "Comma-separated epic labels for keywords", parseList)
+    .action(async (cmdOptions) => {
+      const globalOptions = program.opts();
+      const options: WaveCompleteOptions = {
+        epic: cmdOptions.epic,
+        wave: cmdOptions.wave,
+        epicLabels: cmdOptions.epicLabels,
+        json: globalOptions.json || false,
+      };
+      await waveComplete(options);
     });
 
   return program;
