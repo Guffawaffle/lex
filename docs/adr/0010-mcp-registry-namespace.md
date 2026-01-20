@@ -1,6 +1,6 @@
 # ADR-0010: MCP Registry Namespace Strategy
 
-- Status: **Proposed** (pending review)
+- Status: **Accepted** (implemented 2026-01-20)
 - Date: 2025-12-31
 - Authors: GitHub Copilot
 - Tags: mcp, registry, namespace, publishing
@@ -45,9 +45,40 @@ Per [MCP Registry Authentication Docs](https://github.com/modelcontextprotocol/r
 
 ## 2. Decision
 
-**Recommendation: Option A — GitHub-based namespace (`io.github.guffawaffle/lex`)**
+**Final Decision: Option B — Custom Domain Namespace (`dev.smartergpt/lex`)**
 
-### Option A: GitHub Namespace (Recommended)
+After initial planning for GitHub OIDC (Option A), we pivoted to DNS verification:
+
+### Why We Changed
+
+1. **Brand durability** — `dev.smartergpt/*` namespace persists regardless of GitHub org changes
+2. **DNS verification is live** — TXT record confirmed at `smartergpt.dev`:
+   ```
+   dig TXT smartergpt.dev +short
+   "v=MCPv1; k=ed25519; p=jfA9/lWHT8sikX+/F2NtmMvUBfVR5ln+6r9TCDYuLSU="
+   ```
+3. **Lex-only publishing** — Restricting MCP registry publication to Lex only (lexrunner/lexsona stay private)
+
+### Final Configuration
+
+```
+Namespace:    dev.smartergpt/lex
+Auth:         DNS TXT record verification (Ed25519)
+Domain:       smartergpt.dev
+```
+
+**Implementation:**
+```json
+// server.json (in lex/ repo)
+{
+  "name": "dev.smartergpt/lex",
+  "packages": [{
+    "identifier": "@smartergpt/lex-mcp"
+  }]
+}
+```
+
+### Option A: GitHub Namespace (Not Chosen)
 
 ```
 io.github.guffawaffle/lex
@@ -148,16 +179,16 @@ If custom domain becomes important:
 - `mcpName` in `@smartergpt/lex-mcp/package.json`: `io.github.guffawaffle/lex`
 - `name` in server.json: `io.github.guffawaffle/lex`
 - `identifier` in server.json: `@smartergpt/lex-mcp`
-- CI workflow uses `mcp-publisher login github-oidc`
-- No secrets required beyond existing npm token
-- Users search for "guffawaffle/lex" or "lex" in registry
+- CI workflow uses `mcp-publisher login dns --domain "smartergpt.dev" --private-key "$KEY"`
+- Secret: `MCP_REGISTRY_PRIVATE_KEY_HEX` (repo-level or org-level with restricted access)
+- Users search for "smartergpt/lex" or "lex" in registry
 
-### Registry Entry Example
+### Registry Entry
 
 ```json
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-  "name": "io.github.guffawaffle/lex",
+  "name": "dev.smartergpt/lex",
   "title": "Lex",
   "description": "Episodic memory and architectural policy for AI agents",
   "repository": {
@@ -179,15 +210,23 @@ If custom domain becomes important:
 
 **Note:** No `arguments` field needed — `@smartergpt/lex-mcp`'s default bin IS the MCP server.
 
+### Security Controls
+
+1. **Protected Environment** — `mcp-publish` environment requires reviewer approval
+2. **Tag-only triggers** — Publish only runs on GitHub releases or explicit manual trigger
+3. **Minimal permissions** — `contents: read` only (no id-token needed for DNS auth)
+4. **Secret isolation** — `MCP_REGISTRY_PRIVATE_KEY_HEX` restricted to lex repo only
+
 ## 6. Decision Outcome
 
-**Pending review.** To accept this ADR:
+**Accepted and Implemented (2026-01-20).**
 
-1. [ ] Confirm GitHub namespace is acceptable for initial launch
-2. [ ] Document domain ownership status for future Option B
-3. [ ] Create `@smartergpt/lex-mcp` wrapper package (#634)
-4. [ ] Add `mcpName: "io.github.guffawaffle/lex"` to wrapper package
-5. [ ] Update server.json with `identifier: "@smartergpt/lex-mcp"` (#635)
+Checklist:
+- [x] DNS TXT record verified at smartergpt.dev
+- [x] server.json updated to `name: "dev.smartergpt/lex"`
+- [x] Workflow updated to DNS authentication with protected environment
+- [x] Secret restricted to lex repo only (lexrunner/lexsona removed)
+- [x] `@smartergpt/lex-mcp` wrapper package created (#634)
 
 ## 7. References
 
