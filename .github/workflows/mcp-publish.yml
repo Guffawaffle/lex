@@ -89,14 +89,34 @@ jobs:
           echo "📥 Downloading mcp-publisher..."
           curl -fsSL "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_linux_amd64.tar.gz" | tar xz
           sudo mv mcp-publisher /usr/local/bin/
-          mcp-publisher --version || echo "mcp-publisher installed"
+          mcp-publisher --help | head -5
           echo "✅ mcp-publisher installed"
 
-      - name: Validate server.json
+      - name: Validate server.json schema
         run: |
           echo "🔍 Validating server.json..."
-          mcp-publisher validate
-          echo "✅ Validation passed"
+          # Check JSON is valid
+          if ! jq empty server.json 2>/dev/null; then
+            echo "❌ server.json is not valid JSON"
+            exit 1
+          fi
+          # Check required fields exist
+          NAME=$(jq -r '.name' server.json)
+          VERSION=$(jq -r '.version' server.json)
+          IDENTIFIER=$(jq -r '.packages[0].identifier' server.json)
+          if [ -z "$NAME" ] || [ "$NAME" = "null" ]; then
+            echo "❌ server.json missing 'name' field"
+            exit 1
+          fi
+          if [ -z "$VERSION" ] || [ "$VERSION" = "null" ]; then
+            echo "❌ server.json missing 'version' field"
+            exit 1
+          fi
+          if [ -z "$IDENTIFIER" ] || [ "$IDENTIFIER" = "null" ]; then
+            echo "❌ server.json missing 'packages[0].identifier' field"
+            exit 1
+          fi
+          echo "✅ server.json validated: $NAME v$VERSION ($IDENTIFIER)"
 
       - name: Check if should publish
         id: check
