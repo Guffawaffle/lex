@@ -7,12 +7,12 @@
     "url": "https://github.com/Guffawaffle/lex",
     "source": "github"
   },
-  "version": "1.0.2",
+  "version": "2.1.2",
   "packages": [
     {
       "registryType": "npm",
-      "identifier": "@smartergpt/lex-mcp",
-      "version": "1.0.2",
+      "identifier": "@smartergpt/lex",
+      "version": "2.1.2",
       "transport": {
         "type": "stdio"
       },
