@@ -120,3 +120,4 @@ lint-baseline.json
 
 # MCP Registry tokens
 .mcpregistry_*
+weave-lock.json
