@@ -149,6 +149,7 @@ export function createProgram(): Command {
     .description(
       "Retrieve a Frame by reference point, ticket ID, or Frame ID, or list recent frames"
     )
+    .option("-q, --query <text>", "Search query (alternative to positional argument)")
     .option("--list [limit]", "List recent frames (optionally limit to N results)", parseInt)
     .option("--fold-radius <number>", "Fold radius for Atlas Frame neighborhood", parseInt)
     .option("--auto-radius", "Auto-tune radius based on token limits")
@@ -175,6 +176,8 @@ export function createProgram(): Command {
     )
     .action(async (query, cmdOptions) => {
       const globalOptions = program.opts();
+      // Support both positional argument and --query option
+      const searchQuery = query || cmdOptions.query;
       const options: RecallOptions = {
         list: cmdOptions.list,
         foldRadius: cmdOptions.foldRadius || 1,
@@ -196,14 +199,14 @@ export function createProgram(): Command {
       }
 
       // Validate that either query or --list is provided
-      if (!query && options.list === undefined) {
+      if (!searchQuery && options.list === undefined) {
         output.error(
           "\n❌ Error: Either provide a search query or use --list to browse recent frames\n"
         );
         process.exit(1);
       }
 
-      await recall(query, options);
+      await recall(searchQuery, options);
     });
 
   // lex check command

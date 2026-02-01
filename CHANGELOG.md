@@ -28,6 +28,34 @@ _No unreleased changes._
 
 ---
 
+## [2.1.2] - 2026-02-01
+
+### Added
+
+- **CLI `--query` option** for `lex recall` - Alternative to positional argument for better discoverability
+  - Now supports both: `lex recall "topic"` and `lex recall --query "topic"` (or `-q`)
+- **Database migration script** (`scripts/migrate-db.mjs`) - Fixes schema drift in older databases
+  - Safely adds missing columns (`feature_flags`, `permissions`, etc.)
+  - Idempotent - safe to run multiple times
+  - Usage: `node scripts/migrate-db.mjs [db-path]`
+
+### Fixed
+
+- **Schema migration issue** - Databases created before full v11 schema were missing `feature_flags`
+  and `permissions` columns, causing `SQLITE_ERROR: table frames has no column named feature_flags`
+  - Root cause: Some early installations had incomplete schema application
+  - Fix: Migration script or delete `lex-memory.db` to recreate with full schema
+  - MCP server connections cache the database; restart VS Code/Claude Desktop after migration
+
+### Notes
+
+If you encounter the error `table frames has no column named feature_flags`:
+1. **Quick fix**: Delete `lex-memory.db` (loses existing frames)
+2. **Preserve data**: Run `node scripts/migrate-db.mjs ./lex-memory.db`
+3. **Restart** your editor/MCP client to reconnect
+
+---
+
 ## [2.1.1] - 2025-01-01
 
 ### Added
