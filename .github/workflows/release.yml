@@ -92,60 +92,64 @@ jobs:
           retention-days: 7
           if-no-files-found: error
 
-  publish-npm:
-    name: Publish to npm
-    needs: build-and-test
-    runs-on: ubuntu-latest
-    environment: production
-    steps:
-      - name: Harden Runner
-        uses: step-security/harden-runner@v2
-        with:
-          egress-policy: audit
-          disable-sudo: true
-
-      - uses: actions/checkout@v6
-
-      - uses: actions/setup-node@v6
-        with:
-          node-version: "20"
-          registry-url: "https://registry.npmjs.org"
-
-      - name: Download artifacts
-        uses: actions/download-artifact@v7
-        with:
-          name: npm-package
-          path: .
-
-      - name: Verify npm authentication
-        run: |
-          echo "Verifying npm authentication..."
-          npm whoami
-          echo "✅ Successfully authenticated as $(npm whoami)"
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: Dry-run publish check
-        run: |
-          echo "Running dry-run publish check..."
-          npm publish smartergpt-lex-*.tgz --dry-run --provenance --access public
-          echo "✅ Dry-run successful"
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: Publish package with provenance
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
-        run: |
-          set -e
-          echo "Publishing package with npm provenance..."
-          npm publish smartergpt-lex-*.tgz --provenance --access public
-          echo "✅ Package published successfully"
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+  # NOTE: npm publish is done manually (2FA required).
+  # Run: cd /srv/lex-mcp/lex && npm publish --access public
+  # Uncomment when granular access token with publish scope is configured.
+  #
+  # publish-npm:
+  #   name: Publish to npm
+  #   needs: build-and-test
+  #   runs-on: ubuntu-latest
+  #   environment: production
+  #   steps:
+  #     - name: Harden Runner
+  #       uses: step-security/harden-runner@v2
+  #       with:
+  #         egress-policy: audit
+  #         disable-sudo: true
+  #
+  #     - uses: actions/checkout@v6
+  #
+  #     - uses: actions/setup-node@v6
+  #       with:
+  #         node-version: "20"
+  #         registry-url: "https://registry.npmjs.org"
+  #
+  #     - name: Download artifacts
+  #       uses: actions/download-artifact@v7
+  #       with:
+  #         name: npm-package
+  #         path: .
+  #
+  #     - name: Verify npm authentication
+  #       run: |
+  #         echo "Verifying npm authentication..."
+  #         npm whoami
+  #         echo "✅ Successfully authenticated as $(npm whoami)"
+  #       env:
+  #         NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+  #
+  #     - name: Dry-run publish check
+  #       run: |
+  #         echo "Running dry-run publish check..."
+  #         npm publish smartergpt-lex-*.tgz --dry-run --provenance --access public
+  #         echo "✅ Dry-run successful"
+  #       env:
+  #         NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+  #
+  #     - name: Publish package with provenance
+  #       if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+  #       run: |
+  #         set -e
+  #         echo "Publishing package with npm provenance..."
+  #         npm publish smartergpt-lex-*.tgz --provenance --access public
+  #         echo "✅ Package published successfully"
+  #       env:
+  #         NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   create-github-release:
     name: Create GitHub Release
-    needs: publish-npm
+    needs: build-and-test
     runs-on: ubuntu-latest
     steps:
       - name: Harden Runner
