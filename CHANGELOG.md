@@ -28,6 +28,23 @@ _No unreleased changes._
 
 ---
 
+## [2.2.0] - 2026-02-08
+
+### Changed
+
+- **SQLite dependency floor bump** - `better-sqlite3-multiple-ciphers` from `^12.4.6` to `^12.6.2`
+  - Aligns all ecosystem repos (lex, lexsona, lexrunner) on the same SQLite version
+  - Includes upstream bug fixes and performance improvements
+- **Dependabot batch merge** - Merged 6 dependency updates:
+  - `@isaacs/brace-expansion` 5.0.0 → 5.0.1
+  - `commander` 14.0.2 → 14.0.3
+  - `better-sqlite3-multiple-ciphers` 12.5.0 → 12.6.2
+  - `pino` 10.1.0 → 10.3.0
+  - `zod` 4.3.5 → 4.3.6
+  - `@typescript-eslint/eslint-plugin` 8.52.0 → 8.54.0
+
+---
+
 ## [2.1.2] - 2026-02-01
 
 ### Added
