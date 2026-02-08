@@ -2,9 +2,9 @@ name: Test Suite
 
 on:
   pull_request:
-    branches: [ main ]
+    branches: [main]
   push:
-    branches: [ main ]
+    branches: [main]
 
 # Limit permissions to read-only by default
 permissions:
@@ -17,42 +17,45 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: ['20', '22']
+        node: ["20", "22"]
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v6
+      - name: Checkout code
+        uses: actions/checkout@v6
 
-    - name: Ensure single package.json (guard against regression)
-      run: |
-        extras=$(find . -path ./node_modules -prune -o -name package.json -not -path ./package.json -print)
-        if [ -n "$extras" ]; then
-          echo "❌ Found nested package.json files (workspaces regression):";
-          echo "$extras";
-          exit 1
-        fi
-        echo "✅ Single package.json confirmed"
+      - name: Ensure single package.json (guard against regression)
+        run: |
+          extras=$(find . -path ./node_modules -prune -o -name package.json -not -path ./package.json -print)
+          if [ -n "$extras" ]; then
+            echo "❌ Found nested package.json files (workspaces regression):";
+            echo "$extras";
+            exit 1
+          fi
+          echo "✅ Single package.json confirmed"
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v6
-      with:
-        node-version: ${{ matrix.node }}
-        cache: 'npm'
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ matrix.node }}
+          cache: "npm"
 
-    - name: Install dependencies (hermetic)
-      run: npm ci --ignore-scripts
+      - name: Install dependencies (hermetic)
+        run: npm ci --ignore-scripts
 
-    - name: Initialize working files
-      run: npm run setup-local
+      - name: Build native dependencies
+        run: npm rebuild better-sqlite3-multiple-ciphers
 
-    - name: Type check
-      run: npm run type-check
+      - name: Initialize working files
+        run: npm run setup-local
 
-    - name: Build
-      run: npm run build
+      - name: Type check
+        run: npm run type-check
 
-    - name: Run tests
-      run: npm test
+      - name: Build
+        run: npm run build
+
+      - name: Run tests
+        run: npm test
 
   integration-tests:
     name: Integration Tests
@@ -60,26 +63,29 @@ jobs:
     needs: test
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v6
+      - name: Checkout code
+        uses: actions/checkout@v6
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v6
-      with:
-        node-version: '20'
-        cache: 'npm'
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "20"
+          cache: "npm"
 
-    - name: Install dependencies (hermetic)
-      run: npm ci --ignore-scripts
+      - name: Install dependencies (hermetic)
+        run: npm ci --ignore-scripts
 
-    - name: Initialize working files
-      run: npm run setup-local
+      - name: Build native dependencies
+        run: npm rebuild better-sqlite3-multiple-ciphers
 
-    - name: Build
-      run: npm run build
+      - name: Initialize working files
+        run: npm run setup-local
 
-    - name: Run integration tests
-      run: npm run test:integration
+      - name: Build
+        run: npm run build
+
+      - name: Run integration tests
+        run: npm run test:integration
 
   performance-benchmarks:
     name: Performance Benchmarks (non-blocking)
@@ -90,27 +96,30 @@ jobs:
     needs: integration-tests
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v6
+      - name: Checkout code
+        uses: actions/checkout@v6
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v6
-      with:
-        node-version: '20'
-        cache: 'npm'
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "20"
+          cache: "npm"
 
-    - name: Install dependencies (hermetic)
-      run: npm ci --ignore-scripts
+      - name: Install dependencies (hermetic)
+        run: npm ci --ignore-scripts
 
-    - name: Initialize working files
-      run: npm run setup-local
+      - name: Build native dependencies
+        run: npm rebuild better-sqlite3-multiple-ciphers
 
-    - name: Build
-      run: npm run build
+      - name: Initialize working files
+        run: npm run setup-local
 
-    - name: Run performance benchmarks
-      run: npm run test:benchmarks
-      continue-on-error: true
+      - name: Build
+        run: npm run build
+
+      - name: Run performance benchmarks
+        run: npm run test:benchmarks
+        continue-on-error: true
 
   test-summary:
     name: Test Summary
@@ -118,13 +127,13 @@ jobs:
     needs: [test, integration-tests]
     if: always()
     steps:
-    - name: Check test results
-      run: |
-        echo "## Test Suite Summary" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "✅ Tests: ${{ needs.test.result }}" >> $GITHUB_STEP_SUMMARY
-        echo "✅ Integration tests: ${{ needs.integration-tests.result }}" >> $GITHUB_STEP_SUMMARY
+      - name: Check test results
+        run: |
+          echo "## Test Suite Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Tests: ${{ needs.test.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Integration tests: ${{ needs.integration-tests.result }}" >> $GITHUB_STEP_SUMMARY
 
-    - name: Fail if tests failed
-      if: needs.test.result == 'failure' || needs.integration-tests.result == 'failure'
-      run: exit 1
+      - name: Fail if tests failed
+        if: needs.test.result == 'failure' || needs.integration-tests.result == 'failure'
+        run: exit 1
