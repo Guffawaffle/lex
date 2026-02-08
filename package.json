@@ -129,7 +129,7 @@
     "test:git": "echo 'WARNING: Git tests require LEX_GIT_MODE=live and non-interactive git signing. Skipped by default.' && LEX_GIT_MODE=live npx tsx --test 'test/shared/git/**/*.test.ts' 'test/shared/paths/normalizer.test.ts' 'test/shared/cli/export.test.ts' 'test/shared/tokens/expander.test.ts'",
     "test:cli:slow": "LEX_ENABLE_SLOW_CLI_TESTS=1 LEX_GIT_MODE=live npx tsx --test 'test/shared/cli/export.test.ts'",
     "test:aliases": "npx tsx --import ./test/helpers/setup.ts --test test/shared/aliases/substring.spec.mjs test/shared/aliases/collision.spec.mjs test/shared/aliases/case-sensitivity.spec.mjs test/shared/aliases/resolution.spec.mjs",
-    "test:integration": "npx tsx --import ./test/helpers/setup.ts --test test/memory/integration.test.ts && node --import ./test/helpers/setup.ts --test test/policy/integration.test.mjs",
+    "test:integration": "npx tsx --import ./test/helpers/setup.ts --test test/memory/integration.test.ts && npx tsx --import ./test/helpers/setup.ts --test test/policy/integration.test.mjs",
     "test:benchmarks": "npx tsx --import ./test/helpers/setup.ts --test test/memory/benchmarks.test.ts",
     "test:all": "npm test && npm run test:integration",
     "test:coverage": "npm run test",
