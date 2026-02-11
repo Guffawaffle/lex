@@ -54,6 +54,26 @@
       "types": "./dist/memory/store/index.d.ts",
       "import": "./dist/memory/store/index.js"
     },
+    "./dedup": {
+      "types": "./dist/memory/deduplication.d.ts",
+      "import": "./dist/memory/deduplication.js"
+    },
+    "./similarity": {
+      "types": "./dist/memory/similarity.d.ts",
+      "import": "./dist/memory/similarity.js"
+    },
+    "./consolidation": {
+      "types": "./dist/memory/store/consolidate.d.ts",
+      "import": "./dist/memory/store/consolidate.js"
+    },
+    "./contradictions": {
+      "types": "./dist/memory/contradictions.d.ts",
+      "import": "./dist/memory/contradictions.js"
+    },
+    "./maintenance": {
+      "types": "./dist/memory/maintenance/index.d.ts",
+      "import": "./dist/memory/maintenance/index.js"
+    },
     "./memory": {
       "types": "./dist/memory/validation/index.d.ts",
       "import": "./dist/memory/validation/index.js"
