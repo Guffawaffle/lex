@@ -276,6 +276,14 @@ export interface FrameStore {
   updateFrame(id: string, updates: Partial<Omit<Frame, "id" | "timestamp">>): Promise<boolean>;
 
   /**
+   * Delete all Frames that have been marked as superseded (superseded_by IS NOT NULL).
+   * Useful for bulk cleanup of dead frames after deduplication/consolidation.
+   *
+   * @returns The number of Frames deleted.
+   */
+  purgeSuperseded(): Promise<number>;
+
+  /**
    * Close the store and release any resources.
    */
   close(): Promise<void>;
