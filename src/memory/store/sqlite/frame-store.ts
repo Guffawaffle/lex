@@ -349,6 +349,12 @@ export class SqliteFrameStore implements FrameStore {
       params.push(criteria.until.toISOString());
     }
 
+    // Handle userId filter
+    if (criteria.userId) {
+      whereClauses.push("f.user_id = ?");
+      params.push(criteria.userId);
+    }
+
     // Build final query
     let query = baseQuery;
     if (whereClauses.length > 0) {
@@ -412,6 +418,7 @@ export class SqliteFrameStore implements FrameStore {
 
     // Build query with stable ordering: timestamp DESC, id DESC
     let query = "SELECT * FROM frames";
+    const whereClauses: string[] = [];
 
     // Handle cursor-based pagination (takes precedence over offset)
     if (options?.cursor) {
@@ -419,10 +426,21 @@ export class SqliteFrameStore implements FrameStore {
       if (cursorData) {
         // Use row value comparison for stable pagination
         // (timestamp, id) < (cursor.timestamp, cursor.frame_id)
-        query += " WHERE (timestamp, id) < (?, ?)";
+        whereClauses.push("(timestamp, id) < (?, ?)");
         params.push(cursorData.timestamp, cursorData.frame_id);
       }
       // If cursor is invalid, treat as if no cursor was provided
+    }
+
+    // Handle userId filter
+    if (options?.userId) {
+      whereClauses.push("user_id = ?");
+      params.push(options.userId);
+    }
+
+    // Apply WHERE clauses
+    if (whereClauses.length > 0) {
+      query += " WHERE " + whereClauses.join(" AND ");
     }
 
     // Add stable ordering

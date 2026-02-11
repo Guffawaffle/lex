@@ -456,6 +456,108 @@ describe("MemoryFrameStore", () => {
       assert.strictEqual(count, 1, "Should count 1 frame after deletion");
     });
   });
+
+  describe("userId filtering", () => {
+    const userAFrame1: Frame = {
+      ...testFrame1,
+      id: "user-a-frame-1",
+      userId: "user-alice",
+      summary_caption: "Alice auth work",
+      reference_point: "alice auth task",
+    };
+
+    const userAFrame2: Frame = {
+      ...testFrame2,
+      id: "user-a-frame-2",
+      userId: "user-alice",
+      summary_caption: "Alice payment work",
+      reference_point: "alice payment task",
+    };
+
+    const userBFrame1: Frame = {
+      ...testFrame1,
+      id: "user-b-frame-1",
+      userId: "user-bob",
+      summary_caption: "Bob auth work",
+      reference_point: "bob auth task",
+    };
+
+    const noUserFrame: Frame = {
+      ...testFrame3,
+      id: "no-user-frame",
+      userId: undefined,
+      summary_caption: "Legacy frame no user",
+      reference_point: "legacy task",
+    };
+
+    beforeEach(async () => {
+      store = new MemoryFrameStore();
+      await store.saveFrame(userAFrame1);
+      await store.saveFrame(userAFrame2);
+      await store.saveFrame(userBFrame1);
+      await store.saveFrame(noUserFrame);
+    });
+
+    test("searchFrames with userId returns only that user's frames", async () => {
+      const results = await store.searchFrames({ userId: "user-alice" });
+      assert.strictEqual(results.length, 2, "Should return 2 frames for Alice");
+      assert.ok(
+        results.every((f) => f.userId === "user-alice"),
+        "All frames should belong to Alice"
+      );
+    });
+
+    test("searchFrames with userId + query narrows results", async () => {
+      const results = await store.searchFrames({ userId: "user-alice", query: "auth" });
+      assert.strictEqual(results.length, 1, "Should return 1 frame for Alice matching 'auth'");
+      assert.strictEqual(results[0].id, "user-a-frame-1");
+    });
+
+    test("searchFrames without userId returns all frames", async () => {
+      const results = await store.searchFrames({});
+      assert.strictEqual(results.length, 4, "Should return all 4 frames when no userId filter");
+    });
+
+    test("searchFrames with non-existent userId returns empty", async () => {
+      const results = await store.searchFrames({ userId: "user-nonexistent" });
+      assert.strictEqual(results.length, 0, "Should return 0 frames for non-existent user");
+    });
+
+    test("listFrames with userId returns only that user's frames", async () => {
+      const result = await store.listFrames({ userId: "user-alice" });
+      assert.strictEqual(result.frames.length, 2, "Should list 2 frames for Alice");
+      assert.ok(
+        result.frames.every((f) => f.userId === "user-alice"),
+        "All listed frames should belong to Alice"
+      );
+    });
+
+    test("listFrames with userId + limit paginates correctly", async () => {
+      const result = await store.listFrames({ userId: "user-alice", limit: 1 });
+      assert.strictEqual(result.frames.length, 1, "Should return 1 frame");
+      assert.strictEqual(result.page.hasMore, true, "Should indicate more results");
+      assert.ok(result.page.nextCursor, "Should provide a cursor");
+
+      // Fetch next page
+      const result2 = await store.listFrames({
+        userId: "user-alice",
+        cursor: result.page.nextCursor!,
+      });
+      assert.strictEqual(result2.frames.length, 1, "Second page should return 1 frame");
+      assert.strictEqual(result2.page.hasMore, false, "No more results after second page");
+    });
+
+    test("listFrames without userId returns all frames", async () => {
+      const result = await store.listFrames({});
+      assert.strictEqual(result.frames.length, 4, "Should list all 4 frames when no userId filter");
+    });
+
+    test("listFrames with non-existent userId returns empty", async () => {
+      const result = await store.listFrames({ userId: "user-nonexistent" });
+      assert.strictEqual(result.frames.length, 0, "Should list 0 frames for non-existent user");
+      assert.strictEqual(result.page.hasMore, false);
+    });
+  });
 });
 
 console.log("\n✅ MemoryFrameStore Tests - In-memory FrameStore implementation for testing\n");

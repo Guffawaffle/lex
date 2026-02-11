@@ -150,6 +150,11 @@ export class MemoryFrameStore implements FrameStore {
       results = results.filter((f) => new Date(f.timestamp).getTime() <= untilTime);
     }
 
+    // Filter by userId
+    if (criteria.userId) {
+      results = results.filter((f) => f.userId === criteria.userId);
+    }
+
     // Sort by timestamp descending (newest first)
     results.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
@@ -178,6 +183,11 @@ export class MemoryFrameStore implements FrameStore {
       // Tie-break on ID (descending)
       return b.id.localeCompare(a.id);
     });
+
+    // Filter by userId (before pagination)
+    if (options?.userId) {
+      results = results.filter((f) => f.userId === options.userId);
+    }
 
     // Handle cursor-based pagination (takes precedence over offset)
     if (options?.cursor) {
