@@ -28,6 +28,12 @@ _No unreleased changes._
 
 ---
 
+## [2.2.1] - 2026-02-11
+
+### Fixed
+
+- **MCPServer**: Fixed `handleDbStats()` and `handleTurncostCalculate()` bypassing DI `frameStore`. Both methods now use the injected `this.db` instead of the global `getDb()` singleton, preventing database cross-contamination when Lex is embedded as a library alongside the MCP server with different database paths. ([#686](https://github.com/Guffawaffle/lex/issues/686))
+
 ## [2.2.0] - 2026-02-08
 
 ### Changed
