@@ -12,6 +12,8 @@ import type {
   FrameListOptions,
   FrameListResult,
   SaveResult,
+  StoreStats,
+  TurnCostMetrics,
 } from "../frame-store.js";
 import type { Frame, FrameStatusSnapshot, FrameSpendMetadata } from "../../frames/types.js";
 import type { FrameRow } from "../db.js";
@@ -563,6 +565,118 @@ export class SqliteFrameStore implements FrameStore {
     const stmt = this._db.prepare("SELECT COUNT(*) as count FROM frames");
     const result = stmt.get() as { count: number };
     return result.count;
+  }
+
+  /**
+   * Get database statistics for diagnostics.
+   * Queries frame counts, date ranges, and optional module distribution.
+   */
+  async getStats(detailed: boolean = false): Promise<StoreStats> {
+    if (this.isClosed) {
+      throw new Error("SqliteFrameStore is closed");
+    }
+
+    const totalFrames = (
+      this._db.prepare("SELECT COUNT(*) as count FROM frames").get() as { count: number }
+    ).count;
+
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+    const thisWeek = (
+      this._db
+        .prepare("SELECT COUNT(*) as count FROM frames WHERE timestamp >= ?")
+        .get(oneWeekAgo.toISOString()) as { count: number }
+    ).count;
+
+    const oneMonthAgo = new Date();
+    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+    const thisMonth = (
+      this._db
+        .prepare("SELECT COUNT(*) as count FROM frames WHERE timestamp >= ?")
+        .get(oneMonthAgo.toISOString()) as { count: number }
+    ).count;
+
+    let oldestDate: string | null = null;
+    let newestDate: string | null = null;
+
+    if (totalFrames > 0) {
+      oldestDate = (
+        this._db.prepare("SELECT MIN(timestamp) as oldest FROM frames").get() as {
+          oldest: string | null;
+        }
+      ).oldest;
+      newestDate = (
+        this._db.prepare("SELECT MAX(timestamp) as newest FROM frames").get() as {
+          newest: string | null;
+        }
+      ).newest;
+    }
+
+    const result: StoreStats = { totalFrames, thisWeek, thisMonth, oldestDate, newestDate };
+
+    if (detailed && totalFrames > 0) {
+      const moduleDistribution: Record<string, number> = {};
+      const rows = this._db
+        .prepare("SELECT module_scope FROM frames")
+        .iterate() as IterableIterator<{ module_scope: string }>;
+      for (const row of rows) {
+        try {
+          const modules = JSON.parse(row.module_scope) as string[];
+          for (const mod of modules) {
+            moduleDistribution[mod] = (moduleDistribution[mod] || 0) + 1;
+          }
+        } catch {
+          // Skip frames with invalid JSON
+        }
+      }
+      const sorted = Object.entries(moduleDistribution)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 20);
+      result.moduleDistribution = Object.fromEntries(sorted);
+    }
+
+    return result;
+  }
+
+  /**
+   * Get turn cost metrics for a time period.
+   * Aggregates token usage and prompt counts from Frame spend metadata.
+   */
+  async getTurnCostMetrics(since?: string): Promise<TurnCostMetrics> {
+    if (this.isClosed) {
+      throw new Error("SqliteFrameStore is closed");
+    }
+
+    const whereClauses: string[] = [];
+    const params: string[] = [];
+
+    if (since) {
+      whereClauses.push("timestamp >= ?");
+      params.push(since);
+    }
+
+    const whereClause = whereClauses.length > 0 ? `WHERE ${whereClauses.join(" AND ")}` : "";
+
+    const stmt = this._db.prepare(`
+      SELECT
+        COUNT(*) as frameCount,
+        SUM(CASE WHEN spend IS NOT NULL THEN json_extract(spend, '$.tokens_estimated') ELSE 0 END) as estimatedTokens,
+        SUM(CASE WHEN spend IS NOT NULL THEN json_extract(spend, '$.prompts') ELSE 0 END) as prompts
+      FROM frames
+      ${whereClause}
+    `);
+
+    const row = stmt.get(...params) as {
+      frameCount: number;
+      estimatedTokens: number | null;
+      prompts: number | null;
+    };
+
+    return {
+      frameCount: row.frameCount || 0,
+      estimatedTokens: row.estimatedTokens || 0,
+      prompts: row.prompts || 0,
+    };
   }
 
   /**

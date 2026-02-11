@@ -1,8 +1,6 @@
 import { getLogger } from "@smartergpt/lex/logger";
 import { SqliteFrameStore } from "../store/sqlite/index.js";
 import type { FrameStore, FrameSearchCriteria } from "../store/frame-store.js";
-import { getDbStats } from "../store/queries.js";
-import type Database from "better-sqlite3-multiple-ciphers";
 // @ts-ignore - importing from compiled dist directories
 import { ImageManager } from "../store/images.js";
 // @ts-ignore - importing from compiled dist directories
@@ -169,7 +167,6 @@ export interface MCPServerOptions {
  */
 export class MCPServer {
   private frameStore: FrameStore;
-  private db: Database.Database | null; // Database reference for ImageManager (null when using non-SQLite store)
   private imageManager: ImageManager | null;
   private policy: Policy | null; // Cached policy for validation (null if not available)
   private repoRoot: string | null; // Repository root path
@@ -199,27 +196,17 @@ export class MCPServer {
     // Create or use provided FrameStore
     if (options.frameStore) {
       this.frameStore = options.frameStore;
-      // For SqliteFrameStore, we can access the db for ImageManager
-      if (this.frameStore instanceof SqliteFrameStore) {
-        this.db = (this.frameStore as SqliteFrameStore).db;
-        this.imageManager = new ImageManager(this.db);
-      } else {
-        // For non-SQLite stores (e.g., MemoryFrameStore), images are not supported
-        this.db = null;
-        this.imageManager = null;
-      }
     } else if (options.dbPath) {
-      // Create SqliteFrameStore with the provided path
-      const store = new SqliteFrameStore(options.dbPath);
-      this.frameStore = store;
-      this.db = store.db;
-      this.imageManager = new ImageManager(this.db);
+      this.frameStore = new SqliteFrameStore(options.dbPath);
     } else {
-      // Create SqliteFrameStore with default path
-      const store = new SqliteFrameStore();
-      this.frameStore = store;
-      this.db = store.db;
-      this.imageManager = new ImageManager(this.db);
+      this.frameStore = new SqliteFrameStore();
+    }
+
+    // ImageManager requires raw SQLite access — only available with SqliteFrameStore
+    if (this.frameStore instanceof SqliteFrameStore) {
+      this.imageManager = new ImageManager((this.frameStore as SqliteFrameStore).db);
+    } else {
+      this.imageManager = null;
     }
 
     this.repoRoot = options.repoRoot || null;
@@ -592,7 +579,7 @@ export class MCPServer {
     // Process image attachments if provided
     const imageIds: string[] = [];
     if (images && Array.isArray(images) && images.length > 0) {
-      if (!this.imageManager || !this.db) {
+      if (!this.imageManager) {
         throw new MCPError(
           MCPErrorCode.STORAGE_IMAGE_FAILED,
           "Image storage is not available with the current store implementation",
@@ -1644,7 +1631,7 @@ export class MCPServer {
       const capabilities = {
         // SQLite database with better-sqlite3-multiple-ciphers supports encryption
         // (though encryption may not be active for all databases)
-        encryption: this.db !== null,
+        encryption: this.frameStore instanceof SqliteFrameStore,
         images: this.imageManager !== null,
       };
 
@@ -2493,59 +2480,36 @@ export class MCPServer {
   private async handleDbStats(args: Record<string, unknown>): Promise<MCPResponse> {
     const { detailed = false } = args as { detailed?: boolean };
 
-    const { existsSync, statSync } = await import("fs");
-
-    // Use the injected database, not the global singleton
-    const db = this.db;
-    if (!db) {
-      throw new MCPError(
-        MCPErrorCode.STORAGE_READ_FAILED,
-        "No database connection available. Ensure the server was initialized with a SQLite store."
-      );
-    }
-
-    // Get path from the actual database connection (better-sqlite3 exposes .name)
-    const dbPath = db.name;
-
-    // Check if database exists
-    if (!existsSync(dbPath)) {
-      throw new MCPError(
-        MCPErrorCode.STORAGE_READ_FAILED,
-        "Database not found. Run 'lex init' to create it.",
-        {
-          dbPath,
-        }
-      );
-    }
-
-    // Get file size
-    const stats = statSync(dbPath);
-    const sizeBytes = stats.size;
-    const sizeMB = parseFloat((sizeBytes / (1024 * 1024)).toFixed(2));
-
-    // Use curated query function for DB stats
-    const dbStats = getDbStats(db, detailed);
+    // Get store statistics through the FrameStore interface (no raw db access)
+    const storeStats = await this.frameStore.getStats(detailed);
 
     const result: Record<string, unknown> = {
-      database: {
-        path: dbPath,
-        sizeBytes,
-        sizeMB,
-      },
       frames: {
-        total: dbStats.totalFrames,
-        thisWeek: dbStats.thisWeek,
-        thisMonth: dbStats.thisMonth,
+        total: storeStats.totalFrames,
+        thisWeek: storeStats.thisWeek,
+        thisMonth: storeStats.thisMonth,
         dateRange: {
-          oldest: dbStats.oldestDate,
-          newest: dbStats.newestDate,
+          oldest: storeStats.oldestDate,
+          newest: storeStats.newestDate,
         },
       },
     };
 
+    // Add database file info when backed by SQLite
+    if (this.frameStore instanceof SqliteFrameStore) {
+      const { existsSync, statSync } = await import("fs");
+      const dbPath = (this.frameStore as SqliteFrameStore).db.name;
+      if (existsSync(dbPath)) {
+        const fileStats = statSync(dbPath);
+        const sizeBytes = fileStats.size;
+        const sizeMB = parseFloat((sizeBytes / (1024 * 1024)).toFixed(2));
+        result.database = { path: dbPath, sizeBytes, sizeMB };
+      }
+    }
+
     // Add module distribution if detailed and available
-    if (dbStats.moduleDistribution) {
-      result.moduleDistribution = dbStats.moduleDistribution;
+    if (storeStats.moduleDistribution) {
+      result.moduleDistribution = storeStats.moduleDistribution;
     }
 
     return {
@@ -2599,17 +2563,8 @@ export class MCPServer {
       sinceTimestamp = now.toISOString();
     }
 
-    // Use the injected database, not the global singleton
-    const { getTurnCostMetrics } = await import("../store/queries.js");
-
-    const db = this.db;
-    if (!db) {
-      throw new MCPError(
-        MCPErrorCode.STORAGE_READ_FAILED,
-        "No database connection available. Ensure the server was initialized with a SQLite store."
-      );
-    }
-    const metrics = getTurnCostMetrics(db, sinceTimestamp);
+    // Use the FrameStore interface for turn cost metrics (no raw db access)
+    const metrics = await this.frameStore.getTurnCostMetrics(sinceTimestamp);
 
     const result = {
       period,

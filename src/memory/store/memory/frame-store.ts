@@ -11,6 +11,8 @@ import type {
   FrameListOptions,
   FrameListResult,
   SaveResult,
+  StoreStats,
+  TurnCostMetrics,
 } from "../frame-store.js";
 import type { Frame } from "../../frames/types.js";
 import { Frame as FrameSchema } from "../../frames/types.js";
@@ -307,6 +309,84 @@ export class MemoryFrameStore implements FrameStore {
    */
   async getFrameCount(): Promise<number> {
     return this.frames.size;
+  }
+
+  /**
+   * Get store statistics for diagnostics.
+   * Computes from in-memory frame data.
+   */
+  async getStats(detailed: boolean = false): Promise<StoreStats> {
+    const allFrames = Array.from(this.frames.values());
+    const totalFrames = allFrames.length;
+
+    const now = new Date();
+    const oneWeekAgo = new Date(now);
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+    const oneMonthAgo = new Date(now);
+    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+
+    const thisWeek = allFrames.filter(
+      (f) => new Date(f.timestamp).getTime() >= oneWeekAgo.getTime()
+    ).length;
+    const thisMonth = allFrames.filter(
+      (f) => new Date(f.timestamp).getTime() >= oneMonthAgo.getTime()
+    ).length;
+
+    let oldestDate: string | null = null;
+    let newestDate: string | null = null;
+
+    if (totalFrames > 0) {
+      const sorted = allFrames.map((f) => f.timestamp).sort();
+      oldestDate = sorted[0];
+      newestDate = sorted[sorted.length - 1];
+    }
+
+    const result: StoreStats = { totalFrames, thisWeek, thisMonth, oldestDate, newestDate };
+
+    if (detailed && totalFrames > 0) {
+      const moduleDistribution: Record<string, number> = {};
+      for (const frame of allFrames) {
+        for (const mod of frame.module_scope) {
+          moduleDistribution[mod] = (moduleDistribution[mod] || 0) + 1;
+        }
+      }
+      const sorted = Object.entries(moduleDistribution)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 20);
+      result.moduleDistribution = Object.fromEntries(sorted);
+    }
+
+    return result;
+  }
+
+  /**
+   * Get turn cost metrics for a time period.
+   * Aggregates from in-memory frame spend metadata.
+   */
+  async getTurnCostMetrics(since?: string): Promise<TurnCostMetrics> {
+    let frames = Array.from(this.frames.values());
+
+    if (since) {
+      const sinceTime = new Date(since).getTime();
+      frames = frames.filter((f) => new Date(f.timestamp).getTime() >= sinceTime);
+    }
+
+    let estimatedTokens = 0;
+    let prompts = 0;
+
+    for (const frame of frames) {
+      const spend = frame.spend as Record<string, number> | undefined;
+      if (spend) {
+        estimatedTokens += spend.tokens_estimated || 0;
+        prompts += spend.prompts || 0;
+      }
+    }
+
+    return {
+      frameCount: frames.length,
+      estimatedTokens,
+      prompts,
+    };
   }
 
   /**
