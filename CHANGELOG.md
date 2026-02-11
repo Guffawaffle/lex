@@ -28,6 +28,27 @@ _No unreleased changes._
 
 ---
 
+## [2.4.0] - 2026-02-11
+
+### Added
+
+- **FrameStore: `getStats(detailed?)`** — Store diagnostics (total frames, thisWeek, thisMonth, date range, optional module distribution). Replaces raw `getDbStats()` calls that required a `Database` handle. ([#689](https://github.com/Guffawaffle/lex/issues/689), [#702](https://github.com/Guffawaffle/lex/pull/702))
+- **FrameStore: `getTurnCostMetrics(since?)`** — Token and prompt cost aggregation from Frame `spend` metadata. Replaces raw `getTurnCostMetrics()` calls. ([#689](https://github.com/Guffawaffle/lex/issues/689), [#702](https://github.com/Guffawaffle/lex/pull/702))
+- **`StoreStats` and `TurnCostMetrics` types** — Exported from `frame-store.ts` for consumers.
+- **24 new tests** in `stats-turncost.test.ts` covering both SqliteFrameStore and MemoryFrameStore.
+
+### Changed
+
+- **MCPServer: Eliminated `private db: Database.Database | null`** — The server no longer holds a raw SQLite reference. All diagnostic queries (`db_stats`, `turncost_calculate`) now route through the FrameStore interface. ImageManager derives its db handle on-demand via `instanceof SqliteFrameStore`. ([#689](https://github.com/Guffawaffle/lex/issues/689))
+- **MCPServer: Removed imports** of `getDbStats` from queries.ts and `Database` type from better-sqlite3.
+- **FrameStore interface** expanded from 11 to 13 methods (additive, non-breaking).
+
+### Migration Note
+
+Consumers that previously cast `(store as any)._db` to call `getDbStats()` or `getTurnCostMetrics()` should now use `store.getStats()` and `store.getTurnCostMetrics()` directly.
+
+---
+
 ## [2.3.0] - 2026-02-11
 
 ### Added
