@@ -255,6 +255,33 @@ export class MemoryFrameStore implements FrameStore {
   }
 
   /**
+   * Update specific fields of an existing Frame.
+   * Only the provided fields are updated; all other fields remain unchanged.
+   *
+   * @param id - The ID of the Frame to update.
+   * @param updates - Partial Frame fields to update. 'id' and 'timestamp' cannot be changed.
+   * @returns true if a Frame was found and updated, false if the ID was not found.
+   */
+  async updateFrame(
+    id: string,
+    updates: Partial<Omit<Frame, "id" | "timestamp">>
+  ): Promise<boolean> {
+    const existing = this.frames.get(id);
+    if (!existing) {
+      return false;
+    }
+
+    const updated: Frame = {
+      ...existing,
+      ...updates,
+      id: existing.id,
+      timestamp: existing.timestamp,
+    };
+    this.frames.set(id, updated);
+    return true;
+  }
+
+  /**
    * Delete all Frames with timestamps before the given date.
    * @param date - Delete Frames with timestamp < date (UTC).
    * @returns The number of Frames deleted.

@@ -3,11 +3,14 @@
  *
  * Handles database operations for marking frames as superseded
  * and updating frames with consolidation metadata.
+ *
+ * Uses FrameStore.updateFrame() for targeted field updates instead of
+ * re-saving entire frames via saveFrame(), which avoids the risk of
+ * clobbering unrelated fields during INSERT OR REPLACE.
  */
 
 import type { Frame } from "../frames/types.js";
 import type { FrameStore } from "./frame-store.js";
-import type { FrameWithDeduplication } from "../deduplication.js";
 
 /**
  * Mark a frame as superseded by another frame
@@ -20,17 +23,13 @@ export async function markFrameAsSuperseded(
   frameId: string,
   supersededById: string
 ): Promise<void> {
-  const frame = await store.getFrameById(frameId);
-  if (!frame) {
+  const updated = await store.updateFrame(frameId, {
+    superseded_by: supersededById,
+  });
+
+  if (!updated) {
     throw new Error(`Frame ${frameId} not found`);
   }
-
-  const updatedFrame: FrameWithDeduplication = {
-    ...frame,
-    superseded_by: supersededById,
-  };
-
-  await store.saveFrame(updatedFrame as Frame);
 }
 
 /**
@@ -44,12 +43,13 @@ export async function updateFrameWithMergedFrom(
   frame: Frame,
   mergedFromIds: string[]
 ): Promise<void> {
-  const updatedFrame: FrameWithDeduplication = {
-    ...frame,
+  const updated = await store.updateFrame(frame.id, {
     merged_from: mergedFromIds,
-  };
+  });
 
-  await store.saveFrame(updatedFrame as Frame);
+  if (!updated) {
+    throw new Error(`Frame ${frame.id} not found`);
+  }
 }
 
 /**
