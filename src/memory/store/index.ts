@@ -23,7 +23,10 @@ export type {
   FrameStore,
   FrameSearchCriteria,
   FrameListOptions,
+  FrameListResult,
   SaveResult,
+  StoreStats,
+  TurnCostMetrics,
 } from "./frame-store.js";
 export type { CodeAtlasStore } from "./code-atlas-store.js";
 
