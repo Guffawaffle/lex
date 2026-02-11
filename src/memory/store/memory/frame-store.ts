@@ -282,6 +282,23 @@ export class MemoryFrameStore implements FrameStore {
   }
 
   /**
+   * Delete all Frames that have been marked as superseded.
+   * Removes frames where superseded_by is set.
+   *
+   * @returns The number of Frames deleted.
+   */
+  async purgeSuperseded(): Promise<number> {
+    let deleted = 0;
+    for (const [id, frame] of this.frames) {
+      if (frame.superseded_by) {
+        this.frames.delete(id);
+        deleted++;
+      }
+    }
+    return deleted;
+  }
+
+  /**
    * Delete all Frames with timestamps before the given date.
    * @param date - Delete Frames with timestamp < date (UTC).
    * @returns The number of Frames deleted.

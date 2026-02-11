@@ -747,6 +747,23 @@ export class SqliteFrameStore implements FrameStore {
   }
 
   /**
+   * Delete all Frames that have been marked as superseded.
+   * Removes frames where superseded_by IS NOT NULL.
+   * FTS5 entries are removed automatically by SQLite triggers.
+   *
+   * @returns The number of Frames deleted.
+   */
+  async purgeSuperseded(): Promise<number> {
+    if (this.isClosed) {
+      throw new Error("SqliteFrameStore is closed");
+    }
+
+    const stmt = this._db.prepare("DELETE FROM frames WHERE superseded_by IS NOT NULL");
+    const result = stmt.run();
+    return result.changes;
+  }
+
+  /**
    * Close the store and release any resources.
    * Idempotent - safe to call multiple times.
    */
