@@ -501,6 +501,57 @@ export class SqliteFrameStore implements FrameStore {
   }
 
   /**
+   * Delete all Frames with timestamps before the given date.
+   * FTS5 entries are removed automatically by SQLite triggers.
+   * @param date - Delete Frames with timestamp < date (UTC).
+   * @returns The number of Frames deleted.
+   */
+  async deleteFramesBefore(date: Date): Promise<number> {
+    if (this.isClosed) {
+      throw new Error("SqliteFrameStore is closed");
+    }
+
+    const stmt = this._db.prepare("DELETE FROM frames WHERE timestamp < ?");
+    const result = stmt.run(date.toISOString());
+    return result.changes;
+  }
+
+  /**
+   * Delete all Frames matching a branch name.
+   * FTS5 entries are removed automatically by SQLite triggers.
+   * @param branch - The branch to match.
+   * @returns The number of Frames deleted.
+   */
+  async deleteFramesByBranch(branch: string): Promise<number> {
+    if (this.isClosed) {
+      throw new Error("SqliteFrameStore is closed");
+    }
+
+    const stmt = this._db.prepare("DELETE FROM frames WHERE branch = ?");
+    const result = stmt.run(branch);
+    return result.changes;
+  }
+
+  /**
+   * Delete all Frames that include the given module in their module_scope.
+   * Uses json_each() to match within the JSON array column.
+   * FTS5 entries are removed automatically by SQLite triggers.
+   * @param moduleId - The module ID to match.
+   * @returns The number of Frames deleted.
+   */
+  async deleteFramesByModule(moduleId: string): Promise<number> {
+    if (this.isClosed) {
+      throw new Error("SqliteFrameStore is closed");
+    }
+
+    const stmt = this._db.prepare(
+      "DELETE FROM frames WHERE EXISTS (SELECT 1 FROM json_each(module_scope) WHERE value = ?)"
+    );
+    const result = stmt.run(moduleId);
+    return result.changes;
+  }
+
+  /**
    * Get the total number of Frames in the store.
    * @returns The total Frame count.
    */

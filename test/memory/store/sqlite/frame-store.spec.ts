@@ -726,4 +726,116 @@ describe("SqliteFrameStore Tests", () => {
       assert.strictEqual(result.page.hasMore, false);
     });
   });
+
+  describe("deleteFramesBefore", () => {
+    test("should delete frames older than given date", async () => {
+      const store = new SqliteFrameStore(":memory:");
+      await store.saveFrame(testFrame1); // Nov 1
+      await store.saveFrame(testFrame2); // Nov 2
+      await store.saveFrame(testFrame3); // Nov 3
+
+      // Delete frames before Nov 2 (should delete frame1)
+      const deleted = await store.deleteFramesBefore(new Date("2025-11-02T00:00:00Z"));
+      assert.strictEqual(deleted, 1, "Should delete 1 frame");
+
+      const remaining = await store.getFrameCount();
+      assert.strictEqual(remaining, 2, "Should have 2 frames remaining");
+
+      const gone = await store.getFrameById("frame-001");
+      assert.strictEqual(gone, null, "Deleted frame should not be found");
+      await store.close();
+    });
+
+    test("should return 0 when no frames match", async () => {
+      const store = new SqliteFrameStore(":memory:");
+      await store.saveFrame(testFrame1);
+      const deleted = await store.deleteFramesBefore(new Date("2020-01-01T00:00:00Z"));
+      assert.strictEqual(deleted, 0, "Should delete 0 frames");
+      await store.close();
+    });
+
+    test("should throw if store is closed", async () => {
+      const store = new SqliteFrameStore(":memory:");
+      await store.close();
+      await assert.rejects(
+        () => store.deleteFramesBefore(new Date()),
+        /closed/,
+        "Should throw when store is closed"
+      );
+    });
+  });
+
+  describe("deleteFramesByBranch", () => {
+    test("should delete all frames for a branch", async () => {
+      const store = new SqliteFrameStore(":memory:");
+      await store.saveFrame(testFrame1); // feature/auth-fix
+      await store.saveFrame(testFrame2); // feature/payment-integration
+      await store.saveFrame(testFrame3); // feature/auth-fix
+
+      const deleted = await store.deleteFramesByBranch("feature/auth-fix");
+      assert.strictEqual(deleted, 2, "Should delete 2 frames from auth-fix branch");
+
+      const remaining = await store.getFrameCount();
+      assert.strictEqual(remaining, 1, "Should have 1 frame remaining");
+
+      const kept = await store.getFrameById("frame-002");
+      assert.ok(kept, "Payment frame should still exist");
+      await store.close();
+    });
+
+    test("should return 0 for non-existent branch", async () => {
+      const store = new SqliteFrameStore(":memory:");
+      await store.saveFrame(testFrame1);
+      const deleted = await store.deleteFramesByBranch("nonexistent/branch");
+      assert.strictEqual(deleted, 0);
+      await store.close();
+    });
+
+    test("should throw if store is closed", async () => {
+      const store = new SqliteFrameStore(":memory:");
+      await store.close();
+      await assert.rejects(
+        () => store.deleteFramesByBranch("main"),
+        /closed/,
+        "Should throw when store is closed"
+      );
+    });
+  });
+
+  describe("deleteFramesByModule", () => {
+    test("should delete all frames containing a module", async () => {
+      const store = new SqliteFrameStore(":memory:");
+      await store.saveFrame(testFrame1); // ["ui/user-admin-panel", "services/auth-core"]
+      await store.saveFrame(testFrame2); // ["services/payment-gateway", "ui/checkout"]
+      await store.saveFrame(testFrame3); // ["services/auth-core", "lib/crypto"]
+
+      const deleted = await store.deleteFramesByModule("services/auth-core");
+      assert.strictEqual(deleted, 2, "Should delete 2 frames containing services/auth-core");
+
+      const remaining = await store.getFrameCount();
+      assert.strictEqual(remaining, 1, "Should have 1 frame remaining");
+
+      const kept = await store.getFrameById("frame-002");
+      assert.ok(kept, "Payment frame should still exist");
+      await store.close();
+    });
+
+    test("should return 0 for non-existent module", async () => {
+      const store = new SqliteFrameStore(":memory:");
+      await store.saveFrame(testFrame1);
+      const deleted = await store.deleteFramesByModule("nonexistent/module");
+      assert.strictEqual(deleted, 0);
+      await store.close();
+    });
+
+    test("should throw if store is closed", async () => {
+      const store = new SqliteFrameStore(":memory:");
+      await store.close();
+      await assert.rejects(
+        () => store.deleteFramesByModule("services/auth-core"),
+        /closed/,
+        "Should throw when store is closed"
+      );
+    });
+  });
 });

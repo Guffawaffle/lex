@@ -183,6 +183,28 @@ export interface FrameStore {
   deleteFrame(id: string): Promise<boolean>;
 
   /**
+   * Delete all Frames with timestamps before the given date.
+   * Useful for TTL-based retention policies.
+   * @param date - Delete Frames with timestamp < date (UTC).
+   * @returns The number of Frames deleted.
+   */
+  deleteFramesBefore(date: Date): Promise<number>;
+
+  /**
+   * Delete all Frames matching a branch name.
+   * @param branch - The branch to match.
+   * @returns The number of Frames deleted.
+   */
+  deleteFramesByBranch(branch: string): Promise<number>;
+
+  /**
+   * Delete all Frames that include the given module in their module_scope.
+   * @param moduleId - The module ID to match (any-match within the array).
+   * @returns The number of Frames deleted.
+   */
+  deleteFramesByModule(moduleId: string): Promise<number>;
+
+  /**
    * Get the total number of Frames in the store.
    * @returns The total Frame count.
    */

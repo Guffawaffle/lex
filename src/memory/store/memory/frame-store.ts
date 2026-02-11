@@ -253,6 +253,55 @@ export class MemoryFrameStore implements FrameStore {
   }
 
   /**
+   * Delete all Frames with timestamps before the given date.
+   * @param date - Delete Frames with timestamp < date (UTC).
+   * @returns The number of Frames deleted.
+   */
+  async deleteFramesBefore(date: Date): Promise<number> {
+    const cutoff = date.getTime();
+    let deleted = 0;
+    for (const [id, frame] of this.frames) {
+      if (new Date(frame.timestamp).getTime() < cutoff) {
+        this.frames.delete(id);
+        deleted++;
+      }
+    }
+    return deleted;
+  }
+
+  /**
+   * Delete all Frames matching a branch name.
+   * @param branch - The branch to match.
+   * @returns The number of Frames deleted.
+   */
+  async deleteFramesByBranch(branch: string): Promise<number> {
+    let deleted = 0;
+    for (const [id, frame] of this.frames) {
+      if (frame.branch === branch) {
+        this.frames.delete(id);
+        deleted++;
+      }
+    }
+    return deleted;
+  }
+
+  /**
+   * Delete all Frames that include the given module in their module_scope.
+   * @param moduleId - The module ID to match.
+   * @returns The number of Frames deleted.
+   */
+  async deleteFramesByModule(moduleId: string): Promise<number> {
+    let deleted = 0;
+    for (const [id, frame] of this.frames) {
+      if (frame.module_scope.includes(moduleId)) {
+        this.frames.delete(id);
+        deleted++;
+      }
+    }
+    return deleted;
+  }
+
+  /**
    * Get the total number of Frames in the store.
    * @returns The total Frame count.
    */
