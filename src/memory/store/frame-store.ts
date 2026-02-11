@@ -134,6 +134,43 @@ export interface SaveResult {
 }
 
 /**
+ * Store statistics for diagnostics.
+ */
+export interface StoreStats {
+  /** Total number of Frames in the store. */
+  totalFrames: number;
+
+  /** Number of Frames created in the last 7 days. */
+  thisWeek: number;
+
+  /** Number of Frames created in the last 30 days. */
+  thisMonth: number;
+
+  /** Timestamp of the oldest Frame, or null if store is empty. */
+  oldestDate: string | null;
+
+  /** Timestamp of the newest Frame, or null if store is empty. */
+  newestDate: string | null;
+
+  /** Module distribution (top 20 by count), only when detailed=true. */
+  moduleDistribution?: Record<string, number>;
+}
+
+/**
+ * Turn cost metrics aggregated from Frame spend metadata.
+ */
+export interface TurnCostMetrics {
+  /** Number of Frames in the period. */
+  frameCount: number;
+
+  /** Estimated total tokens across all Frames. */
+  estimatedTokens: number;
+
+  /** Total number of prompts across all Frames. */
+  prompts: number;
+}
+
+/**
  * FrameStore — persistence contract for Frames.
  *
  * Default implementation: SqliteFrameStore (OSS).
@@ -209,6 +246,21 @@ export interface FrameStore {
    * @returns The total Frame count.
    */
   getFrameCount(): Promise<number>;
+
+  /**
+   * Get database/store statistics for diagnostics.
+   * @param detailed - If true, include module distribution breakdown.
+   * @returns Store statistics including counts, date ranges, and optional module distribution.
+   */
+  getStats(detailed?: boolean): Promise<StoreStats>;
+
+  /**
+   * Get turn cost metrics for a time period.
+   * Aggregates token usage and prompt counts from Frame spend metadata.
+   * @param since - Optional ISO timestamp to filter from. If omitted, returns all-time metrics.
+   * @returns Turn cost metrics including frame count, estimated tokens, and prompt count.
+   */
+  getTurnCostMetrics(since?: string): Promise<TurnCostMetrics>;
 
   /**
    * Close the store and release any resources.
