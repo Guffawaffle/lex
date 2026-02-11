@@ -28,6 +28,24 @@ _No unreleased changes._
 
 ---
 
+## [2.3.0] - 2026-02-11
+
+### Added
+
+- **FrameStore: `deleteFrame(id)`** — Delete a single Frame by ID. Returns boolean indicating whether a Frame was found and deleted. Implemented in both SqliteFrameStore and MemoryFrameStore. ([#688](https://github.com/Guffawaffle/lex/issues/688), [#694](https://github.com/Guffawaffle/lex/pull/694))
+- **FrameStore: `getFrameCount()`** — Get the total number of Frames in the store. Replaces the need for raw DB access to count frames. ([#688](https://github.com/Guffawaffle/lex/issues/688), [#694](https://github.com/Guffawaffle/lex/pull/694))
+- **FrameStore: `userId` filtering on `searchFrames()` and `listFrames()`** — Add `userId?: string` to `FrameSearchCriteria` and `FrameListOptions` interfaces, enabling multi-tenant read-path isolation. Backward-compatible: omitting userId returns all frames. ([#691](https://github.com/Guffawaffle/lex/issues/691), [#700](https://github.com/Guffawaffle/lex/pull/700))
+- **FrameStore: `deleteFramesBefore(date)`** — TTL-based retention cleanup. Deletes all Frames with timestamps before the given date. ([#693](https://github.com/Guffawaffle/lex/issues/693), [#701](https://github.com/Guffawaffle/lex/pull/701))
+- **FrameStore: `deleteFramesByBranch(branch)`** — Branch lifecycle cleanup. Deletes all Frames matching a branch name. ([#693](https://github.com/Guffawaffle/lex/issues/693), [#701](https://github.com/Guffawaffle/lex/pull/701))
+- **FrameStore: `deleteFramesByModule(moduleId)`** — Module decommission cleanup. Deletes all Frames containing the given module in their `module_scope`. Uses `json_each()` in SQLite. ([#693](https://github.com/Guffawaffle/lex/issues/693), [#701](https://github.com/Guffawaffle/lex/pull/701))
+
+### Changed
+
+- **FrameStore interface** expanded from 6 to 11 methods (all additive, non-breaking)
+- **Test script** now includes `*.spec.ts` files alongside `*.test.ts` in `npm test`
+
+---
+
 ## [2.2.1] - 2026-02-11
 
 ### Fixed
