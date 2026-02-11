@@ -50,6 +50,13 @@ export interface FrameSearchCriteria {
    * Return Frames with timestamp <= until (UTC).
    */
   until?: Date;
+
+  /**
+   * Filter by user ID.
+   * When set, only Frames belonging to this user are returned.
+   * When omitted, Frames for all users are returned (backward-compatible).
+   */
+  userId?: string;
 }
 
 /**
@@ -64,6 +71,13 @@ export interface FrameListOptions {
 
   /** Opaque cursor for stable pagination (takes precedence over offset). */
   cursor?: string;
+
+  /**
+   * Filter by user ID.
+   * When set, only Frames belonging to this user are returned.
+   * When omitted, Frames for all users are returned (backward-compatible).
+   */
+  userId?: string;
 }
 
 /**
