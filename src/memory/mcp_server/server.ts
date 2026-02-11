@@ -2503,11 +2503,19 @@ export class MCPServer {
   private async handleDbStats(args: Record<string, unknown>): Promise<MCPResponse> {
     const { detailed = false } = args as { detailed?: boolean };
 
-    // Import required functions
-    const { getDb, getDefaultDbPath } = await import("../store/index.js");
     const { existsSync, statSync } = await import("fs");
 
-    const dbPath = getDefaultDbPath();
+    // Use the injected database, not the global singleton
+    const db = this.db;
+    if (!db) {
+      throw new MCPError(
+        MCPErrorCode.STORAGE_READ_FAILED,
+        "No database connection available. Ensure the server was initialized with a SQLite store."
+      );
+    }
+
+    // Get path from the actual database connection (better-sqlite3 exposes .name)
+    const dbPath = db.name;
 
     // Check if database exists
     if (!existsSync(dbPath)) {
@@ -2519,8 +2527,6 @@ export class MCPServer {
         }
       );
     }
-
-    const db = getDb();
 
     // Get file size
     const stats = statSync(dbPath);
@@ -2603,11 +2609,16 @@ export class MCPServer {
       sinceTimestamp = now.toISOString();
     }
 
-    // Import required functions
-    const { getDb } = await import("../store/index.js");
+    // Use the injected database, not the global singleton
     const { getTurnCostMetrics } = await import("../store/queries.js");
 
-    const db = getDb();
+    const db = this.db;
+    if (!db) {
+      throw new MCPError(
+        MCPErrorCode.STORAGE_READ_FAILED,
+        "No database connection available. Ensure the server was initialized with a SQLite store."
+      );
+    }
     const metrics = getTurnCostMetrics(db, sinceTimestamp);
 
     const result = {
