@@ -263,6 +263,19 @@ export interface FrameStore {
   getTurnCostMetrics(since?: string): Promise<TurnCostMetrics>;
 
   /**
+   * Update specific fields of an existing Frame.
+   * Only the provided fields are updated; all other fields remain unchanged.
+   * Unlike saveFrame() (which does a full INSERT OR REPLACE), updateFrame()
+   * performs a targeted UPDATE, making it safe for adding metadata to existing Frames
+   * (e.g., marking a Frame as superseded or adding merged_from IDs).
+   *
+   * @param id - The ID of the Frame to update.
+   * @param updates - Partial Frame fields to update. 'id' and 'timestamp' cannot be changed.
+   * @returns true if a Frame was found and updated, false if the ID was not found.
+   */
+  updateFrame(id: string, updates: Partial<Omit<Frame, "id" | "timestamp">>): Promise<boolean>;
+
+  /**
    * Close the store and release any resources.
    */
   close(): Promise<void>;

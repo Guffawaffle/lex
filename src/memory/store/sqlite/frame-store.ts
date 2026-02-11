@@ -179,8 +179,9 @@ export class SqliteFrameStore implements FrameStore {
       INSERT OR REPLACE INTO frames (
         id, timestamp, branch, jira, module_scope, summary_caption,
         reference_point, status_snapshot, keywords, atlas_frame_id,
-        feature_flags, permissions, run_id, plan_hash, spend, user_id
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        feature_flags, permissions, run_id, plan_hash, spend, user_id,
+        superseded_by, merged_from
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     stmt.run(
@@ -199,7 +200,9 @@ export class SqliteFrameStore implements FrameStore {
       row.run_id,
       row.plan_hash,
       row.spend,
-      row.user_id
+      row.user_id,
+      row.superseded_by,
+      row.merged_from
     );
   }
 
@@ -235,8 +238,9 @@ export class SqliteFrameStore implements FrameStore {
       INSERT OR REPLACE INTO frames (
         id, timestamp, branch, jira, module_scope, summary_caption,
         reference_point, status_snapshot, keywords, atlas_frame_id,
-        feature_flags, permissions, run_id, plan_hash, spend, user_id
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        feature_flags, permissions, run_id, plan_hash, spend, user_id,
+        superseded_by, merged_from
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const insertAll = this._db.transaction((framesToInsert: Frame[]) => {
@@ -258,7 +262,9 @@ export class SqliteFrameStore implements FrameStore {
           row.run_id,
           row.plan_hash,
           row.spend,
-          row.user_id
+          row.user_id,
+          row.superseded_by,
+          row.merged_from
         );
       }
     });
@@ -677,6 +683,67 @@ export class SqliteFrameStore implements FrameStore {
       estimatedTokens: row.estimatedTokens || 0,
       prompts: row.prompts || 0,
     };
+  }
+
+  /**
+   * Update specific fields of an existing Frame.
+   * Only the provided fields are updated; all other fields remain unchanged.
+   * Uses a targeted SQL UPDATE instead of INSERT OR REPLACE.
+   *
+   * @param id - The ID of the Frame to update.
+   * @param updates - Partial Frame fields to update. 'id' and 'timestamp' cannot be changed.
+   * @returns true if a Frame was found and updated, false if the ID was not found.
+   */
+  async updateFrame(
+    id: string,
+    updates: Partial<Omit<Frame, "id" | "timestamp">>
+  ): Promise<boolean> {
+    if (this.isClosed) {
+      throw new Error("SqliteFrameStore is closed");
+    }
+
+    // Map Frame field names to database column names and serialize values
+    const columnMap: Record<string, { column: string; serialize: (v: unknown) => unknown }> = {
+      branch: { column: "branch", serialize: (v) => v },
+      jira: { column: "jira", serialize: (v) => v ?? null },
+      module_scope: { column: "module_scope", serialize: (v) => JSON.stringify(v) },
+      summary_caption: { column: "summary_caption", serialize: (v) => v },
+      reference_point: { column: "reference_point", serialize: (v) => v },
+      status_snapshot: { column: "status_snapshot", serialize: (v) => JSON.stringify(v) },
+      keywords: { column: "keywords", serialize: (v) => (v ? JSON.stringify(v) : null) },
+      atlas_frame_id: { column: "atlas_frame_id", serialize: (v) => v ?? null },
+      feature_flags: { column: "feature_flags", serialize: (v) => (v ? JSON.stringify(v) : null) },
+      permissions: { column: "permissions", serialize: (v) => (v ? JSON.stringify(v) : null) },
+      runId: { column: "run_id", serialize: (v) => v ?? null },
+      planHash: { column: "plan_hash", serialize: (v) => v ?? null },
+      spend: { column: "spend", serialize: (v) => (v ? JSON.stringify(v) : null) },
+      userId: { column: "user_id", serialize: (v) => v ?? null },
+      superseded_by: { column: "superseded_by", serialize: (v) => v ?? null },
+      merged_from: { column: "merged_from", serialize: (v) => (v ? JSON.stringify(v) : null) },
+    };
+
+    const setClauses: string[] = [];
+    const params: unknown[] = [];
+
+    for (const [key, value] of Object.entries(updates)) {
+      const mapping = columnMap[key];
+      if (mapping) {
+        setClauses.push(`${mapping.column} = ?`);
+        params.push(mapping.serialize(value));
+      }
+    }
+
+    if (setClauses.length === 0) {
+      // No valid fields to update — check if frame exists
+      const exists = this._db.prepare("SELECT 1 FROM frames WHERE id = ?").get(id);
+      return exists !== undefined;
+    }
+
+    params.push(id);
+    const sql = `UPDATE frames SET ${setClauses.join(", ")} WHERE id = ?`;
+    const stmt = this._db.prepare(sql);
+    const result = stmt.run(...params);
+    return result.changes > 0;
   }
 
   /**
