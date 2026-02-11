@@ -1,7 +1,7 @@
 import { getLogger } from "@smartergpt/lex/logger";
 import { SqliteFrameStore } from "../store/sqlite/index.js";
 import type { FrameStore, FrameSearchCriteria } from "../store/frame-store.js";
-import { deleteFrame, getFrameCount as getFrameCountQuery, getDbStats } from "../store/queries.js";
+import { getDbStats } from "../store/queries.js";
 import type Database from "better-sqlite3-multiple-ciphers";
 // @ts-ignore - importing from compiled dist directories
 import { ImageManager } from "../store/images.js";
@@ -607,7 +607,7 @@ export class MCPServer {
           imageIds.push(imageId);
         } catch (error: unknown) {
           // If image storage fails, clean up the Frame and rethrow
-          deleteFrame(this.db, frameId);
+          await this.frameStore.deleteFrame(frameId);
           const errorMessage = error instanceof Error ? error.message : String(error);
           throw new MCPError(
             MCPErrorCode.STORAGE_IMAGE_FAILED,
@@ -2425,22 +2425,12 @@ export class MCPServer {
   }
 
   /**
-   * Get total frame count from database
-   *
-   * Note: For non-SQLite stores, this loads all frames into memory.
-   * Future: Add a count() method to FrameStore interface for better performance.
+   * Get total frame count from database.
+   * Uses FrameStore.getFrameCount() interface method.
    */
   private async getFrameCount(): Promise<number> {
     try {
-      // Use curated query module for efficiency if we have a SQLite store
-      if (this.db) {
-        return getFrameCountQuery(this.db);
-      }
-
-      // Fallback for non-SQLite stores: list without limit and count
-      // Note: For very large stores, this could be memory-intensive
-      const result = await this.frameStore.listFrames({});
-      return result.frames.length;
+      return await this.frameStore.getFrameCount();
     } catch {
       return 0;
     }

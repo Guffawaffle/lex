@@ -162,6 +162,19 @@ export interface FrameStore {
   listFrames(options?: FrameListOptions): Promise<FrameListResult>;
 
   /**
+   * Delete a Frame by its unique identifier.
+   * @param id - The Frame ID to delete.
+   * @returns true if a Frame was deleted, false if the ID was not found.
+   */
+  deleteFrame(id: string): Promise<boolean>;
+
+  /**
+   * Get the total number of Frames in the store.
+   * @returns The total Frame count.
+   */
+  getFrameCount(): Promise<number>;
+
+  /**
    * Close the store and release any resources.
    */
   close(): Promise<void>;

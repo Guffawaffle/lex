@@ -467,6 +467,36 @@ export class SqliteFrameStore implements FrameStore {
   }
 
   /**
+   * Delete a Frame by its unique identifier.
+   * Also removes associated FTS5 index entry.
+   * @param id - The Frame ID to delete.
+   * @returns true if a Frame was deleted, false if the ID was not found.
+   */
+  async deleteFrame(id: string): Promise<boolean> {
+    if (this.isClosed) {
+      throw new Error("SqliteFrameStore is closed");
+    }
+
+    const stmt = this._db.prepare("DELETE FROM frames WHERE id = ?");
+    const result = stmt.run(id);
+    return result.changes > 0;
+  }
+
+  /**
+   * Get the total number of Frames in the store.
+   * @returns The total Frame count.
+   */
+  async getFrameCount(): Promise<number> {
+    if (this.isClosed) {
+      throw new Error("SqliteFrameStore is closed");
+    }
+
+    const stmt = this._db.prepare("SELECT COUNT(*) as count FROM frames");
+    const result = stmt.get() as { count: number };
+    return result.count;
+  }
+
+  /**
    * Close the store and release any resources.
    * Idempotent - safe to call multiple times.
    */

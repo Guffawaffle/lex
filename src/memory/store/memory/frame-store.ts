@@ -234,6 +234,23 @@ export class MemoryFrameStore implements FrameStore {
   }
 
   /**
+   * Delete a Frame by its unique identifier.
+   * @param id - The Frame ID to delete.
+   * @returns true if a Frame was deleted, false if the ID was not found.
+   */
+  async deleteFrame(id: string): Promise<boolean> {
+    return this.frames.delete(id);
+  }
+
+  /**
+   * Get the total number of Frames in the store.
+   * @returns The total Frame count.
+   */
+  async getFrameCount(): Promise<number> {
+    return this.frames.size;
+  }
+
+  /**
    * Close the store and release resources.
    * No-op for memory store.
    */

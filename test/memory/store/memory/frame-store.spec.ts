@@ -410,6 +410,52 @@ describe("MemoryFrameStore", () => {
       await Promise.all([saveResult, getResult, searchResult, listResult, closeResult]);
     });
   });
+
+  describe("deleteFrame", () => {
+    test("should delete an existing Frame and return true", async () => {
+      await store.saveFrame(testFrame1);
+      const result = await store.deleteFrame("frame-001");
+      assert.strictEqual(result, true, "Should return true for deleted frame");
+      const frame = await store.getFrameById("frame-001");
+      assert.strictEqual(frame, null, "Frame should no longer exist");
+    });
+
+    test("should return false for non-existent Frame ID", async () => {
+      const result = await store.deleteFrame("non-existent");
+      assert.strictEqual(result, false, "Should return false for non-existent ID");
+    });
+
+    test("should not affect other Frames when deleting", async () => {
+      await store.saveFrame(testFrame1);
+      await store.saveFrame(testFrame2);
+      await store.deleteFrame("frame-001");
+      const remaining = await store.getFrameById("frame-002");
+      assert.ok(remaining, "Other frame should still exist");
+      assert.strictEqual(remaining!.id, "frame-002");
+    });
+  });
+
+  describe("getFrameCount", () => {
+    test("should return 0 for empty store", async () => {
+      const count = await store.getFrameCount();
+      assert.strictEqual(count, 0, "Empty store should have count 0");
+    });
+
+    test("should return correct count after inserts", async () => {
+      await store.saveFrame(testFrame1);
+      await store.saveFrame(testFrame2);
+      const count = await store.getFrameCount();
+      assert.strictEqual(count, 2, "Should count 2 frames");
+    });
+
+    test("should return correct count after delete", async () => {
+      await store.saveFrame(testFrame1);
+      await store.saveFrame(testFrame2);
+      await store.deleteFrame("frame-001");
+      const count = await store.getFrameCount();
+      assert.strictEqual(count, 1, "Should count 1 frame after deletion");
+    });
+  });
 });
 
 console.log("\n✅ MemoryFrameStore Tests - In-memory FrameStore implementation for testing\n");
