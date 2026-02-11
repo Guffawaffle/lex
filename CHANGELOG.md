@@ -28,6 +28,30 @@ _No unreleased changes._
 
 ---
 
+## [2.5.0] - 2026-02-11
+
+### Added
+
+- **FrameStore: `updateFrame(id, updates)`** — Targeted field updates without full row replacement. Uses dynamic SQL `UPDATE ... SET` in SQLite and object merge in Memory implementation. Safe for adding metadata to existing Frames (e.g., marking as superseded). ([#705](https://github.com/Guffawaffle/lex/issues/705), [#707](https://github.com/Guffawaffle/lex/pull/707))
+- **FrameStore: `purgeSuperseded()`** — Bulk delete all Frames where `superseded_by IS NOT NULL`. Replaces O(N) paginated-list-then-delete pattern with a single call. ([#704](https://github.com/Guffawaffle/lex/issues/704), [#708](https://github.com/Guffawaffle/lex/pull/708))
+- **Export paths for maintenance utilities** — New package.json exports: `./dedup`, `./similarity`, `./consolidation`, `./contradictions`, and `./maintenance` (barrel). Out-of-tree FrameStore consumers (e.g., Majel) can now import deduplication, similarity scoring, consolidation, and contradiction detection utilities directly. ([#706](https://github.com/Guffawaffle/lex/issues/706), [#709](https://github.com/Guffawaffle/lex/pull/709))
+- **71 new tests** across `update-frame.test.ts` (42), `purge-superseded.test.ts` (14), and `export-maintenance.test.ts` (15).
+
+### Fixed
+
+- **saveFrame() column omission** — `saveFrame()` and `saveFrames()` SQL now include `superseded_by` and `merged_from` columns (18 total, up from 16). Previously, these columns existed in the schema (migration V9), `frameToRow()`, and `rowToFrame()` but were omitted from the INSERT statement, causing consolidation metadata to be silently dropped. ([#705](https://github.com/Guffawaffle/lex/issues/705), [#707](https://github.com/Guffawaffle/lex/pull/707))
+
+### Changed
+
+- **consolidate.ts** functions (`markFrameAsSuperseded`, `updateFrameWithMergedFrom`) now use `updateFrame()` instead of the read-modify-`saveFrame()` pattern, eliminating the risk of clobbering unrelated fields during INSERT OR REPLACE.
+- **FrameStore interface** expanded from 13 to 15 methods (additive, non-breaking).
+
+### Migration Note
+
+Consumers using `saveFrame()` to update dedup metadata should switch to `updateFrame()` for targeted updates. The `saveFrame()` bug fix means existing code will now correctly persist `superseded_by` and `merged_from`, but `updateFrame()` is the recommended approach.
+
+---
+
 ## [2.4.0] - 2026-02-11
 
 ### Added
