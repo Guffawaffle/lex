@@ -262,10 +262,11 @@ npx @smartergpt/lex-mcp
 }
 ```
 
-The MCP server exposes 11 tools for episodic memory, policy validation, and architectural analysis:
+The MCP server exposes 14 tools for episodic memory, policy validation, and architectural analysis:
 - `frame_create`, `frame_search`, `frame_get`, `frame_list`, `frame_validate`
 - `policy_check`, `timeline_show`, `atlas_analyze`
 - `system_introspect`, `help`, `hints_get`
+- `contradictions_scan`, `db_stats`, `turncost_calculate`
 
 [MCP Server Documentation →](./README.mcp.md)
 
@@ -420,7 +421,7 @@ closeDb(db);
 
 ## 🎯 Project Status
 
-**Current Version:** `2.2.0` ([Changelog](./CHANGELOG.md))
+**Current Version:** `2.5.1` ([Changelog](./CHANGELOG.md))
 
 ### 🚀 2.0.0 — AX-Native Release
 

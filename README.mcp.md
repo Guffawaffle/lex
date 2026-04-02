@@ -62,6 +62,9 @@ npx @smartergpt/lex-mcp
 | `system_introspect` | Discover Lex capabilities and state |
 | `help` | Usage help and examples |
 | `hints_get` | Retrieve error recovery hints |
+| `contradictions_scan` | Detect conflicting information across frames |
+| `db_stats` | Database statistics and activity metrics |
+| `turncost_calculate` | Turn Cost governance metrics |
 
 **Note:** Old tool names (`remember`, `recall`, etc.) still work as deprecated aliases. See [ADR-0009: MCP Tool Naming Convention](./docs/adr/0009-mcp-tool-naming-convention.md) for details.
 

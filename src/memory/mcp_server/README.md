@@ -17,7 +17,7 @@ Provides two interfaces:
 - ✅ SQLite + FTS5 for fuzzy Frame recall
 - ✅ Atlas Frame generation (spatial neighborhood context)
 - ✅ Module ID validation with fuzzy suggestions (THE CRITICAL RULE)
-- ✅ Eleven MCP tools: `frame_create`, `frame_validate`, `frame_search`, `frame_get`, `frame_list`, `policy_check`, `timeline_show`, `atlas_analyze`, `system_introspect`, `help`, `hints_get`
+- ✅ Fourteen MCP tools: `frame_create`, `frame_validate`, `frame_search`, `frame_get`, `frame_list`, `policy_check`, `timeline_show`, `atlas_analyze`, `system_introspect`, `help`, `hints_get`, `contradictions_scan`, `db_stats`, `turncost_calculate`
 - ✅ Backward compatibility: Old tool names (`remember`, `recall`, etc.) work as deprecated aliases
 - ✅ Local-first (no cloud sync, no telemetry)
 - ✅ Comprehensive test suite (integration + alias resolution + performance)
