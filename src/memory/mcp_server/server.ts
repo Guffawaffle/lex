@@ -609,9 +609,17 @@ export class MCPServer {
       await this.frameStore.saveFrame(frame);
     }
 
-    // Generate Atlas Frame for the module scope
-    const atlasFrame = generateAtlasFrame(canonicalModuleScope);
-    const atlasOutput = formatAtlasFrame(atlasFrame);
+    // Generate Atlas Frame for the module scope (skip if no policy available)
+    let atlasOutput = "";
+    try {
+      const atlasFrame = generateAtlasFrame(canonicalModuleScope);
+      atlasOutput = formatAtlasFrame(atlasFrame);
+    } catch {
+      // Atlas frame generation requires policy — skip gracefully
+      if (process.env.LEX_DEBUG) {
+        logger.error(`[LEX] Skipping atlas frame generation (no policy available)`);
+      }
+    }
 
     const imageInfo = imageIds.length > 0 ? `🖼️  Images: ${imageIds.length} attached\n` : "";
 
@@ -973,9 +981,14 @@ export class MCPServer {
         const mergeBlockers = f.status_snapshot?.merge_blockers || [];
         const testsFailing = f.status_snapshot?.tests_failing || [];
 
-        // Generate Atlas Frame for this Frame's modules
-        const atlasFrame = generateAtlasFrame(f.module_scope);
-        const atlasOutput = formatAtlasFrame(atlasFrame);
+        // Generate Atlas Frame for this Frame's modules (skip if no policy)
+        let atlasOutput = "";
+        try {
+          const atlasFrame = generateAtlasFrame(f.module_scope);
+          atlasOutput = formatAtlasFrame(atlasFrame);
+        } catch {
+          /* no policy available */
+        }
 
         return (
           `\n--- Frame ${idx + 1}/${frames.length} ---\n` +
@@ -1069,11 +1082,15 @@ export class MCPServer {
       `${frame.keywords ? `🏷️  Keywords: ${frame.keywords.join(", ")}\n` : ""}` +
       `${frame.atlas_frame_id ? `🗺️  Atlas: ${frame.atlas_frame_id}\n` : ""}`;
 
-    // Include Atlas Frame if requested
+    // Include Atlas Frame if requested (skip if no policy)
     if (include_atlas) {
-      const atlasFrame = generateAtlasFrame(frame.module_scope);
-      const atlasOutput = formatAtlasFrame(atlasFrame);
-      result += `\n${atlasOutput}`;
+      try {
+        const atlasFrame = generateAtlasFrame(frame.module_scope);
+        const atlasOutput = formatAtlasFrame(atlasFrame);
+        result += `\n${atlasOutput}`;
+      } catch {
+        /* no policy available */
+      }
     }
 
     return {
@@ -1187,8 +1204,13 @@ export class MCPServer {
     // Format results with Atlas Frame for each (full format)
     const results = frames
       .map((f: Frame, idx: number) => {
-        const atlasFrame = generateAtlasFrame(f.module_scope);
-        const atlasOutput = formatAtlasFrame(atlasFrame);
+        let atlasOutput = "";
+        try {
+          const atlasFrame = generateAtlasFrame(f.module_scope);
+          atlasOutput = formatAtlasFrame(atlasFrame);
+        } catch {
+          /* no policy available */
+        }
 
         return (
           `\n${idx + 1}. ${f.reference_point}\n` +
