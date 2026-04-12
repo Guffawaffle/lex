@@ -7,12 +7,12 @@
     "url": "https://github.com/Guffawaffle/lex",
     "source": "github"
   },
-  "version": "2.5.2",
+  "version": "2.7.0",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "@smartergpt/lex-mcp",
-      "version": "2.5.2",
+      "version": "2.7.0",
       "transport": {
         "type": "stdio"
       },
@@ -26,8 +26,15 @@
           "isSecret": false
         },
         {
+          "name": "LEX_DB_PATH",
+          "description": "Path to SQLite database file. Defaults to .smartergpt/lex/memory.db in workspace root.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        },
+        {
           "name": "LEX_MEMORY_DB",
-          "description": "Path to SQLite database file. Defaults to .smartergpt/lex/lex.db in workspace root.",
+          "description": "Alias for LEX_DB_PATH (backwards compatibility). Same behavior.",
           "isRequired": false,
           "format": "string",
           "isSecret": false

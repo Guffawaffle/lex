@@ -1,4 +1,8 @@
 #!/usr/bin/env node
+// @deprecated — Use `npx @smartergpt/lex-mcp` instead.
+// This file is a legacy entrypoint kept for backwards compatibility.
+// The canonical MCP entry point is the @smartergpt/lex-mcp npm package.
+//
 // Frame MCP Server Entry Point
 // Refactored to use TypeScript implementation from server.ts
 

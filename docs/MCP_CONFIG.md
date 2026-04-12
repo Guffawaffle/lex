@@ -42,24 +42,28 @@ Add to `~/.config/Claude/claude_desktop_config.json` (Linux) or `~/Library/Appli
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `LEX_WORKSPACE_ROOT` | Project root directory | Current directory |
-| `LEX_MEMORY_DB` | SQLite database path | `.smartergpt/lex/lex.db` |
+| `LEX_DB_PATH` | SQLite database path | `.smartergpt/lex/memory.db` |
+| `LEX_MEMORY_DB` | Alias for `LEX_DB_PATH` (backwards compat) | — |
 | `LEX_DEBUG` | Enable debug logging | Disabled |
 
 ## Available Tools
 
 Once configured, the following MCP tools are available:
 
-- `lex_frame_create` - Store a memory snapshot
-- `lex_frame_search` - Search past snapshots
-- `lex_frame_get` - Retrieve a specific frame
-- `lex_frame_list` - List recent frames
-- `lex_frame_validate` - Validate frame input
-- `lex_atlas_analyze` - Analyze code dependencies
-- `lex_timeline_show` - Show work timeline
-- `lex_hints_get` - Get hint details
-- `lex_help` - Get usage guidance
-- `lex_policy_check` - Validate against policy
-- `lex_system_introspect` - System status
+- `frame_create` - Store a memory snapshot
+- `frame_search` - Search past snapshots
+- `frame_get` - Retrieve a specific frame
+- `frame_list` - List recent frames
+- `frame_validate` - Validate frame input
+- `atlas_analyze` - Analyze code dependencies
+- `timeline_show` - Show work timeline
+- `hints_get` - Get hint details
+- `help` - Get usage guidance
+- `policy_check` - Validate against policy
+- `system_introspect` - System status
+- `db_stats` - Database statistics
+- `turncost_calculate` - Turn cost metrics
+- `contradictions_scan` - Detect conflicting information
 
 ## Quick Test
 

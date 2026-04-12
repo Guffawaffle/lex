@@ -36,7 +36,7 @@ export interface LexConfig {
 const DEFAULT_CONFIG: LexConfig = {
   paths: {
     appRoot: process.cwd(),
-    database: "./lex-memory.db",
+    database: "./.smartergpt/lex/memory.db",
     policy: "./lexmap.policy.json",
   },
 };

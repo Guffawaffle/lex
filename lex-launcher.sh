@@ -1,4 +1,8 @@
 #!/bin/bash
+# @deprecated — Use `npx @smartergpt/lex-mcp` instead.
+# This script is a legacy entrypoint kept for backwards compatibility.
+# The canonical MCP entry point is: npx @smartergpt/lex-mcp
+#
 # Lex MCP Server Launcher
 # This script initializes the environment and runs the Frame MCP server
 # Uses absolute path to node to ensure it works in WSL environments

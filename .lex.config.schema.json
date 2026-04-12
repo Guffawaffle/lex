@@ -23,11 +23,11 @@
         },
         "database": {
           "type": "string",
-          "description": "Database file path (relative to appRoot if not absolute). Environment variable: LEX_DB_PATH. Default: ./lex-memory.db",
+          "description": "Database file path (relative to appRoot if not absolute). Environment variable: LEX_DB_PATH. Default: .smartergpt/lex/memory.db",
           "examples": [
-            "./lex-memory.db",
+            "./.smartergpt/lex/memory.db",
             "/var/lib/lex/memory.db",
-            "./data/lex-memory.db"
+            "./data/memory.db"
           ]
         },
         "policy": {

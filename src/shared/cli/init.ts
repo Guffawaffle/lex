@@ -416,10 +416,9 @@ function getMCPConfig(): object {
       lex: {
         type: "stdio",
         command: "npx",
-        args: ["@smartergpt/lex", "mcp"],
+        args: ["@smartergpt/lex-mcp"],
         env: {
           LEX_WORKSPACE_ROOT: "${workspaceFolder}",
-          LEX_MEMORY_DB: "${workspaceFolder}/.smartergpt/lex/lex.db",
         },
       },
     },

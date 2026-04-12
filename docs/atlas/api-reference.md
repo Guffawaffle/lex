@@ -405,15 +405,10 @@ console.log('Frame ingestion API running on http://localhost:3000');
 
 ### Running the MCP Server
 
+The canonical way to run the MCP server is via the `@smartergpt/lex-mcp` wrapper:
+
 ```bash
-# Via npm script
-npm run remember
-
-# Directly
-node dist/memory/mcp_server/frame-mcp.js
-
-# With debug logging
-LEX_DEBUG=1 node dist/memory/mcp_server/frame-mcp.js
+npx @smartergpt/lex-mcp
 ```
 
 ### Claude Desktop Integration
@@ -423,11 +418,11 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 ```json
 {
   "mcpServers": {
-    "lex-memory": {
-      "command": "node",
-      "args": ["/path/to/lex/dist/memory/mcp_server/frame-mcp.js"],
+    "lex": {
+      "command": "npx",
+      "args": ["@smartergpt/lex-mcp"],
       "env": {
-        "LEX_MEMORY_DB": "/path/to/lex-memory.db"
+        "LEX_WORKSPACE_ROOT": "/path/to/your/project"
       }
     }
   }

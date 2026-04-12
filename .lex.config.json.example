@@ -2,7 +2,7 @@
   "$schema": "./.lex.config.schema.json",
   "paths": {
     "appRoot": "/srv/lex-mcp/lex",
-    "database": "./lex-memory.db",
+    "database": "./.smartergpt/lex/memory.db",
     "policy": "./lexmap.policy.json"
   }
 }

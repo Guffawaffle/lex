@@ -439,21 +439,29 @@ if (response.error) {
 
 ## Running the MCP Server
 
-### Via npm script (from root):
+### Canonical: via npx (recommended)
 ```bash
-npm run remember
+npx @smartergpt/lex-mcp
 ```
 
-### Directly:
+### Legacy entrypoints (deprecated)
+
+> **These are kept for backwards compatibility only.**
+> New setups should use `npx @smartergpt/lex-mcp`.
+
 ```bash
+# Via npm script (from lex repo root):
+npm run remember
+
+# Directly (deprecated):
 node dist/memory/mcp_server/frame-mcp.js
 ```
 
 ### Environment Variables:
 - `LEX_WORKSPACE_ROOT` - Workspace/project root directory (overrides auto-detection from script location)
-- `LEX_MEMORY_DB` - Path to SQLite database (default: `<workspace>/.smartergpt/lex/memory.db` or `~/.lex/frames.db`)
+- `LEX_DB_PATH` - Path to SQLite database (canonical; default: `<workspace>/.smartergpt/lex/memory.db`)
+- `LEX_MEMORY_DB` - Alias for `LEX_DB_PATH` (backwards compatibility)
 - `LEX_POLICY_PATH` - Explicit path to policy file (overrides auto-detection)
-- `LEX_DB_PATH` - Alternative to LEX_MEMORY_DB for database path
 - `LEX_DEFAULT_BRANCH` - Override git branch detection
 - `LEX_DEBUG` - Enable debug logging
 
@@ -464,9 +472,9 @@ node dist/memory/mcp_server/frame-mcp.js
 4. Operate without policy enforcement (allows any module IDs)
 
 **Database Path Resolution (in order of priority):**
-1. `LEX_MEMORY_DB` or `LEX_DB_PATH` environment variable (explicit override)
+1. `LEX_DB_PATH` (canonical) or `LEX_MEMORY_DB` (compat alias) environment variable
 2. `LEX_WORKSPACE_ROOT` (if set) or auto-detected workspace root: `.smartergpt/lex/memory.db`
-3. Home directory fallback: `~/.lex/frames.db`
+3. Home directory fallback: `~/.smartergpt/lex/memory.db`
 
 ### Example Usage:
 ```bash
@@ -572,20 +580,34 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 ```json
 {
   "mcpServers": {
-    "lex-memory": {
-      "command": "node",
-      "args": ["/path/to/lex/dist/memory/mcp_server/frame-mcp.js"],
+    "lex": {
+      "command": "npx",
+      "args": ["@smartergpt/lex-mcp"],
       "env": {
-        "LEX_MEMORY_DB": "/path/to/lex-memory.db"
+        "LEX_WORKSPACE_ROOT": "/path/to/your/project"
       }
     }
   }
 }
 ```
 
-### GitHub Copilot (via MCP)
+### VS Code / GitHub Copilot
 
-Follow GitHub Copilot's MCP configuration for stdio servers.
+Add to `.vscode/mcp.json`:
+
+```json
+{
+  "servers": {
+    "lex": {
+      "command": "npx",
+      "args": ["@smartergpt/lex-mcp"],
+      "env": {
+        "LEX_WORKSPACE_ROOT": "${workspaceFolder}"
+      }
+    }
+  }
+}
+```
 
 ## Testing
 

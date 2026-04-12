@@ -23,8 +23,9 @@ import { getCurrentBranch } from "../../shared/git/branch.js";
 // @ts-ignore - importing from compiled dist directories
 import { validatePolicySchema } from "../../shared/policy/schema.js";
 import { randomUUID } from "crypto";
-import { join } from "path";
+import { join, dirname } from "path";
 import { existsSync, readFileSync } from "fs";
+import { fileURLToPath } from "url";
 import { AXErrorException, isAXErrorException } from "../../shared/errors/ax-error.js";
 // @ts-ignore - importing from compiled dist directories
 import {
@@ -40,6 +41,18 @@ import {
 import { compactFrame, compactFrameList } from "../renderer/compact.js";
 
 const logger = getLogger("memory:mcp_server:server");
+
+// Read package version once at module load
+// From dist/memory/mcp_server/server.js, package.json is at ../../../package.json
+const __mcpServerDir = dirname(fileURLToPath(import.meta.url));
+function getPackageVersion(): string {
+  try {
+    const pkgPath = join(__mcpServerDir, "..", "..", "..", "package.json");
+    return JSON.parse(readFileSync(pkgPath, "utf-8")).version || "unknown";
+  } catch {
+    return "unknown";
+  }
+}
 
 /**
  * Maximum number of frames to fetch when filtering by jira/branch/module.
@@ -318,8 +331,8 @@ export class MCPServer {
         },
       },
       serverInfo: {
-        name: "lex-memory-mcp-server",
-        version: "0.1.0",
+        name: "lex-mcp",
+        version: getPackageVersion(),
       },
     };
   }
@@ -1615,16 +1628,8 @@ export class MCPServer {
     const { format = "full" } = args as unknown as IntrospectArgs;
 
     try {
-      // Get version from package.json
-      // Navigate up from dist/memory/mcp_server/server.js to package.json
-      const packageJsonPath = join(process.cwd(), "package.json");
-      let version = "unknown";
-      try {
-        const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf-8"));
-        version = packageJson.version || "unknown";
-      } catch {
-        // If we can't read package.json, version stays "unknown"
-      }
+      // Get version from package.json (relative to module location, not cwd)
+      const version = getPackageVersion();
 
       // Get policy information
       const policyData: { modules: string[]; moduleCount: number } | null = this.policy
