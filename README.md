@@ -2,7 +2,7 @@
 
 # Lex
 
-### **Episodic Memory & Architectural Policy for AI Agents**
+### **Local memory and policy context for AI coding agents**
 
 [![MIT License](https://img.shields.io/badge/License-MIT-green)](./LICENSE)
 [![npm version](https://img.shields.io/npm/v/@smartergpt/lex)](https://www.npmjs.com/package/@smartergpt/lex)
@@ -10,7 +10,7 @@
 [![Node.js](https://img.shields.io/badge/Node.js-20+-339933)](https://nodejs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178C6)](https://www.typescriptlang.org/)
 
-**Stop losing context. Start building agents that remember.**
+**Help agents resume work with less repeated explanation.**
 
 [Quick Start](#-quick-start) · [Documentation](#-documentation) · [Examples](./examples/) · [API Reference](#-api-reference) · [Contributing](./CONTRIBUTING.md)
 
@@ -20,25 +20,34 @@
 
 ## 📖 What is Lex?
 
-**Lex** is a TypeScript framework that gives AI agents **episodic memory** and **architectural awareness**. It solves the fundamental problem of context loss in long-running development workflows.
+**Lex** is local memory and policy context for AI coding agents. It stores structured work snapshots, recalls relevant prior context, and connects that context to your repository policy when a policy file is available.
 
-### The Problem
+Use Lex when you want an agent to answer practical questions like:
 
-You're working with an AI coding assistant on a complex feature. You stop for the day. When you return:
-- The assistant has no memory of what you were doing
-- It can't recall why you made certain architectural decisions
-- It doesn't know which modules are safe to modify
-- You spend 30 minutes re-explaining context every session
+- What was I working on last time?
+- What was blocked, and what was the next action?
+- Which modules were involved?
+- Are there architectural boundaries the agent should respect?
 
-### The Solution
+Lex is local-first: Frames are stored in SQLite, policy files live in your repo, and MCP is provided as a thin adapter for tools that speak Model Context Protocol.
 
-Lex provides three capabilities:
+---
 
-1. **📸 Episodic Memory (Frames)** — Capture work snapshots with context, blockers, and next actions
-2. **🗺️ Spatial Memory (Atlas)** — Navigate module dependencies without overwhelming token budgets
-3. **🛡️ Architectural Policy** — Enforce boundaries, permissions, and deprecation patterns in CI
+## 🔎 What Agents Get / What Humans See
 
-**Result:** Your AI assistant recalls exactly where you left off, understands your architecture, and respects your constraints.
+### What agents get
+
+- Searchable work memory with next actions, blockers, branches, and module scope
+- Policy-aware recall when a repository policy is available
+- Structured CLI and MCP responses that are easier to parse
+- Stable tool names and explicit error codes for recovery
+
+### What humans see
+
+- Less repeated context setup between sessions
+- A local record of what happened and why
+- Clearer handoffs after interrupted work
+- Policy and validation output that can be inspected instead of guessed
 
 ---
 
@@ -62,16 +71,16 @@ Later, instantly recall:
 
 ```bash
 lex recall "authentication"
-# Returns: Your exact context, blockers, next action, and relevant module neighborhood
+# Returns: matching context, blockers, next action, and relevant module neighborhood
 ```
 
 [Learn more about Frames →](./docs/MIND_PALACE.md)
 
-### 🗺️ Atlas Frames: Architectural Context
+### 🗺️ Atlas Frames: Repository Context
 
 When you recall a Frame, Lex doesn't dump your entire codebase into context. Instead, it provides an **Atlas Frame**: the modules you touched plus their immediate neighborhood (dependencies, dependents, permissions).
 
-This "fold radius" approach gives AI assistants exactly the architectural context they need—nothing more, nothing less.
+This "fold radius" approach keeps recall focused on nearby repository context instead of flooding the agent with the whole codebase.
 
 **Token efficiency:** 10-module project → ~500 tokens (not 50,000)
 
@@ -144,7 +153,7 @@ npm install @smartergpt/lex
 
 **Requires Node.js 20+** (tested through Node.js 22, see `.nvmrc`)
 
-**Lex 2.0.0 is AX-native** with structured output (`--json`), recoverable errors (AXError), and Frame Schema v3 for orchestrator integration. All commands provide both human-readable and machine-parseable output.
+Lex supports structured output (`--json`), recoverable errors (AXError), and Frame Schema v3 for orchestrator integration. Commands provide both human-readable and machine-parseable output where supported.
 
 ### Initialize
 
@@ -270,6 +279,10 @@ The MCP server exposes 14 tools for episodic memory, policy validation, and arch
 
 [MCP Server Documentation →](./README.mcp.md)
 
+### How Lex relates to AXF
+
+Lex provides memory and policy context. AXF provides an inspectable capability/control-plane layer for agent-operable tooling: manifests, routing, execution surfaces, scaffolding, and lifecycle gates. MCP is one adapter surface in that ecosystem, not the architecture itself. A useful mental model is: Lex remembers and explains project context; AXF exposes bounded capabilities that agents can inspect and invoke.
+
 ---
 
 ## 💡 Use Cases
@@ -345,7 +358,7 @@ Lex is built on three pillars:
 - [Core Concepts](./docs/OVERVIEW.md) — Understanding Frames, Atlas, and Policy
 
 ### Guides
-- [Mind Palace Guide](./docs/MIND_PALACE.md) — Using Frames for episodic memory
+- [Frame Recall Guide](./docs/MIND_PALACE.md) — Using Frames for reference-point recall
 - [Code Atlas Guide](./docs/atlas/README.md) — Spatial memory and architectural context
 - [Policy Enforcement](./docs/API_USAGE.md) — Setting up architectural boundaries
 - [Instructions Generation](./docs/INSTRUCTIONS.md) — Sync AI instructions across IDEs
@@ -421,22 +434,21 @@ closeDb(db);
 
 ## 🎯 Project Status
 
-**Current Version:** `2.5.1` ([Changelog](./CHANGELOG.md))
+**Current Version:** `2.7.0` ([Changelog](./CHANGELOG.md))
 
-### 🚀 2.0.0 — AX-Native Release
+### 🚀 Current release line
 
-Lex 2.0.0 is the first stable release with **AX (Agent eXperience)** as a first-class design principle. This release introduces structured output, recoverable errors, and Frame Schema v3 for AI agent integration.
+Current Lex releases include structured output, recoverable errors, and Frame Schema v3 for agent and orchestrator integration.
 
-**Ready for:**
+**Commonly used for:**
 - ✅ Personal projects and local dev tools
 - ✅ Private MCP servers
 - ✅ CI/CD policy enforcement
-- ✅ Multi-user deployments with OAuth2/JWT
-- ✅ Encrypted databases with SQLCipher
 - ✅ LexRunner and other orchestrator integrations
+- ⚙️ Multi-user authentication and encrypted database setup paths are documented for deployments that need them
 
-**2.0.0 Highlights:**
-- **AX Guarantees (v0.1)** — Structured output, recoverable errors, reliable memory/recall ([AX Contract](./docs/specs/AX-CONTRACT.md))
+**Current capability highlights:**
+- **Structured output contract (v0.1)** — Machine-parseable output, recoverable errors, and recall-focused events ([AX Contract](./docs/specs/AX-CONTRACT.md))
 - **Frame Schema v3** — Runner fields (`runId`, `planHash`, `toolCalls`) for orchestration ([Schema Docs](./docs/specs/FRAME-SCHEMA-V3.md))
 - **AXError Schema** — Structured errors with `code`, `message`, `context`, and `nextActions[]` for programmatic recovery
 - **CLI JSON Output** — `lex remember --json` and `lex timeline --json` with machine-parseable event streams
@@ -447,7 +459,7 @@ Lex 2.0.0 is the first stable release with **AX (Agent eXperience)** as a first-
 **LexSona Integration:**
 Lex 2.0.0 provides a **public behavioral memory socket** (`@smartergpt/lex/lexsona`) for persona-based workflows. **LexSona** is a separate private package (v0.2.0+) that consumes this socket to enable offline-capable persona modes. The socket API is stable and documented; LexSona implementation details remain private. Lex itself is persona-agnostic — the socket is a stable integration point for any behavioral engine.
 
-See [CHANGELOG v2.0.0](./CHANGELOG.md#200---2025-12-05) for full release notes.
+See the [changelog](./CHANGELOG.md) for release history and version-specific notes.
 
 ### Quality Metrics
 
@@ -463,23 +475,23 @@ See [CHANGELOG v2.0.0](./CHANGELOG.md#200---2025-12-05) for full release notes.
 
 ## 🌟 Why Lex?
 
-### Cognitive Architecture for AI Agents
+### Practical continuity for AI coding work
 
 **The Challenge:** AI coding assistants lose context between sessions. They can't remember what you were working on, why you made certain decisions, or which parts of your codebase are off-limits.
 
-**Our Approach:** External memory and structured reasoning — the same techniques human experts use to maintain context across complex, long-running projects.
+**Our Approach:** Local work memory, repository policy, and structured output that agents and scripts can inspect.
 
 **The Components:**
-- **Episodic memory** — Lex Frames capture what you were doing, blockers, and next actions
-- **Spatial memory** — Atlas Frames provide token-efficient architectural context
+- **Work memory** — Lex Frames capture what you were doing, blockers, and next actions
+- **Repository context** — Atlas Frames provide token-efficient nearby module context
 - **Policy enforcement** — Boundaries and permissions enforced in CI
 - **Orchestration** — LexRunner coordinates multi-PR workflows
 
 **Why This Matters:**
-- **Continuity** — Pick up exactly where you left off, every time
-- **Architecture** — AI assistants understand your codebase structure
+- **Continuity** — Resume with stored context and next actions
+- **Architecture** — AI assistants can inspect relevant codebase structure
 - **Guardrails** — Prevent violations before they happen
-- **Accessibility** — Works with any LLM that supports MCP
+- **Accessibility** — Works with MCP-compatible assistants through the thin MCP adapter
 
 ---
 
