@@ -10,8 +10,7 @@
  */
 
 import Database from "better-sqlite3-multiple-ciphers";
-import { homedir } from "os";
-import { join, dirname } from "path";
+import { join, dirname, resolve } from "path";
 import { mkdirSync, existsSync, readFileSync } from "fs";
 import { pbkdf2Sync } from "crypto";
 
@@ -177,54 +176,47 @@ export function validatePassphraseStrength(passphrase: string): PassphraseValida
 }
 
 /**
- * Get default database path: .smartergpt/lex/memory.db (relative to workspace root)
- * Falls back to ~/.smartergpt/lex/memory.db if not in a lex repository
- * Can be overridden with LEX_DB_PATH or LEX_WORKSPACE_ROOT environment variables
+ * Get default database path: .smartergpt/lex/memory.db relative to the caller workspace root.
+ * Can be overridden with LEX_DB_PATH, LEX_MEMORY_DB, or LEX_WORKSPACE_ROOT environment variables.
  */
 export function getDefaultDbPath(): string {
-  // Check for environment variable override
+  // Check for environment variable overrides
   if (process.env.LEX_DB_PATH) {
     return process.env.LEX_DB_PATH;
   }
-
-  // Try to find workspace root (with LEX_WORKSPACE_ROOT override support)
-  try {
-    const repoRoot = process.env.LEX_WORKSPACE_ROOT
-      ? process.env.LEX_WORKSPACE_ROOT
-      : findRepoRoot(process.cwd());
-    const localPath = join(repoRoot, ".smartergpt", "lex", "memory.db");
-
-    // Ensure directory exists
-    const localDir = join(repoRoot, ".smartergpt", "lex");
-    if (!existsSync(localDir)) {
-      mkdirSync(localDir, { recursive: true });
-    }
-
-    return localPath;
-  } catch {
-    // Fallback to home directory if not in repo
-    const lexDir = join(homedir(), ".smartergpt", "lex");
-    if (!existsSync(lexDir)) {
-      mkdirSync(lexDir, { recursive: true });
-    }
-    return join(lexDir, "memory.db");
+  if (process.env.LEX_MEMORY_DB) {
+    return process.env.LEX_MEMORY_DB;
   }
+
+  const repoRoot = process.env.LEX_WORKSPACE_ROOT
+    ? resolve(process.env.LEX_WORKSPACE_ROOT)
+    : findWorkspaceRoot(process.cwd());
+  const localDir = join(repoRoot, ".smartergpt", "lex");
+
+  if (!existsSync(localDir)) {
+    mkdirSync(localDir, { recursive: true });
+  }
+
+  return join(localDir, "memory.db");
 }
 
 /**
- * Find repository root by looking for package.json with name "lex" or "@smartergpt/lex"
+ * Resolve caller workspace root by preferring git root, then package root, then cwd.
  */
-function findRepoRoot(startPath: string): string {
-  let currentPath = startPath;
+function findWorkspaceRoot(startPath: string): string {
+  let currentPath = resolve(startPath);
+  let packageRoot: string | null = null;
 
   while (currentPath !== dirname(currentPath)) {
+    if (existsSync(join(currentPath, ".git"))) {
+      return currentPath;
+    }
+
     const packageJsonPath = join(currentPath, "package.json");
-    if (existsSync(packageJsonPath)) {
+    if (!packageRoot && existsSync(packageJsonPath)) {
       try {
-        const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf-8")) as { name?: string };
-        if (packageJson.name === "lex" || packageJson.name === "@smartergpt/lex") {
-          return currentPath;
-        }
+        JSON.parse(readFileSync(packageJsonPath, "utf-8"));
+        packageRoot = currentPath;
       } catch {
         // Invalid package.json, continue searching
       }
@@ -232,7 +224,7 @@ function findRepoRoot(startPath: string): string {
     currentPath = dirname(currentPath);
   }
 
-  throw new Error("Repository root not found");
+  return packageRoot ?? resolve(startPath);
 }
 
 /**

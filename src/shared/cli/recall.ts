@@ -19,6 +19,7 @@ import { output, json } from "./output.js";
 import { compactFrameList } from "../../memory/renderer/compact.js";
 import { parseNaturalQuery, isConversationalQuery } from "../../memory/natural-query.js";
 import { formatAsNarrative } from "../../memory/narrative.js";
+import { isAXErrorException } from "../errors/ax-error.js";
 
 export interface RecallOptions {
   json?: boolean;
@@ -397,7 +398,8 @@ async function generateAtlasFrameWithAutoTune(
     };
   } catch (error) {
     // If Atlas Frame generation fails, continue without it
-    output.warn("Could not generate Atlas Frame", undefined, "ATLAS_GEN_FAILED", String(error));
+    const warning = formatAtlasWarning(error);
+    output.warn(warning.message, warning.data, warning.code, warning.hint);
     return {
       atlasFrame: null,
       actualRadius: 0,
@@ -406,4 +408,28 @@ async function generateAtlasFrameWithAutoTune(
       autoTuned: false,
     };
   }
+}
+
+function formatAtlasWarning(error: unknown): {
+  message: string;
+  code: string;
+  data: unknown;
+  hint: string;
+} {
+  if (isAXErrorException(error) && error.axError.code === "POLICY_NOT_FOUND") {
+    return {
+      message: "Atlas policy unavailable; returning recall results without Atlas context",
+      code: "ATLAS_POLICY_NOT_FOUND",
+      data: error.axError,
+      hint: "Create .smartergpt/lex/lexmap.policy.json in the caller workspace or set LEX_POLICY_PATH.",
+    };
+  }
+
+  const message = error instanceof Error ? error.message : String(error);
+  return {
+    message: "Could not generate Atlas Frame; returning recall results without Atlas context",
+    code: "ATLAS_GEN_FAILED",
+    data: { message },
+    hint: message,
+  };
 }

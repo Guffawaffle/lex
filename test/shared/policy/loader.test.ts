@@ -74,6 +74,16 @@ describe("Policy Loader Precedence", () => {
     return dir;
   }
 
+  function createConsumerRepo(): string {
+    const dir = mkdtempSync(join(tmpdir(), "lex-policy-consumer-"));
+    testRepoDir = dir;
+
+    // The caller project is intentionally not named lex.
+    writeFileSync(join(dir, "package.json"), JSON.stringify({ name: "consumer-app" }));
+
+    return dir;
+  }
+
   function createTestPolicy(moduleName: string) {
     return {
       modules: {
@@ -136,6 +146,55 @@ describe("Policy Loader Precedence", () => {
 
     const policy = loadPolicy();
     assert.ok(policy.modules["working"]);
+  });
+
+  test("loads working file from caller package root when package is not Lex", () => {
+    const repo = createConsumerRepo();
+    const nestedDir = join(repo, "packages", "demo");
+    mkdirSync(nestedDir, { recursive: true });
+
+    const workingDir = join(repo, ".smartergpt", "lex");
+    mkdirSync(workingDir, { recursive: true });
+    writeFileSync(
+      join(workingDir, "lexmap.policy.json"),
+      JSON.stringify(createTestPolicy("consumer-working"))
+    );
+
+    const originalCwd = process.cwd();
+    delete process.env.LEX_WORKSPACE_ROOT;
+
+    try {
+      process.chdir(nestedDir);
+      const policy = loadPolicy();
+      assert.ok(policy.modules["consumer-working"]);
+    } finally {
+      process.chdir(originalCwd);
+    }
+  });
+
+  test("missing policy diagnostics point at caller workspace, not Lex package root", () => {
+    const repo = createConsumerRepo();
+    const originalCwd = process.cwd();
+    delete process.env.LEX_WORKSPACE_ROOT;
+
+    try {
+      process.chdir(repo);
+      let error: (Error & { axError?: { context?: { searchedPaths?: string[] } } }) | null = null;
+      try {
+        loadPolicy();
+      } catch (caught) {
+        error = caught as Error & { axError?: { context?: { searchedPaths?: string[] } } };
+      }
+
+      assert.ok(error, "Expected loadPolicy to throw when caller policy is missing");
+      const searchedPaths = error.axError?.context?.searchedPaths;
+
+      assert.ok(Array.isArray(searchedPaths), "Expected searchedPaths diagnostic context");
+      assert.ok(searchedPaths.every((path) => path.startsWith(repo)));
+      assert.ok(!searchedPaths.some((path) => path.includes("/srv/lex-mcp/lex/")));
+    } finally {
+      process.chdir(originalCwd);
+    }
   });
 
   test("falls back to example file when working file missing", () => {

@@ -48,26 +48,42 @@ const WORKSPACE_ROOT_ENV = "LEX_WORKSPACE_ROOT";
 let cachedPolicy: Policy | null = null;
 
 /**
- * Find repository root by looking for package.json
+ * Resolve the caller workspace root, not the installed Lex package root.
+ *
+ * Precedence:
+ * 1. LEX_WORKSPACE_ROOT
+ * 2. Nearest git repository root
+ * 3. Nearest package.json root
+ * 4. Current working directory
  */
-function findRepoRoot(startPath: string): string {
-  let currentPath = startPath;
+function findCallerWorkspaceRoot(startPath: string): string {
+  const explicitRoot = process.env[WORKSPACE_ROOT_ENV];
+  if (explicitRoot) {
+    return resolve(explicitRoot);
+  }
+
+  let currentPath = resolve(startPath);
+  let packageRoot: string | null = null;
 
   while (currentPath !== dirname(currentPath)) {
+    if (existsSync(join(currentPath, ".git"))) {
+      return currentPath;
+    }
+
     const packageJsonPath = join(currentPath, "package.json");
-    if (existsSync(packageJsonPath)) {
-      const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf-8"));
-      // Check if this is the lex root package (with or without scope)
-      if (packageJson.name === "lex" || packageJson.name === "@smartergpt/lex") {
-        return currentPath;
+    if (!packageRoot && existsSync(packageJsonPath)) {
+      try {
+        JSON.parse(readFileSync(packageJsonPath, "utf-8"));
+        packageRoot = currentPath;
+      } catch {
+        // Invalid package.json should not prevent walking to a higher root.
       }
     }
+
     currentPath = dirname(currentPath);
   }
 
-  throw new Error(
-    'Could not find repository root (looking for package.json with name "lex" or "@smartergpt/lex")'
-  );
+  return packageRoot ?? resolve(startPath);
 }
 
 /**
@@ -120,11 +136,9 @@ export function loadPolicy(path?: string): Policy {
       // Priority 2: Custom path parameter
       resolvedPath = resolve(path);
     } else {
-      // Priority 3-5: Try working file, then canon, then example
-      // Check for workspace root override from environment
-      const repoRoot = process.env[WORKSPACE_ROOT_ENV]
-        ? process.env[WORKSPACE_ROOT_ENV]
-        : findRepoRoot(process.cwd());
+      // Priority 3-5: Try caller working file, then caller canon, then caller example.
+      // This intentionally resolves the caller workspace, not the installed Lex package root.
+      const repoRoot = findCallerWorkspaceRoot(process.cwd());
 
       // Try working file first
       const workingPath = join(repoRoot, DEFAULT_POLICY_PATH);
