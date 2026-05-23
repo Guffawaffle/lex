@@ -153,6 +153,12 @@ npm install @smartergpt/lex
 
 **Requires Node.js 20+** (tested through Node.js 22, see `.nvmrc`)
 
+WSL users should use a native WSL install on `PATH`, not Windows npm
+shims or npm's `_npx` cache. See
+[WSL Native Lex Install](./docs/WSL_NATIVE_INSTALL.md) for the
+recommended user-local install, checkout symlink bridge, and native
+SQLite build requirements.
+
 Lex supports structured output (`--json`), recoverable errors (AXError), and Frame Schema v3 for orchestrator integration. Commands provide both human-readable and machine-parseable output where supported.
 
 ### Initialize
