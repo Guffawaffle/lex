@@ -2,60 +2,60 @@
 
 # Lex
 
-### **Local memory and policy context for AI coding agents**
-
 [![MIT License](https://img.shields.io/badge/License-MIT-green)](./LICENSE)
 [![npm version](https://img.shields.io/npm/v/@smartergpt/lex)](https://www.npmjs.com/package/@smartergpt/lex)
 [![CI Status](https://img.shields.io/badge/CI-passing-success)](https://github.com/Guffawaffle/lex/actions)
 [![Node.js](https://img.shields.io/badge/Node.js-20+-339933)](https://nodejs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178C6)](https://www.typescriptlang.org/)
 
-**Help agents resume work with less repeated explanation.**
+**Local memory and policy context for AI coding agents.**
 
-[Quick Start](#-quick-start) · [Documentation](#-documentation) · [Examples](./examples/) · [API Reference](#-api-reference) · [Contributing](./CONTRIBUTING.md)
+**Don't trust the README. Ask your agent.**
 
 </div>
 
----
+> "Would repo-local memory and policy context help you work in this codebase with fewer repeated explanations, fewer forgotten constraints, and better handoffs between sessions?"
 
-## 📖 What is Lex?
+If the answer is yes, Lex is the layer that gives your agent somewhere durable to put that context.
 
-**Lex** is local memory and policy context for AI coding agents. It stores structured work snapshots, recalls relevant prior context, and connects that context to your repository policy when a policy file is available.
-
-Use Lex when you want an agent to answer practical questions like:
-
-- What was I working on last time?
-- What was blocked, and what was the next action?
-- Which modules were involved?
-- Are there architectural boundaries the agent should respect?
-
-Lex is local-first: Frames are stored in SQLite, policy files live in your repo, and MCP is provided as a thin adapter for tools that speak Model Context Protocol.
+[60-second test](#the-60-second-test) | [Quick Start](#quick-start) | [Agent Integration](#agent-integration) | [Documentation](#documentation) | [API Reference](#api-reference) | [Contributing](./CONTRIBUTING.md)
 
 ---
 
-## 🔎 What Agents Get / What Humans See
+## What Lex gives your agent
 
-### What agents get
+Lex is repo-local memory and policy context for AI coding agents. It stores structured work snapshots, recalls relevant prior context, and connects that context to repository policy when a policy file is available.
 
-- Searchable work memory with next actions, blockers, branches, and module scope
-- Policy-aware recall when a repository policy is available
-- Structured CLI and MCP responses that are easier to parse
+Agents get:
+
+- Durable Frames for reference points, summaries, blockers, next actions, branches, tickets, and module scope
+- Policy-aware recall that can surface nearby module context instead of asking the human to restate it
+- Structured CLI and MCP responses that are easier for tools to parse
 - Stable tool names and explicit error codes for recovery
+- Repo-local context stored in SQLite and repository files, not a cloud memory service
+- CLI, MCP, and TypeScript API surfaces for different agent runtimes
 
-### What humans see
-
-- Less repeated context setup between sessions
-- A local record of what happened and why
-- Clearer handoffs after interrupted work
-- Policy and validation output that can be inspected instead of guessed
+Humans do not need to understand the whole framework before adoption. The first useful question is simply whether your agent keeps asking you to repeat context the repository could remember.
 
 ---
 
-## 🎯 Core Capabilities
+## The 60-second test
 
-### 🧠 Frames: Work Session Memory
+Paste this into Copilot, Claude, Cursor, or another coding agent while it has access to your repository:
 
-Capture meaningful moments in your development workflow:
+```text
+Look at this repository. Would a repo-local memory and policy layer help you avoid repeated context setup, forgotten project constraints, or poor handoffs? If yes, where would Lex help first?
+```
+
+A useful answer usually names a recurring handoff problem: interrupted feature work, architecture-sensitive modules, policy constraints, release workflows, or places where agents repeatedly need the same explanation.
+
+---
+
+## How it works
+
+### Frames: work memory
+
+Frames capture meaningful moments in a development workflow:
 
 ```bash
 lex remember \
@@ -67,28 +67,32 @@ lex remember \
   --jira "AUTH-123"
 ```
 
-Later, instantly recall:
+Frames are meant for durable agent context: what changed, what remains, where it happened, and what should be respected next time.
+
+[Learn more about Frames](./docs/MIND_PALACE.md)
+
+### Recall: prior context on demand
+
+Later, an agent can recall relevant context by topic:
 
 ```bash
 lex recall "authentication"
-# Returns: matching context, blockers, next action, and relevant module neighborhood
+# Returns matching context, blockers, next action, and relevant module neighborhood.
 ```
 
-[Learn more about Frames →](./docs/MIND_PALACE.md)
+Recall is the everyday adoption path: before changing code, ask Lex what prior work, blockers, and nearby boundaries matter.
 
-### 🗺️ Atlas Frames: Repository Context
+### Atlas: nearby repository context
 
-When you recall a Frame, Lex doesn't dump your entire codebase into context. Instead, it provides an **Atlas Frame**: the modules you touched plus their immediate neighborhood (dependencies, dependents, permissions).
+When a Frame is recalled, Lex can provide an Atlas Frame: the touched modules plus their immediate neighborhood, including dependencies, dependents, and permissions.
 
-This "fold radius" approach keeps recall focused on nearby repository context instead of flooding the agent with the whole codebase.
+This fold-radius approach keeps recall focused on nearby repository context instead of flooding the agent with the whole codebase.
 
-**Token efficiency:** 10-module project → ~500 tokens (not 50,000)
+[Learn more about Atlas](./docs/ARCHITECTURE.md)
 
-[Learn more about Atlas →](./docs/ARCHITECTURE.md)
+### Policy: architectural boundaries
 
-### 🛡️ Policy Enforcement
-
-Define architectural boundaries as code:
+Lex policy files define repository boundaries as code:
 
 ```json
 {
@@ -111,15 +115,15 @@ Enforce in CI:
 
 ```bash
 lex check merged-facts.json
-# ✖ Violation: ui/components → database/queries (forbidden edge)
-#   Reason: UI must not access database directly. Use API layer.
+# Violation: ui/components -> database/queries (forbidden edge)
+# Reason: UI must not access database directly. Use API layer.
 ```
 
-[Learn more about Policy →](./docs/API_USAGE.md)
+[Learn more about Policy](./docs/API_USAGE.md)
 
-### 📝 Instructions Generation
+### Instructions: project assistant guidance
 
-Maintain a single source of truth for AI assistant guidance:
+Lex can project canonical assistant instructions into host-specific files:
 
 ```bash
 # Your canonical instructions live in one place
@@ -130,16 +134,13 @@ lex instructions generate
 # Creates: .github/copilot-instructions.md, .cursorrules
 ```
 
-**Benefits:**
-- Single source → Multiple hosts (Copilot, Cursor, etc.)
-- Safe updates via marker system (human content preserved)
-- Deterministic output (same input = same output)
+The marker system preserves human content while keeping generated agent guidance deterministic.
 
-[Learn more about Instructions →](./docs/INSTRUCTIONS.md)
+[Learn more about Instructions](./docs/INSTRUCTIONS.md)
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Installation
 
@@ -151,20 +152,16 @@ npm install -g @smartergpt/lex
 npm install @smartergpt/lex
 ```
 
-**Requires Node.js 20+** (tested through Node.js 22, see `.nvmrc`)
+Requires Node.js 20+ and currently supports Node.js versions before 23, matching the package engine range.
 
-WSL users should use a native WSL install on `PATH`, not Windows npm
-shims or npm's `_npx` cache. See
-[WSL Native Lex Install](./docs/WSL_NATIVE_INSTALL.md) for the
-recommended user-local install, checkout symlink bridge, and native
-SQLite build requirements.
+WSL users should use a native WSL install on `PATH`, not Windows npm shims or npm's `_npx` cache. See [WSL Native Lex Install](./docs/WSL_NATIVE_INSTALL.md) for the recommended user-local install, checkout symlink bridge, and native SQLite build requirements.
 
 Lex supports structured output (`--json`), recoverable errors (AXError), and Frame Schema v3 for orchestrator integration. Commands provide both human-readable and machine-parseable output where supported.
 
 ### Initialize
 
 ```bash
-# Zero-to-value initialization (new in v2.1.0!)
+# Zero-to-value initialization
 npx @smartergpt/lex init --yes
 # Auto-detects project type (Node.js, Python, Rust, Go, etc.)
 # Creates:
@@ -183,20 +180,15 @@ lex init --interactive
 lex init --policy
 # Scans src/ for TypeScript/JavaScript modules
 # Generates .smartergpt/lex/lexmap.policy.json with discovered modules
-# Example: src/memory/store/ → memory/store module with src/memory/store/** match pattern
+# Example: src/memory/store/ -> memory/store module with src/memory/store/** match pattern
 
 # Force reinitialize (overwrite existing files)
 lex init --force
 ```
 
-**What happens during init:**
-1. 🔍 **Project Detection** — Identifies Node.js, Python, Rust, Go, Java, .NET, Ruby projects and frameworks
-2. 📝 **IDE Setup** — Creates `.github/copilot-instructions.md` and `.cursorrules` (if Cursor detected) with LEX markers for safe updates
-3. ⚙️ **Configuration** — Generates `lex.yaml` with defaults based on your project
-4. 💾 **Database** — Initializes SQLite database at `.smartergpt/lex/memory.db`
-5. 📡 **MCP Guidance** — Shows configuration for VS Code MCP server integration
+During init, Lex detects common project types, creates IDE instruction files with LEX markers, writes `lex.yaml`, initializes `.smartergpt/lex/memory.db`, and prints MCP server configuration guidance.
 
-### Capture Your First Frame
+### Capture the first useful Frame
 
 ```bash
 lex remember \
@@ -206,41 +198,18 @@ lex remember \
   --modules "services/payment"
 ```
 
-### Recall Later
+### Recall it later
 
 ```bash
 lex recall "payment"
-# Shows your context, blockers, and architectural neighborhood
+# Shows your context, blockers, and architectural neighborhood.
 ```
 
-### Database Maintenance
+[Full Quick Start Guide](./QUICK_START.md)
 
-Keep your memory database optimized and backed up:
+### MCP setup
 
-```bash
-# Create a timestamped backup (memory-20251123.sqlite)
-lex db backup --rotate 7
-# Keeps last 7 backups, stored in .smartergpt/lex/backups/
-
-# Optimize database (rebuild and compact)
-lex db vacuum
-
-# Set backup retention via environment variable
-export LEX_BACKUP_RETENTION=14  # Keep 14 most recent backups
-```
-
-**NDJSON Logging:** Lex automatically logs operations to `.smartergpt/lex/logs/lex.log.ndjson` with structured fields:
-- `timestamp`, `level`, `message`, `module`, `operation`, `duration_ms`, `metadata`, `error`
-- Log files rotate automatically at 100MB
-- Logs are silent in test mode unless `LEX_LOG_NDJSON=1`
-
-**That's it!** You now have persistent memory for your AI workflows.
-
-[Full Quick Start Guide →](./QUICK_START.md)
-
-### MCP Server Integration
-
-Use Lex with any MCP-compatible AI assistant (VS Code, Claude Desktop, etc.):
+Use Lex with any MCP-compatible AI assistant, including VS Code and Claude Desktop:
 
 ```bash
 # Install the MCP wrapper
@@ -250,7 +219,8 @@ npm install -g @smartergpt/lex-mcp
 npx @smartergpt/lex-mcp
 ```
 
-**VS Code Configuration (`.vscode/mcp.json`):**
+VS Code configuration (`.vscode/mcp.json`):
+
 ```json
 {
   "servers": {
@@ -265,7 +235,8 @@ npx @smartergpt/lex-mcp
 }
 ```
 
-**Claude Desktop Configuration:**
+Claude Desktop configuration:
+
 ```json
 {
   "mcpServers": {
@@ -277,121 +248,134 @@ npx @smartergpt/lex-mcp
 }
 ```
 
+[MCP Server Documentation](./README.mcp.md)
+
+---
+
+## Agent Integration
+
+Lex is designed to be consumed by agents and tools, not only read by humans.
+
+- CLI: `lex remember`, `lex recall`, `lex check`, `lex timeline`, `lex instructions`, and database maintenance commands are scriptable entry points.
+- MCP: `@smartergpt/lex-mcp` exposes Lex through Model Context Protocol for assistants that support MCP.
+- Structured JSON: supported commands can emit machine-parseable output for orchestration and recovery.
+- Recoverable errors: AXError includes `code`, `message`, `context`, and `nextActions[]` fields.
+- Stable tool names: MCP tools have explicit names rather than relying on prose prompts.
+
 The MCP server exposes 14 tools for episodic memory, policy validation, and architectural analysis:
+
 - `frame_create`, `frame_search`, `frame_get`, `frame_list`, `frame_validate`
 - `policy_check`, `timeline_show`, `atlas_analyze`
 - `system_introspect`, `help`, `hints_get`
 - `contradictions_scan`, `db_stats`, `turncost_calculate`
 
-[MCP Server Documentation →](./README.mcp.md)
-
-### How Lex relates to AXF
-
-Lex provides memory and policy context. AXF provides an inspectable capability/control-plane layer for agent-operable tooling: manifests, routing, execution surfaces, scaffolding, and lifecycle gates. MCP is one adapter surface in that ecosystem, not the architecture itself. A useful mental model is: Lex remembers and explains project context; AXF exposes bounded capabilities that agents can inspect and invoke.
+MCP is an adapter surface. Lex itself is the memory and policy core.
 
 ---
 
-## 💡 Use Cases
+## Where agents use Lex
 
-### 👨‍💻 For Developers
+- Before editing: recall prior work, blockers, and relevant module boundaries.
+- During handoff: store the current branch, next action, and unresolved constraints.
+- During review: check policy facts against repository boundaries.
+- During onboarding: inspect focused Atlas context instead of asking for a full codebase tour.
+- During orchestration: emit structured output for runners and other tools.
 
-- **Preserve context** across work sessions with AI coding assistants
-- **Document architectural decisions** with searchable, timestamped snapshots
-- **Enforce boundaries** via CI to prevent policy violations
-
-### 🤖 For AI Agents
-
-- **Recall previous work** using natural language search
-- **Navigate large codebases** with token-efficient Atlas Frames
-- **Respect constraints** by checking policy before suggesting changes
-
-### 👥 For Teams
-
-- **Onboard new members** by showing architectural history
-- **Track technical debt** with kill patterns and forbidden edges
-- **Maintain consistency** across multi-module projects
-
-### 📸 See It In Action
-
-**Want to see how Lex is used in practice?** Check out our [dogfooding examples](./examples/dogfood/) — real Frames from building Lex with Lex.
-
-See how we:
-- Use `lex recall` to resume work after breaks
-- Capture context with `lex remember` at key checkpoints
-- Handle blockers and escalations in real development
-- Track complexity and turn costs for governance
-
-[View Dogfood Examples →](./examples/dogfood/)
+Dogfooding examples are available in [examples/dogfood/](./examples/dogfood/). They show real Frames from building Lex with Lex.
 
 ---
 
-## 🏗️ Architecture
+## Human/operator view
 
-Lex is built on three pillars:
+Humans see a local, inspectable record instead of an opaque assistant memory:
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                    Lex Framework                        │
-├─────────────────────────────────────────────────────────┤
-│                                                         │
-│  📸 Memory Layer (lex/memory)                          │
-│  ├─ Frame storage (SQLite)                             │
-│  ├─ Search & recall                                     │
-│  └─ MCP server integration                             │
-│                                                         │
-│  🗺️ Atlas Layer (lex/shared/atlas)                     │
-│  ├─ Module dependency graphs                           │
-│  ├─ Fold radius computation                            │
-│  └─ Token-aware context generation                     │
-│                                                         │
-│  🛡️ Policy Layer (lex/policy)                          │
-│  ├─ Boundary definitions                               │
-│  ├─ Multi-language scanners                            │
-│  └─ CI enforcement                                      │
-│                                                         │
-└─────────────────────────────────────────────────────────┘
+- Frames are stored in SQLite at `.smartergpt/lex/memory.db` by default.
+- Policy files live in the repository and can be reviewed in code review.
+- NDJSON logs are written to `.smartergpt/lex/logs/lex.log.ndjson` with structured fields such as `timestamp`, `level`, `operation`, `duration_ms`, `metadata`, and `error`.
+- Policy checks can run in CI with `lex check merged-facts.json`.
+- Database maintenance commands support backups, rotation, and vacuuming.
+
+```bash
+# Create a timestamped backup (memory-20251123.sqlite)
+lex db backup --rotate 7
+# Keeps last 7 backups, stored in .smartergpt/lex/backups/
+
+# Optimize database (rebuild and compact)
+lex db vacuum
+
+# Set backup retention via environment variable
+export LEX_BACKUP_RETENTION=14  # Keep 14 most recent backups
 ```
 
-[Architecture Details →](./docs/ARCHITECTURE.md)
+Logs rotate automatically at 100MB and are silent in test mode unless `LEX_LOG_NDJSON=1` is set.
 
 ---
 
-## 📚 Documentation
+## Lex is not
+
+- Lex is not a cloud memory service.
+- Lex is not a chatbot.
+- Lex is not a replacement for tests, code review, or CI.
+- Lex is not an MCP-only project.
+- Lex is not AXF, LexRunner, or LexSona.
+
+---
+
+## Relationship to AXF, LexRunner, and LexSona
+
+Lex is the memory and policy core.
+
+- Lex remembers and explains project context through Frames, recall, Atlas, policy, instructions, and structured output.
+- AXF is the inspectable capability/control-plane layer for agent-operable tooling: manifests, routing, execution surfaces, scaffolding, and lifecycle gates.
+- LexRunner composes work over capabilities and runpaths, including parallel PR workflows and merge planning.
+- LexSona consumes the public behavioral memory socket (`@smartergpt/lex/lexsona`) for persona and guardrail integration. Lex core remains persona-agnostic.
+
+A useful mental model: Lex remembers and explains context; AXF exposes bounded capabilities; LexRunner coordinates work; LexSona derives behavioral constraints.
+
+---
+
+## Documentation
 
 ### Getting Started
-- [Quick Start Guide](./QUICK_START.md) — Get up and running in 5 minutes
-- [Installation & Setup](./docs/ADOPTION_GUIDE.md) — Detailed installation guide
-- [Core Concepts](./docs/OVERVIEW.md) — Understanding Frames, Atlas, and Policy
+
+- [Quick Start Guide](./QUICK_START.md) - Get up and running in 5 minutes
+- [Installation and Setup](./docs/ADOPTION_GUIDE.md) - Detailed installation guide
+- [Core Concepts](./docs/OVERVIEW.md) - Understanding Frames, Atlas, and Policy
 
 ### Guides
-- [Frame Recall Guide](./docs/MIND_PALACE.md) — Using Frames for reference-point recall
-- [Code Atlas Guide](./docs/atlas/README.md) — Spatial memory and architectural context
-- [Policy Enforcement](./docs/API_USAGE.md) — Setting up architectural boundaries
-- [Instructions Generation](./docs/INSTRUCTIONS.md) — Sync AI instructions across IDEs
-- [CLI Reference](./docs/CLI_OUTPUT.md) — Command-line usage and output modes
-- [MCP Integration](./memory/mcp_server/README.md) — Using Lex with Model Context Protocol
-- [OAuth2/JWT Authentication](./docs/AUTH.md) — Multi-user authentication setup
+
+- [Frame Recall Guide](./docs/MIND_PALACE.md) - Using Frames for reference-point recall
+- [Code Atlas Guide](./docs/atlas/README.md) - Spatial memory and architectural context
+- [Policy Enforcement](./docs/API_USAGE.md) - Setting up architectural boundaries
+- [Instructions Generation](./docs/INSTRUCTIONS.md) - Sync AI instructions across IDEs
+- [CLI Reference](./docs/CLI_OUTPUT.md) - Command-line usage and output modes
+- [MCP Server Documentation](./README.mcp.md) - Using Lex with Model Context Protocol
+- [OAuth2/JWT Authentication](./docs/AUTH.md) - Multi-user authentication setup
 
 ### Security
-- [Security Policy](./SECURITY.md) — Security posture and best practices
-- [OAuth2/JWT Guide](./docs/AUTH.md) — Authentication and user isolation
+
+- [Security Policy](./SECURITY.md) - Security posture and best practices
+- [OAuth2/JWT Guide](./docs/AUTH.md) - Authentication and user isolation
 
 ### Advanced
-- [Architecture Loop](./docs/ARCHITECTURE_LOOP.md) — How Frames, Atlas, and Policy interact
-- [API Reference](#-api-reference) — TypeScript API documentation
-- [Limitations](./docs/LIMITATIONS.md) — Known constraints and future work
-- [FAQ](./docs/FAQ.md) — Common questions
+
+- [Architecture](./docs/ARCHITECTURE.md) - System layers and module context
+- [Architecture Loop](./docs/ARCHITECTURE_LOOP.md) - How Frames, Atlas, and Policy interact
+- [API Reference](#api-reference) - TypeScript API documentation
+- [Limitations](./docs/LIMITATIONS.md) - Known constraints and future work
+- [FAQ](./docs/FAQ.md) - Common questions
 
 ### Development
-- [Contributing Guide](./CONTRIBUTING.md) — How to contribute
-- [Release Process](./RELEASE.md) — Versioning and publishing
-- [ADRs](./docs/adr/) — Architectural decision records
+
+- [Contributing Guide](./CONTRIBUTING.md) - How to contribute
+- [Release Process](./RELEASE.md) - Versioning and publishing
+- [ADRs](./docs/adr/) - Architectural decision records
 
 ---
 
-## 🔧 API Reference
+## API Reference
 
-Lex provides multiple entry points for different use cases:
+Lex provides multiple entry points for agents, tools, and application code:
 
 ### Core API
 
@@ -413,7 +397,7 @@ const results = await searchFrames(db, { referencePoint: 'authentication' });
 closeDb(db);
 ```
 
-### Subpath Exports
+### Subpath exports
 
 | Import | Purpose | Documentation |
 |--------|---------|---------------|
@@ -434,135 +418,81 @@ closeDb(db);
 | `@smartergpt/lex/lexsona` | Behavioral memory socket (v2.0+) | [Control Stack](./docs/control-stack/index.md) |
 | `@smartergpt/lex/prompts` | Template system | [Canon Architecture](./docs/CANON_ARCHITECTURE.md) |
 
-[Full API Documentation →](./docs/API_USAGE.md)
+[Full API Documentation](./docs/API_USAGE.md)
 
 ---
 
-## 🎯 Project Status
+## Project status
 
 **Current Version:** `2.7.0` ([Changelog](./CHANGELOG.md))
 
-### 🚀 Current release line
-
 Current Lex releases include structured output, recoverable errors, and Frame Schema v3 for agent and orchestrator integration.
 
-**Commonly used for:**
-- ✅ Personal projects and local dev tools
-- ✅ Private MCP servers
-- ✅ CI/CD policy enforcement
-- ✅ LexRunner and other orchestrator integrations
-- ⚙️ Multi-user authentication and encrypted database setup paths are documented for deployments that need them
+Commonly used for:
 
-**Current capability highlights:**
-- **Structured output contract (v0.1)** — Machine-parseable output, recoverable errors, and recall-focused events ([AX Contract](./docs/specs/AX-CONTRACT.md))
-- **Frame Schema v3** — Runner fields (`runId`, `planHash`, `toolCalls`) for orchestration ([Schema Docs](./docs/specs/FRAME-SCHEMA-V3.md))
-- **AXError Schema** — Structured errors with `code`, `message`, `context`, and `nextActions[]` for programmatic recovery
-- **CLI JSON Output** — `lex remember --json` and `lex timeline --json` with machine-parseable event streams
-- **Instructions Management** — `lex instructions` CLI for syncing AI instructions across IDEs (Copilot, Cursor, etc.)
-- **LexSona Socket** — Behavioral memory API (`recordCorrection`/`getRules`) exported via `@smartergpt/lex/lexsona`
-- **Performance** — Cached policy module ID lookups for O(1) resolution
+- Personal projects and local dev tools
+- Private MCP servers
+- CI/CD policy enforcement
+- LexRunner and other orchestrator integrations
+- Documented multi-user authentication and encrypted database setup paths for deployments that need them
 
-**LexSona Integration:**
-Lex 2.0.0 provides a **public behavioral memory socket** (`@smartergpt/lex/lexsona`) for persona-based workflows. **LexSona** is a separate private package (v0.2.0+) that consumes this socket to enable offline-capable persona modes. The socket API is stable and documented; LexSona implementation details remain private. Lex itself is persona-agnostic — the socket is a stable integration point for any behavioral engine.
+Current capability highlights:
+
+- Structured output contract (v0.1): machine-parseable output, recoverable errors, and recall-focused events ([AX Contract](./docs/specs/AX-CONTRACT.md))
+- Frame Schema v3: runner fields such as `runId`, `planHash`, and `toolCalls` for orchestration ([Schema Docs](./docs/specs/FRAME-SCHEMA-V3.md))
+- AXError Schema: structured errors with `code`, `message`, `context`, and `nextActions[]` for programmatic recovery
+- CLI JSON Output: `lex remember --json` and `lex timeline --json` with machine-parseable event streams
+- Instructions Management: `lex instructions` CLI for syncing AI instructions across IDEs
+- LexSona Socket: behavioral memory API (`recordCorrection`/`getRules`) exported via `@smartergpt/lex/lexsona`
+- Performance: cached policy module ID lookups for O(1) resolution
+
+Lex 2.0.0 introduced the public behavioral memory socket (`@smartergpt/lex/lexsona`) for persona-based workflows. LexSona is a separate private package that consumes this socket to enable offline-capable persona modes. Lex itself is persona-agnostic.
 
 See the [changelog](./CHANGELOG.md) for release history and version-specific notes.
 
-### Quality Metrics
+---
 
-| Metric | Value |
-|--------|-------|
-| Test Files | 78 |
-| Test Suites | 23 |
-| Source Files | 108 |
-| Exports | 14 subpaths |
-| Schema Version | 2 |
+## Contributing
+
+Contributions are welcome.
+
+1. Read the [Contributing Guide](./CONTRIBUTING.md) and [Development Setup](./docs/ADOPTION_GUIDE.md).
+2. Pick an issue from [good first issues](https://github.com/Guffawaffle/lex/labels/good%20first%20issue) or [help wanted](https://github.com/Guffawaffle/lex/labels/help%20wanted).
+3. Submit a PR with tests and documentation where they apply.
+
+Follow the repo's commit conventions and signing requirements documented in the contributing guide.
 
 ---
 
-## 🌟 Why Lex?
+## Related projects
 
-### Practical continuity for AI coding work
-
-**The Challenge:** AI coding assistants lose context between sessions. They can't remember what you were working on, why you made certain decisions, or which parts of your codebase are off-limits.
-
-**Our Approach:** Local work memory, repository policy, and structured output that agents and scripts can inspect.
-
-**The Components:**
-- **Work memory** — Lex Frames capture what you were doing, blockers, and next actions
-- **Repository context** — Atlas Frames provide token-efficient nearby module context
-- **Policy enforcement** — Boundaries and permissions enforced in CI
-- **Orchestration** — LexRunner coordinates multi-PR workflows
-
-**Why This Matters:**
-- **Continuity** — Resume with stored context and next actions
-- **Architecture** — AI assistants can inspect relevant codebase structure
-- **Guardrails** — Prevent violations before they happen
-- **Accessibility** — Works with MCP-compatible assistants through the thin MCP adapter
+- [LexRunner](https://github.com/Guffawaffle/lexrunner) - Orchestration for parallel PR workflows.
+- LexSona - Behavioral persona engine that consumes Lex's public behavioral memory socket.
+- AXF - Capability/control-plane layer for agent-operable tooling.
 
 ---
 
-## 🤝 Contributing
+## License
 
-We welcome contributions! Here's how to get started:
-
-1. **Read the guides:**
-   - [Contributing Guide](./CONTRIBUTING.md)
-   - [Code of Conduct](./CODE_OF_CONDUCT.md)
-   - [Development Setup](./docs/ADOPTION_GUIDE.md)
-
-2. **Pick an issue:**
-   - [Good first issues](https://github.com/Guffawaffle/lex/labels/good%20first%20issue)
-   - [Help wanted](https://github.com/Guffawaffle/lex/labels/help%20wanted)
-
-3. **Submit a PR:**
-   - Follow commit conventions (imperative mood)
-   - Include tests and documentation
-   - GPG-sign your commits
-
-[Contributing Guide →](./CONTRIBUTING.md)
+MIT License. See [LICENSE](./LICENSE) for full text.
 
 ---
 
-## 📦 Related Projects
+## Links
 
-- **[LexRunner](https://github.com/Guffawaffle/lexrunner)** — Orchestration for parallel PR workflows
-
-- **LexSona** (v0.2.0+) — Behavioral persona engine, separate private package
-  Consumes Lex behavioral memory socket (`@smartergpt/lex/lexsona`) to enable offline-capable persona modes with constraint enforcement. High-level concept: persona-driven workflows without embedding persona logic in Lex core. See [Control Stack documentation](./docs/control-stack/index.md) for conceptual framework (public portions).
-
----
-
-## 📄 License
-
-**MIT License** — Free for personal and commercial use.
-
-See [LICENSE](./LICENSE) for full text.
+- [Documentation](./docs/)
+- [Examples](./examples/)
+- [npm Package](https://www.npmjs.com/package/@smartergpt/lex)
+- [Issues](https://github.com/Guffawaffle/lex/issues)
+- [Discussions](https://github.com/Guffawaffle/lex/discussions)
 
 ---
 
-## 🔗 Links
+## Advanced topics
 
-- **Documentation:** [docs/](./docs/)
-- **Examples:** [examples/](./examples/)
-- **npm Package:** [@smartergpt/lex](https://www.npmjs.com/package/@smartergpt/lex)
-- **Issues:** [GitHub Issues](https://github.com/Guffawaffle/lex/issues)
-- **Discussions:** [GitHub Discussions](https://github.com/Guffawaffle/lex/discussions)
+### TypeScript build system
 
----
-
-<div align="center">
-
-**Built with ❤️ by the Lex community**
-
-[⭐ Star on GitHub](https://github.com/Guffawaffle/lex) · [📦 Install from npm](https://www.npmjs.com/package/@smartergpt/lex) · [💬 Join Discussions](https://github.com/Guffawaffle/lex/discussions)
-
-</div>
-
-## 💻 Advanced Topics
-
-### TypeScript Build System
-
-Lex uses **TypeScript project references** for deterministic, incremental builds:
+Lex uses TypeScript project references for deterministic, incremental builds:
 
 ```bash
 npm run build      # Compile with project references
@@ -570,13 +500,14 @@ npm run clean      # Clean build artifacts
 npm run typecheck  # Type-check without emitting
 ```
 
-**Why NodeNext module resolution?**
-- Source uses `.ts` files with `.js` import extensions
-- TypeScript resolves imports during compilation
-- Emitted `.js` files work correctly in Node.js ESM
-- No confusion between source and build artifacts
+Why NodeNext module resolution?
 
-[Build System Details →](./docs/adr/0001-ts-only-nodenext.md)
+- Source uses `.ts` files with `.js` import extensions.
+- TypeScript resolves imports during compilation.
+- Emitted `.js` files work correctly in Node.js ESM.
+- There is no confusion between source and build artifacts.
+
+[Build System Details](./docs/adr/0001-ts-only-nodenext.md)
 
 ### Local CI with Docker
 
@@ -589,9 +520,9 @@ npm run local-ci:nonet    # Run without network access
 
 This uses `ci.Dockerfile` for local parity with CI checks.
 
-### Multi-Language Policy Scanning
+### Multi-language policy scanning
 
-While TypeScript scanning is built-in, **Python and PHP scanners** are available as examples:
+While TypeScript scanning is built in, Python and PHP scanners are available as examples:
 
 ```bash
 # Scan Python codebase
@@ -607,17 +538,17 @@ lex merge ts-facts.json python-facts.json > merged-facts.json
 lex check merged-facts.json
 ```
 
-⚠️ **Security Note:** External scanners execute arbitrary code. Review before use.
+Security note: external scanners execute arbitrary code. Review before use.
 
-[Scanner Documentation →](./examples/scanners/README.md)
+[Scanner Documentation](./examples/scanners/README.md)
 
-### Customizing Prompts & Schemas
+### Customizing prompts and schemas
 
-Lex uses a **precedence chain** for configuration:
+Lex uses a precedence chain for configuration:
 
-1. **Environment:** `LEX_CANON_DIR=/custom/canon` (highest)
-2. **Local overlay:** `.smartergpt/prompts/`
-3. **Package defaults:** `prompts/` (lowest)
+1. Environment: `LEX_CANON_DIR=/custom/canon` (highest)
+2. Local overlay: `.smartergpt/prompts/`
+3. Package defaults: `prompts/` (lowest)
 
 ```bash
 # Customize locally
@@ -628,7 +559,7 @@ vim .smartergpt/prompts/remember.md
 LEX_CANON_DIR=/my/custom/canon lex remember ...
 ```
 
-### Environment Variables
+### Environment variables
 
 | Variable | Purpose | Default |
 |----------|---------|---------|
@@ -646,7 +577,7 @@ LEX_CANON_DIR=/my/custom/canon lex remember ...
 | `LEX_BACKUP_RETENTION` | Number of database backups to retain | `7` |
 | `SMARTERGPT_PROFILE` | Profile configuration path | `.smartergpt/profile.yml` |
 
-### 🔐 Database Encryption
+### Database encryption
 
 Protect your Frame data with SQLCipher encryption:
 
@@ -663,27 +594,28 @@ export NODE_ENV="production"
 export LEX_DB_KEY="production-passphrase"
 ```
 
-**Key Features:**
-- ✅ AES-256 encryption at rest
-- ✅ PBKDF2 key derivation (64K iterations)
-- ✅ Mandatory in production (`NODE_ENV=production`)
-- ✅ Migration tool with integrity verification
+Key features:
 
-[Security Guide →](./SECURITY.md#database-encryption)
+- AES-256 encryption at rest
+- PBKDF2 key derivation (64K iterations)
+- Mandatory in production (`NODE_ENV=production`)
+- Migration tool with integrity verification
 
-[Environment Configuration →](./docs/ADOPTION_GUIDE.md)
+[Security Guide](./SECURITY.md#database-encryption)
+
+[Environment Configuration](./docs/ADOPTION_GUIDE.md)
 
 ---
 
-## 🧪 Development
+## Development
 
 ### Prerequisites
 
-- **Node.js:** v20+ LTS (tested up to v22, see `.nvmrc`)
-- **npm:** v10+
-- **Git:** For branch detection
+- Node.js v20+ LTS, matching the package engine range
+- npm v10+
+- Git for branch detection
 
-### Local Setup
+### Local setup
 
 ```bash
 # Clone repository
@@ -703,24 +635,24 @@ npm test
 npm run local-ci
 ```
 
-### Project Structure
+### Project structure
 
-```
+```text
 lex/
-├── src/                     # TypeScript source (no .js files)
-│   ├── memory/             # Frame storage & MCP server
-│   ├── policy/             # Policy enforcement & scanners
-│   ├── shared/             # Shared utilities & types
-│   └── index.ts            # Main entry point
-├── dist/                    # Build output (gitignored)
-├── canon/                   # Canonical prompts & schemas
-├── docs/                    # Documentation
-├── examples/                # Usage examples & optional scanners
-├── test/                    # Test suite
-└── .smartergpt/            # Local workspace (gitignored)
+|-- src/                     # TypeScript source (no .js files)
+|   |-- memory/              # Frame storage and MCP server
+|   |-- policy/              # Policy enforcement and scanners
+|   |-- shared/              # Shared utilities and types
+|   `-- index.ts             # Main entry point
+|-- dist/                    # Build output (gitignored)
+|-- canon/                   # Canonical prompts and schemas
+|-- docs/                    # Documentation
+|-- examples/                # Usage examples and optional scanners
+|-- test/                    # Test suite
+`-- .smartergpt/             # Local workspace (gitignored)
 ```
 
-### Running Tests
+### Running tests
 
 ```bash
 npm test                     # Run all tests (excludes git tests)
@@ -729,9 +661,9 @@ npm run test:watch          # Watch mode
 npm run test:git            # Git integration tests (requires non-interactive signing)
 ```
 
-**Note:** Git tests are quarantined due to mandatory GPG signing in this environment. See [test/README.md](./test/README.md) for details.
+Git tests are quarantined due to mandatory GPG signing in this environment. See [test/README.md](./test/README.md) for details.
 
-### Code Quality
+### Code quality
 
 ```bash
 npm run lint                # ESLint checks
@@ -739,4 +671,4 @@ npm run format              # Prettier formatting
 npm run typecheck           # TypeScript validation
 ```
 
-[Contributing Guide →](./CONTRIBUTING.md)
+[Contributing Guide](./CONTRIBUTING.md)
