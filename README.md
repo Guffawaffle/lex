@@ -152,7 +152,7 @@ npm install -g @smartergpt/lex
 npm install @smartergpt/lex
 ```
 
-Requires Node.js 20+ and currently supports Node.js versions before 23, matching the package engine range.
+Requires Node.js 20+ and currently supports Node.js 20 through 24, matching the package engine range.
 
 WSL users should use a native WSL install on `PATH`, not Windows npm shims or npm's `_npx` cache. See [WSL Native Lex Install](./docs/WSL_NATIVE_INSTALL.md) for the recommended user-local install, checkout symlink bridge, and native SQLite build requirements.
 
@@ -611,7 +611,7 @@ Key features:
 
 ### Prerequisites
 
-- Node.js v20+ LTS, matching the package engine range
+- Node.js v20+ LTS, with CI coverage on Node.js 20, 22, and 24
 - npm v10+
 - Git for branch detection
 

@@ -25,7 +25,7 @@ Before committing, ensure:
 
 ### Prerequisites
 
-- **Node.js**: 20.x or 22.x (we recommend 22 for development)
+- **Node.js**: 20.x, 22.x, or 24.x (we recommend 24 for development)
 - **npm**: 9+ (comes with Node.js)
 - **Git**: 2.30+
 

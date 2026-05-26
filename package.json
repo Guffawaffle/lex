@@ -205,7 +205,7 @@
   },
   "homepage": "https://github.com/Guffawaffle/lex#readme",
   "engines": {
-    "node": ">=20 <23"
+    "node": ">=20 <25"
   },
   "peerDependencies": {
     "pino-pretty": "*"
