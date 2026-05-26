@@ -17,7 +17,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: ["20", "22"]
+        node: ["20", "22", "24"]
 
     steps:
       - name: Checkout code
@@ -61,6 +61,7 @@ jobs:
     name: Integration Tests
     runs-on: ubuntu-latest
     needs: test
+    # Keep deeper suites on the lowest supported runtime; the matrix above validates 22/24 compatibility.
 
     steps:
       - name: Checkout code

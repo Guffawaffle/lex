@@ -82,7 +82,7 @@ npx @smartergpt/lex-mcp
 `@smartergpt/lex-mcp` is a thin wrapper that starts the MCP server from `@smartergpt/lex`.
 
 - **Transport:** stdio (JSON-RPC 2.0)
-- **Runtime:** Node.js 18+
+- **Runtime:** Node.js 20+
 - **Storage:** SQLite (local, no network)
 
 ## Learn More
