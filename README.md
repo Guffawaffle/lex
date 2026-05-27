@@ -2,12 +2,6 @@
 
 # Lex
 
-[![MIT License](https://img.shields.io/badge/License-MIT-green)](./LICENSE)
-[![npm version](https://img.shields.io/npm/v/@smartergpt/lex)](https://www.npmjs.com/package/@smartergpt/lex)
-[![CI Status](https://img.shields.io/badge/CI-passing-success)](https://github.com/Guffawaffle/lex/actions)
-[![Node.js](https://img.shields.io/badge/Node.js-20+-339933)](https://nodejs.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178C6)](https://www.typescriptlang.org/)
-
 **Local memory and policy context for AI coding agents.**
 
 **Don't trust the README. Ask your agent.**
@@ -17,6 +11,12 @@
 > "Would repo-local memory and policy context help you work in this codebase with fewer repeated explanations, fewer forgotten constraints, and better handoffs between sessions?"
 
 If the answer is yes, Lex is the layer that gives your agent somewhere durable to put that context.
+
+[![MIT License](https://img.shields.io/badge/License-MIT-green)](./LICENSE)
+[![npm version](https://img.shields.io/npm/v/@smartergpt/lex)](https://www.npmjs.com/package/@smartergpt/lex)
+[![CI Status](https://img.shields.io/badge/CI-passing-success)](https://github.com/Guffawaffle/lex/actions)
+[![Node.js](https://img.shields.io/badge/Node.js-20+-339933)](https://nodejs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178C6)](https://www.typescriptlang.org/)
 
 [60-second test](#the-60-second-test) | [Quick Start](#quick-start) | [Agent Integration](#agent-integration) | [Documentation](#documentation) | [API Reference](#api-reference) | [Contributing](./CONTRIBUTING.md)
 
@@ -424,7 +424,7 @@ closeDb(db);
 
 ## Project status
 
-**Current Version:** `2.7.0` ([Changelog](./CHANGELOG.md))
+**Current Version:** `2.7.1` ([Changelog](./CHANGELOG.md))
 
 Current Lex releases include structured output, recoverable errors, and Frame Schema v3 for agent and orchestrator integration.
 
