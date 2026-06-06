@@ -16,6 +16,69 @@ import { expandTokensInObject } from "../tokens/expander.js";
 
 const logger = getLogger("config");
 
+export type WorkspaceRootSource = "explicit" | "git" | "package" | "cwd";
+
+export interface WorkspaceRootResolution {
+  path: string;
+  source: WorkspaceRootSource;
+}
+
+export interface WorkspaceRootOptions {
+  startPath?: string;
+  explicitRoot?: string | null;
+}
+
+export function resolveCallerWorkspaceRoot(
+  options: WorkspaceRootOptions = {}
+): WorkspaceRootResolution {
+  const startPath = path.resolve(options.startPath ?? process.cwd());
+  const explicitRoot =
+    options.explicitRoot ?? process.env.LEX_WORKSPACE_ROOT ?? process.env.LEX_APP_ROOT ?? null;
+
+  if (explicitRoot) {
+    return {
+      path: path.resolve(explicitRoot),
+      source: "explicit",
+    };
+  }
+
+  let currentPath = startPath;
+  let packageRoot: string | null = null;
+
+  while (currentPath !== path.dirname(currentPath)) {
+    if (fs.existsSync(path.join(currentPath, ".git"))) {
+      return {
+        path: currentPath,
+        source: "git",
+      };
+    }
+
+    const packageJsonPath = path.join(currentPath, "package.json");
+    if (!packageRoot && fs.existsSync(packageJsonPath)) {
+      try {
+        JSON.parse(fs.readFileSync(packageJsonPath, "utf-8"));
+        packageRoot = currentPath;
+      } catch {
+        // Ignore invalid package.json and continue walking upward.
+      }
+    }
+
+    currentPath = path.dirname(currentPath);
+  }
+
+  if (packageRoot) {
+    return {
+      path: packageRoot,
+      source: "package",
+    };
+  }
+
+  return {
+    path: startPath,
+    source: "cwd",
+  };
+}
+
 /**
  * Configuration structure for Lex application.
  */
@@ -33,19 +96,21 @@ export interface LexConfig {
 /**
  * Default configuration values.
  */
-const DEFAULT_CONFIG: LexConfig = {
-  paths: {
-    appRoot: process.cwd(),
-    database: "./.smartergpt/lex/memory.db",
-    policy: "./lexmap.policy.json",
-  },
-};
+function createDefaultConfig(): LexConfig {
+  return {
+    paths: {
+      appRoot: resolveCallerWorkspaceRoot().path,
+      database: "./.smartergpt/lex/memory.db",
+      policy: "./.smartergpt/lex/lexmap.policy.json",
+    },
+  };
+}
 
 /**
  * Find the project root by walking up from current file location.
  * Looks for package.json as indicator of project root.
  */
-function findProjectRoot(): string {
+function findLexPackageRoot(): string {
   // Start from the directory containing this file
   const currentFile = fileURLToPath(import.meta.url);
   let currentDir = path.dirname(currentFile);
@@ -67,10 +132,17 @@ function findProjectRoot(): string {
  * Load configuration from .lex.config.json file if it exists.
  */
 function loadConfigFile(): Partial<LexConfig> | null {
-  const projectRoot = findProjectRoot();
-  const configPath = path.join(projectRoot, ".lex.config.json");
+  const callerRoot = resolveCallerWorkspaceRoot();
+  const candidatePaths = [path.join(callerRoot.path, ".lex.config.json")];
+  const packageRoot = findLexPackageRoot();
 
-  if (!fs.existsSync(configPath)) {
+  if (packageRoot !== callerRoot.path) {
+    candidatePaths.push(path.join(packageRoot, ".lex.config.json"));
+  }
+
+  const configPath = candidatePaths.find((candidate) => fs.existsSync(candidate));
+
+  if (!configPath) {
     return null;
   }
 
@@ -171,11 +243,12 @@ export function loadConfig(): LexConfig {
     return cachedConfig;
   }
 
+  const defaultConfig = createDefaultConfig();
   const fileConfig = loadConfigFile();
   const envConfig = loadEnvConfig();
 
   // Merge: defaults < file < env vars
-  const mergedConfig = mergeConfig(DEFAULT_CONFIG, fileConfig, envConfig);
+  const mergedConfig = mergeConfig(defaultConfig, fileConfig, envConfig);
 
   // Resolve relative paths
   cachedConfig = resolveConfigPaths(mergedConfig);

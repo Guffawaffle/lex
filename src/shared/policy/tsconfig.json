@@ -8,6 +8,7 @@
   "references": [
     { "path": "../types" },
     { "path": "../logger" },
-    { "path": "../errors" }
+    { "path": "../errors" },
+    { "path": "../config" }
   ]
 }

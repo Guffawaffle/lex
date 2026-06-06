@@ -12,6 +12,7 @@ import type { Policy } from "../../types/policy.js";
 import { getNDJSONLogger } from "../logger/index.js";
 import { AXErrorException } from "../errors/ax-error.js";
 import { POLICY_ERROR_CODES, STANDARD_NEXT_ACTIONS } from "../errors/error-codes.js";
+import { resolveCallerWorkspaceRoot } from "../config/index.js";
 
 const logger = getNDJSONLogger("policy/loader");
 
@@ -46,45 +47,6 @@ const WORKSPACE_ROOT_ENV = "LEX_WORKSPACE_ROOT";
  * Cached policy to avoid re-reading from disk
  */
 let cachedPolicy: Policy | null = null;
-
-/**
- * Resolve the caller workspace root, not the installed Lex package root.
- *
- * Precedence:
- * 1. LEX_WORKSPACE_ROOT
- * 2. Nearest git repository root
- * 3. Nearest package.json root
- * 4. Current working directory
- */
-function findCallerWorkspaceRoot(startPath: string): string {
-  const explicitRoot = process.env[WORKSPACE_ROOT_ENV];
-  if (explicitRoot) {
-    return resolve(explicitRoot);
-  }
-
-  let currentPath = resolve(startPath);
-  let packageRoot: string | null = null;
-
-  while (currentPath !== dirname(currentPath)) {
-    if (existsSync(join(currentPath, ".git"))) {
-      return currentPath;
-    }
-
-    const packageJsonPath = join(currentPath, "package.json");
-    if (!packageRoot && existsSync(packageJsonPath)) {
-      try {
-        JSON.parse(readFileSync(packageJsonPath, "utf-8"));
-        packageRoot = currentPath;
-      } catch {
-        // Invalid package.json should not prevent walking to a higher root.
-      }
-    }
-
-    currentPath = dirname(currentPath);
-  }
-
-  return packageRoot ?? resolve(startPath);
-}
 
 /**
  * Load policy from lexmap.policy.json
@@ -138,7 +100,10 @@ export function loadPolicy(path?: string): Policy {
     } else {
       // Priority 3-5: Try caller working file, then caller canon, then caller example.
       // This intentionally resolves the caller workspace, not the installed Lex package root.
-      const repoRoot = findCallerWorkspaceRoot(process.cwd());
+      const repoRoot = resolveCallerWorkspaceRoot({
+        startPath: process.cwd(),
+        explicitRoot: process.env[WORKSPACE_ROOT_ENV] ?? null,
+      }).path;
 
       // Try working file first
       const workingPath = join(repoRoot, DEFAULT_POLICY_PATH);

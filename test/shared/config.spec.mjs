@@ -2,6 +2,7 @@ import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert";
 import fs from "node:fs";
 import path from "node:path";
+import os from "node:os";
 import { fileURLToPath } from "node:url";
 import { loadConfig, resetConfig, getAppRoot } from "../../dist/shared/config/index.js";
 
@@ -27,6 +28,7 @@ describe("Config system", () => {
   let originalEnv = {};
   let configFileExisted = false;
   let originalConfigContent = "";
+  const originalCwd = process.cwd();
 
   beforeEach(() => {
     // Save original environment
@@ -46,6 +48,7 @@ describe("Config system", () => {
     delete process.env.LEX_APP_ROOT;
     delete process.env.LEX_DB_PATH;
     delete process.env.LEX_POLICY_PATH;
+    delete process.env.LEX_WORKSPACE_ROOT;
 
     // Reset config cache
     resetConfig();
@@ -68,6 +71,8 @@ describe("Config system", () => {
       fs.unlinkSync(configPath);
     }
 
+    process.chdir(originalCwd);
+
     // Reset config cache
     resetConfig();
   });
@@ -77,8 +82,14 @@ describe("Config system", () => {
       const config = loadConfig();
 
       assert.ok(config.paths.appRoot, "appRoot should be set");
-      assert.strictEqual(config.paths.database, path.join(config.paths.appRoot, "lex-memory.db"));
-      assert.strictEqual(config.paths.policy, path.join(config.paths.appRoot, "lexmap.policy.json"));
+      assert.strictEqual(
+        config.paths.database,
+        path.join(config.paths.appRoot, ".smartergpt", "lex", "memory.db")
+      );
+      assert.strictEqual(
+        config.paths.policy,
+        path.join(config.paths.appRoot, ".smartergpt", "lex", "lexmap.policy.json")
+      );
     });
 
     it("should use process.cwd() as default appRoot", () => {
@@ -131,7 +142,47 @@ describe("Config system", () => {
       const config = loadConfig();
 
       assert.ok(config.paths.appRoot);
-      assert.ok(config.paths.database.includes("lex-memory.db"));
+      assert.ok(config.paths.database.includes(path.join(".smartergpt", "lex", "memory.db")));
+    });
+
+    it("should discover .lex.config.json from the caller workspace root", () => {
+      const workspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "lex-config-consumer-"));
+      const nested = path.join(workspaceRoot, "nested", "workspace");
+      fs.mkdirSync(nested, { recursive: true });
+      fs.writeFileSync(
+        path.join(workspaceRoot, "package.json"),
+        JSON.stringify({ name: "consumer-config-root" }),
+        "utf-8"
+      );
+      fs.writeFileSync(
+        path.join(workspaceRoot, ".lex.config.json"),
+        JSON.stringify(
+          {
+            paths: {
+              appRoot: workspaceRoot,
+              database: "./data/shared.db",
+              policy: "./policy/custom-policy.json",
+            },
+          },
+          null,
+          2
+        ),
+        "utf-8"
+      );
+
+      process.chdir(nested);
+      resetConfig();
+
+      const config = loadConfig();
+
+      assert.strictEqual(config.paths.appRoot, workspaceRoot);
+      assert.strictEqual(config.paths.database, path.join(workspaceRoot, "data", "shared.db"));
+      assert.strictEqual(
+        config.paths.policy,
+        path.join(workspaceRoot, "policy", "custom-policy.json")
+      );
+
+      fs.rmSync(workspaceRoot, { recursive: true, force: true });
     });
   });
 
