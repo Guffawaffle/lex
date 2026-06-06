@@ -264,7 +264,7 @@ export async function introspect(
 
         raw(`🧭 Resolution:`);
         raw(
-          `  Workspace Root: ${runtimeResolution.workspaceRoot.path} (${runtimeResolution.workspaceRoot.source})`
+          `  Project Root: ${runtimeResolution.workspaceRoot.path} (${runtimeResolution.workspaceRoot.source})`
         );
         raw(
           `  Config File: ${runtimeResolution.configFile.path || "none"} (${runtimeResolution.configFile.source})`

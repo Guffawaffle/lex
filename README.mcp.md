@@ -72,7 +72,7 @@ npx @smartergpt/lex-mcp
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `LEX_WORKSPACE_ROOT` | Workspace root directory | Current directory |
+| `LEX_WORKSPACE_ROOT` | Project root directory (compat env var name) | Current directory |
 | `LEX_DB_PATH` | SQLite database path | `.smartergpt/lex/memory.db` |
 | `LEX_MEMORY_DB` | Alias for `LEX_DB_PATH` (backwards compat) | — |
 | `LEX_DEBUG` | Enable debug logging | Off |
