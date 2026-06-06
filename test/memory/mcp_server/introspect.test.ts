@@ -8,7 +8,7 @@
 import { test, describe } from "node:test";
 import assert from "node:assert";
 import { MCPServer } from "@app/memory/mcp_server/server.js";
-import { mkdtempSync, rmSync } from "fs";
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
 
@@ -68,6 +68,13 @@ describe("MCP Server - Introspect Tool", () => {
       assert.ok("frameCount" in state, "State should have frameCount");
       assert.ok("currentBranch" in state, "State should have currentBranch");
       assert.ok("latestFrame" in state, "State should have latestFrame");
+
+      assert.ok(data.resolution, "Should have runtime resolution data");
+      const resolution = data.resolution as Record<string, unknown>;
+      assert.ok(resolution.workspaceRoot, "Should include workspace root resolution");
+      assert.ok(resolution.database, "Should include database resolution");
+      assert.ok(resolution.policy, "Should include policy resolution");
+      assert.ok(resolution.branch, "Should include branch resolution");
 
       // Check capabilities
       assert.ok(data.capabilities, "Should have capabilities");
@@ -153,6 +160,7 @@ describe("MCP Server - Introspect Tool", () => {
       assert.ok(text.includes("Schema Version:"), "Text should include schema version");
       assert.ok(text.includes("Version:"), "Text should include version");
       assert.ok(text.includes("State:"), "Text should include state");
+      assert.ok(text.includes("Resolution:"), "Text should include resolution");
       assert.ok(text.includes("Capabilities:"), "Text should include capabilities");
       assert.ok(text.includes("Error Codes"), "Text should include error codes");
       assert.ok(text.includes("VALIDATION"), "Text should include VALIDATION category");
@@ -183,6 +191,7 @@ describe("MCP Server - Introspect Tool", () => {
       assert.ok("v" in data, "Should have 'v' (version)");
       assert.ok("caps" in data, "Should have 'caps' (capabilities)");
       assert.ok("state" in data, "Should have 'state'");
+      assert.ok("ctx" in data, "Should have 'ctx' (runtime context)");
       assert.ok("mods" in data, "Should have 'mods' (module count)");
       assert.ok("errs" in data, "Should have 'errs' (error codes)");
 
@@ -205,6 +214,10 @@ describe("MCP Server - Introspect Tool", () => {
       // Verify error codes are sorted (deterministic ordering)
       const sortedErrs = [...errs].sort();
       assert.deepStrictEqual(errs, sortedErrs, "Error codes should be in sorted order");
+
+      const ctx = data.ctx as Record<string, unknown>;
+      const database = ctx.database as Record<string, unknown>;
+      assert.strictEqual(database.path, testDbPath, "Compact context should expose DB path");
     } finally {
       await teardown();
     }
@@ -330,6 +343,127 @@ describe("MCP Server - Introspect Tool", () => {
         assert.deepStrictEqual(modules, sortedModules, "Policy modules should be in sorted order");
       }
     } finally {
+      await teardown();
+    }
+  });
+
+  test("introspect reports workspace and policy provenance for MCP runtime", async () => {
+    const originalWorkspaceRoot = process.env.LEX_WORKSPACE_ROOT;
+    const workspaceRoot = mkdtempSync(join(tmpdir(), "lex-introspect-workspace-"));
+    const policyDir = join(workspaceRoot, ".smartergpt", "lex");
+    mkdirSync(policyDir, { recursive: true });
+    writeFileSync(
+      join(policyDir, "lexmap.policy.json"),
+      JSON.stringify(
+        {
+          modules: {
+            "consumer/module": {
+              owns_paths: ["src/**"],
+              allowed_callers: [],
+              forbidden_callers: [],
+            },
+          },
+        },
+        null,
+        2
+      )
+    );
+
+    process.env.LEX_WORKSPACE_ROOT = workspaceRoot;
+    const srv = setup();
+
+    try {
+      const response = await srv.handleRequest({
+        method: "tools/call",
+        params: {
+          name: "introspect",
+          arguments: {},
+        },
+      });
+
+      const data = response.data as Record<string, unknown>;
+      const resolution = data.resolution as Record<string, unknown>;
+      const workspace = resolution.workspaceRoot as Record<string, unknown>;
+      const policy = resolution.policy as Record<string, unknown>;
+
+      assert.strictEqual(workspace.path, workspaceRoot, "Should expose MCP workspace root");
+      assert.strictEqual(
+        policy.path,
+        join(workspaceRoot, ".smartergpt", "lex", "lexmap.policy.json")
+      );
+      assert.strictEqual(policy.source, "workspace-working", "Should explain policy source");
+      assert.strictEqual(policy.loaded, true, "Should indicate loaded policy");
+    } finally {
+      if (originalWorkspaceRoot === undefined) {
+        delete process.env.LEX_WORKSPACE_ROOT;
+      } else {
+        process.env.LEX_WORKSPACE_ROOT = originalWorkspaceRoot;
+      }
+      rmSync(workspaceRoot, { recursive: true, force: true });
+      await teardown();
+    }
+  });
+
+  test("introspect reports MCP runtime provenance for repo root, DB path, and policy path", async () => {
+    const originalWorkspaceRoot = process.env.LEX_WORKSPACE_ROOT;
+    const workspaceRoot = mkdtempSync(join(tmpdir(), "lex-introspect-root-"));
+    const policyDir = join(workspaceRoot, ".smartergpt", "lex");
+    mkdirSync(policyDir, { recursive: true });
+    writeFileSync(
+      join(policyDir, "lexmap.policy.json"),
+      JSON.stringify(
+        {
+          modules: {
+            "consumer/module": {
+              owns_paths: ["src/**"],
+              allowed_callers: [],
+              forbidden_callers: [],
+            },
+          },
+        },
+        null,
+        2
+      )
+    );
+
+    process.env.LEX_WORKSPACE_ROOT = workspaceRoot;
+    const srv = setup();
+
+    try {
+      const response = await srv.handleRequest({
+        method: "tools/call",
+        params: {
+          name: "introspect",
+          arguments: {},
+        },
+      });
+
+      const data = response.data as Record<string, unknown>;
+      const resolution = data.resolution as Record<string, unknown>;
+      const workspace = resolution.workspaceRoot as Record<string, unknown>;
+      const database = resolution.database as Record<string, unknown>;
+      const policy = resolution.policy as Record<string, unknown>;
+
+      assert.strictEqual(workspace.path, workspaceRoot, "Should report MCP workspace root");
+      assert.strictEqual(database.path, testDbPath, "Should report active MCP DB path");
+      assert.strictEqual(
+        database.source,
+        "constructor.dbPath",
+        "Should report constructor DB source"
+      );
+      assert.strictEqual(
+        policy.path,
+        join(workspaceRoot, ".smartergpt", "lex", "lexmap.policy.json"),
+        "Should report active policy path"
+      );
+      assert.strictEqual(policy.source, "workspace-working", "Should report working policy source");
+    } finally {
+      if (originalWorkspaceRoot === undefined) {
+        delete process.env.LEX_WORKSPACE_ROOT;
+      } else {
+        process.env.LEX_WORKSPACE_ROOT = originalWorkspaceRoot;
+      }
+      rmSync(workspaceRoot, { recursive: true, force: true });
       await teardown();
     }
   });

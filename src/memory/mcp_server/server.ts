@@ -15,15 +15,20 @@ import { validateModuleIds } from "../../shared/module_ids/validator.js";
 // @ts-ignore - importing from compiled dist directories
 import type { ModuleIdError } from "../../shared/types/validation.js";
 // @ts-ignore - importing from compiled dist directories
-import { loadPolicy } from "../../shared/policy/loader.js";
+import {
+  loadPolicy,
+  resolvePolicyPath,
+  type PolicyPathResolution,
+} from "../../shared/policy/loader.js";
 // @ts-ignore - importing from compiled dist directories
 import type { Policy } from "../../shared/types/policy.js";
 // @ts-ignore - importing from compiled dist directories
 import { getCurrentBranch } from "../../shared/git/branch.js";
+import { resolveCallerWorkspaceRoot } from "../../shared/config/index.js";
 // @ts-ignore - importing from compiled dist directories
 import { validatePolicySchema } from "../../shared/policy/schema.js";
 import { randomUUID } from "crypto";
-import { join, dirname } from "path";
+import { join, dirname, resolve } from "path";
 import { existsSync, readFileSync } from "fs";
 import { fileURLToPath } from "url";
 import { AXErrorException, isAXErrorException } from "../../shared/errors/ax-error.js";
@@ -183,6 +188,8 @@ export class MCPServer {
   private imageManager: ImageManager | null;
   private policy: Policy | null; // Cached policy for validation (null if not available)
   private repoRoot: string | null; // Repository root path
+  private policyResolution: PolicyPathResolution | null;
+  private dbPathSource: string;
   private idempotencyCache: IdempotencyCache; // Idempotency cache for mutation tools
 
   /**
@@ -209,10 +216,23 @@ export class MCPServer {
     // Create or use provided FrameStore
     if (options.frameStore) {
       this.frameStore = options.frameStore;
+      this.dbPathSource = "frameStore";
     } else if (options.dbPath) {
       this.frameStore = new SqliteFrameStore(options.dbPath);
+      this.dbPathSource =
+        process.env.LEX_DB_PATH && resolve(process.env.LEX_DB_PATH) === resolve(options.dbPath)
+          ? "env:LEX_DB_PATH"
+          : process.env.LEX_MEMORY_DB &&
+              resolve(process.env.LEX_MEMORY_DB) === resolve(options.dbPath)
+            ? "env:LEX_MEMORY_DB"
+            : "constructor.dbPath";
     } else {
       this.frameStore = new SqliteFrameStore();
+      this.dbPathSource = process.env.LEX_DB_PATH
+        ? "env:LEX_DB_PATH"
+        : process.env.LEX_MEMORY_DB
+          ? "env:LEX_MEMORY_DB"
+          : "default";
     }
 
     // ImageManager requires raw SQLite access — only available with SqliteFrameStore
@@ -223,6 +243,7 @@ export class MCPServer {
     }
 
     this.repoRoot = options.repoRoot || null;
+    this.policyResolution = null;
 
     // Initialize idempotency cache (24 hour TTL by default)
     this.idempotencyCache = new IdempotencyCache();
@@ -230,30 +251,12 @@ export class MCPServer {
     // Load policy once at initialization for better performance
     // If policy is not found, operate without policy enforcement
     try {
-      // Policy path resolution priority:
-      // 1. LEX_POLICY_PATH env var (explicit override)
-      // 2. If repoRoot provided, use standard locations within it
-      // 3. Let loadPolicy() use its default search logic
-      let policyPath: string | undefined;
+      this.policyResolution = resolvePolicyPath(undefined, {
+        startPath: process.cwd(),
+        workspaceRootOverride: this.repoRoot,
+      });
 
-      if (process.env.LEX_POLICY_PATH) {
-        // Explicit policy path from environment
-        policyPath = process.env.LEX_POLICY_PATH;
-      } else if (this.repoRoot) {
-        // Try standard locations within provided repoRoot
-        // Check working file first, then example
-        const workingPath = join(this.repoRoot, ".smartergpt/lex/lexmap.policy.json");
-        const examplePath = join(this.repoRoot, "policy/policy_spec/lexmap.policy.json");
-
-        if (existsSync(workingPath)) {
-          policyPath = workingPath;
-        } else if (existsSync(examplePath)) {
-          policyPath = examplePath;
-        }
-        // If neither exists, policyPath remains undefined and loadPolicy will handle it
-      }
-
-      this.policy = loadPolicy(policyPath);
+      this.policy = this.policyResolution.path ? loadPolicy(this.policyResolution.path) : null;
     } catch (error: unknown) {
       if (process.env.LEX_DEBUG) {
         const errorMessage = error instanceof Error ? error.message : String(error);
@@ -1646,13 +1649,65 @@ export class MCPServer {
 
       // Get current branch (if available)
       let currentBranch = "unknown";
-      try {
-        if (this.repoRoot || process.env.LEX_DEFAULT_BRANCH) {
-          currentBranch = getCurrentBranch();
+      let branchSource = "unknown";
+      if (process.env.LEX_DEFAULT_BRANCH) {
+        currentBranch = getCurrentBranch();
+        branchSource = "env:LEX_DEFAULT_BRANCH";
+      } else {
+        try {
+          if (this.repoRoot) {
+            currentBranch = getCurrentBranch();
+            if (currentBranch !== "unknown") {
+              branchSource = "git";
+            }
+          }
+        } catch {
+          // If we can't get branch, keep "unknown"
         }
-      } catch {
-        // If we can't get branch, keep "unknown"
       }
+
+      const workspaceResolution = this.repoRoot
+        ? {
+            path: this.repoRoot,
+            source: process.env.LEX_WORKSPACE_ROOT ? "env:LEX_WORKSPACE_ROOT" : "server-option",
+          }
+        : (() => {
+            const resolvedWorkspace = resolveCallerWorkspaceRoot();
+            return {
+              path: resolvedWorkspace.path,
+              source:
+                resolvedWorkspace.source === "explicit"
+                  ? process.env.LEX_WORKSPACE_ROOT
+                    ? "env:LEX_WORKSPACE_ROOT"
+                    : process.env.LEX_APP_ROOT
+                      ? "env:LEX_APP_ROOT"
+                      : "explicit"
+                  : resolvedWorkspace.source,
+            };
+          })();
+
+      const databasePath =
+        this.frameStore instanceof SqliteFrameStore ? this.frameStore.db.name : "memory-store";
+      const runtimeResolution = {
+        workspaceRoot: workspaceResolution,
+        configFile: {
+          path: null,
+          source: "none",
+        },
+        database: {
+          path: databasePath,
+          source: this.dbPathSource,
+        },
+        policy: {
+          path: this.policyResolution?.path ?? null,
+          source: this.policyResolution?.source ?? "not-found",
+          loaded: this.policy !== null,
+        },
+        branch: {
+          name: currentBranch,
+          source: branchSource,
+        },
+      };
 
       // Capabilities
       const capabilities = {
@@ -1684,6 +1739,7 @@ export class MCPServer {
             frames: frameCount,
             branch: currentBranch,
           },
+          ctx: runtimeResolution,
           mods: policyData ? policyData.moduleCount : 0,
           // Abbreviate error codes and re-sort (abbreviation changes alphabetical order)
           errs: errorCodes.map((code) => this.abbreviateErrorCode(code)).sort(),
@@ -1719,6 +1775,7 @@ export class MCPServer {
             latestFrame,
             currentBranch,
           },
+          resolution: runtimeResolution,
           capabilities,
           errorCodes,
           errorCodeMetadata,
@@ -1741,6 +1798,13 @@ export class MCPServer {
         text += `  Frames: ${frameCount}\n`;
         text += `  Latest Frame: ${latestFrame || "none"}\n`;
         text += `  Branch: ${currentBranch}\n\n`;
+
+        text += `🧭 Resolution:\n`;
+        text += `  Workspace Root: ${runtimeResolution.workspaceRoot.path} (${runtimeResolution.workspaceRoot.source})\n`;
+        text += `  Config File: ${runtimeResolution.configFile.path || "none"} (${runtimeResolution.configFile.source})\n`;
+        text += `  Database: ${runtimeResolution.database.path} (${runtimeResolution.database.source})\n`;
+        text += `  Policy: ${runtimeResolution.policy.path || "none"} (${runtimeResolution.policy.source})\n`;
+        text += `  Branch Source: ${runtimeResolution.branch.source}\n\n`;
 
         text += `⚙️  Capabilities:\n`;
         text += `  Encryption: ${capabilities.encryption ? "✅" : "❌"}\n`;

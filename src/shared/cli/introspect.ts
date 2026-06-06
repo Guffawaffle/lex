@@ -11,12 +11,14 @@
  * @module shared/cli/introspect
  */
 
-import { createFrameStore, type FrameStore } from "../../memory/store/index.js";
-import { loadPolicyIfAvailable } from "../policy/loader.js";
+import { createFrameStore, SqliteFrameStore, type FrameStore } from "../../memory/store/index.js";
+import { getDefaultDbPath } from "../../memory/store/db.js";
+import { loadPolicyIfAvailable, resolvePolicyPath } from "../policy/loader.js";
 import { getCurrentBranch } from "../git/branch.js";
 import { createOutput, raw } from "./output.js";
 import { createAXError, type AXError } from "../errors/ax-error.js";
 import { LEX_ERROR_CODES } from "../errors/error-codes.js";
+import { loadConfigResolution } from "../config/index.js";
 import { readFileSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
@@ -84,6 +86,8 @@ export async function introspect(
   try {
     // Get version
     const version = getVersion();
+    const configResolution = loadConfigResolution();
+    const policyResolution = resolvePolicyPath();
 
     // Get policy information
     const policy = loadPolicyIfAvailable();
@@ -105,11 +109,54 @@ export async function introspect(
 
     // Get current git branch (if available)
     let currentBranch = "unknown";
-    try {
+    let branchSource = "unknown";
+    if (process.env.LEX_DEFAULT_BRANCH) {
       currentBranch = getCurrentBranch();
-    } catch {
-      // If we can't get branch, keep "unknown"
+      branchSource = "env:LEX_DEFAULT_BRANCH";
+    } else {
+      try {
+        currentBranch = getCurrentBranch();
+        if (currentBranch !== "unknown") {
+          branchSource = "git";
+        }
+      } catch {
+        // If we can't get branch, keep "unknown"
+      }
     }
+
+    const databasePath = store instanceof SqliteFrameStore ? store.db.name : getDefaultDbPath();
+
+    const runtimeResolution = {
+      workspaceRoot: {
+        path: configResolution.workspaceRoot.path,
+        source:
+          configResolution.workspaceRoot.source === "explicit"
+            ? process.env.LEX_WORKSPACE_ROOT
+              ? "env:LEX_WORKSPACE_ROOT"
+              : process.env.LEX_APP_ROOT
+                ? "env:LEX_APP_ROOT"
+                : "explicit"
+            : configResolution.workspaceRoot.source,
+      },
+      configFile: configResolution.configFile,
+      database: {
+        path: databasePath,
+        source: process.env.LEX_DB_PATH
+          ? "env:LEX_DB_PATH"
+          : process.env.LEX_MEMORY_DB
+            ? "env:LEX_MEMORY_DB"
+            : configResolution.pathSources.database,
+      },
+      policy: {
+        path: policyResolution.path,
+        source: policyResolution.source,
+        loaded: policy !== null,
+      },
+      branch: {
+        name: currentBranch,
+        source: branchSource,
+      },
+    };
 
     // Capabilities (basic detection - MCP server has more sophisticated checks)
     const capabilities = {
@@ -156,6 +203,7 @@ export async function introspect(
           frames: frameCount,
           branch: currentBranch,
         },
+        ctx: runtimeResolution,
         mods: policyData ? policyData.moduleCount : 0,
         // Abbreviate error codes
         errs: errorCodes.map((code) => abbreviateErrorCode(code)).sort(),
@@ -187,6 +235,7 @@ export async function introspect(
           latestFrame,
           currentBranch,
         },
+        resolution: runtimeResolution,
         capabilities,
         errorCodes,
         errorCodeMetadata,
@@ -212,6 +261,21 @@ export async function introspect(
         raw(`  Frames: ${frameCount}`);
         raw(`  Latest Frame: ${latestFrame || "none"}`);
         raw(`  Branch: ${currentBranch}\n`);
+
+        raw(`🧭 Resolution:`);
+        raw(
+          `  Workspace Root: ${runtimeResolution.workspaceRoot.path} (${runtimeResolution.workspaceRoot.source})`
+        );
+        raw(
+          `  Config File: ${runtimeResolution.configFile.path || "none"} (${runtimeResolution.configFile.source})`
+        );
+        raw(
+          `  Database: ${runtimeResolution.database.path} (${runtimeResolution.database.source})`
+        );
+        raw(
+          `  Policy: ${runtimeResolution.policy.path || "none"} (${runtimeResolution.policy.source})`
+        );
+        raw(`  Branch Source: ${runtimeResolution.branch.source}\n`);
 
         raw(`⚙️  Capabilities:`);
         raw(`  Encryption: ${capabilities.encryption ? "✅" : "❌"}`);

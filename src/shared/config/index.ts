@@ -28,6 +28,29 @@ export interface WorkspaceRootOptions {
   explicitRoot?: string | null;
 }
 
+export type ConfigFileSource = "caller-workspace" | "package-fallback" | "none";
+
+export type ConfigValueSource =
+  | "env:LEX_APP_ROOT"
+  | "env:LEX_DB_PATH"
+  | "env:LEX_POLICY_PATH"
+  | "file:.lex.config.json"
+  | "default";
+
+export interface ConfigResolution {
+  config: LexConfig;
+  workspaceRoot: WorkspaceRootResolution;
+  configFile: {
+    path: string | null;
+    source: ConfigFileSource;
+  };
+  pathSources: {
+    appRoot: ConfigValueSource;
+    database: ConfigValueSource;
+    policy: ConfigValueSource;
+  };
+}
+
 export function resolveCallerWorkspaceRoot(
   options: WorkspaceRootOptions = {}
 ): WorkspaceRootResolution {
@@ -128,19 +151,36 @@ function findLexPackageRoot(): string {
   return process.cwd();
 }
 
+function resolveConfigFilePath(): { path: string | null; source: ConfigFileSource } {
+  const callerRoot = resolveCallerWorkspaceRoot();
+  const callerConfigPath = path.join(callerRoot.path, ".lex.config.json");
+  if (fs.existsSync(callerConfigPath)) {
+    return {
+      path: callerConfigPath,
+      source: "caller-workspace",
+    };
+  }
+
+  const packageRoot = findLexPackageRoot();
+  const packageConfigPath = path.join(packageRoot, ".lex.config.json");
+  if (packageRoot !== callerRoot.path && fs.existsSync(packageConfigPath)) {
+    return {
+      path: packageConfigPath,
+      source: "package-fallback",
+    };
+  }
+
+  return {
+    path: null,
+    source: "none",
+  };
+}
+
 /**
  * Load configuration from .lex.config.json file if it exists.
  */
 function loadConfigFile(): Partial<LexConfig> | null {
-  const callerRoot = resolveCallerWorkspaceRoot();
-  const candidatePaths = [path.join(callerRoot.path, ".lex.config.json")];
-  const packageRoot = findLexPackageRoot();
-
-  if (packageRoot !== callerRoot.path) {
-    candidatePaths.push(path.join(packageRoot, ".lex.config.json"));
-  }
-
-  const configPath = candidatePaths.find((candidate) => fs.existsSync(candidate));
+  const configPath = resolveConfigFilePath().path;
 
   if (!configPath) {
     return null;
@@ -209,8 +249,10 @@ function mergeConfig(base: LexConfig, ...overrides: Array<Partial<LexConfig> | n
 /**
  * Resolve relative paths against the app root.
  */
-function resolveConfigPaths(config: LexConfig): LexConfig {
-  const appRoot = config.paths.appRoot;
+function resolveConfigPaths(config: LexConfig, baseDir: string): LexConfig {
+  const appRoot = path.isAbsolute(config.paths.appRoot)
+    ? config.paths.appRoot
+    : path.resolve(baseDir, config.paths.appRoot);
 
   return {
     paths: {
@@ -225,7 +267,7 @@ function resolveConfigPaths(config: LexConfig): LexConfig {
   };
 }
 
-let cachedConfig: LexConfig | null = null;
+let cachedConfigResolution: ConfigResolution | null = null;
 
 /**
  * Load and return the application configuration.
@@ -238,22 +280,50 @@ let cachedConfig: LexConfig | null = null;
  *
  * @returns The resolved configuration
  */
-export function loadConfig(): LexConfig {
-  if (cachedConfig) {
-    return cachedConfig;
+export function loadConfigResolution(): ConfigResolution {
+  if (cachedConfigResolution) {
+    return cachedConfigResolution;
   }
 
+  const workspaceRoot = resolveCallerWorkspaceRoot();
   const defaultConfig = createDefaultConfig();
+  const configFile = resolveConfigFilePath();
   const fileConfig = loadConfigFile();
   const envConfig = loadEnvConfig();
 
   // Merge: defaults < file < env vars
   const mergedConfig = mergeConfig(defaultConfig, fileConfig, envConfig);
+  const configBaseDir = configFile.path ? path.dirname(configFile.path) : workspaceRoot.path;
+  const config = resolveConfigPaths(mergedConfig, configBaseDir);
 
-  // Resolve relative paths
-  cachedConfig = resolveConfigPaths(mergedConfig);
+  cachedConfigResolution = {
+    config,
+    workspaceRoot,
+    configFile,
+    pathSources: {
+      appRoot: process.env.LEX_APP_ROOT
+        ? "env:LEX_APP_ROOT"
+        : fileConfig?.paths?.appRoot
+          ? "file:.lex.config.json"
+          : "default",
+      database: process.env.LEX_DB_PATH
+        ? "env:LEX_DB_PATH"
+        : fileConfig?.paths?.database
+          ? "file:.lex.config.json"
+          : "default",
+      policy: process.env.LEX_POLICY_PATH
+        ? "env:LEX_POLICY_PATH"
+        : fileConfig?.paths?.policy
+          ? "file:.lex.config.json"
+          : "default",
+    },
+  };
 
-  return cachedConfig;
+  return cachedConfigResolution;
+}
+
+export function loadConfig(): LexConfig {
+  return loadConfigResolution().config;
 }
 
 /**
@@ -261,7 +331,7 @@ export function loadConfig(): LexConfig {
  * @internal
  */
 export function resetConfig(): void {
-  cachedConfig = null;
+  cachedConfigResolution = null;
 }
 
 /**

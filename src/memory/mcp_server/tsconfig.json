@@ -18,6 +18,7 @@
   "references": [
     { "path": "../../shared/types" },
     { "path": "../../shared/policy" },
+    { "path": "../../shared/config" },
     { "path": "../../shared/logger" },
     { "path": "../../shared/atlas" },
     { "path": "../store" },
