@@ -10,7 +10,8 @@
 
 import inquirer from "inquirer";
 import { v4 as uuidv4 } from "uuid";
-import type { Frame } from "../types/frame.js";
+import type { Frame } from "../types/frame-schema.js";
+import { parseFrame } from "../types/frame-schema.js";
 import { validateModuleIds } from "../module_ids/index.js";
 import { loadPolicyIfAvailable } from "../policy/loader.js";
 import { createFrameStore, type FrameStore } from "../../memory/store/index.js";
@@ -185,7 +186,7 @@ export async function remember(
     }
 
     // Build Frame object
-    const frame: Frame = {
+    const frame: Frame = parseFrame({
       id: uuidv4(),
       timestamp: new Date().toISOString(),
       branch: branch,
@@ -202,7 +203,7 @@ export async function remember(
       keywords: answers.keywords,
       feature_flags: answers.featureFlags,
       permissions: answers.permissions,
-    };
+    });
 
     // Dry-run mode: validate but don't store (matches frame_validate MCP tool)
     if (options.dryRun) {

@@ -6,7 +6,7 @@
 
 import { Router, Request, Response } from "express";
 import type Database from "better-sqlite3-multiple-ciphers";
-import { Frame } from "../../frames/types.js";
+import { safeParseFrame, type Frame } from "../../../shared/types/frame-schema.js";
 import { saveFrame } from "../../store/queries.js";
 import { createHash } from "crypto";
 import { randomUUID } from "crypto";
@@ -237,14 +237,36 @@ export function createFramesRouter(
         atlas_frame_id: body.atlas_frame_id,
         feature_flags: body.feature_flags,
         permissions: body.permissions,
+        image_ids: body.image_ids,
         runId: body.runId,
         planHash: body.planHash,
         spend: body.spend,
+        executorRole: body.executorRole,
+        toolCalls: body.toolCalls,
+        guardrailProfile: body.guardrailProfile,
+        turnCost: body.turnCost,
+        capabilityTier: body.capabilityTier,
+        taskComplexity: body.taskComplexity,
+        superseded_by: body.superseded_by,
+        merged_from: body.merged_from,
+        contradiction_resolution: body.contradiction_resolution,
+        lmv: body.lmv,
         userId: userId,
       };
 
+      const parsedFrame = safeParseFrame(frame);
+      if (!parsedFrame.success) {
+        const firstIssue = parsedFrame.error.issues[0];
+        return res.status(400).json({
+          error: "VALIDATION_FAILED",
+          message: firstIssue?.message || "Frame payload failed schema validation",
+          field: firstIssue?.path.join(".") || undefined,
+          code: 400,
+        } satisfies ApiErrorResponse);
+      }
+
       // Save to database
-      saveFrame(db, frame);
+      saveFrame(db, parsedFrame.data);
 
       // Return success response
       return res.status(201).json({

@@ -37,13 +37,15 @@ Demonstrates all available Lex subpath exports:
 Shows how to validate Frame payloads using the public API:
 
 ```javascript
-import { validateFramePayload } from '@smartergpt/lex/memory';
+import { safeParseFrame } from '@smartergpt/lex/types';
 
-const result = validateFramePayload(myFrame);
-if (!result.valid) {
-  console.error('Validation errors:', result.errors);
+const result = safeParseFrame(myFrame);
+if (!result.success) {
+  console.error('Validation errors:', result.error.issues);
 }
 ```
+
+Use `validateFramePayload` from `@smartergpt/lex/memory` when you want the same canonical schema plus ingestion-oriented warnings for unknown fields.
 
 ---
 
@@ -115,8 +117,8 @@ Shows how to use Lex as a library in your own TypeScript projects.
 
 ### [JSON Schemas](./schemas/)
 
-JSON Schema definitions for validation:
-- Frame Schema
+Validation assets and examples:
+- Canonical Frame contract (`src/shared/types/frame-schema.ts`)
 - Policy Schema
 - CLI Output Schema
 

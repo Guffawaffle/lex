@@ -365,7 +365,7 @@ npm test  # Includes recall quality tests automatically
 
 - **FTS5 Documentation**: https://www.sqlite.org/fts5.html
 - **BM25 Algorithm**: https://en.wikipedia.org/wiki/Okapi_BM25
-- **Frame Schema**: `src/memory/frames/types.ts`
+- **Frame Schema**: `src/shared/types/frame-schema.ts`
 - **Search Implementation**: `src/memory/store/sqlite/frame-store.ts`
 - **CLI Interface**: `src/shared/cli/recall.ts`
 

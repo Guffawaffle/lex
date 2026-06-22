@@ -6,22 +6,22 @@ This directory contains everything related to capturing and retrieving work sess
 
 ## Subdirectories
 
-- **`frames/`** — Frame schema definitions, metadata types, Frame creation/storage logic
+- **`frames/`** — Compatibility exports and Frame-related helpers. The canonical Frame contract itself lives in `src/shared/types/frame-schema.ts`.
 - **`store/`** — Local database adapter (SQLite), Frame persistence, query/search, image storage
 - **`renderer/`** — Memory card image generation (visual summary of Frame state with embedded images)
-- **`mcp_server/`** — Model Context Protocol stdio server exposing `/remember` and `/recall` tools
+- **`mcp_server/`** — Model Context Protocol stdio server exposing remember/recall tools
 
 ## Key concepts
 
-A **Frame** is a timestamped snapshot of what you were doing:
+A **Frame** follows the canonical schema in `src/shared/types/frame-schema.ts` and captures a timestamped snapshot of what you were doing:
 - Which modules you touched (`module_scope`)
 - What the blocker was (`status_snapshot.merge_blockers`)
 - What the next action is (`status_snapshot.next_action`)
 - Human-memorable reference point ("that auth deadlock")
-- Optional image attachments (`image_ids`)
+- Optional image references (`image_ids`, experimental)
 - Git branch context (auto-detected or specified)
 
-Frames are stored locally (no cloud sync, no telemetry). Retrieval is via MCP tools that assistants can call.
+Frames are stored locally (no cloud sync, no telemetry). Retrieval is via MCP tools that assistants can call. Frames are durable memory records, not proof; when LMV metadata is absent, recall should be treated as unsupported memory rather than verified evidence.
 
 ## Image Attachments
 
@@ -32,9 +32,11 @@ Frames support binary image attachments stored in SQLite:
 - **Storage:** Binary blobs in SQLite with efficient indexing
 - **Rendering:** Images are embedded in memory card PNG output
 
+The canonical Frame contract keeps `image_ids` as an explicit, optional marker for future token-cost-aware recall work. Not every ingestion path populates it today, and that is intentional.
+
 ### Using image attachments
 
-When creating a Frame via `lex.remember`, include base64-encoded images:
+When creating a Frame via an ingestion API or another image-capable tool surface, include base64-encoded images:
 
 ```json
 {
@@ -51,7 +53,7 @@ When creating a Frame via `lex.remember`, include base64-encoded images:
 }
 ```
 
-Images are validated (size, MIME type) and stored with the Frame. They can be retrieved individually or embedded in rendered memory cards.
+Images are validated (size, MIME type) and stored with the Frame. They can be retrieved individually or embedded in rendered memory cards; stored `image_ids` are the durable references that may later support low-token recall flows.
 ## Configuration
 
 ### Branch Detection
@@ -81,7 +83,7 @@ lex remember --branch custom-branch ...
 
 ## Integration with policy/
 
-When you `/recall` a Frame, the system:
+When you `lex recall` a Frame, the system:
 1. Retrieves the Frame from `store/`
 2. Calls `shared/atlas/` to get the fold-radius neighborhood for `module_scope`
 3. Returns both the Frame (temporal anchor) and Atlas Frame (spatial anchor)
@@ -93,7 +95,7 @@ This gives context with receipts: "here's what you were doing + here's the polic
 
 **All Frame creations enforce module ID validation** (implemented in #23).
 
-When you create a Frame with `/remember`, the system:
+When you create a Frame with `lex remember`, the system:
 1. Loads the policy from `policy/policy_spec/lexmap.policy.json`
 2. Validates that each module in `module_scope` exists in the policy
 3. Rejects the Frame if validation fails, with clear error messages and suggestions

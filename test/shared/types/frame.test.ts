@@ -11,7 +11,7 @@ import { validateFrameMetadata, FRAME_SCHEMA_VERSION } from "@app/shared/types/f
 
 describe("Frame Type Validation", () => {
   test("should export FRAME_SCHEMA_VERSION", () => {
-    assert.strictEqual(FRAME_SCHEMA_VERSION, 5, "Schema version should be 5");
+    assert.strictEqual(FRAME_SCHEMA_VERSION, 7, "Schema version should be 7");
   });
 
   test("should validate a minimal Frame", () => {
@@ -451,10 +451,8 @@ describe("Frame Type Validation", () => {
       taskComplexity: {
         tier: "mid",
         assignedModel: "claude-sonnet-4.5",
-        actualModel: "claude-sonnet-4.5",
         escalated: false,
         retryCount: 0,
-        tierMismatch: false,
       },
     };
 
@@ -494,11 +492,9 @@ describe("Frame Type Validation", () => {
       taskComplexity: {
         tier: "mid",
         assignedModel: "claude-haiku-4",
-        actualModel: "claude-sonnet-4.5",
         escalated: true,
         escalationReason: "Required architectural decision",
         retryCount: 2,
-        tierMismatch: true,
       },
     };
 
@@ -638,7 +634,6 @@ describe("Frame Type Validation", () => {
       taskComplexity: {
         tier: "senior",
         assignedModel: "claude-opus-4",
-        actualModel: "claude-opus-4",
         escalated: false,
         retryCount: 0,
       },
@@ -647,6 +642,157 @@ describe("Frame Type Validation", () => {
     assert.ok(
       validateFrameMetadata(frame),
       "Frame with both capabilityTier and taskComplexity should be valid"
+    );
+  });
+
+  test("should reject deprecated taskComplexity model-attribution fields", () => {
+    const frame = {
+      id: "test-028b",
+      timestamp: "2025-11-09T12:00:00Z",
+      branch: "main",
+      module_scope: ["core"],
+      summary_caption: "Deprecated complexity fields",
+      reference_point: "test",
+      status_snapshot: {
+        next_action: "test action",
+      },
+      taskComplexity: {
+        tier: "mid",
+        assignedModel: "claude-sonnet-4.5",
+        actualModel: "claude-sonnet-4.5",
+        tierMismatch: false,
+      },
+    };
+
+    assert.strictEqual(
+      validateFrameMetadata(frame),
+      false,
+      "Frame with deprecated taskComplexity fields should be rejected"
+    );
+  });
+
+  test("should materialize turnCost weight defaults during validation", () => {
+    const frame = {
+      id: "test-028c",
+      timestamp: "2025-11-09T12:00:00Z",
+      branch: "main",
+      module_scope: ["core"],
+      summary_caption: "Partial weights",
+      reference_point: "test",
+      status_snapshot: {
+        next_action: "test action",
+      },
+      turnCost: {
+        components: {
+          latency: 100,
+          contextReset: 50,
+          renegotiation: 2,
+          tokenBloat: 30,
+          attentionSwitch: 1,
+        },
+        weights: {
+          lambda: 0.5,
+        },
+      },
+    };
+
+    const valid = validateFrameMetadata(frame);
+    assert.ok(valid, "Frame with partial weights should be valid");
+    if (!valid) {
+      return;
+    }
+    assert.deepStrictEqual(frame.turnCost.weights, {
+      lambda: 0.5,
+      gamma: 0.2,
+      rho: 0.3,
+      tau: 0.1,
+      alpha: 0.3,
+    });
+  });
+
+  test("should canonicalize empty optional strings to absence", () => {
+    const frame = {
+      id: "test-028d",
+      timestamp: "2025-11-09T12:00:00Z",
+      branch: "main",
+      module_scope: ["core"],
+      summary_caption: "Optional string normalization",
+      reference_point: "test",
+      status_snapshot: {
+        next_action: "test action",
+      },
+      jira: "   ",
+      runId: "",
+    };
+
+    const valid = validateFrameMetadata(frame);
+    assert.ok(valid, "Frame with empty optional strings should be valid");
+    if (!valid) {
+      return;
+    }
+    assert.strictEqual(frame.jira, undefined);
+    assert.strictEqual(frame.runId, undefined);
+  });
+
+  test("should validate Frame with LMV metadata (v7)", () => {
+    const frame = {
+      id: "test-lmv-001",
+      timestamp: "2026-06-16T12:00:00Z",
+      branch: "main",
+      module_scope: ["core"],
+      summary_caption: "LMV frame",
+      reference_point: "lmv frame",
+      status_snapshot: {
+        next_action: "Render recall state",
+      },
+      lmv: {
+        claim: "The frame carries evidence metadata.",
+        evidence: [
+          {
+            kind: "test",
+            ref: "test/shared/types/frame.test.ts",
+            status: "supports",
+            exitCode: 0,
+            line: 1,
+          },
+        ],
+        status: "observed",
+        confidence: "high",
+      },
+    };
+
+    assert.ok(validateFrameMetadata(frame), "Frame with LMV metadata should be valid");
+  });
+
+  test("should reject LMV metadata with invalid evidence status", () => {
+    const invalidFrame = {
+      id: "test-lmv-002",
+      timestamp: "2026-06-16T12:00:00Z",
+      branch: "main",
+      module_scope: ["core"],
+      summary_caption: "Invalid LMV frame",
+      reference_point: "invalid lmv frame",
+      status_snapshot: {
+        next_action: "Fix evidence status",
+      },
+      lmv: {
+        claim: "This frame should fail validation.",
+        evidence: [
+          {
+            kind: "test",
+            ref: "test/shared/types/frame.test.ts",
+            status: "unknown",
+          },
+        ],
+        status: "observed",
+        confidence: "high",
+      },
+    };
+
+    assert.strictEqual(
+      validateFrameMetadata(invalidFrame),
+      false,
+      "Frame with invalid LMV evidence status should be rejected"
     );
   });
 });

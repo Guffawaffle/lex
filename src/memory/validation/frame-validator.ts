@@ -2,13 +2,13 @@
  * Frame Payload Validation Helper
  *
  * Provides external callers with a way to pre-validate Frame payloads before ingestion.
- * Uses Zod schemas from memory/frames/types.ts with enhanced error reporting.
+ * Uses the canonical shared Frame schema with enhanced error reporting.
  *
  * @module memory/validation/frame-validator
  */
 
 import { z } from "zod";
-import { Frame as FrameSchema } from "../frames/types.js";
+import { FrameSchema } from "../../shared/types/frame-schema.js";
 
 /**
  * Size limits for Frame fields to prevent excessively large payloads
@@ -58,6 +58,15 @@ export interface FrameValidationResult {
   warnings: FrameValidationWarning[];
 }
 
+export interface FrameNormalizationResult {
+  /** Payload after ingestion compatibility normalization. */
+  data: unknown;
+  /** Warnings describing compatibility changes applied to the payload. */
+  warnings: FrameValidationWarning[];
+  /** Whether normalization changed the original payload. */
+  changed: boolean;
+}
+
 /**
  * Known fields in the Frame schema (for unknown field detection)
  */
@@ -86,6 +95,13 @@ const KNOWN_FRAME_FIELDS = new Set([
   "turnCost",
   "capabilityTier",
   "taskComplexity",
+  // v5 fields
+  "superseded_by",
+  "merged_from",
+  // v6 fields
+  "contradiction_resolution",
+  // v7 fields
+  "lmv",
 ]);
 
 /**
@@ -136,12 +152,76 @@ const KNOWN_TURN_COST_WEIGHTS_FIELDS = new Set(["lambda", "gamma", "rho", "tau",
 const KNOWN_TASK_COMPLEXITY_FIELDS = new Set([
   "tier",
   "assignedModel",
-  "actualModel",
   "escalated",
   "escalationReason",
   "retryCount",
-  "tierMismatch",
 ]);
+
+const DEPRECATED_TASK_COMPLEXITY_FIELDS = new Set(["actualModel", "tierMismatch"]);
+
+const KNOWN_CONTRADICTION_RESOLUTION_FIELDS = new Set([
+  "type",
+  "contradicts_frame_id",
+  "scope",
+  "note",
+]);
+
+const KNOWN_LMV_FIELDS = new Set([
+  "claim",
+  "evidence",
+  "status",
+  "confidence",
+  "uncertainty",
+  "lineage",
+  "contradictions",
+  "invalidatedBy",
+  "nextValidation",
+  "boundaries",
+  "experiment",
+]);
+
+const KNOWN_LMV_EVIDENCE_FIELDS = new Set([
+  "kind",
+  "ref",
+  "status",
+  "observedAt",
+  "digest",
+  "exitCode",
+  "line",
+  "artifactPath",
+  "receiptId",
+  "note",
+]);
+
+const KNOWN_LMV_LINEAGE_FIELDS = new Set(["derivedFrom", "sourceFrames", "sourceReceipts"]);
+
+const KNOWN_LMV_BOUNDARIES_FIELDS = new Set([
+  "trustZone",
+  "privilege",
+  "dataClass",
+  "egress",
+  "pathScope",
+  "doesNotAuthorize",
+]);
+
+const KNOWN_LMV_EXPERIMENT_FIELDS = new Set([
+  "hypothesis",
+  "bounds",
+  "rollbackOrContainment",
+  "result",
+  "lesson",
+  "changedFutureAction",
+]);
+
+const KNOWN_LMV_EXPERIMENT_BOUNDS_FIELDS = new Set([
+  "pathScope",
+  "maxAttempts",
+  "timeBudgetSeconds",
+  "allowedEffects",
+  "stopConditions",
+]);
+
+const KNOWN_LMV_STOP_CONDITION_FIELDS = new Set(["code", "action", "message"]);
 
 /**
  * Convert Zod error path to dot-notation string
@@ -203,7 +283,8 @@ function mapZodCode(issue: z.ZodIssue): string {
 function detectUnknownFields(
   data: unknown,
   knownFields: Set<string>,
-  pathPrefix: string
+  pathPrefix: string,
+  ignoredKeys?: Set<string>
 ): FrameValidationWarning[] {
   if (typeof data !== "object" || data === null || Array.isArray(data)) {
     return [];
@@ -213,6 +294,10 @@ function detectUnknownFields(
   const record = data as Record<string, unknown>;
 
   for (const key of Object.keys(record)) {
+    if (ignoredKeys?.has(key)) {
+      continue;
+    }
+
     if (!knownFields.has(key)) {
       const path = pathPrefix ? `${pathPrefix}.${key}` : key;
       warnings.push({
@@ -223,6 +308,59 @@ function detectUnknownFields(
   }
 
   return warnings;
+}
+
+/**
+ * Normalize a Frame payload for ingestion compatibility without changing the
+ * canonical schema. This is intentionally narrow: deprecated model-attribution
+ * fields are stripped at ingestion boundaries, while `safeParseFrame()` remains
+ * strict for callers that want the formal contract only.
+ */
+export function normalizeFramePayloadForIngestion(data: unknown): FrameNormalizationResult {
+  const warnings: FrameValidationWarning[] = [];
+
+  if (typeof data !== "object" || data === null || Array.isArray(data)) {
+    return { data, warnings, changed: false };
+  }
+
+  const record = data as Record<string, unknown>;
+  const taskComplexity = record.taskComplexity;
+  if (
+    typeof taskComplexity !== "object" ||
+    taskComplexity === null ||
+    Array.isArray(taskComplexity)
+  ) {
+    return { data, warnings, changed: false };
+  }
+
+  const complexityRecord = taskComplexity as Record<string, unknown>;
+  let normalizedComplexity: Record<string, unknown> | null = null;
+
+  for (const key of DEPRECATED_TASK_COMPLEXITY_FIELDS) {
+    if (Object.prototype.hasOwnProperty.call(complexityRecord, key)) {
+      if (!normalizedComplexity) {
+        normalizedComplexity = { ...complexityRecord };
+      }
+      delete normalizedComplexity[key];
+      warnings.push({
+        path: `taskComplexity.${key}`,
+        message: `Deprecated field '${key}' was stripped before ingestion`,
+      });
+    }
+  }
+
+  if (!normalizedComplexity) {
+    return { data, warnings, changed: false };
+  }
+
+  return {
+    data: {
+      ...record,
+      taskComplexity: normalizedComplexity,
+    },
+    warnings,
+    changed: true,
+  };
 }
 
 /**
@@ -317,6 +455,155 @@ function validateNestedObjectSize(
   return null;
 }
 
+function pushStringSizeError(
+  errors: FrameValidationError[],
+  value: unknown,
+  path: string,
+  maxLength: number = SIZE_LIMITS.MAX_STRING_LENGTH
+): void {
+  const error = validateStringSize(value, path, maxLength);
+  if (error) {
+    errors.push(error);
+  }
+}
+
+function pushStringArraySizeErrors(
+  errors: FrameValidationError[],
+  value: unknown,
+  path: string
+): void {
+  const arrayError = validateArraySize(value, path);
+  if (arrayError) {
+    errors.push(arrayError);
+  }
+
+  errors.push(...validateArrayItemSizes(value, path));
+}
+
+function validateLmvFieldSizes(lmvValue: unknown): FrameValidationError[] {
+  if (typeof lmvValue !== "object" || lmvValue === null || Array.isArray(lmvValue)) {
+    return [];
+  }
+
+  const errors: FrameValidationError[] = [];
+  const lmv = lmvValue as Record<string, unknown>;
+
+  pushStringSizeError(errors, lmv.claim, "lmv.claim");
+  const evidenceError = validateArraySize(lmv.evidence, "lmv.evidence");
+  if (evidenceError) {
+    errors.push(evidenceError);
+  }
+
+  if (Array.isArray(lmv.evidence)) {
+    lmv.evidence.forEach((evidence, index) => {
+      if (typeof evidence !== "object" || evidence === null || Array.isArray(evidence)) {
+        return;
+      }
+
+      const evidenceRecord = evidence as Record<string, unknown>;
+      pushStringSizeError(errors, evidenceRecord.ref, `lmv.evidence[${index}].ref`);
+      pushStringSizeError(errors, evidenceRecord.observedAt, `lmv.evidence[${index}].observedAt`);
+      pushStringSizeError(errors, evidenceRecord.digest, `lmv.evidence[${index}].digest`);
+      pushStringSizeError(
+        errors,
+        evidenceRecord.artifactPath,
+        `lmv.evidence[${index}].artifactPath`
+      );
+      pushStringSizeError(errors, evidenceRecord.receiptId, `lmv.evidence[${index}].receiptId`);
+      pushStringSizeError(errors, evidenceRecord.note, `lmv.evidence[${index}].note`);
+    });
+  }
+
+  pushStringArraySizeErrors(errors, lmv.uncertainty, "lmv.uncertainty");
+  pushStringArraySizeErrors(errors, lmv.contradictions, "lmv.contradictions");
+  pushStringArraySizeErrors(errors, lmv.invalidatedBy, "lmv.invalidatedBy");
+  pushStringSizeError(errors, lmv.nextValidation, "lmv.nextValidation");
+
+  if (typeof lmv.lineage === "object" && lmv.lineage !== null && !Array.isArray(lmv.lineage)) {
+    const lineage = lmv.lineage as Record<string, unknown>;
+    pushStringArraySizeErrors(errors, lineage.derivedFrom, "lmv.lineage.derivedFrom");
+    pushStringArraySizeErrors(errors, lineage.sourceFrames, "lmv.lineage.sourceFrames");
+    pushStringArraySizeErrors(errors, lineage.sourceReceipts, "lmv.lineage.sourceReceipts");
+  }
+
+  if (
+    typeof lmv.boundaries === "object" &&
+    lmv.boundaries !== null &&
+    !Array.isArray(lmv.boundaries)
+  ) {
+    const boundaries = lmv.boundaries as Record<string, unknown>;
+    pushStringSizeError(errors, boundaries.trustZone, "lmv.boundaries.trustZone");
+    pushStringSizeError(errors, boundaries.privilege, "lmv.boundaries.privilege");
+    pushStringSizeError(errors, boundaries.dataClass, "lmv.boundaries.dataClass");
+    pushStringSizeError(errors, boundaries.egress, "lmv.boundaries.egress");
+    pushStringArraySizeErrors(errors, boundaries.pathScope, "lmv.boundaries.pathScope");
+    pushStringArraySizeErrors(
+      errors,
+      boundaries.doesNotAuthorize,
+      "lmv.boundaries.doesNotAuthorize"
+    );
+  }
+
+  if (
+    typeof lmv.experiment === "object" &&
+    lmv.experiment !== null &&
+    !Array.isArray(lmv.experiment)
+  ) {
+    const experiment = lmv.experiment as Record<string, unknown>;
+    pushStringSizeError(errors, experiment.hypothesis, "lmv.experiment.hypothesis");
+    pushStringSizeError(
+      errors,
+      experiment.rollbackOrContainment,
+      "lmv.experiment.rollbackOrContainment"
+    );
+    pushStringSizeError(errors, experiment.lesson, "lmv.experiment.lesson");
+
+    if (
+      typeof experiment.bounds === "object" &&
+      experiment.bounds !== null &&
+      !Array.isArray(experiment.bounds)
+    ) {
+      const bounds = experiment.bounds as Record<string, unknown>;
+      pushStringArraySizeErrors(errors, bounds.pathScope, "lmv.experiment.bounds.pathScope");
+      pushStringArraySizeErrors(
+        errors,
+        bounds.allowedEffects,
+        "lmv.experiment.bounds.allowedEffects"
+      );
+
+      const stopConditionsError = validateArraySize(
+        bounds.stopConditions,
+        "lmv.experiment.bounds.stopConditions"
+      );
+      if (stopConditionsError) {
+        errors.push(stopConditionsError);
+      }
+
+      if (Array.isArray(bounds.stopConditions)) {
+        bounds.stopConditions.forEach((condition, index) => {
+          if (typeof condition !== "object" || condition === null || Array.isArray(condition)) {
+            return;
+          }
+
+          const stopCondition = condition as Record<string, unknown>;
+          pushStringSizeError(
+            errors,
+            stopCondition.code,
+            `lmv.experiment.bounds.stopConditions[${index}].code`
+          );
+          pushStringSizeError(
+            errors,
+            stopCondition.message,
+            `lmv.experiment.bounds.stopConditions[${index}].message`
+          );
+        });
+      }
+    }
+  }
+
+  return errors;
+}
+
 /**
  * Validate a Frame payload before ingestion.
  *
@@ -377,8 +664,12 @@ export function validateFramePayload(data: unknown): FrameValidationResult {
     };
   }
 
+  const normalized = normalizeFramePayloadForIngestion(data);
+  warnings.push(...normalized.warnings);
+  const validationData = normalized.data;
+
   // Use Zod to validate the payload
-  const result = FrameSchema.safeParse(data);
+  const result = FrameSchema.safeParse(validationData);
 
   if (!result.success) {
     // Convert Zod errors to our structured format
@@ -392,10 +683,10 @@ export function validateFramePayload(data: unknown): FrameValidationResult {
   }
 
   // Detect unknown fields at the root level
-  warnings.push(...detectUnknownFields(data, KNOWN_FRAME_FIELDS, ""));
+  warnings.push(...detectUnknownFields(validationData, KNOWN_FRAME_FIELDS, ""));
 
   // Detect unknown fields in status_snapshot
-  const record = data as Record<string, unknown>;
+  const record = validationData as Record<string, unknown>;
   if (record.status_snapshot && typeof record.status_snapshot === "object") {
     warnings.push(
       ...detectUnknownFields(
@@ -439,8 +730,76 @@ export function validateFramePayload(data: unknown): FrameValidationResult {
   // Detect unknown fields in taskComplexity (v4)
   if (record.taskComplexity && typeof record.taskComplexity === "object") {
     warnings.push(
-      ...detectUnknownFields(record.taskComplexity, KNOWN_TASK_COMPLEXITY_FIELDS, "taskComplexity")
+      ...detectUnknownFields(
+        record.taskComplexity,
+        KNOWN_TASK_COMPLEXITY_FIELDS,
+        "taskComplexity",
+        DEPRECATED_TASK_COMPLEXITY_FIELDS
+      )
     );
+  }
+
+  if (record.contradiction_resolution && typeof record.contradiction_resolution === "object") {
+    warnings.push(
+      ...detectUnknownFields(
+        record.contradiction_resolution,
+        KNOWN_CONTRADICTION_RESOLUTION_FIELDS,
+        "contradiction_resolution"
+      )
+    );
+  }
+
+  if (record.lmv && typeof record.lmv === "object") {
+    warnings.push(...detectUnknownFields(record.lmv, KNOWN_LMV_FIELDS, "lmv"));
+
+    const lmv = record.lmv as Record<string, unknown>;
+    if (Array.isArray(lmv.evidence)) {
+      lmv.evidence.forEach((evidence, index) => {
+        warnings.push(
+          ...detectUnknownFields(evidence, KNOWN_LMV_EVIDENCE_FIELDS, `lmv.evidence[${index}]`)
+        );
+      });
+    }
+
+    if (lmv.lineage && typeof lmv.lineage === "object") {
+      warnings.push(...detectUnknownFields(lmv.lineage, KNOWN_LMV_LINEAGE_FIELDS, "lmv.lineage"));
+    }
+
+    if (lmv.boundaries && typeof lmv.boundaries === "object") {
+      warnings.push(
+        ...detectUnknownFields(lmv.boundaries, KNOWN_LMV_BOUNDARIES_FIELDS, "lmv.boundaries")
+      );
+    }
+
+    if (lmv.experiment && typeof lmv.experiment === "object") {
+      warnings.push(
+        ...detectUnknownFields(lmv.experiment, KNOWN_LMV_EXPERIMENT_FIELDS, "lmv.experiment")
+      );
+
+      const experiment = lmv.experiment as Record<string, unknown>;
+      if (experiment.bounds && typeof experiment.bounds === "object") {
+        warnings.push(
+          ...detectUnknownFields(
+            experiment.bounds,
+            KNOWN_LMV_EXPERIMENT_BOUNDS_FIELDS,
+            "lmv.experiment.bounds"
+          )
+        );
+
+        const bounds = experiment.bounds as Record<string, unknown>;
+        if (Array.isArray(bounds.stopConditions)) {
+          bounds.stopConditions.forEach((condition, index) => {
+            warnings.push(
+              ...detectUnknownFields(
+                condition,
+                KNOWN_LMV_STOP_CONDITION_FIELDS,
+                `lmv.experiment.bounds.stopConditions[${index}]`
+              )
+            );
+          });
+        }
+      }
+    }
   }
 
   // Size validation for string fields
@@ -456,6 +815,7 @@ export function validateFramePayload(data: unknown): FrameValidationResult {
     { key: "userId", value: record.userId },
     { key: "executorRole", value: record.executorRole },
     { key: "guardrailProfile", value: record.guardrailProfile },
+    { key: "superseded_by", value: record.superseded_by },
   ];
 
   for (const { key, value } of stringFields) {
@@ -471,6 +831,7 @@ export function validateFramePayload(data: unknown): FrameValidationResult {
     { key: "permissions", value: record.permissions },
     { key: "image_ids", value: record.image_ids },
     { key: "toolCalls", value: record.toolCalls },
+    { key: "merged_from", value: record.merged_from },
   ];
 
   for (const { key, value } of arrayFields) {
@@ -487,12 +848,16 @@ export function validateFramePayload(data: unknown): FrameValidationResult {
     { key: "spend", value: record.spend },
     { key: "turnCost", value: record.turnCost },
     { key: "taskComplexity", value: record.taskComplexity },
+    { key: "contradiction_resolution", value: record.contradiction_resolution },
+    { key: "lmv", value: record.lmv },
   ];
 
   for (const { key, value } of nestedObjects) {
     const objError = validateNestedObjectSize(value, key);
     if (objError) errors.push(objError);
   }
+
+  errors.push(...validateLmvFieldSizes(record.lmv));
 
   return {
     valid: errors.length === 0,

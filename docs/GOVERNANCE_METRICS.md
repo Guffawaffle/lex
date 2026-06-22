@@ -43,10 +43,10 @@ The **400:1 ratio** of coordination cost to token optimization makes Turn Cost t
 
 #### Schema Integration
 
-Turn Cost is captured as an optional field in Frame v4:
+Turn Cost is captured as an optional field in the canonical Frame contract (introduced in schema v4):
 
 ```typescript
-import type { TurnCost } from "@smartergpt/lex/memory/frames/types";
+import type { TurnCost } from "@smartergpt/lex/types";
 
 const frame = {
   id: "frame-001",
@@ -77,13 +77,13 @@ const frame = {
 
 #### Calculation
 
-Use the `calculateWeightedTurnCost` helper to compute the weighted score:
+Use the reference `calculateWeightedTurnCost` helper from the source tree to compute the weighted score:
 
 ```typescript
 import { 
   calculateWeightedTurnCost,
   DEFAULT_TURN_COST_WEIGHTS
-} from "@smartergpt/lex/memory/frames/turncost";
+} from "../src/memory/frames/turncost.ts";
 
 const components = {
   latency: 1500,
@@ -210,7 +210,7 @@ Planned Turn Cost features:
 ## References
 
 - **Governance Thesis**: See full analysis in `docs/thesis/lex_governance-collab_systems_paper_draft.md` (Section 3.1)
-- **Frame Schema v4**: `src/memory/frames/types.ts`
+- **Frame Schema**: `src/shared/types/frame-schema.ts`
 - **Turn Cost Calculation**: `src/memory/frames/turncost.ts`
 - **CLI Command**: `src/shared/cli/turncost.ts`
 - **Database Queries**: `src/memory/store/queries.ts` (getTurnCostMetrics)

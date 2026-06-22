@@ -5,7 +5,7 @@
  */
 
 import { v4 as uuidv4 } from "uuid";
-import type { Frame } from "../types/frame.js";
+import type { Frame } from "../types/frame-schema.js";
 import {
   type WaveCompleteContent,
   type WaveIssue,

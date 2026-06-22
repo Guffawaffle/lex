@@ -2,6 +2,8 @@
 
 **The best documentation is a working example.** This directory contains real Frames from Lex's own development, showing how we use Lex to build Lex.
 
+The payloads in `frames/` are sanitized and normalized to the current canonical Frame contract in `src/shared/types/frame-schema.ts`. A historical session may therefore be represented with current field names rather than the exact original wire shape.
+
 ## What's Here
 
 ### Real Development Frames
@@ -15,7 +17,7 @@ The `frames/` directory contains sanitized Frames from actual development sessio
 
 2. **[2025-12-05-ax-native-release.json](./frames/2025-12-05-ax-native-release.json)** — Released Lex 2.0.0 with AX guarantees
    - **Context:** First stable release with structured output and recoverable errors
-   - **Work:** Implemented AXError schema and Frame Schema v3
+   - **Work:** Implemented AXError and stabilized the runner-facing Frame contract
    - **Outcome:** Production-ready agent experience guarantees
 
 3. **[2025-11-28-recall-fts5-fix.json](./frames/2025-11-28-recall-fts5-fix.json)** — Fixed recall hyphen handling
@@ -154,11 +156,11 @@ Each Frame captures:
 - `jira` — Optional ticket reference
 - `keywords` — Searchable tags
 
-### Orchestration Fields (v3)
+### Orchestration Fields
 - `runId` — Execution session identifier
 - `spend` — Token/prompt usage
 - `capabilityTier` — Complexity level (junior/mid/senior)
-- `taskComplexity` — Model assignments and escalations
+- `taskComplexity` — Task tier, assignment, escalation, and retry metadata
 
 ### Security Fields
 - `userId` — OAuth2/JWT user (multi-user deployments)
@@ -166,7 +168,7 @@ Each Frame captures:
 - `toolCalls` — Which tools were invoked
 - `guardrailProfile` — Safety constraints applied
 
-### Performance Fields (v4)
+### Performance Fields
 - `turnCost` — Conversation efficiency metrics
   - `latency` — Response delay cost
   - `contextReset` — Memory loss cost
@@ -174,19 +176,28 @@ Each Frame captures:
   - `tokenBloat` — Verbosity cost
   - `attentionSwitch` — Context switching cost
 
+### LMV Fields (optional)
+- `lmv` — Evidence-backed claim metadata for recall
+  - Without LMV evidence, a recalled Frame is still useful memory but not verified knowledge
+  - With LMV evidence, recall can distinguish evidence-backed, contradicted, invalidated, or superseded claims
+
 ## Schema Validation
 
-All Frames follow [Frame Schema v4](../../docs/specs/FRAME-SCHEMA-V3.md).
+All Frames follow the [canonical Frame schema](../../src/shared/types/frame-schema.ts).
 
 Validate Frames with:
 
 ```bash
-# Using TypeScript API
-node -e "
-  const { validateFramePayload } = require('@smartergpt/lex/memory');
-  const frame = require('./frames/2025-12-16-mcp-naming-fix.json');
-  const result = validateFramePayload(frame);
-  console.log(result.valid ? '✓ Valid' : '✗ Invalid:', result.errors);
+# Using the canonical schema-backed parser
+node --input-type=module -e "
+  import { readFileSync } from 'node:fs';
+  import { safeParseFrame } from '@smartergpt/lex/types';
+
+  const frame = JSON.parse(
+    readFileSync('./examples/dogfood/frames/2025-12-16-mcp-naming-fix.json', 'utf8')
+  );
+  const result = safeParseFrame(frame);
+  console.log(result.success ? 'OK valid' : 'ERR invalid', result.success ? [] : result.error.issues);
 "
 ```
 
@@ -257,7 +268,7 @@ We include Frames that demonstrate:
 2. **Different complexity tiers** — Junior, mid, senior level work
 3. **Various module scopes** — Memory, CLI, policy, atlas, shared utilities
 4. **Real challenges** — Blockers, escalations, platform issues
-5. **Complete metadata** — Using v3/v4 schema fields
+5. **Complete metadata** — Using the current canonical Frame fields
 
 ## Contributing Dogfood Examples
 
@@ -273,12 +284,12 @@ Have a great Frame from your own Lex usage? Submit a PR!
 - Shows a real workflow pattern (recall → work → remember)
 - Demonstrates a non-obvious Lex feature
 - Has an interesting blocker or escalation story
-- Uses advanced schema fields (turnCost, taskComplexity, etc.)
+- Uses advanced canonical fields (`turnCost`, `taskComplexity`, optional LMV metadata)
 
 ## Related Documentation
 
 - [Mind Palace Guide](../../docs/MIND_PALACE.md) — Using reference points effectively
-- [Frame Schema v3](../../docs/specs/FRAME-SCHEMA-V3.md) — Complete schema specification
+- [Canonical Frame schema](../../src/shared/types/frame-schema.ts) — Current schema source
 - [AX Contract](../../docs/specs/AX-CONTRACT.md) — Agent experience guarantees
 - [Quick Start](../../QUICK_START.md) — Getting started with Lex
 - [API Usage](../../docs/API_USAGE.md) — Programmatic API

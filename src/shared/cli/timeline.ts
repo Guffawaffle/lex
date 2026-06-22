@@ -8,7 +8,7 @@
  * - --format=json outputs raw timeline JSON (legacy behavior)
  */
 
-import type { Frame } from "../types/frame.js";
+import type { Frame } from "../types/frame-schema.js";
 import { createFrameStore, type FrameStore } from "../../memory/store/index.js";
 import {
   buildTimeline,

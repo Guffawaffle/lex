@@ -10,7 +10,7 @@
       "lex/types/*": ["../types/*"]
     }
   },
-  "include": ["./*.ts"],
+  "include": ["./*.ts", "../../memory/frames/wave-complete.ts"],
   "exclude": ["node_modules", "dist", "*.test.ts"]
   ,
   "references": [
@@ -28,7 +28,6 @@
     { "path": "../../memory/store" },
     { "path": "../../memory/renderer" },
     { "path": "../../memory/receipts" },
-    { "path": "../../memory/frames" },
     { "path": "../../github" }
   ]
 }

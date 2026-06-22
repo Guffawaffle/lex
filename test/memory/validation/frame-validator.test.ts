@@ -110,7 +110,7 @@ describe("Frame Payload Validation", () => {
         id: "frame-005",
         timestamp: "2025-11-27T10:00:00Z",
         branch: "main",
-        module_scope: [],
+        module_scope: ["core"],
         summary_caption: "Empty arrays test",
         reference_point: "empty arrays",
         status_snapshot: { next_action: "Test" },
@@ -121,6 +121,76 @@ describe("Frame Payload Validation", () => {
       const result = validateFramePayload(payload);
 
       assert.strictEqual(result.valid, true, "Payload with empty arrays should pass");
+    });
+
+    test("should validate Frame payload with v7 LMV epistemic envelope", () => {
+      const payload = {
+        id: "frame-lmv-001",
+        timestamp: "2026-06-16T10:00:00Z",
+        branch: "main",
+        module_scope: ["core"],
+        summary_caption: "LMV envelope captured",
+        reference_point: "lmv envelope validation",
+        status_snapshot: { next_action: "Render recall label" },
+        lmv: {
+          claim: "Recall can distinguish evidence-backed claims from unsupported memory.",
+          evidence: [
+            {
+              kind: "test",
+              ref: "test/memory/validation/frame-validator.test.ts",
+              status: "supports",
+              exitCode: 0,
+              line: 1,
+              artifactPath: "test/memory/validation/frame-validator.test.ts",
+              receiptId: "receipt-lmv-validation",
+            },
+          ],
+          status: "observed",
+          confidence: "high",
+          uncertainty: ["This validates shape, not recall ranking."],
+          lineage: {
+            sourceFrames: ["frame-source"],
+            sourceReceipts: ["receipt-source"],
+          },
+          contradictions: [],
+          invalidatedBy: [],
+          nextValidation: "Run recall rendering tests.",
+          boundaries: {
+            trustZone: "workspace",
+            privilege: "normal",
+            dataClass: "local_private",
+            egress: "none",
+            pathScope: ["src/shared/types/**"],
+            doesNotAuthorize: ["remote writes"],
+          },
+          experiment: {
+            hypothesis: "Optional LMV metadata can travel with a Frame.",
+            bounds: {
+              pathScope: ["src/memory/frames/types.ts"],
+              maxAttempts: 1,
+              timeBudgetSeconds: 60,
+              allowedEffects: ["read", "write"],
+              stopConditions: [
+                {
+                  code: "invalid_schema",
+                  action: "stop",
+                  message: "Stop if the LMV envelope is rejected.",
+                },
+              ],
+            },
+            rollbackOrContainment: "Remove only the optional lmv field.",
+            result: "supported",
+            lesson: "The envelope remains optional and validated.",
+            changedFutureAction: true,
+          },
+        },
+      };
+
+      const result = validateFramePayload(payload);
+
+      assert.strictEqual(result.valid, true, "Payload with LMV metadata should pass");
+      assert.deepStrictEqual(result.errors, [], "Should have no errors");
+      assert.deepStrictEqual(result.warnings, [], "Should have no warnings");
     });
   });
 
@@ -269,6 +339,38 @@ describe("Frame Payload Validation", () => {
         "Should have INVALID_TYPE error for toolCalls"
       );
     });
+
+    test("should reject LMV evidence with invalid status", () => {
+      const payload = {
+        id: "frame-lmv-invalid",
+        timestamp: "2026-06-16T10:00:00Z",
+        branch: "main",
+        module_scope: ["core"],
+        summary_caption: "Invalid LMV evidence status",
+        reference_point: "lmv invalid status",
+        status_snapshot: { next_action: "Fix evidence status" },
+        lmv: {
+          claim: "This should not validate.",
+          evidence: [
+            {
+              kind: "test",
+              ref: "test/memory/validation/frame-validator.test.ts",
+              status: "maybe",
+            },
+          ],
+          status: "observed",
+          confidence: "high",
+        },
+      };
+
+      const result = validateFramePayload(payload);
+
+      assert.strictEqual(result.valid, false, "Invalid LMV evidence status should fail");
+      assert.ok(
+        result.errors.some((e) => e.path.includes("lmv") && e.path.includes("status")),
+        "Should have an LMV evidence status error"
+      );
+    });
   });
 
   describe("Edge Cases", () => {
@@ -392,6 +494,44 @@ describe("Frame Payload Validation", () => {
       assert.ok(
         result.warnings.some((w) => w.path === "spend.unknownSpendField"),
         "Should warn about spend.unknownSpendField"
+      );
+    });
+
+    test("should warn about unknown fields inside LMV metadata", () => {
+      const payload = {
+        id: "frame-lmv-warning",
+        timestamp: "2026-06-16T10:00:00Z",
+        branch: "main",
+        module_scope: ["core"],
+        summary_caption: "LMV unknown field warning",
+        reference_point: "lmv warning",
+        status_snapshot: { next_action: "Review warnings" },
+        lmv: {
+          claim: "Unknown LMV fields should be surfaced without rejecting the frame.",
+          evidence: [
+            {
+              kind: "test",
+              ref: "test/memory/validation/frame-validator.test.ts",
+              status: "supports",
+              extraEvidenceField: true,
+            },
+          ],
+          status: "observed",
+          confidence: "medium",
+          unknownLmvField: "extra",
+        },
+      };
+
+      const result = validateFramePayload(payload);
+
+      assert.strictEqual(result.valid, true, "Unknown LMV fields should warn, not fail");
+      assert.ok(
+        result.warnings.some((w) => w.path === "lmv.unknownLmvField"),
+        "Should warn about unknown LMV root field"
+      );
+      assert.ok(
+        result.warnings.some((w) => w.path === "lmv.evidence[0].extraEvidenceField"),
+        "Should warn about unknown LMV evidence field"
       );
     });
 
@@ -526,10 +666,8 @@ describe("Frame Payload Validation", () => {
         taskComplexity: {
           tier: "mid",
           assignedModel: "claude-sonnet-4.5",
-          actualModel: "claude-sonnet-4.5",
           escalated: false,
           retryCount: 0,
-          tierMismatch: false,
         },
       };
 
@@ -537,6 +675,7 @@ describe("Frame Payload Validation", () => {
 
       assert.strictEqual(result.valid, true, "Payload with taskComplexity should pass");
       assert.deepStrictEqual(result.errors, [], "Should have no errors");
+      assert.deepStrictEqual(result.warnings, [], "Canonical taskComplexity should not warn");
     });
 
     test("should validate Frame with minimal taskComplexity", () => {
@@ -570,17 +709,16 @@ describe("Frame Payload Validation", () => {
         taskComplexity: {
           tier: "mid",
           assignedModel: "claude-haiku-4",
-          actualModel: "claude-sonnet-4.5",
           escalated: true,
           escalationReason: "Required architectural decision",
           retryCount: 2,
-          tierMismatch: true,
         },
       };
 
       const result = validateFramePayload(payload);
 
       assert.strictEqual(result.valid, true, "Payload with escalation should pass");
+      assert.deepStrictEqual(result.warnings, [], "Canonical escalation fields should not warn");
     });
 
     test("should validate Frame with both capabilityTier and taskComplexity", () => {
@@ -745,6 +883,40 @@ describe("Frame Payload Validation", () => {
       );
     });
 
+    test("should strip deprecated taskComplexity model-attribution fields for ingestion", () => {
+      const payload = {
+        id: "frame-024b",
+        timestamp: "2025-12-05T10:00:00Z",
+        branch: "main",
+        module_scope: ["core"],
+        summary_caption: "Deprecated complexity fields",
+        reference_point: "test",
+        status_snapshot: { next_action: "Test" },
+        taskComplexity: {
+          tier: "mid",
+          assignedModel: "claude-sonnet-4.5",
+          actualModel: "claude-sonnet-4.5",
+          tierMismatch: false,
+        },
+      };
+
+      const result = validateFramePayload(payload);
+
+      assert.strictEqual(
+        result.valid,
+        true,
+        "Deprecated compatibility fields should be stripped before ingestion validation"
+      );
+      assert.ok(
+        result.warnings.some((w) => w.path === "taskComplexity.actualModel"),
+        "Should warn on stripped taskComplexity.actualModel"
+      );
+      assert.ok(
+        result.warnings.some((w) => w.path === "taskComplexity.tierMismatch"),
+        "Should warn on stripped taskComplexity.tierMismatch"
+      );
+    });
+
     test("should not warn when v4 fields are valid without unknown fields", () => {
       const payload = {
         id: "frame-025",
@@ -775,7 +947,6 @@ describe("Frame Payload Validation", () => {
         taskComplexity: {
           tier: "senior",
           assignedModel: "claude-opus-4",
-          actualModel: "claude-opus-4",
           escalated: false,
         },
       };
@@ -819,6 +990,38 @@ describe("Frame Payload Validation", () => {
       assert.ok(
         result.errors.some((e) => e.path === "summary_caption" && e.code === "TOO_BIG"),
         "Should have TOO_BIG error for summary_caption"
+      );
+    });
+
+    test("should reject payload with excessively long LMV claim", () => {
+      const payload = {
+        id: "frame-026b",
+        timestamp: "2025-12-05T10:00:00Z",
+        branch: "main",
+        module_scope: ["core"],
+        summary_caption: "Large LMV claim",
+        reference_point: "test",
+        status_snapshot: { next_action: "Test" },
+        lmv: {
+          claim: "x".repeat(MAX_STRING_LENGTH + 100),
+          evidence: [
+            {
+              kind: "manual",
+              ref: "observation",
+              status: "supports",
+            },
+          ],
+          status: "observed",
+          confidence: "medium",
+        },
+      };
+
+      const result = validateFramePayload(payload);
+
+      assert.strictEqual(result.valid, false, "Payload with oversized LMV claim should fail");
+      assert.ok(
+        result.errors.some((e) => e.path === "lmv.claim" && e.code === "TOO_BIG"),
+        "Should have TOO_BIG error for lmv.claim"
       );
     });
 

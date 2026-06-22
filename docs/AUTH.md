@@ -65,8 +65,10 @@ export LEX_HTTP_API_KEY=your_legacy_api_key
 ### 3. Start the Server
 
 ```typescript
-import { createDatabase } from "@smartergpt/lex/memory/store";
-import { startHttpServer } from "@smartergpt/lex/memory/mcp_server/http-server";
+// Source-level contributor example. Auth internals are not public npm subpath
+// exports.
+import { createDatabase } from "../src/memory/store/db.js";
+import { startHttpServer } from "../src/memory/mcp_server/http-server.js";
 
 const db = createDatabase();
 
@@ -141,7 +143,7 @@ interface HttpServerOptions {
 ### Example: Production Configuration
 
 ```typescript
-import { initializeKeys } from "@smartergpt/lex/memory/mcp_server/auth/keys";
+import { initializeKeys } from "../src/memory/mcp_server/auth/keys.js";
 
 const keys = initializeKeys();
 
@@ -264,7 +266,7 @@ Access tokens are JWT tokens with the following payload:
 Tokens are verified using RS256 asymmetric cryptography:
 
 ```typescript
-import { verifyToken } from "@smartergpt/lex/memory/mcp_server/auth/jwt";
+import { verifyToken } from "../src/memory/mcp_server/auth/jwt.js";
 
 try {
   const payload = verifyToken(token, publicKey);
@@ -474,7 +476,7 @@ Review audit logs regularly for suspicious activity.
 To add custom claims to JWT tokens, modify the token signing:
 
 ```typescript
-import { signAccessToken } from "@smartergpt/lex/memory/mcp_server/auth/jwt";
+import { signAccessToken } from "../src/memory/mcp_server/auth/jwt.js";
 
 const token = signAccessToken(
   {

@@ -257,7 +257,7 @@ lex remember --reference "test" --caption "test" | cat
 
 ```typescript
 import { spawn } from "child_process";
-import type { CliEvent } from "lex/cli-output";
+import type { CliEvent } from "@smartergpt/lex/cli-output";
 
 const lex = spawn("lex", ["recall", "auth"], {
   env: { ...process.env, LEX_CLI_OUTPUT_MODE: "jsonl" }
@@ -285,7 +285,7 @@ npm install ajv
 
 ```typescript
 import Ajv from "ajv";
-import schema from "lex/schemas/cli-output.v1.schema.json";
+import schema from "@smartergpt/lex/schemas/cli-output.v1.schema.json";
 
 const ajv = new Ajv();
 const validate = ajv.compile(schema);

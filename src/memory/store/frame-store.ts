@@ -6,7 +6,7 @@
  * Other drivers (if any) live out-of-tree or in higher layers.
  */
 
-import type { Frame } from "../frames/types.js";
+import type { Frame } from "../../shared/types/frame-schema.js";
 
 /**
  * Search criteria for Frames.
@@ -265,7 +265,7 @@ export interface FrameStore {
   /**
    * Update specific fields of an existing Frame.
    * Only the provided fields are updated; all other fields remain unchanged.
-   * Unlike saveFrame() (which does a full INSERT OR REPLACE), updateFrame()
+   * Unlike saveFrame() (which performs a full-row upsert), updateFrame()
    * performs a targeted UPDATE, making it safe for adding metadata to existing Frames
    * (e.g., marking a Frame as superseded or adding merged_from IDs).
    *

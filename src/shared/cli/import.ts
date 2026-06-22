@@ -6,7 +6,8 @@
 
 import { createFrameStore, type FrameStore } from "../../memory/store/index.js";
 import { safeParseFrame } from "../types/frame-schema.js";
-import type { Frame } from "../types/frame.js";
+import type { Frame } from "../types/frame-schema.js";
+import { normalizeFramePayloadForIngestion } from "../../memory/validation/index.js";
 import { readdirSync, readFileSync, existsSync, statSync } from "fs";
 import { join } from "path";
 import * as output from "./output.js";
@@ -22,13 +23,25 @@ export interface ImportCommandOptions {
 }
 
 /**
- * Read and parse a single JSON file
+ * Read and parse a single JSON or NDJSON file
  * @returns Array of Frames (handles both single Frame and array formats)
  */
 function readFramesFromFile(filepath: string): Frame[] {
   try {
     const content = readFileSync(filepath, "utf-8");
-    const parsed = JSON.parse(content);
+    const parsed = filepath.endsWith(".ndjson")
+      ? content
+          .split(/\r?\n/)
+          .map((line) => line.trim())
+          .filter((line) => line.length > 0)
+          .map((line, index) => {
+            try {
+              return JSON.parse(line);
+            } catch (error) {
+              throw new Error(`Invalid NDJSON at line ${index + 1}: ${String(error)}`);
+            }
+          })
+      : JSON.parse(content);
 
     // Handle both single Frame and array of Frames
     const candidates = Array.isArray(parsed) ? parsed : [parsed];
@@ -38,7 +51,8 @@ function readFramesFromFile(filepath: string): Frame[] {
     const errors: string[] = [];
 
     for (let i = 0; i < candidates.length; i++) {
-      const result = safeParseFrame(candidates[i]);
+      const normalized = normalizeFramePayloadForIngestion(candidates[i]);
+      const result = safeParseFrame(normalized.data);
       if (result.success) {
         frames.push(result.data);
       } else {
@@ -70,8 +84,9 @@ function readFramesFromFile(filepath: string): Frame[] {
       "IMPORT_FILE_READ_ERROR",
       `Failed to read or parse file: ${filepath}`,
       [
-        "Ensure the file exists and contains valid JSON",
-        "File must contain either a single Frame object or an array of Frames",
+        "Ensure the file exists and contains valid JSON or NDJSON",
+        "JSON files must contain either a single Frame object or an array of Frames",
+        "NDJSON files must contain one Frame object per non-empty line",
         "All frames must conform to the Frame schema",
       ],
       { filepath, error: String(error) }
@@ -105,11 +120,11 @@ function readFramesFromDirectory(dirpath: string): {
   }
 
   const filesMap = new Map<string, Frame[]>();
-  const files = readdirSync(dirpath).filter((f) => f.endsWith(".json"));
+  const files = readdirSync(dirpath).filter((f) => f.endsWith(".json") || f.endsWith(".ndjson"));
   let readErrors = 0;
 
   if (files.length === 0) {
-    output.warn(`No JSON files found in directory: ${dirpath}`);
+    output.warn(`No JSON or NDJSON files found in directory: ${dirpath}`);
     return { filesMap, readErrors };
   }
 
@@ -270,11 +285,23 @@ export async function importFrames(
             }
             continue;
           }
-          // If merge is enabled, saveFrame will perform upsert (INSERT OR REPLACE)
+          // If merge is enabled, update only the fields present in the imported
+          // frame so destination-only metadata survives the import.
         }
 
-        // Save frame - performs INSERT for new frames, or INSERT OR REPLACE for existing frames (merge mode)
-        await store.saveFrame(frame);
+        if (existing && options.merge) {
+          const { id: _id, timestamp: _timestamp, ...updates } = frame;
+          const updated = await store.updateFrame(frame.id, updates);
+          if (!updated) {
+            errors++;
+            if (!options.json) {
+              output.error(`Frame ${frame.id} disappeared before merge update`);
+            }
+            continue;
+          }
+        } else {
+          await store.saveFrame(frame);
+        }
         imported++;
 
         // Progress indicator for large imports

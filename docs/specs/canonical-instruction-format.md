@@ -179,5 +179,5 @@ Files are validated for:
 
 ## References
 
-- [Lex 2.0.0 Instructions Contract](./lex-2.0.0-instructions-contract.md)
+- [Instructions Guide](../INSTRUCTIONS.md)
 - [.smartergpt Structure Specification](./smartergpt-structure-v1.md)

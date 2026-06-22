@@ -24,10 +24,8 @@
   "taskComplexity": {
     "tier": "senior",
     "assignedModel": "gpt-4",
-    "actualModel": "gpt-4",
     "escalated": false,
-    "retryCount": 1,
-    "tierMismatch": false
+    "retryCount": 1
   },
   "turnCost": {
     "components": {

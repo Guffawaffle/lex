@@ -416,7 +416,7 @@ Warning: Module resolution took 2500ms (expected < 100ms)
 
 1. **Verify caching is working:**
    ```typescript
-   import { loadAliasTable } from 'lex/shared/aliases';
+   import { loadAliasTable } from '@smartergpt/lex/aliases';
 
    // Table is cached after first load
    const table1 = loadAliasTable(); // Slow (disk read)
@@ -454,7 +454,7 @@ Alias table is cached in memory. Changes require cache clear or restart.
 #### For Long-Running Processes (LexRunner)
 
 ```typescript
-import { clearAliasTableCache } from 'lex/shared/aliases';
+import { clearAliasTableCache } from '@smartergpt/lex/aliases';
 
 // When alias table changes (e.g., file watch or reload command)
 clearAliasTableCache();
@@ -468,7 +468,7 @@ Restart the process. Cache is cleared on exit.
 #### For Tests
 
 ```typescript
-import { clearAliasTableCache } from 'lex/shared/aliases';
+import { clearAliasTableCache } from '@smartergpt/lex/aliases';
 
 beforeEach(() => {
   clearAliasTableCache(); // Fresh table for each test
@@ -482,7 +482,7 @@ beforeEach(() => {
 ### Pattern: Debugging Failed Resolution
 
 ```typescript
-import { resolveModuleId } from 'lex/shared/aliases';
+import { resolveModuleId } from '@smartergpt/lex/aliases';
 
 const resolution = await resolveModuleId('auth', policy, aliasTable);
 
@@ -500,8 +500,8 @@ if (resolution.confidence < 1.0) {
 ### Pattern: Validating Alias Table
 
 ```typescript
-import { loadAliasTable } from 'lex/shared/aliases';
-import { loadPolicy } from 'lex/shared/policy';
+import { loadAliasTable } from '@smartergpt/lex/aliases';
+import { loadPolicy } from '@smartergpt/lex/policy';
 
 async function validateAliasTable(aliasPath: string, policyPath: string) {
   const table = loadAliasTable(aliasPath);

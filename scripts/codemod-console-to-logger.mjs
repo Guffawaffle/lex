@@ -16,7 +16,7 @@
  * - console.trace → logger.trace
  *
  * Adds import at top of file:
- * import { getLogger } from "lex/logger";
+ * import { getLogger } from "<relative path to src/shared/logger/index.js>";
  * const logger = getLogger("<scope>");
  *
  * Where <scope> is derived from file path (e.g., "shared:cli:lex" from "src/shared/cli/lex.ts")
@@ -24,7 +24,7 @@
 
 import { Project, SyntaxKind } from "ts-morph";
 import { readdir } from "node:fs/promises";
-import { join, relative, sep, parse } from "node:path";
+import { dirname, join, relative, sep, parse } from "node:path";
 
 // Map console methods to logger methods
 const METHOD_MAP = {
@@ -55,6 +55,18 @@ function deriveScope(filePath) {
   parts[parts.length - 1] = name;
 
   return parts.join(":");
+}
+
+/**
+ * Derive a NodeNext-compatible relative import to the shared logger module.
+ */
+function deriveLoggerImport(filePath) {
+  const loggerPath = join(process.cwd(), "src", "shared", "logger", "index.js");
+  let importPath = relative(dirname(filePath), loggerPath).split(sep).join("/");
+  if (!importPath.startsWith(".")) {
+    importPath = `./${importPath}`;
+  }
+  return importPath;
 }
 
 /**
@@ -101,10 +113,7 @@ function transformFile(project, filePath) {
       const expr = propAccess.getExpression();
 
       // Check if it's console.<method>
-      if (
-        expr.getKind() === SyntaxKind.Identifier &&
-        expr.getText() === "console"
-      ) {
+      if (expr.getKind() === SyntaxKind.Identifier && expr.getText() === "console") {
         const methodName = propAccess.getName();
         if (METHOD_MAP[methodName]) {
           hasConsole = true;
@@ -122,31 +131,37 @@ function transformFile(project, filePath) {
 
   // Derive scope from file path
   const scope = deriveScope(filePath);
+  const loggerImport = deriveLoggerImport(filePath);
 
   // Add import if not present
-  const existingImport = sourceFile
-    .getImportDeclarations()
-    .find((imp) => imp.getModuleSpecifierValue() === "lex/logger");
+  const existingImport = sourceFile.getImportDeclarations().find((imp) => {
+    const specifier = imp.getModuleSpecifierValue();
+    const hasGetLogger = imp.getNamedImports().some((named) => named.getName() === "getLogger");
+    return (
+      hasGetLogger &&
+      (specifier === loggerImport ||
+        specifier.endsWith("/shared/logger/index.js") ||
+        specifier.endsWith("/logger/index.js"))
+    );
+  });
 
   if (!existingImport) {
     // Add import at the top
     const firstStatement = sourceFile.getStatements()[0];
     if (firstStatement) {
       firstStatement.replaceWithText(
-        `import { getLogger } from "lex/logger";\n${firstStatement.getText()}`
+        `import { getLogger } from "${loggerImport}";\n${firstStatement.getText()}`
       );
     } else {
       sourceFile.addImportDeclaration({
-        moduleSpecifier: "lex/logger",
+        moduleSpecifier: loggerImport,
         namedImports: ["getLogger"],
       });
     }
   }
 
   // Add logger constant after imports
-  const hasLoggerConst = sourceFile
-    .getVariableDeclarations()
-    .some((v) => v.getName() === "logger");
+  const hasLoggerConst = sourceFile.getVariableDeclarations().some((v) => v.getName() === "logger");
 
   if (!hasLoggerConst) {
     // Find last import
@@ -166,7 +181,7 @@ function transformFile(project, filePath) {
     } else {
       // No imports at all (shouldn't happen since we just added one)
       sourceFile.insertStatements(0, [
-        'import { getLogger } from "lex/logger";',
+        `import { getLogger } from "${loggerImport}";`,
         `const logger = getLogger("${scope}");`,
       ]);
     }
@@ -178,10 +193,7 @@ function transformFile(project, filePath) {
       const propAccess = node;
       const expr = propAccess.getExpression();
 
-      if (
-        expr.getKind() === SyntaxKind.Identifier &&
-        expr.getText() === "console"
-      ) {
+      if (expr.getKind() === SyntaxKind.Identifier && expr.getText() === "console") {
         const methodName = propAccess.getName();
         const loggerMethod = METHOD_MAP[methodName];
 

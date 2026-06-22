@@ -4,14 +4,16 @@
  * Formats Frame search results as natural language prose instead of JSON.
  */
 
-import type { Frame } from "./frames/types.js";
+import type { Frame } from "../shared/types/frame-schema.js";
 import type { NaturalQuery } from "./natural-query.js";
+import { summarizeLmvForRecall, type LmvRecallSummary } from "../shared/types/lmv.js";
 
 export interface NarrativeItem {
   summary: string;
   date: string;
   frameId: string;
   keywords: string[];
+  lmv: LmvRecallSummary;
 }
 
 export interface NarrativeGroup {
@@ -156,12 +158,15 @@ export function formatAsNarrative(frames: Frame[], query: NaturalQuery): string 
 
     for (const item of sortedItems) {
       const date = formatDate(item.timestamp);
+      const lmv = summarizeLmvForRecall(item);
       response += `• ${item.summary_caption} (${date})`;
 
       // Add Jira ticket if available
       if (item.jira) {
         response += ` [${item.jira}]`;
       }
+
+      response += ` - LMV: ${lmv.label}`;
 
       response += "\n";
     }
@@ -194,6 +199,7 @@ export function buildNarrativeResponse(frames: Frame[], query: NaturalQuery): Na
       date: formatDate(frame.timestamp),
       frameId: frame.id,
       keywords: frame.keywords || [],
+      lmv: summarizeLmvForRecall(frame),
     }));
 
     groupedResults.push({

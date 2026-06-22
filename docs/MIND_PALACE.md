@@ -444,8 +444,8 @@ Reference points are added to existing Frame metadata:
 {
   "timestamp": "...",
   "branch": "...",
-  "jira": ["TICKET-123"],
-  "reference_point": "Add User button still disabled",  // NEW
+  "jira": "TICKET-123",
+  "reference_point": "Add User button still disabled",
   "module_scope": ["ui/user-admin-panel"],
   "summary_caption": "...",
   ...

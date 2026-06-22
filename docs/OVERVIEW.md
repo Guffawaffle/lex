@@ -100,13 +100,16 @@ This is how Frames become searchable, referenceable, and aligned with architectu
 {
   "timestamp": "2025-11-01T16:04:12-05:00",
   "branch": "feature/TICKET-123_auth_handshake_fix",
-  "jira": ["TICKET-123"],
+  "jira": "TICKET-123",
   "module_scope": ["ui/user-admin-panel", "services/auth-core"],
   "feature_flags": ["beta_user_admin"],
   "permissions": ["can_manage_users"],
   "summary_caption": "Auth handshake timeout; Add User button still disabled in admin panel",
   "status_snapshot": {
-    "tests_failing": 2,
+    "tests_failing": [
+      "test/user-access-controller.test.ts",
+      "test/auth-timeout.test.ts"
+    ],
     "merge_blockers": [
       "UserAccessController wiring",
       "ExternalAuthClient timeout handling"
@@ -303,35 +306,36 @@ The package exports multiple entry points via subpath exports in `package.json`:
 ```json
 {
   "exports": {
-    ".": {                                      // Main entry with types
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
-    },
-    "./cli": "./dist/cli/index.js",            // Programmatic CLI helpers
-    "./policy/*": "./dist/policy/*",           // Policy subsystem
-    "./memory/*": "./dist/memory/*",           // Memory subsystem
-    "./shared/*": "./dist/shared/*"            // Shared utilities (includes CLI)
+    ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" },
+    "./cli": { "types": "./dist/shared/cli/index.d.ts", "import": "./dist/shared/cli/index.js" },
+    "./policy": { "types": "./dist/shared/policy/index.d.ts", "import": "./dist/shared/policy/index.js" },
+    "./atlas": { "types": "./dist/shared/atlas/index.d.ts", "import": "./dist/shared/atlas/index.js" },
+    "./store": { "types": "./dist/memory/store/index.d.ts", "import": "./dist/memory/store/index.js" },
+    "./types": { "types": "./dist/shared/types/index.d.ts", "import": "./dist/shared/types/index.js" },
+    "./aliases": { "types": "./dist/shared/aliases/index.d.ts", "import": "./dist/shared/aliases/index.js" },
+    "./memory": { "types": "./dist/memory/validation/index.d.ts", "import": "./dist/memory/validation/index.js" }
   },
   "bin": {
-    "lex": "./dist/shared/cli/lex.js"          // CLI binary entry point
+    "lex": "./dist/shared/cli/lex.js"
   }
 }
 ```
 
-Note: The snippet above reflects the current `package.json`. Check that file for the latest authoritative export map.
+`package.json` is authoritative for the full export map. Lex intentionally
+exports named subpaths instead of wildcard access into `src/` or `dist/`.
 
 This allows importing specific subsystems without exposing internal implementation details:
 
 ```typescript
-import { remember, recall } from 'lex/memory/frames';
-import { checkPolicy } from 'lex/policy/check';
-import { resolveModuleId } from 'lex/shared/aliases';
+import { saveFrame, searchFrames } from '@smartergpt/lex';
+import { loadPolicy } from '@smartergpt/lex/policy';
+import { resolveModuleId } from '@smartergpt/lex/aliases';
 ```
 
 The CLI is available as a binary via `npx lex` or direct invocation after installation. For programmatic helpers, you can also import the CLI subpath:
 
 ```typescript
-import * as cli from 'lex/cli';
+import * as cli from '@smartergpt/lex/cli';
 ```
 
 ---

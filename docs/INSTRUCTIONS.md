@@ -402,4 +402,4 @@ jobs:
 - [Quick Start Guide](../QUICK_START.md)
 - [lex.yaml Configuration Contract](./specs/lex-yaml-config-contract.md)
 - [Canonical Instruction Format Specification](./specs/canonical-instruction-format.md)
-- [Instructions Contract](./specs/lex-2.0.0-instructions-contract.md)
+- [.smartergpt Structure Specification](./specs/smartergpt-structure-v1.md)

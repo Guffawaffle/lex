@@ -188,6 +188,45 @@ describe("MCP Server - validate_remember", () => {
     }
   });
 
+  test("validate_remember fails with invalid LMV metadata", async () => {
+    const srv = setup();
+    try {
+      const response = await srv.handleRequest({
+        method: "tools/call",
+        params: {
+          name: "validate_remember",
+          arguments: {
+            reference_point: "invalid lmv",
+            summary_caption: "Invalid LMV metadata",
+            status_snapshot: { next_action: "Fix LMV metadata" },
+            module_scope: ["policy/scanners"],
+            lmv: {
+              claim: "Invalid evidence status should be rejected.",
+              evidence: [
+                {
+                  kind: "test",
+                  ref: "test/memory/mcp_server/validate-remember.test.ts",
+                  status: "maybe",
+                },
+              ],
+              status: "observed",
+              confidence: "high",
+            },
+          },
+        },
+      });
+
+      assert.ok(response.content, "Response should have content");
+      assert.ok(
+        response.content[0].text.includes("❌ Validation failed"),
+        "Should indicate validation failed"
+      );
+      assert.ok(response.content[0].text.includes("lmv"), "Should mention LMV metadata");
+    } finally {
+      await teardown();
+    }
+  });
+
   test("validate_remember validates module IDs against policy", async () => {
     const srv = setup(true); // Create with policy
     try {
@@ -286,7 +325,7 @@ describe("MCP Server - validate_remember", () => {
   });
 
   test("validate_remember accepts valid Jira format without warning", async () => {
-    const srv = setup();
+    const srv = setup(true);
     try {
       const response = await srv.handleRequest({
         method: "tools/call",

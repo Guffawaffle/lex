@@ -5,6 +5,7 @@
     "types": ["node"],
     "baseUrl": "."
   },
-  "include": ["./**/*.ts", "../frames/types.ts"],
-  "exclude": ["node_modules", "dist", "**/*.test.ts"]
+  "include": ["./**/*.ts"],
+  "exclude": ["node_modules", "dist", "**/*.test.ts"],
+  "references": [{ "path": "../../shared/types" }]
 }

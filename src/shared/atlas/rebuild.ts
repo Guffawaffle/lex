@@ -6,7 +6,7 @@
  * module scope overlap and temporal proximity.
  */
 
-import type { Frame } from "../types/frame.js";
+import type { Frame } from "../types/frame-schema.js";
 
 /**
  * Atlas node representing a Frame in the knowledge graph

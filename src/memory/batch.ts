@@ -10,9 +10,14 @@
  * @module memory/batch
  */
 
-import type { Frame } from "./frames/types.js";
+import type { Frame } from "../shared/types/frame-schema.js";
+import { safeParseFrame } from "../shared/types/frame-schema.js";
 import type { FrameStore, SaveResult } from "./store/frame-store.js";
-import { validateFramePayload, type FrameValidationResult } from "./validation/index.js";
+import {
+  normalizeFramePayloadForIngestion,
+  validateFramePayload,
+  type FrameValidationResult,
+} from "./validation/index.js";
 
 /**
  * Input for a single Frame in a batch operation.
@@ -44,7 +49,7 @@ export interface BatchOptions {
    *
    * @example
    * ```typescript
-   * import { insertFramesBatch } from '@smartergpt/lex/memory';
+   * import { insertFramesBatch } from '@smartergpt/lex';
    * import { triggerAtlasRebuild } from '@smartergpt/lex/atlas';
    *
    * const result = await insertFramesBatch(store, frames, {
@@ -100,7 +105,7 @@ export interface BatchIngestionResult {
  *
  * @example
  * ```typescript
- * import { insertFramesBatch } from '@smartergpt/lex/memory';
+ * import { insertFramesBatch } from '@smartergpt/lex';
  * import { createFrameStore } from '@smartergpt/lex/store';
  *
  * const store = createFrameStore();
@@ -137,6 +142,7 @@ export async function insertFramesBatch(
   };
 
   const validationErrors: BatchValidationError[] = [];
+  const normalizedFrames: Frame[] = [...frames];
 
   // Pre-validate all frames if enabled
   if (opts.preValidate) {
@@ -161,6 +167,12 @@ export async function insertFramesBatch(
           };
         }
       }
+
+      const normalized = normalizeFramePayloadForIngestion(frame);
+      const parsed = safeParseFrame(normalized.data);
+      if (parsed.success) {
+        normalizedFrames[i] = parsed.data;
+      }
     }
 
     // If we collected any validation errors, fail the batch
@@ -176,7 +188,7 @@ export async function insertFramesBatch(
 
   // All validations passed (or pre-validation disabled) - submit to store
   try {
-    const results = await store.saveFrames(frames);
+    const results = await store.saveFrames(normalizedFrames);
 
     // Check if all frames were successfully saved
     const allSuccess = results.every((r) => r.success);

@@ -3,7 +3,7 @@
  * Optimized for LLM vision input with high-contrast, readable design
  */
 
-import type { Frame } from "../frames/types.js";
+import type { Frame } from "../../shared/types/frame-schema.js";
 
 export interface CardDimensions {
   width: number;

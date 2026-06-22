@@ -9,11 +9,12 @@
       "lex/logger/*": ["../../shared/logger/*"]
     }
   },
-  "include": ["./**/*.ts", "../frames/types.ts", "../batch.ts", "../similarity.ts", "../deduplication.ts", "../contradictions.ts", "../resolution.ts", "../natural-query.ts", "../narrative.ts", "../maintenance/index.ts"],
+  "include": ["./**/*.ts", "../batch.ts", "../similarity.ts", "../deduplication.ts", "../contradictions.ts", "../resolution.ts", "../natural-query.ts", "../narrative.ts", "../maintenance/index.ts"],
   "exclude": ["node_modules", "dist", "**/*.test.ts"],
   "references": [
     { "path": "../../shared/logger" },
     { "path": "../../shared/config" },
+    { "path": "../../shared/types" },
     { "path": "../../atlas/schemas" },
     { "path": "../receipts" },
     { "path": "../validation" }

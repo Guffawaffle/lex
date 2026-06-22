@@ -8,6 +8,7 @@ import { execFileSync } from "node:child_process";
 import { writeFileSync, mkdirSync, existsSync, rmSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
+import { SqliteFrameStore } from "@app/memory/store/sqlite/index.js";
 
 const testDir = join(tmpdir(), "lex-import-test-" + Date.now());
 const testDbPath = join(testDir, "frames.db");
@@ -174,6 +175,28 @@ test("CLI: lex frames import --from-file imports single JSON file with array of 
   }
 });
 
+test("CLI: lex frames import --from-file imports NDJSON exports", () => {
+  setupTest();
+  try {
+    const testFile = join(importDir, "frames.ndjson");
+    const frames = [createValidFrame("1", "Frame 1"), createValidFrame("2", "Frame 2")];
+    writeFileSync(testFile, frames.map((frame) => JSON.stringify(frame)).join("\n") + "\n");
+
+    const output = execFileSync(
+      process.execPath,
+      [lexBin, "frames", "import", "--from-file", testFile],
+      {
+        encoding: "utf-8",
+        env: getTestEnv(),
+      }
+    );
+
+    assert.match(output, /Imported: 2/, "Should import 2 frames from NDJSON");
+  } finally {
+    cleanup();
+  }
+});
+
 test("CLI: lex frames import --from-dir imports all JSON files from directory", () => {
   setupTest();
   try {
@@ -328,6 +351,86 @@ test("CLI: lex frames import --merge updates existing frames", () => {
     });
     assert.match(recallOutput, /Updated summary/, "Frame should have updated summary");
   } finally {
+    cleanup();
+  }
+});
+
+test("CLI: lex frames import --merge preserves destination-only fields", async () => {
+  setupTest();
+  let store: SqliteFrameStore | null = null;
+  try {
+    const testFile = join(importDir, "merge-preserve-test.json");
+    const frame = {
+      ...createValidFrame("1", "Original summary"),
+      keywords: ["keep-me"],
+      lmv: {
+        claim: "Existing evidence-backed claim",
+        evidence: [{ kind: "manual", ref: "operator note", status: "supports" }],
+        status: "observed",
+        confidence: "medium",
+      },
+    };
+    writeFileSync(testFile, JSON.stringify(frame, null, 2));
+
+    execFileSync(process.execPath, [lexBin, "frames", "import", "--from-file", testFile], {
+      encoding: "utf-8",
+      env: getTestEnv(),
+    });
+
+    const mergedFrame = createValidFrame("1", "Updated summary");
+    writeFileSync(testFile, JSON.stringify(mergedFrame, null, 2));
+
+    execFileSync(
+      process.execPath,
+      [lexBin, "frames", "import", "--from-file", testFile, "--merge"],
+      {
+        encoding: "utf-8",
+        env: getTestEnv(),
+      }
+    );
+
+    store = new SqliteFrameStore(testDbPath);
+    const retrieved = await store.getFrameById("frame-1");
+    assert.ok(retrieved);
+    assert.strictEqual(retrieved.summary_caption, "Updated summary");
+    assert.deepStrictEqual(retrieved.keywords, ["keep-me"]);
+    assert.strictEqual(retrieved.lmv?.claim, "Existing evidence-backed claim");
+  } finally {
+    await store?.close();
+    cleanup();
+  }
+});
+
+test("CLI: lex frames import normalizes deprecated taskComplexity fields", async () => {
+  setupTest();
+  let store: SqliteFrameStore | null = null;
+  try {
+    const testFile = join(importDir, "legacy-task-complexity-test.json");
+    const frame = {
+      ...createValidFrame("legacy", "Legacy task complexity"),
+      taskComplexity: {
+        tier: "mid",
+        assignedModel: "gpt-4",
+        actualModel: "gpt-4",
+        tierMismatch: false,
+      },
+    };
+    writeFileSync(testFile, JSON.stringify(frame, null, 2));
+
+    execFileSync(process.execPath, [lexBin, "frames", "import", "--from-file", testFile], {
+      encoding: "utf-8",
+      env: getTestEnv(),
+    });
+
+    store = new SqliteFrameStore(testDbPath);
+    const retrieved = await store.getFrameById("frame-legacy");
+    assert.ok(retrieved);
+    assert.deepStrictEqual(retrieved.taskComplexity, {
+      tier: "mid",
+      assignedModel: "gpt-4",
+    });
+  } finally {
+    await store?.close();
     cleanup();
   }
 });

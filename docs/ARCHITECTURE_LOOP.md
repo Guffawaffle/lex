@@ -73,13 +73,16 @@ Here's what gets stored:
 {
   "timestamp": "2025-11-01T23:04:12-05:00",
   "branch": "feature/TICKET-123_auth_handshake_fix",
-  "jira": ["TICKET-123"],
+  "jira": "TICKET-123",
   "module_scope": ["ui/user-admin-panel", "services/auth-core"],
   "feature_flags": ["beta_user_admin"],
   "permissions": ["can_manage_users"],
   "summary_caption": "Auth handshake timeout; Add User button still disabled in admin panel",
   "status_snapshot": {
-    "tests_failing": 2,
+    "tests_failing": [
+      "test/user-access-controller.test.ts",
+      "test/auth-timeout.test.ts"
+    ],
     "merge_blockers": [
       "UserAccessController wiring",
       "ExternalAuthClient timeout handling"

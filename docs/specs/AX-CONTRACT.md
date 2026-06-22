@@ -81,7 +81,8 @@ Applies to: LexRunner MCP tools, core CLIs where failures are expected as part o
 
 **Pledge:** Frames are first-class, and recall actually works.
 
-- Frames created via `lex remember` are treated as the **source of truth** for past decisions and learning.
+- Frames created via `lex remember` are durable memory records for past decisions and learning; they are recall inputs, not proof by themselves.
+- When LMV evidence is absent, recall surfaces Frames as unsupported memory rather than verified knowledge.
 - `lex recall` and any Runner-side recall mechanisms **MUST** search at minimum:
   - `keywords`
   - `reference_point`

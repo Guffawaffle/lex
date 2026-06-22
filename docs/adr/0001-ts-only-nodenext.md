@@ -106,7 +106,7 @@ This approach follows the principle: **Write imports as they will appear at runt
 
 **Simplicity**: One place to find all build artifacts. No hunting through nested `dist/` folders.
 
-**Package Exports**: We define `exports` in `package.json` that map to `dist/`. Consumers import from logical paths (e.g., `lex/memory/store`), and we control the physical paths.
+**Package Exports**: We define `exports` in `package.json` that map to `dist/`. Consumers import from logical paths (e.g., `@smartergpt/lex/store`), and we control the physical paths.
 
 **Incremental Builds**: TypeScript's project references enable fast incremental builds without complex per-package output management.
 

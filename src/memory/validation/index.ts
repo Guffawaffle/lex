@@ -7,7 +7,9 @@
  */
 
 export {
+  normalizeFramePayloadForIngestion,
   validateFramePayload,
+  type FrameNormalizationResult,
   type FrameValidationResult,
   type FrameValidationError,
   type FrameValidationWarning,

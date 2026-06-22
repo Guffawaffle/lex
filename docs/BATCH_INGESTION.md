@@ -2,7 +2,7 @@
 
 **Status:** Stable (v1.0.0)  
 **Issue:** L-EXE-003  
-**Module:** `@smartergpt/lex/memory`
+**Module:** `@smartergpt/lex`
 
 ## Overview
 
@@ -20,7 +20,7 @@ Use `insertFramesBatch()` when:
 ## Quick Start
 
 ```typescript
-import { insertFramesBatch } from '@smartergpt/lex/memory';
+import { insertFramesBatch } from '@smartergpt/lex';
 import { createFrameStore } from '@smartergpt/lex/store';
 
 const store = createFrameStore();
@@ -124,7 +124,7 @@ interface BatchIngestionResult {
 Capture all steps of a workflow atomically:
 
 ```typescript
-import { insertFramesBatch } from '@smartergpt/lex/memory';
+import { insertFramesBatch } from '@smartergpt/lex';
 import { createFrameStore } from '@smartergpt/lex/store';
 
 async function recordWorkflow(workflowId: string, steps: string[]) {
@@ -165,7 +165,7 @@ await recordWorkflow('wf-001', [
 Record parallel processing results atomically:
 
 ```typescript
-import { insertFramesBatch } from '@smartergpt/lex/memory';
+import { insertFramesBatch } from '@smartergpt/lex';
 import { createFrameStore } from '@smartergpt/lex/store';
 
 async function recordParallelWork(taskId: string, results: any[]) {
@@ -207,7 +207,7 @@ await recordParallelWork('task-123', results);
 Collect all validation errors before rejecting:
 
 ```typescript
-import { insertFramesBatch } from '@smartergpt/lex/memory';
+import { insertFramesBatch } from '@smartergpt/lex';
 import { createFrameStore } from '@smartergpt/lex/store';
 
 async function importFramesWithValidation(frames: any[]) {
@@ -253,6 +253,12 @@ if (!result.success && result.validationErrors.length > 0) {
   }
 }
 ```
+
+Pre-validation is also the ingestion compatibility boundary. Deprecated
+`taskComplexity.actualModel` and `taskComplexity.tierMismatch` fields are
+stripped before canonical persistence and reported as warnings by
+`validateFramePayload()`. The canonical `safeParseFrame()` parser remains
+strict and rejects those fields.
 
 ### Store Errors
 
@@ -339,7 +345,7 @@ const result = await insertFramesBatch(store, validatedFrames, {
 Use the `onSuccess` callback to schedule Atlas rebuilds after successful batch writes:
 
 ```typescript
-import { insertFramesBatch } from '@smartergpt/lex/memory';
+import { insertFramesBatch } from '@smartergpt/lex';
 import { triggerAtlasRebuild } from '@smartergpt/lex/atlas';
 
 const result = await insertFramesBatch(store, frames, {
@@ -393,7 +399,7 @@ try {
 
 ### vs. `validateFramePayload()`
 
-- `validateFramePayload()`: Standalone validation (no persistence)
+- `validateFramePayload()`: Standalone, schema-backed preflight validation with structured warnings (no persistence)
 - `insertFramesBatch()`: Combines validation + persistence in one call
 
 ### vs. Atlas Rebuild APIs
@@ -442,7 +448,7 @@ await store.close();
 
 - [Frame Validation API](./VALIDATION.md) - Pre-validation helpers
 - [FrameStore Interface](./FRAMESTORE.md) - Low-level persistence API
-- [Frame Schema](../../schemas/frame.schema.json) - Frame data structure
+- [Frame contract](../src/shared/types/frame-schema.ts) - Canonical Frame data structure
 
 ## Support
 

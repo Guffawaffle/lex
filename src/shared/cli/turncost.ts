@@ -141,7 +141,7 @@ export async function turncost(options: TurnCostOptions = {}): Promise<void> {
       output.info(`Estimated Tokens: ${metrics.estimatedTokens.toLocaleString()}`);
       output.info(`Prompts: ${metrics.prompts}`);
       output.info("");
-      
+
       if (metrics.frameCount === 0) {
         output.info("💡 No frames found in the specified period.");
         output.info("   Use 'lex remember' to start tracking your work sessions.");
@@ -151,24 +151,25 @@ export async function turncost(options: TurnCostOptions = {}): Promise<void> {
           const avgTokens = Math.round(metrics.estimatedTokens / metrics.frameCount);
           output.info(`Average tokens per frame: ${avgTokens.toLocaleString()}`);
         }
-        
+
         output.info("");
         output.info("💡 Use --period to adjust time window (e.g., --period 7d)");
       }
     }
   } catch (error) {
+    const err = error instanceof Error ? error : new Error(String(error));
     logger.error("Turn Cost calculation failed", {
       operation: "turncost",
-      error: error instanceof Error ? error.message : String(error),
+      error: err,
     });
 
     if (options.json) {
       output.json({
         success: false,
-        error: error instanceof Error ? error.message : "Turn Cost calculation failed",
+        error: err.message,
       });
     } else {
-      output.error(`Error: ${error instanceof Error ? error.message : "Turn Cost calculation failed"}`);
+      output.error(`Error: ${err.message}`);
     }
     process.exit(1);
   }

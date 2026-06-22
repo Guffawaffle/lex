@@ -28,10 +28,8 @@
   "taskComplexity": {
     "tier": "senior",
     "assignedModel": "gpt-4",
-    "actualModel": "gpt-4",
     "escalated": true,
     "escalationReason": "Required security review and cross-platform testing",
-    "retryCount": 4,
-    "tierMismatch": false
+    "retryCount": 4
   }
 }

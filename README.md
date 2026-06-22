@@ -67,7 +67,7 @@ lex remember \
   --jira "AUTH-123"
 ```
 
-Frames are meant for durable agent context: what changed, what remains, where it happened, and what should be respected next time.
+Frames are meant for durable agent context: what changed, what remains, where it happened, and what should be respected next time. They are memory records, not proof; when LMV evidence is absent, recall should be read as unsupported memory rather than verified fact.
 
 [Learn more about Frames](./docs/MIND_PALACE.md)
 
@@ -156,7 +156,7 @@ Requires Node.js 20+ and currently supports Node.js 20 through 24, matching the 
 
 WSL users should use a native WSL install on `PATH`, not Windows npm shims or npm's `_npx` cache. See [WSL Native Lex Install](./docs/WSL_NATIVE_INSTALL.md) for the recommended user-local install, checkout symlink bridge, and native SQLite build requirements.
 
-Lex supports structured output (`--json`), recoverable errors (AXError), and Frame Schema v3 for orchestrator integration. Commands provide both human-readable and machine-parseable output where supported.
+Lex supports structured output (`--json`), recoverable errors (AXError), and a canonical Frame contract for orchestrator integration. Commands provide both human-readable and machine-parseable output where supported.
 
 ### Initialize
 
@@ -380,21 +380,24 @@ Lex provides multiple entry points for agents, tools, and application code:
 ### Core API
 
 ```typescript
+import { randomUUID } from 'node:crypto';
 import { saveFrame, searchFrames, getDb, closeDb } from '@smartergpt/lex';
 
 const db = getDb(); // Uses .smartergpt/lex/memory.db
 
 await saveFrame(db, {
-  referencePoint: 'authentication flow',
-  summaryCaption: 'Added password validation',
-  statusSnapshot: { nextAction: 'Wire up permission check' },
-  moduleScope: ['services/auth', 'services/password'],
+  id: randomUUID(),
+  timestamp: new Date().toISOString(),
+  reference_point: 'authentication flow',
+  summary_caption: 'Added password validation',
+  status_snapshot: { next_action: 'Wire up permission check' },
+  module_scope: ['services/auth', 'services/password'],
   branch: 'feature/auth',
   jira: 'AUTH-123'
 });
 
-const results = await searchFrames(db, { referencePoint: 'authentication' });
-closeDb(db);
+const { frames } = searchFrames(db, 'authentication');
+closeDb();
 ```
 
 ### Subpath exports
@@ -404,7 +407,7 @@ closeDb(db);
 | `@smartergpt/lex` | Core API + store operations | [API Usage](./docs/API_USAGE.md) |
 | `@smartergpt/lex/cli` | Programmatic CLI access | [CLI Output](./docs/CLI_OUTPUT.md) |
 | `@smartergpt/lex/cli-output` | CLI JSON utilities | [CLI Output](./docs/CLI_OUTPUT.md) |
-| `@smartergpt/lex/store` | Direct database operations | [Store Contracts](./docs/STORE_CONTRACTS.md) |
+| `@smartergpt/lex/store` | Direct database operations | [FrameStore Contract](./src/memory/store/CONTRACT.md) |
 | `@smartergpt/lex/types` | All shared types | [API Usage](./docs/API_USAGE.md) |
 | `@smartergpt/lex/errors` | AXError schema and utilities (v2.0+) | [AX Contract](./docs/specs/AX-CONTRACT.md) |
 | `@smartergpt/lex/policy` | Policy loading & validation | [API Usage](./docs/API_USAGE.md) |
@@ -426,7 +429,7 @@ closeDb(db);
 
 **Current Version:** `2.7.1` ([Changelog](./CHANGELOG.md))
 
-Current Lex releases include structured output, recoverable errors, and Frame Schema v3 for agent and orchestrator integration.
+Current Lex releases include structured output, recoverable errors, and a canonical Frame schema for agent and orchestrator integration.
 
 Commonly used for:
 
@@ -439,7 +442,7 @@ Commonly used for:
 Current capability highlights:
 
 - Structured output contract (v0.1): machine-parseable output, recoverable errors, and recall-focused events ([AX Contract](./docs/specs/AX-CONTRACT.md))
-- Frame Schema v3: runner fields such as `runId`, `planHash`, and `toolCalls` for orchestration ([Schema Docs](./docs/specs/FRAME-SCHEMA-V3.md))
+- Canonical Frame contract: [`src/shared/types/frame-schema.ts`](./src/shared/types/frame-schema.ts) is the single formal source of truth. Compatibility facades and memory-layer validation helpers delegate to it, and runner-facing fields such as `runId`, `planHash`, and `toolCalls` live there.
 - AXError Schema: structured errors with `code`, `message`, `context`, and `nextActions[]` for programmatic recovery
 - CLI JSON Output: `lex remember --json` and `lex timeline --json` with machine-parseable event streams
 - Instructions Management: `lex instructions` CLI for syncing AI instructions across IDEs

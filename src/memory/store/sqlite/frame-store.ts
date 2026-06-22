@@ -15,11 +15,50 @@ import type {
   StoreStats,
   TurnCostMetrics,
 } from "../frame-store.js";
-import type { Frame, FrameStatusSnapshot, FrameSpendMetadata } from "../../frames/types.js";
+import type { Frame } from "../../../shared/types/frame-schema.js";
 import type { FrameRow } from "../db.js";
-import { Frame as FrameSchema } from "../../frames/types.js";
+import { parseFrame, safeParseFrame } from "../../../shared/types/frame-schema.js";
 import { createDatabase } from "../db.js";
 import { normalizeFTS5Query } from "../fts5-utils.js";
+import { frameToRow, rowToFrame } from "../frame-row-codec.js";
+
+const FRAME_UPSERT_SQL = `
+  INSERT INTO frames (
+    id, timestamp, branch, jira, module_scope, summary_caption,
+    reference_point, status_snapshot, keywords, atlas_frame_id,
+    feature_flags, permissions, image_ids, run_id, plan_hash, spend,
+    user_id, executor_role, tool_calls, guardrail_profile, turn_cost,
+    capability_tier, task_complexity, superseded_by, merged_from,
+    contradiction_resolution, lmv
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  ON CONFLICT(id) DO UPDATE SET
+    timestamp = excluded.timestamp,
+    branch = excluded.branch,
+    jira = excluded.jira,
+    module_scope = excluded.module_scope,
+    summary_caption = excluded.summary_caption,
+    reference_point = excluded.reference_point,
+    status_snapshot = excluded.status_snapshot,
+    keywords = excluded.keywords,
+    atlas_frame_id = excluded.atlas_frame_id,
+    feature_flags = excluded.feature_flags,
+    permissions = excluded.permissions,
+    image_ids = excluded.image_ids,
+    run_id = excluded.run_id,
+    plan_hash = excluded.plan_hash,
+    spend = excluded.spend,
+    user_id = excluded.user_id,
+    executor_role = excluded.executor_role,
+    tool_calls = excluded.tool_calls,
+    guardrail_profile = excluded.guardrail_profile,
+    turn_cost = excluded.turn_cost,
+    capability_tier = excluded.capability_tier,
+    task_complexity = excluded.task_complexity,
+    superseded_by = excluded.superseded_by,
+    merged_from = excluded.merged_from,
+    contradiction_resolution = excluded.contradiction_resolution,
+    lmv = excluded.lmv
+`;
 
 /**
  * Cursor for stable pagination.
@@ -53,72 +92,6 @@ function decodeCursor(cursor: string): PaginationCursor | null {
   } catch {
     return null;
   }
-}
-
-/**
- * Convert Frame object to database row
- *
- * Note: Frame v3 fields (executorRole, toolCalls, guardrailProfile) are not persisted
- * as the database schema does not yet have columns for them. This matches the behavior
- * of queries.ts. A future database migration will add support for these fields.
- */
-function frameToRow(frame: Frame): FrameRow {
-  return {
-    id: frame.id,
-    timestamp: frame.timestamp,
-    branch: frame.branch,
-    jira: frame.jira || null,
-    module_scope: JSON.stringify(frame.module_scope),
-    summary_caption: frame.summary_caption,
-    reference_point: frame.reference_point,
-    status_snapshot: JSON.stringify(frame.status_snapshot),
-    keywords: frame.keywords ? JSON.stringify(frame.keywords) : null,
-    atlas_frame_id: frame.atlas_frame_id || null,
-    feature_flags: frame.feature_flags ? JSON.stringify(frame.feature_flags) : null,
-    permissions: frame.permissions ? JSON.stringify(frame.permissions) : null,
-    // Merge-weave metadata (v2)
-    run_id: frame.runId || null,
-    plan_hash: frame.planHash || null,
-    spend: frame.spend ? JSON.stringify(frame.spend) : null,
-    // OAuth2/JWT user isolation (v3)
-    user_id: frame.userId || null,
-    // Deduplication metadata (v5)
-    superseded_by: frame.superseded_by || null,
-    merged_from: frame.merged_from ? JSON.stringify(frame.merged_from) : null,
-  };
-}
-
-/**
- * Convert database row to Frame object
- *
- * Note: Frame v3 fields (executorRole, toolCalls, guardrailProfile) are not retrieved
- * as the database schema does not yet have columns for them. This matches the behavior
- * of queries.ts. A future database migration will add support for these fields.
- */
-function rowToFrame(row: FrameRow): Frame {
-  return {
-    id: row.id,
-    timestamp: row.timestamp,
-    branch: row.branch,
-    jira: row.jira || undefined,
-    module_scope: JSON.parse(row.module_scope) as string[],
-    summary_caption: row.summary_caption,
-    reference_point: row.reference_point,
-    status_snapshot: JSON.parse(row.status_snapshot) as FrameStatusSnapshot,
-    keywords: row.keywords ? (JSON.parse(row.keywords) as string[]) : undefined,
-    atlas_frame_id: row.atlas_frame_id || undefined,
-    feature_flags: row.feature_flags ? (JSON.parse(row.feature_flags) as string[]) : undefined,
-    permissions: row.permissions ? (JSON.parse(row.permissions) as string[]) : undefined,
-    // Merge-weave metadata (v2) - backward compatible, defaults to undefined
-    runId: row.run_id || undefined,
-    planHash: row.plan_hash || undefined,
-    spend: row.spend ? (JSON.parse(row.spend) as FrameSpendMetadata) : undefined,
-    // OAuth2/JWT user isolation (v3) - backward compatible, defaults to undefined
-    userId: row.user_id || undefined,
-    // Deduplication metadata (v5) - backward compatible, defaults to undefined
-    superseded_by: row.superseded_by || undefined,
-    merged_from: row.merged_from ? (JSON.parse(row.merged_from) as string[]) : undefined,
-  };
 }
 
 /**
@@ -167,7 +140,7 @@ export class SqliteFrameStore implements FrameStore {
 
   /**
    * Persist a Frame to storage.
-   * Uses INSERT OR REPLACE for upsert behavior.
+   * Uses SQLite UPSERT semantics while preserving dependent rows.
    */
   async saveFrame(frame: Frame): Promise<void> {
     if (this.isClosed) {
@@ -175,14 +148,7 @@ export class SqliteFrameStore implements FrameStore {
     }
 
     const row = frameToRow(frame);
-    const stmt = this._db.prepare(`
-      INSERT OR REPLACE INTO frames (
-        id, timestamp, branch, jira, module_scope, summary_caption,
-        reference_point, status_snapshot, keywords, atlas_frame_id,
-        feature_flags, permissions, run_id, plan_hash, spend, user_id,
-        superseded_by, merged_from
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
+    const stmt = this._db.prepare(FRAME_UPSERT_SQL);
 
     stmt.run(
       row.id,
@@ -197,12 +163,21 @@ export class SqliteFrameStore implements FrameStore {
       row.atlas_frame_id,
       row.feature_flags,
       row.permissions,
+      row.image_ids,
       row.run_id,
       row.plan_hash,
       row.spend,
       row.user_id,
+      row.executor_role,
+      row.tool_calls,
+      row.guardrail_profile,
+      row.turn_cost,
+      row.capability_tier,
+      row.task_complexity,
       row.superseded_by,
-      row.merged_from
+      row.merged_from,
+      row.contradiction_resolution,
+      row.lmv
     );
   }
 
@@ -218,8 +193,9 @@ export class SqliteFrameStore implements FrameStore {
 
     // Validate all frames first (all-or-nothing on validation failure)
     const results: SaveResult[] = [];
+    const parsedFrames: Frame[] = [];
     for (const frame of frames) {
-      const parseResult = FrameSchema.safeParse(frame);
+      const parseResult = safeParseFrame(frame);
       if (!parseResult.success) {
         // Validation failed - return error results for all frames
         return frames.map((f, i) => ({
@@ -231,17 +207,11 @@ export class SqliteFrameStore implements FrameStore {
               : "Transaction aborted due to validation failure in another frame",
         }));
       }
+      parsedFrames.push(parseResult.data);
     }
 
     // All validations passed - insert within a transaction
-    const stmt = this._db.prepare(`
-      INSERT OR REPLACE INTO frames (
-        id, timestamp, branch, jira, module_scope, summary_caption,
-        reference_point, status_snapshot, keywords, atlas_frame_id,
-        feature_flags, permissions, run_id, plan_hash, spend, user_id,
-        superseded_by, merged_from
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
+    const stmt = this._db.prepare(FRAME_UPSERT_SQL);
 
     const insertAll = this._db.transaction((framesToInsert: Frame[]) => {
       for (const frame of framesToInsert) {
@@ -259,20 +229,29 @@ export class SqliteFrameStore implements FrameStore {
           row.atlas_frame_id,
           row.feature_flags,
           row.permissions,
+          row.image_ids,
           row.run_id,
           row.plan_hash,
           row.spend,
           row.user_id,
+          row.executor_role,
+          row.tool_calls,
+          row.guardrail_profile,
+          row.turn_cost,
+          row.capability_tier,
+          row.task_complexity,
           row.superseded_by,
-          row.merged_from
+          row.merged_from,
+          row.contradiction_resolution,
+          row.lmv
         );
       }
     });
 
     try {
-      insertAll(frames);
+      insertAll(parsedFrames);
       // All frames inserted successfully
-      for (const frame of frames) {
+      for (const frame of parsedFrames) {
         results.push({ id: frame.id, success: true });
       }
     } catch (error) {
@@ -688,7 +667,7 @@ export class SqliteFrameStore implements FrameStore {
   /**
    * Update specific fields of an existing Frame.
    * Only the provided fields are updated; all other fields remain unchanged.
-   * Uses a targeted SQL UPDATE instead of INSERT OR REPLACE.
+   * Uses a targeted SQL UPDATE instead of a full-row saveFrame() upsert.
    *
    * @param id - The ID of the Frame to update.
    * @param updates - Partial Frame fields to update. 'id' and 'timestamp' cannot be changed.
@@ -702,41 +681,63 @@ export class SqliteFrameStore implements FrameStore {
       throw new Error("SqliteFrameStore is closed");
     }
 
-    // Map Frame field names to database column names and serialize values
-    const columnMap: Record<string, { column: string; serialize: (v: unknown) => unknown }> = {
-      branch: { column: "branch", serialize: (v) => v },
-      jira: { column: "jira", serialize: (v) => v ?? null },
-      module_scope: { column: "module_scope", serialize: (v) => JSON.stringify(v) },
-      summary_caption: { column: "summary_caption", serialize: (v) => v },
-      reference_point: { column: "reference_point", serialize: (v) => v },
-      status_snapshot: { column: "status_snapshot", serialize: (v) => JSON.stringify(v) },
-      keywords: { column: "keywords", serialize: (v) => (v ? JSON.stringify(v) : null) },
-      atlas_frame_id: { column: "atlas_frame_id", serialize: (v) => v ?? null },
-      feature_flags: { column: "feature_flags", serialize: (v) => (v ? JSON.stringify(v) : null) },
-      permissions: { column: "permissions", serialize: (v) => (v ? JSON.stringify(v) : null) },
-      runId: { column: "run_id", serialize: (v) => v ?? null },
-      planHash: { column: "plan_hash", serialize: (v) => v ?? null },
-      spend: { column: "spend", serialize: (v) => (v ? JSON.stringify(v) : null) },
-      userId: { column: "user_id", serialize: (v) => v ?? null },
-      superseded_by: { column: "superseded_by", serialize: (v) => v ?? null },
-      merged_from: { column: "merged_from", serialize: (v) => (v ? JSON.stringify(v) : null) },
+    const existing = await this.getFrameById(id);
+    if (!existing) {
+      return false;
+    }
+
+    const updatedFrame = parseFrame({
+      ...existing,
+      ...updates,
+      id: existing.id,
+      timestamp: existing.timestamp,
+    });
+    const updatedRow = frameToRow(updatedFrame);
+
+    const columnMap: Record<string, { column: string; value: unknown }> = {
+      branch: { column: "branch", value: updatedRow.branch },
+      jira: { column: "jira", value: updatedRow.jira },
+      module_scope: { column: "module_scope", value: updatedRow.module_scope },
+      summary_caption: { column: "summary_caption", value: updatedRow.summary_caption },
+      reference_point: { column: "reference_point", value: updatedRow.reference_point },
+      status_snapshot: { column: "status_snapshot", value: updatedRow.status_snapshot },
+      keywords: { column: "keywords", value: updatedRow.keywords },
+      atlas_frame_id: { column: "atlas_frame_id", value: updatedRow.atlas_frame_id },
+      feature_flags: { column: "feature_flags", value: updatedRow.feature_flags },
+      permissions: { column: "permissions", value: updatedRow.permissions },
+      image_ids: { column: "image_ids", value: updatedRow.image_ids },
+      runId: { column: "run_id", value: updatedRow.run_id },
+      planHash: { column: "plan_hash", value: updatedRow.plan_hash },
+      spend: { column: "spend", value: updatedRow.spend },
+      userId: { column: "user_id", value: updatedRow.user_id },
+      executorRole: { column: "executor_role", value: updatedRow.executor_role },
+      toolCalls: { column: "tool_calls", value: updatedRow.tool_calls },
+      guardrailProfile: { column: "guardrail_profile", value: updatedRow.guardrail_profile },
+      turnCost: { column: "turn_cost", value: updatedRow.turn_cost },
+      capabilityTier: { column: "capability_tier", value: updatedRow.capability_tier },
+      taskComplexity: { column: "task_complexity", value: updatedRow.task_complexity },
+      superseded_by: { column: "superseded_by", value: updatedRow.superseded_by },
+      merged_from: { column: "merged_from", value: updatedRow.merged_from },
+      contradiction_resolution: {
+        column: "contradiction_resolution",
+        value: updatedRow.contradiction_resolution,
+      },
+      lmv: { column: "lmv", value: updatedRow.lmv },
     };
 
     const setClauses: string[] = [];
     const params: unknown[] = [];
 
-    for (const [key, value] of Object.entries(updates)) {
+    for (const [key] of Object.entries(updates)) {
       const mapping = columnMap[key];
       if (mapping) {
         setClauses.push(`${mapping.column} = ?`);
-        params.push(mapping.serialize(value));
+        params.push(mapping.value);
       }
     }
 
     if (setClauses.length === 0) {
-      // No valid fields to update — check if frame exists
-      const exists = this._db.prepare("SELECT 1 FROM frames WHERE id = ?").get(id);
-      return exists !== undefined;
+      return true;
     }
 
     params.push(id);

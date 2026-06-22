@@ -1,8 +1,9 @@
 /**
  * Frame Schema - Zod validation for Frame structures
  *
- * This module provides Zod schemas for Frame validation.
- * The canonical TypeScript types are in ./frame.ts
+ * This module is the canonical source of truth for Frame validation.
+ * Public TypeScript types are inferred from these schemas and re-exported
+ * through compatibility facades where needed.
  *
  * Per AX-CONTRACT.md v0.1, §2.5: Frame Emission for Core Workflows
  *
@@ -10,6 +11,25 @@
  */
 
 import { z } from "zod";
+
+function canonicalizeOptionalString(value: unknown): unknown {
+  if (typeof value !== "string") {
+    return value;
+  }
+
+  const trimmed = value.trim();
+  return trimmed === "" ? undefined : trimmed;
+}
+
+const OptionalCanonicalString = z.preprocess(
+  canonicalizeOptionalString,
+  z.string().min(1).optional()
+);
+
+const OptionalCanonicalDateTimeString = z.preprocess(
+  canonicalizeOptionalString,
+  z.string().datetime({ offset: true }).optional()
+);
 
 /**
  * Capability tier enum - classifies task complexity
@@ -20,25 +40,163 @@ export type CapabilityTier = z.infer<typeof CapabilityTierSchema>;
 
 /**
  * Task complexity metadata
+ *
+ * Note: rapidly changing model-attribution fields are intentionally excluded
+ * from the public Frame contract for now. If model governance returns here,
+ * it should come back with a clearer configuration story than ad hoc frame
+ * payload fields.
  */
-export const TaskComplexitySchema = z.object({
+const TaskComplexityFieldsSchema = z.object({
   /** Capability tier required for this task */
   tier: CapabilityTierSchema,
 
   /** Model/executor assigned to the task */
-  assignedModel: z.string().optional(),
+  assignedModel: OptionalCanonicalString,
 
   /** Whether task was escalated */
   escalated: z.boolean().optional(),
 
   /** Reason for escalation */
-  escalationReason: z.string().optional(),
+  escalationReason: OptionalCanonicalString,
 
   /** Number of retry attempts */
   retryCount: z.number().int().nonnegative().optional(),
 });
 
+export const TaskComplexitySchema = TaskComplexityFieldsSchema.catchall(z.unknown())
+  .superRefine((value, ctx) => {
+    if ("actualModel" in value) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["actualModel"],
+        message:
+          "taskComplexity.actualModel has been deprecated; keep model governance outside the canonical Frame contract",
+      });
+    }
+
+    if ("tierMismatch" in value) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["tierMismatch"],
+        message:
+          "taskComplexity.tierMismatch has been deprecated; keep model governance outside the canonical Frame contract",
+      });
+    }
+  })
+  .transform((value) => {
+    const { actualModel: _actualModel, tierMismatch: _tierMismatch, ...rest } = value;
+    return TaskComplexityFieldsSchema.parse(rest);
+  });
+
 export type TaskComplexity = z.infer<typeof TaskComplexitySchema>;
+
+export const LmvStatusSchema = z.enum([
+  "observed",
+  "inferred",
+  "decided",
+  "blocked",
+  "invalidated",
+  "superseded",
+]);
+
+export type LmvStatus = z.infer<typeof LmvStatusSchema>;
+
+export const LmvConfidenceSchema = z.enum(["high", "medium", "low", "uncertain"]);
+
+export type LmvConfidence = z.infer<typeof LmvConfidenceSchema>;
+
+export const LmvEvidenceStatusSchema = z.enum([
+  "supports",
+  "contradicts",
+  "contextual",
+  "superseded",
+]);
+
+export type LmvEvidenceStatus = z.infer<typeof LmvEvidenceStatusSchema>;
+
+export const LmvStopConditionSchema = z.object({
+  code: z.string().min(1),
+  action: z.enum(["stop", "preview", "escalate", "require_approval"]),
+  message: z.string().min(1),
+});
+
+export type LmvStopCondition = z.infer<typeof LmvStopConditionSchema>;
+
+export const LmvEvidenceRefSchema = z.object({
+  kind: z.enum([
+    "file",
+    "command",
+    "log",
+    "test",
+    "receipt",
+    "frame",
+    "commit",
+    "pull_request",
+    "issue",
+    "runtime",
+    "url",
+    "manual",
+  ]),
+  ref: z.string().min(1),
+  status: LmvEvidenceStatusSchema,
+  observedAt: OptionalCanonicalDateTimeString,
+  digest: OptionalCanonicalString,
+  exitCode: z.number().int().optional(),
+  line: z.number().int().positive().optional(),
+  artifactPath: OptionalCanonicalString,
+  receiptId: OptionalCanonicalString,
+  note: OptionalCanonicalString,
+});
+
+export type LmvEvidenceRef = z.infer<typeof LmvEvidenceRefSchema>;
+
+export const LmvExperimentSchema = z.object({
+  hypothesis: z.string().min(1),
+  bounds: z.object({
+    pathScope: z.array(z.string()).optional(),
+    maxAttempts: z.number().int().positive().optional(),
+    timeBudgetSeconds: z.number().positive().optional(),
+    allowedEffects: z.array(z.string()).optional(),
+    stopConditions: z.array(LmvStopConditionSchema).optional(),
+  }),
+  rollbackOrContainment: OptionalCanonicalString,
+  result: z.enum(["supported", "falsified", "inconclusive", "blocked"]),
+  lesson: z.string().min(1),
+  changedFutureAction: z.boolean(),
+});
+
+export type LmvExperiment = z.infer<typeof LmvExperimentSchema>;
+
+export const LmvEpistemicSchema = z.object({
+  claim: z.string().min(1),
+  evidence: z.array(LmvEvidenceRefSchema),
+  status: LmvStatusSchema,
+  confidence: LmvConfidenceSchema,
+  uncertainty: z.array(z.string()).optional(),
+  lineage: z
+    .object({
+      derivedFrom: z.array(z.string()).optional(),
+      sourceFrames: z.array(z.string()).optional(),
+      sourceReceipts: z.array(z.string()).optional(),
+    })
+    .optional(),
+  contradictions: z.array(z.string()).optional(),
+  invalidatedBy: z.array(z.string()).optional(),
+  nextValidation: OptionalCanonicalString,
+  boundaries: z
+    .object({
+      trustZone: OptionalCanonicalString,
+      privilege: OptionalCanonicalString,
+      dataClass: OptionalCanonicalString,
+      egress: OptionalCanonicalString,
+      pathScope: z.array(z.string()).optional(),
+      doesNotAuthorize: z.array(z.string()).optional(),
+    })
+    .optional(),
+  experiment: LmvExperimentSchema.optional(),
+});
+
+export type LmvEpistemic = z.infer<typeof LmvEpistemicSchema>;
 
 /**
  * SpendMetadata schema - tracks LLM usage
@@ -83,8 +241,8 @@ export const TurnCostSchema = z.object({
   components: TurnCostComponentSchema,
   weights: TurnCostWeightsSchema.optional(),
   weightedScore: z.number().optional().describe("Calculated weighted Turn Cost score"),
-  sessionId: z.string().optional().describe("Session identifier for Turn Cost tracking"),
-  timestamp: z.string().optional().describe("ISO 8601 timestamp of measurement"),
+  sessionId: OptionalCanonicalString.describe("Session identifier for Turn Cost tracking"),
+  timestamp: OptionalCanonicalDateTimeString.describe("ISO 8601 timestamp of measurement"),
 });
 
 export type TurnCost = z.infer<typeof TurnCostSchema>;
@@ -107,6 +265,15 @@ export const StatusSnapshotSchema = z.object({
 });
 
 export type StatusSnapshot = z.infer<typeof StatusSnapshotSchema>;
+
+export const ContradictionResolutionSchema = z.object({
+  type: z.enum(["supersede", "scope", "keep-both", "cancel"]),
+  contradicts_frame_id: z.string(),
+  scope: OptionalCanonicalString,
+  note: OptionalCanonicalString,
+});
+
+export type ContradictionResolution = z.infer<typeof ContradictionResolutionSchema>;
 
 /**
  * Frame schema v4 - the canonical shape for memory units
@@ -134,7 +301,7 @@ export const FrameSchema = z.object({
   id: z.string().min(1, "id is required"),
 
   /** ISO 8601 timestamp of creation */
-  timestamp: z.string().datetime({ message: "timestamp must be ISO 8601 format" }),
+  timestamp: z.string().datetime({ offset: true, message: "timestamp must be ISO 8601 format" }),
 
   /** Git branch or context identifier */
   branch: z.string().min(1, "branch is required"),
@@ -154,13 +321,13 @@ export const FrameSchema = z.object({
   // === Optional v1 fields ===
 
   /** External ticket reference */
-  jira: z.string().optional(),
+  jira: OptionalCanonicalString,
 
   /** Searchable keywords for recall */
   keywords: z.array(z.string()).optional(),
 
   /** CodeAtlas reference */
-  atlas_frame_id: z.string().optional(),
+  atlas_frame_id: OptionalCanonicalString,
 
   /** Active feature flags */
   feature_flags: z.array(z.string()).optional(),
@@ -168,16 +335,22 @@ export const FrameSchema = z.object({
   /** Required permissions */
   permissions: z.array(z.string()).optional(),
 
-  /** Associated image references */
+  /**
+   * Associated image references.
+   *
+   * Experimental: this remains in the contract as a marker for future
+   * token-cost-aware recall work. It is optional and may be populated by
+   * image-capable ingestion paths.
+   */
   image_ids: z.array(z.string()).optional(),
 
   // === v2 fields (Execution Provenance) ===
 
   /** Unique run/execution identifier */
-  runId: z.string().optional(),
+  runId: OptionalCanonicalString,
 
   /** Hash of the plan that was executed */
-  planHash: z.string().optional(),
+  planHash: OptionalCanonicalString,
 
   /** Token/prompt usage tracking */
   spend: SpendMetadataSchema.optional(),
@@ -185,16 +358,16 @@ export const FrameSchema = z.object({
   // === v3 fields (LexRunner Integration) ===
 
   /** OAuth2/JWT user identifier for isolation */
-  userId: z.string().optional(),
+  userId: OptionalCanonicalString,
 
   /** Role that executed (e.g., "senior-dev", "eager-pm") */
-  executorRole: z.string().optional(),
+  executorRole: OptionalCanonicalString,
 
   /** MCP/CLI tools invoked during execution */
   toolCalls: z.array(z.string()).optional(),
 
   /** Safety profile applied */
-  guardrailProfile: z.string().optional(),
+  guardrailProfile: OptionalCanonicalString,
 
   // === v4 fields (Turn Cost Measurement) ===
 
@@ -206,6 +379,22 @@ export const FrameSchema = z.object({
 
   /** Task complexity metadata (governance) */
   taskComplexity: TaskComplexitySchema.optional(),
+
+  // === v5 fields (Deduplication) ===
+
+  /** Frame ID that supersedes this one */
+  superseded_by: OptionalCanonicalString,
+
+  /** Frame IDs that were merged into this one */
+  merged_from: z.array(z.string()).optional(),
+
+  // === v6 fields (Contradiction resolution) ===
+
+  contradiction_resolution: ContradictionResolutionSchema.optional(),
+
+  // === v7 fields (LMV epistemic envelope) ===
+
+  lmv: LmvEpistemicSchema.optional(),
 });
 
 export type Frame = z.infer<typeof FrameSchema>;
@@ -217,8 +406,10 @@ export type Frame = z.infer<typeof FrameSchema>;
  * v3: Added executorRole, toolCalls, guardrailProfile for LexRunner (0.5.0)
  * v4: Added turnCost for governance Turn Cost measurement (2.0.0-alpha.1)
  * v5: Added superseded_by, merged_from for frame deduplication (2.1.x)
+ * v6: Added contradiction_resolution for contradiction detection (2.3.0)
+ * v7: Added optional LMV epistemic envelope for evidence-backed recall (2.8.0)
  */
-export const FRAME_SCHEMA_VERSION = 5;
+export const FRAME_SCHEMA_VERSION = 7;
 
 /**
  * Validate a Frame using Zod schema

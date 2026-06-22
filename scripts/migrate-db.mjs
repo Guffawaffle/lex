@@ -13,6 +13,10 @@
  * If no path provided, uses default: ./lex-memory.db
  *
  * Safe to run multiple times - idempotent operations only.
+ *
+ * Important: this script only patches obvious `frames` table drift. It does not
+ * declare the entire database fully migrated. Lex runtime initialization remains
+ * the authoritative migration path for auxiliary tables and schema version state.
  */
 
 import Database from "better-sqlite3-multiple-ciphers";
@@ -103,11 +107,40 @@ function migrate(dbPath) {
       changesApplied++;
     }
 
+    // Migration: full canonical optional frame envelope (v13)
+    if (addColumnIfMissing(db, "frames", "image_ids", "TEXT")) {
+      changesApplied++;
+    }
+    if (addColumnIfMissing(db, "frames", "executor_role", "TEXT")) {
+      changesApplied++;
+    }
+    if (addColumnIfMissing(db, "frames", "tool_calls", "TEXT")) {
+      changesApplied++;
+    }
+    if (addColumnIfMissing(db, "frames", "guardrail_profile", "TEXT")) {
+      changesApplied++;
+    }
+    if (addColumnIfMissing(db, "frames", "turn_cost", "TEXT")) {
+      changesApplied++;
+    }
+    if (addColumnIfMissing(db, "frames", "capability_tier", "TEXT")) {
+      changesApplied++;
+    }
+    if (addColumnIfMissing(db, "frames", "task_complexity", "TEXT")) {
+      changesApplied++;
+    }
+
     // Migration: superseded_by, merged_from (frame consolidation)
     if (addColumnIfMissing(db, "frames", "superseded_by", "TEXT")) {
       changesApplied++;
     }
     if (addColumnIfMissing(db, "frames", "merged_from", "TEXT")) {
+      changesApplied++;
+    }
+    if (addColumnIfMissing(db, "frames", "contradiction_resolution", "TEXT")) {
+      changesApplied++;
+    }
+    if (addColumnIfMissing(db, "frames", "lmv", "TEXT")) {
       changesApplied++;
     }
 
@@ -128,15 +161,6 @@ function migrate(dbPath) {
     const currentVersion = versionRow?.v || 0;
     log(`Current schema version: ${currentVersion}`);
 
-    // Ensure we're at version 11 (current)
-    if (currentVersion < 11) {
-      for (let v = currentVersion + 1; v <= 11; v++) {
-        db.prepare("INSERT OR IGNORE INTO schema_version (version) VALUES (?)").run(v);
-      }
-      success(`Updated schema version to 11`);
-      changesApplied++;
-    }
-
     // Final verification
     log("Verifying schema...");
     const finalColumns = getTableColumns(db, "frames");
@@ -153,10 +177,21 @@ function migrate(dbPath) {
       "atlas_frame_id",
       "feature_flags",
       "permissions",
+      "image_ids",
       "run_id",
       "plan_hash",
       "spend",
       "user_id",
+      "executor_role",
+      "tool_calls",
+      "guardrail_profile",
+      "turn_cost",
+      "capability_tier",
+      "task_complexity",
+      "superseded_by",
+      "merged_from",
+      "contradiction_resolution",
+      "lmv",
     ];
 
     const missing = requiredColumns.filter((col) => !finalColumns.has(col));
@@ -176,8 +211,12 @@ function migrate(dbPath) {
     log("Database summary:");
     const frameCount = db.prepare("SELECT COUNT(*) as c FROM frames").get();
     log(`  Frames: ${frameCount.c}`);
-    log(`  Schema version: 11`);
+    log(`  Recorded schema version: ${currentVersion}`);
     log(`  Columns: ${[...finalColumns].sort().join(", ")}`);
+
+    if (currentVersion < 13) {
+      log("  Note: open the database through Lex once to apply authoritative runtime migrations.");
+    }
   } finally {
     db.close();
   }

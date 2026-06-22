@@ -5,7 +5,7 @@
  * It captures a frame, recalls it, and validates the output.
  */
 
-import { saveFrame, searchFrames, getDb, closeDb } from "lex";
+import { saveFrame, searchFrames, getDb, closeDb } from "@smartergpt/lex";
 
 async function main() {
   console.log("Lex Consumer Example (JavaScript ESM)");
@@ -40,7 +40,7 @@ async function main() {
 
     // Step 2: Recall the frame
     console.log("Step 2: Recalling frame by keyword...");
-    const recalled = await searchFrames(db, "receipt validation");
+    const { frames: recalled } = await searchFrames(db, "receipt validation");
 
     console.log(`✓ Found ${recalled.length} matching frame(s)`);
 
@@ -69,7 +69,7 @@ async function main() {
     console.error("\n❌ Error:", error);
     process.exit(1);
   } finally {
-    closeDb(db);
+    closeDb();
   }
 }
 

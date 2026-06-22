@@ -15,7 +15,7 @@ We sign every release with our names and our work. The contracts documented here
 AX guarantees, Frame schemas, Policy invariants — are promises we keep, not
 marketing we forget.
 
-See: [`docs/CONTRACT_SURFACE.md`](docs/CONTRACT_SURFACE.md) for the technical surface.
+See: [`docs/OVERVIEW.md`](docs/OVERVIEW.md) for the technical surface.
 See: [`docs/attestation/Lex_Guff_Version_Contract_Pact_v1.0.0.md`](docs/attestation/Lex_Guff_Version_Contract_Pact_v1.0.0.md) for how we think about scope.
 
 **Signatories:** Guff `[signed ~]` · Lex `[signed Lex ✶]`
@@ -24,7 +24,20 @@ See: [`docs/attestation/Lex_Guff_Version_Contract_Pact_v1.0.0.md`](docs/attestat
 
 ## [Unreleased]
 
-_No unreleased changes._
+### Added
+
+- **LMV-ready Frame metadata** — Added canonical LMV fields for evidence-backed claims, uncertainty, lineage, boundaries, contradiction tracking, and bounded experiment records. `src/shared/types/frame-schema.ts` remains the single formal Frame schema source of truth.
+- **Release-readiness smoke coverage** — Consumer smoke tests now install the scoped `@smartergpt/lex` tarball and verify representative declared subpath exports.
+
+### Changed
+
+- **Import compatibility for deprecated task-complexity fields** — Ingestion-facing paths (`validateFramePayload`, batch ingestion, and `lex frames import`) now strip deprecated `taskComplexity.actualModel` and `taskComplexity.tierMismatch` before saving. Canonical `safeParseFrame()` remains strict and still rejects those fields.
+- **`lex frames import --merge` preservation** — Merge imports now use targeted `FrameStore.updateFrame()` updates so destination-only metadata such as LMV records, image IDs, and keywords are not erased when the source JSON omits them.
+- **Documentation contract cleanup** — Public docs and examples now point to declared `@smartergpt/lex/*` exports and canonical snake_case Frame fields. Stale wildcard/deep-import examples were archived under `docs/archive/`.
+
+### Migration Note
+
+Model selection and tier mismatch data should live outside the public Frame contract for now. Existing exported Frames containing `taskComplexity.actualModel` or `taskComplexity.tierMismatch` can be imported through `lex frames import` or batch ingestion; those fields are dropped during ingestion. Callers that use `safeParseFrame()` directly should remove the deprecated fields before parsing.
 
 ---
 
@@ -268,7 +281,7 @@ This release freezes the following contracts:
 | Contract | Version | Document |
 |----------|---------|----------|
 | AX Guarantees | v0.1 | `docs/specs/AX-CONTRACT.md` |
-| Frame Schema | v3 | `docs/specs/FRAME-SCHEMA-V3.md` |
+| Frame Schema | v3 | Historical release contract; canonical source now `src/shared/types/frame-schema.ts` |
 | Error Schema | v1 | AXError in `src/shared/errors/` |
 | FrameStore | 1.0.0 | `src/memory/store/CONTRACT.md` |
 
@@ -293,7 +306,7 @@ This release freezes the following contracts:
 | Contract | Version | Document |
 |----------|---------|----------|
 | AX Guarantees | v0.1 | `docs/specs/AX-CONTRACT.md` |
-| Frame Schema | v3 | `docs/specs/FRAME-SCHEMA-V3.md` |
+| Frame Schema | v3 | Historical release contract; canonical source now `src/shared/types/frame-schema.ts` |
 | Error Schema | v1 | AXError in `src/shared/errors/` |
 | FrameStore | 1.0.0 | `src/memory/store/CONTRACT.md` |
 
@@ -321,7 +334,7 @@ Breaking these contracts requires a major version bump and explicit changelog en
 - **Frame Schema v3** (`src/shared/types/frame-schema.ts`)
   - Zod validation: `FrameSchema`, `parseFrame()`, `createFrame()`
   - Runner fields: `runId`, `planHash`, `executorRole`, `toolCalls`, `guardrailProfile`
-  - Documentation: `docs/specs/FRAME-SCHEMA-V3.md`
+  - Canonical source: `src/shared/types/frame-schema.ts`
 
 - **CLI JSON Output**
   - `lex remember --json` — structured event output
@@ -331,7 +344,7 @@ Breaking these contracts requires a major version bump and explicit changelog en
 - **AX Documentation**
   - `docs/specs/AX-CONTRACT.md` — v0.1 guarantees
   - `docs/specs/AX-AI-EXPERIENCE.md` — philosophy
-  - `docs/specs/AX-IMPLEMENTATION-PLAN.md` — roadmap
+  - `docs/specs/AX-GOVERNANCE-PRIMITIVES.md` — governance concepts
 
 ### Fixed
 
@@ -420,7 +433,7 @@ and the FrameStore interface is frozen for 1.0.x releases.
   - `FrameStore` interface: stable 1.0 contract for Frame persistence
   - `SqliteFrameStore`: Default SQLite implementation
   - `src/memory/store/` subpath export for store access
-  - See `docs/STORE_CONTRACTS.md` for interface details
+  - See `src/memory/store/CONTRACT.md` for interface details
 
 - **SQL Safety Guardrails:** Curated query modules enforced via CI test
   - `test/sql-safety.test.ts`: Fails if `db.prepare()` appears outside curated modules
@@ -433,8 +446,7 @@ and the FrameStore interface is frozen for 1.0.x releases.
   - Lex is a public MIT library; lexrunner may import FROM Lex, never the reverse
 
 - **Migrations Directory:** Schema evolution infrastructure
-  - `migrations/README.md`: Rules for numbered migration files
-  - `migrations/000_reference_schema.sql`: Complete V6 schema documentation
+  - `src/memory/store/db.ts`: Live schema and migration logic
   - Schema-only changes; data migrations require explicit approval
 
 ### Experimental

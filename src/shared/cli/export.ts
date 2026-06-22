@@ -9,7 +9,7 @@ import {
   type FrameStore,
   type FrameSearchCriteria,
 } from "../../memory/store/index.js";
-import type { Frame } from "../types/frame.js";
+import type { Frame } from "../types/frame-schema.js";
 import { mkdirSync, writeFileSync } from "fs";
 import { join } from "path";
 import * as output from "./output.js";
@@ -82,27 +82,20 @@ function getDefaultOutputDir(): string {
   return join(workspaceRoot, ".smartergpt", "lex", "frames.export");
 }
 
-/**
- * Prepare frame for export by including only defined fields
- */
-function prepareFrameForExport(frame: Frame): Frame {
-  return {
-    id: frame.id,
-    reference_point: frame.reference_point,
-    summary_caption: frame.summary_caption,
-    status_snapshot: frame.status_snapshot,
-    module_scope: frame.module_scope,
-    branch: frame.branch,
-    timestamp: frame.timestamp,
-    ...(frame.jira && { jira: frame.jira }),
-    ...(frame.keywords && { keywords: frame.keywords }),
-    ...(frame.atlas_frame_id && { atlas_frame_id: frame.atlas_frame_id }),
-    ...(frame.feature_flags && { feature_flags: frame.feature_flags }),
-    ...(frame.permissions && { permissions: frame.permissions }),
-    ...(frame.runId && { runId: frame.runId }),
-    ...(frame.planHash && { planHash: frame.planHash }),
-    ...(frame.spend && { spend: frame.spend }),
-  };
+async function listAllFrames(store: FrameStore): Promise<Frame[]> {
+  const frames: Frame[] = [];
+  let cursor: string | null = null;
+
+  do {
+    const result = await store.listFrames({
+      limit: 500,
+      ...(cursor ? { cursor } : {}),
+    });
+    frames.push(...result.frames);
+    cursor = result.page.nextCursor;
+  } while (cursor);
+
+  return frames;
 }
 
 /**
@@ -134,9 +127,7 @@ export async function exportFrames(
       // Use searchFrames for time-based filtering
       frames = await store.searchFrames(searchCriteria);
     } else {
-      // Get all frames
-      const result = await store.listFrames();
-      frames = result.frames;
+      frames = await listAllFrames(store);
     }
 
     // Apply additional filters (jira, branch) in memory
@@ -166,8 +157,7 @@ export async function exportFrames(
         const filename = `frame-${frame.id}.json`;
         const filepath = join(dateDir, filename);
 
-        const exportFrame = prepareFrameForExport(frame);
-        writeFileSync(filepath, JSON.stringify(exportFrame, null, 2));
+        writeFileSync(filepath, JSON.stringify(frame, null, 2));
         count++;
 
         // Progress indicator for large exports
@@ -182,8 +172,7 @@ export async function exportFrames(
       let ndjsonContent = "";
 
       for (const frame of frames) {
-        const exportFrame = prepareFrameForExport(frame);
-        ndjsonContent += JSON.stringify(exportFrame) + "\n";
+        ndjsonContent += JSON.stringify(frame) + "\n";
         count++;
 
         // Progress indicator for large exports

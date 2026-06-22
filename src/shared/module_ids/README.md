@@ -17,7 +17,7 @@ If a Frame says `["auth-core"]` but policy defines `"services/auth-core"`, recal
 
 ## Why this matters
 
-When you `/recall TICKET-123`, the system:
+When you `lex recall TICKET-123`, the system:
 1. Retrieves the Frame from `memory/store/`
 2. Extracts `module_scope` from the Frame
 3. Calls `shared/atlas/` to get the fold-radius neighborhood from policy
@@ -29,7 +29,7 @@ If `module_scope` references a module that doesn't exist in policy, step 3 fails
 
 **Status: ✅ ENFORCED IN PRODUCTION** (as of PR #22)
 
-When `/remember` is called:
+When `lex remember` is called:
 - Validate that each string in `module_scope` is a key in `lexmap.policy.json`
 - If validation fails, reject the Frame creation with a clear error:
   ```
@@ -45,19 +45,20 @@ This is strict. This is intentional. Loose matching leads to drift.
 ### Integration Points
 
 The validation is integrated into:
-- **`memory/mcp_server/server.ts::handleRemember()`** - Validates before Frame creation
-- Uses **`shared/policy/loader.ts`** - Loads and caches policy
-- Uses **`shared/module_ids/validator.ts`** - Performs validation with fuzzy matching
+- **`src/shared/cli/remember.ts`** - Validates before CLI Frame creation
+- **`src/memory/mcp_server/server.ts::handleRemember()`** - Validates before MCP Frame creation
+- Uses **`src/shared/policy/loader.ts`** - Loads and caches policy
+- Uses **`src/shared/module_ids/validator.ts`** - Performs validation and canonicalization
 
 ### Example Integration
 
 ```typescript
-import { loadPolicy } from '../../../shared/policy/dist/policy/loader.js';
-import { validateModuleIds } from '../../../shared/module_ids/dist/module_ids/validator.js';
+import { loadPolicy } from "@smartergpt/lex/policy";
+import { validateModuleIds } from "@smartergpt/lex/module-ids";
 
 // In handleRemember():
 const policy = loadPolicy();
-const validationResult = validateModuleIds(module_scope, policy);
+const validationResult = await validateModuleIds(module_scope, policy);
 
 if (!validationResult.valid && validationResult.errors) {
   // Format error message with suggestions
@@ -82,7 +83,7 @@ See `shared/aliases/` for planned fuzzy matching / historical name support.
 
 The idea: strict enforcement for CI (`lex check`), but relaxed matching for recall (`lex recall`) using an alias table with confidence scores.
 
-This will let humans use shorthand during `/remember` while still maintaining vocabulary alignment under the hood.
+This will let humans use shorthand during `lex remember` while still maintaining vocabulary alignment under the hood.
 
 ## Implementation
 
@@ -91,11 +92,11 @@ This will let humans use shorthand during `/remember` while still maintaining vo
 The validation is now executable and integrated into Frame creation:
 
 ```typescript
-import { validateModuleIds, ModuleNotFoundError } from 'shared/module_ids/index.js';
-import type { ValidationResult } from 'shared/module_ids/index.js';
+import { validateModuleIds, ModuleNotFoundError } from "@smartergpt/lex/module-ids";
+import type { ValidationResult } from "@smartergpt/lex/module-ids";
 
 // Example: Validate module IDs before creating a Frame
-const result = validateModuleIds(
+const result = await validateModuleIds(
   ['indexer', 'ts'],
   policy
 );
@@ -112,7 +113,7 @@ if (!result.valid) {
 
 ### API
 
-#### `validateModuleIds(moduleScope: string[], policy: Policy): ValidationResult`
+#### `validateModuleIds(moduleScope: string[], policy: Policy): Promise<ValidationResult>`
 
 Validates that all module IDs in `moduleScope` exist in the policy.
 
@@ -152,7 +153,7 @@ interface ModuleIdError {
 
 ### Example Integration
 
-See `memory/mcp_server/server.ts::handleRemember()` for the complete integration.
+See `src/memory/mcp_server/server.ts::handleRemember()` and [src/shared/cli/remember.ts](/srv/lex-mcp/lex/src/shared/cli/remember.ts:1) for the current integrations.
 
 ### Tests
 
@@ -292,5 +293,5 @@ Output: 'services/auth-core' (auto-corrected)
 ---
 
 **Called by:**
-- `memory/mcp_server/server.ts::handleRemember()` - Enforces THE CRITICAL RULE on Frame creation
-- `shared/cli/remember.ts` - Uses `resolveModuleId()` with auto-correction for user input
+- `src/memory/mcp_server/server.ts::handleRemember()` - Enforces THE CRITICAL RULE on MCP Frame creation
+- `src/shared/cli/remember.ts` - Enforces THE CRITICAL RULE on CLI Frame creation

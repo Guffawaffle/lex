@@ -42,13 +42,15 @@ The package.json file should have:
 The Lex package exports multiple entry points via subpath exports:
 
 ### Main Entry
-- **lex** - Main package entry point
+- **@smartergpt/lex** - Main package entry point
 
 ### Subpath Exports
-- **lex/cli** - CLI utilities (`dist/cli/index.js`)
-- **lex/policy/\*** - Policy checking and scanning (`dist/policy/*`)
-- **lex/memory/\*** - Frame storage and MCP server (`dist/memory/*`)
-- **lex/shared/\*** - Shared utilities and types (`dist/shared/*`)
+- **@smartergpt/lex/cli** - Programmatic CLI helpers
+- **@smartergpt/lex/policy** - Policy loading and validation
+- **@smartergpt/lex/atlas** - Atlas Frame generation
+- **@smartergpt/lex/store** - Direct database operations
+- **@smartergpt/lex/types** - Shared public types
+- **@smartergpt/lex/memory** - Frame payload validation helpers
 
 ## Publication Process
 
@@ -103,26 +105,34 @@ VERSION=$(node -p "require('./package.json').version")
 # Create signed tag
 git tag -s "v${VERSION}" -m "Release v${VERSION}"
 
-# Push tag (triggers automated npm publish)
+# Push tag (triggers release validation workflow)
 git push origin "v${VERSION}"
 ```
 
-### 5. Automated Publishing
+### 5. Publish
 
-The GitHub Actions release workflow (`.github/workflows/release.yml`) will automatically:
+The GitHub Actions release workflow (`.github/workflows/release.yml`) validates
+the tag and package. npm publication is currently a manual release-manager step
+after those checks pass.
+
+The workflow currently:
 1. Validate the signed tag format (vX.Y.Z)
 2. Build the package and run all tests
 3. Verify npm authentication with `npm whoami`
 4. Run a dry-run publish to validate the package
-5. Publish to npm with provenance attestation
-6. Create GitHub release with auto-generated changelog
+
+Manual publish:
+
+```bash
+npm publish --provenance
+```
 
 The workflow includes safeguards:
 - Tag must match semver format (`v*.*.*`)
 - Tag signing is verified (warns if unsigned)
 - npm authentication is verified before publish
 - Dry-run tests the publish without actually publishing
-- Actual publish only happens on tag push events
+- Actual publish requires a release manager unless the workflow is changed
 
 ## Dry-Run Testing
 
@@ -131,7 +141,7 @@ Before actual publication, test the package:
 ```bash
 npm pack --dry-run  # Verify files to be included
 npm pack            # Create tarball
-tar -tf lex-*.tgz | head -30  # Inspect contents
+tar -tf smartergpt-lex-*.tgz | head -30  # Inspect contents
 ```
 
 ## Consumer Smoke Test
@@ -149,9 +159,11 @@ This script will:
 2. Create a tarball (`npm pack`)
 3. Install the tarball in a temporary test project
 4. Test imports from all representative subpaths:
-   - `lex` (main entry)
-   - `lex/cli`
-   - `lex/policy/*`
+   - `@smartergpt/lex` (main entry)
+   - `@smartergpt/lex/cli`
+   - `@smartergpt/lex/policy`
+   - `@smartergpt/lex/atlas`
+   - `@smartergpt/lex/store`
 5. Clean up temporary files
 
 ### Manual Smoke Test
@@ -168,19 +180,19 @@ cd /tmp/lex-consumer-test
 npm init -y
 
 # Install from local tarball
-npm install /path/to/lex-*.tgz
+npm install /path/to/smartergpt-lex-*.tgz
 
 # Or from npm after publishing
-npm install lex
+npm install @smartergpt/lex
 ```
 
 Test imports:
 ```javascript
 // test.mjs
-import { getDb, saveFrame } from 'lex';
-import { createProgram } from 'lex/cli';
-import { detectViolations } from 'lex/policy/check/violations.js';
-import { mergeScans } from 'lex/policy/merge/merge.js';
+import { getDb, saveFrame } from '@smartergpt/lex';
+import { createProgram } from '@smartergpt/lex/cli';
+import { loadPolicy } from '@smartergpt/lex/policy';
+import { generateAtlasFrame } from '@smartergpt/lex/atlas';
 console.log('All imports work!');
 ```
 
@@ -193,7 +205,7 @@ If a published version has critical bugs:
 1. **Do not delete the bad version** (npm policy discourages unpublish)
 2. Deprecate the broken version:
    ```bash
-   npm deprecate lex@<bad-version> "Critical bug, use lex@<fixed-version>"
+   npm deprecate @smartergpt/lex@<bad-version> "Critical bug, use @smartergpt/lex@<fixed-version>"
    ```
 3. Publish fixed version:
    ```bash
@@ -206,11 +218,12 @@ If a published version has critical bugs:
 The repository has automated workflows for:
 - Build + tests on all PRs (`.github/workflows/ci.yml`)
 - Security scanning (`.github/workflows/security.yml`)
-- Automated npm publishing on tagged releases (`.github/workflows/release.yml`)
+- Release validation on tagged releases (`.github/workflows/release.yml`)
 
 ### Automated Release Workflow
 
-The `.github/workflows/release.yml` workflow automates the publishing process:
+The `.github/workflows/release.yml` workflow automates release validation. npm
+publishing remains manual unless the workflow publish job is explicitly enabled.
 
 #### Trigger
 - **Tag push**: When a tag matching `v*.*.*` (e.g., `v0.2.0`) is pushed
@@ -229,15 +242,13 @@ The `.github/workflows/release.yml` workflow automates the publishing process:
    - Compiles TypeScript (`npm run build`)
    - Runs full test suite (`npm run test:all`)
    - Creates npm tarball (`npm pack`)
-   - Uploads package artifact for publishing
+   - Uploads package artifact for release review
 
-3. **Publish to npm** (`publish-npm` job)
+3. **Dry-Run Publish**
    - Downloads built package artifact
-   - **Verifies npm authentication** with `npm whoami`
-   - **Runs dry-run publish** to validate package before actual publish
-   - Publishes to npm with provenance attestation (only on tag push)
-   - Uses `NPM_TOKEN` secret for authentication
-   - Publishes with `--provenance` flag for supply chain security
+   - Verifies npm authentication with `npm whoami`
+   - Runs dry-run publish to validate package metadata and contents
+   - Leaves actual npm publication to the release manager
 
 4. **Create GitHub Release** (`create-github-release` job)
    - Generates changelog from git commits
@@ -249,17 +260,16 @@ The `.github/workflows/release.yml` workflow automates the publishing process:
 The workflow includes multiple safeguards:
 - ✅ **Tag validation**: Ensures tags follow semver format
 - ✅ **Tag signing verification**: Warns if tags aren't signed (optional)
-- ✅ **npm whoami check**: Verifies authentication before publishing
+- ✅ **npm whoami check**: Verifies authentication before dry-run validation
 - ✅ **Dry-run**: Tests publish without actually publishing
-- ✅ **Conditional publish**: Only publishes on tag push, not manual dispatch
-- ✅ **Provenance attestation**: Links published package to source code and build
+- ✅ **Manual publish gate**: Actual publication requires release-manager action
 - ✅ **Hermetic builds**: Uses `npm ci --ignore-scripts` for reproducible builds
 - ✅ **Production environment**: Requires approval if environment protection rules are configured
 
 #### Required Secrets
 
 Configure these secrets in GitHub repository settings:
-- `NPM_TOKEN`: npm authentication token with publish permissions
+- `NPM_TOKEN`: npm authentication token with publish permissions for dry-run checks
 - `GITHUB_TOKEN`: Automatically provided by GitHub Actions
 
 #### Testing the Workflow
@@ -267,7 +277,7 @@ Configure these secrets in GitHub repository settings:
 On non-tag branches or manual dispatch:
 - The workflow runs all validation and build steps
 - The dry-run executes to verify package integrity
-- Actual publishing is skipped (conditional on tag push)
+- Actual publishing is manual
 
 ## Post-Release
 
@@ -391,7 +401,7 @@ gh release create v0.3.0 \
   --verify-tag
 ```
 
-See [`docs/releases/CATCH_UP_GUIDE.md`](docs/releases/CATCH_UP_GUIDE.md) for detailed instructions.
+The old one-time release catch-up guide has been archived; use the commands above if historical backfill is ever needed.
 
 **Notes:**
 - `--verify-tag` ensures the tag already exists (won't create new tags)

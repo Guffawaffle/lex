@@ -114,7 +114,6 @@ const docsToCheck = [
   "docs/ADOPTION_GUIDE.md",
   "docs/FAQ.md",
   "docs/MIND_PALACE.md",
-  "docs/CONTRACT_SURFACE.md",
 ];
 
 let foundLexbrain = false;

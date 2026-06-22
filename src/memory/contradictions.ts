@@ -7,7 +7,7 @@
  * - Same module scope (contradictions only matter in the same context)
  */
 
-import type { Frame } from "./frames/types.js";
+import type { Frame } from "../shared/types/frame-schema.js";
 
 /**
  * Types of contradiction signals

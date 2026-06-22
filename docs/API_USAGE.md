@@ -5,8 +5,10 @@ This document provides examples of how to use the Frame Ingestion HTTP API.
 ## Starting the Server
 
 ```typescript
-import { createDatabase } from "lex/memory/store";
-import { startHttpServer } from "lex/memory/mcp_server/http-server";
+// Source-level contributor example. The embedded HTTP server helpers are not
+// public npm subpath exports.
+import { createDatabase } from "../src/memory/store/db.js";
+import { startHttpServer } from "../src/memory/mcp_server/http-server.js";
 
 const db = createDatabase("/path/to/frames.db");
 
@@ -144,8 +146,8 @@ const frame = {
     next_action: "Add signature verification",
   },
   // Merge-weave provenance metadata
-  runId: "run-12345",
-  planHash: "abc123def456",
+  run_id: "run-12345",
+  plan_hash: "abc123def456",
   spend: {
     prompts: 15,
     tokens_estimated: 8500,
@@ -249,4 +251,4 @@ export LEX_API_PORT=3000
 ## See Also
 
 - [API Error Codes](./API_ERRORS.md) - Complete list of error codes and responses
-- [Frame Schema](../src/memory/frames/types.ts) - Full Frame schema definition
+- [Frame Schema](../src/shared/types/frame-schema.ts) - Canonical Frame schema definition

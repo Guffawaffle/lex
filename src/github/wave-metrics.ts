@@ -7,7 +7,20 @@
  * Future: Integrate with @octokit/rest when GitHub credentials are available.
  */
 
-import type { WaveMetrics, WaveIssue } from "../memory/frames/wave-complete.js";
+export interface WaveIssue {
+  ref: string;
+  title: string;
+  closedAt: string;
+  pr?: string;
+}
+
+export interface WaveMetrics {
+  issueCount: number;
+  prCount: number;
+  linesAdded: number;
+  linesRemoved: number;
+  testsAdded: number;
+}
 
 export interface GitHubIssue {
   ref: string;

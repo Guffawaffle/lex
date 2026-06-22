@@ -3,7 +3,7 @@
   "timestamp": "2025-12-05T18:45:00Z",
   "branch": "release/v2.0.0",
   "module_scope": ["shared/errors", "memory/validation", "shared/cli"],
-  "summary_caption": "Released Lex 2.0.0 with AX-native design - structured output, recoverable errors (AXError schema), and Frame Schema v3 for orchestrators",
+  "summary_caption": "Released Lex 2.0.0 with AX-native design - structured output, recoverable errors (AXError schema), and a stabilized runner-facing Frame contract",
   "reference_point": "First stable release with AX guarantees",
   "status_snapshot": {
     "next_action": "Monitor npm downloads and gather feedback from LexRunner integration",
@@ -12,7 +12,7 @@
     "tests_failing": []
   },
   "jira": "LEX-200",
-  "keywords": ["ax", "release", "contract", "frame-schema-v3", "axerror"],
+  "keywords": ["ax", "release", "contract", "frame-contract", "axerror"],
   "feature_flags": [],
   "permissions": [],
   "runId": "release-prep-v2.0.0",
@@ -24,9 +24,7 @@
   "taskComplexity": {
     "tier": "senior",
     "assignedModel": "gpt-4",
-    "actualModel": "gpt-4",
     "escalated": false,
-    "retryCount": 1,
-    "tierMismatch": false
+    "retryCount": 1
   }
 }

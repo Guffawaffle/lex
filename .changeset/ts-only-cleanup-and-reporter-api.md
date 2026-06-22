@@ -1,5 +1,5 @@
 ---
-"lex": minor
+"@smartergpt/lex": minor
 ---
 
 Add TS-only source enforcement (removed redundant hand-authored .js siblings) and enhance policy reporter API:

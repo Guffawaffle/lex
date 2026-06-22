@@ -10,8 +10,8 @@
  */
 
 import Database from "better-sqlite3-multiple-ciphers";
-import { join, dirname, resolve } from "path";
-import { mkdirSync, existsSync, readFileSync } from "fs";
+import { dirname } from "path";
+import { mkdirSync, existsSync } from "fs";
 import { pbkdf2Sync } from "crypto";
 import { loadConfig } from "../../shared/config/index.js";
 
@@ -40,15 +40,25 @@ export interface FrameRow {
   atlas_frame_id: string | null;
   feature_flags: string | null; // JSON stringified array
   permissions: string | null; // JSON stringified array
+  image_ids: string | null; // JSON stringified array
   // Merge-weave metadata (v2)
   run_id: string | null;
   plan_hash: string | null;
   spend: string | null; // JSON stringified object
   // OAuth2/JWT user isolation (v3)
   user_id: string | null;
+  executor_role: string | null;
+  tool_calls: string | null; // JSON stringified array
+  guardrail_profile: string | null;
+  turn_cost: string | null; // JSON stringified object
+  capability_tier: string | null;
+  task_complexity: string | null; // JSON stringified object
   // Deduplication metadata (v5)
   superseded_by: string | null;
   merged_from: string | null; // JSON stringified array
+  contradiction_resolution: string | null; // JSON stringified object
+  // LMV epistemic envelope (v7)
+  lmv: string | null; // JSON stringified object
 }
 
 /**
@@ -265,6 +275,80 @@ export function getEncryptionKey(): string | undefined {
   return passphrase && passphrase.trim() ? deriveEncryptionKey(passphrase) : undefined;
 }
 
+const MIGRATED_FRAME_COLUMNS = new Set([
+  "run_id",
+  "plan_hash",
+  "spend",
+  "user_id",
+  "superseded_by",
+  "merged_from",
+  "lmv",
+  "image_ids",
+  "executor_role",
+  "tool_calls",
+  "guardrail_profile",
+  "turn_cost",
+  "capability_tier",
+  "task_complexity",
+  "contradiction_resolution",
+]);
+
+function getTableColumns(db: Database.Database, tableName: string): Set<string> {
+  if (tableName !== "frames") {
+    throw new Error(`Unsupported migration table: ${tableName}`);
+  }
+
+  const result = db.prepare("PRAGMA table_info(frames)").all() as Array<{ name: string }>;
+  return new Set(result.map((column) => column.name));
+}
+
+function addColumnIfMissing(
+  db: Database.Database,
+  tableName: string,
+  columnName: string,
+  columnType: string,
+  defaultClause?: string
+): void {
+  if (tableName !== "frames") {
+    throw new Error(`Unsupported migration table: ${tableName}`);
+  }
+  if (!MIGRATED_FRAME_COLUMNS.has(columnName)) {
+    throw new Error(`Unsupported migration column for frames: ${columnName}`);
+  }
+  if (columnType !== "TEXT") {
+    throw new Error(`Unsupported migration column type for ${columnName}: ${columnType}`);
+  }
+
+  const columns = getTableColumns(db, tableName);
+  if (columns.has(columnName)) {
+    return;
+  }
+
+  const normalizedDefault = defaultClause ? ` ${defaultClause.trim()}` : "";
+  db.exec(`ALTER TABLE frames ADD COLUMN ${columnName} TEXT${normalizedDefault};`);
+}
+
+function applyVersionedMigration(
+  db: Database.Database,
+  version: number,
+  migration: (db: Database.Database) => void
+): void {
+  const hasVersion = db
+    .prepare("SELECT version FROM schema_version WHERE version = ?")
+    .get(version) as { version: number } | undefined;
+
+  if (hasVersion) {
+    return;
+  }
+
+  const runMigration = db.transaction(() => {
+    migration(db);
+    db.prepare("INSERT OR IGNORE INTO schema_version (version) VALUES (?)").run(version);
+  });
+
+  runMigration();
+}
+
 /**
  * Initialize database with schema and indexes
  */
@@ -284,56 +368,24 @@ export function initializeDatabase(db: Database.Database): void {
     );
   `);
 
-  // Check current schema version
-  const versionRow = db.prepare("SELECT MAX(version) as version FROM schema_version").get() as {
-    version: number | null;
-  };
-  const currentVersion = versionRow?.version || 0;
+  const migrations: Array<[number, (db: Database.Database) => void]> = [
+    [1, applyMigrationV1],
+    [2, applyMigrationV2],
+    [3, applyMigrationV3],
+    [4, applyMigrationV4],
+    [5, applyMigrationV5],
+    [6, applyMigrationV6],
+    [7, applyMigrationV7],
+    [8, applyMigrationV8],
+    [9, applyMigrationV9],
+    [10, applyMigrationV10],
+    [11, applyMigrationV11],
+    [12, applyMigrationV12],
+    [13, applyMigrationV13],
+  ];
 
-  // Apply migrations
-  if (currentVersion < 1) {
-    applyMigrationV1(db);
-    db.prepare("INSERT INTO schema_version (version) VALUES (?)").run(1);
-  }
-  if (currentVersion < 2) {
-    applyMigrationV2(db);
-    db.prepare("INSERT INTO schema_version (version) VALUES (?)").run(2);
-  }
-  if (currentVersion < 3) {
-    applyMigrationV3(db);
-    db.prepare("INSERT INTO schema_version (version) VALUES (?)").run(3);
-  }
-  if (currentVersion < 4) {
-    applyMigrationV4(db);
-    db.prepare("INSERT INTO schema_version (version) VALUES (?)").run(4);
-  }
-  if (currentVersion < 5) {
-    applyMigrationV5(db);
-    db.prepare("INSERT INTO schema_version (version) VALUES (?)").run(5);
-  }
-  if (currentVersion < 6) {
-    applyMigrationV6(db);
-    db.prepare("INSERT INTO schema_version (version) VALUES (?)").run(6);
-  }
-  if (currentVersion < 7) {
-    applyMigrationV7(db);
-    db.prepare("INSERT INTO schema_version (version) VALUES (?)").run(7);
-  }
-  if (currentVersion < 8) {
-    applyMigrationV8(db);
-    db.prepare("INSERT INTO schema_version (version) VALUES (?)").run(8);
-  }
-  if (currentVersion < 9) {
-    applyMigrationV9(db);
-    db.prepare("INSERT INTO schema_version (version) VALUES (?)").run(9);
-  }
-  if (currentVersion < 10) {
-    applyMigrationV10(db);
-    db.prepare("INSERT INTO schema_version (version) VALUES (?)").run(10);
-  }
-  if (currentVersion < 11) {
-    applyMigrationV11(db);
-    db.prepare("INSERT INTO schema_version (version) VALUES (?)").run(11);
+  for (const [version, migration] of migrations) {
+    applyVersionedMigration(db, version, migration);
   }
 }
 
@@ -341,7 +393,7 @@ export function initializeDatabase(db: Database.Database): void {
  * Migration V1: Initial schema
  */
 function applyMigrationV1(db: Database.Database): void {
-  // Create frames table with all fields from FRAME.md
+  // Create the initial frames table; canonical frame shape lives in frame-schema.ts
   db.exec(`
     CREATE TABLE IF NOT EXISTS frames (
       id TEXT PRIMARY KEY,
@@ -440,17 +492,9 @@ function applyMigrationV2(db: Database.Database): void {
 function applyMigrationV3(db: Database.Database): void {
   // Add new optional columns for execution provenance
   // Safe to add with NULL default, backward compatible
-  db.exec(`
-    ALTER TABLE frames ADD COLUMN run_id TEXT;
-  `);
-
-  db.exec(`
-    ALTER TABLE frames ADD COLUMN plan_hash TEXT;
-  `);
-
-  db.exec(`
-    ALTER TABLE frames ADD COLUMN spend TEXT;
-  `);
+  addColumnIfMissing(db, "frames", "run_id", "TEXT");
+  addColumnIfMissing(db, "frames", "plan_hash", "TEXT");
+  addColumnIfMissing(db, "frames", "spend", "TEXT");
 }
 
 /**
@@ -494,9 +538,7 @@ function applyMigrationV4(db: Database.Database): void {
   `);
 
   // Add user_id column to frames table
-  db.exec(`
-    ALTER TABLE frames ADD COLUMN user_id TEXT;
-  `);
+  addColumnIfMissing(db, "frames", "user_id", "TEXT");
 
   // Create index for user_id lookups
   db.exec(`
@@ -819,20 +861,43 @@ function applyMigrationV10(db: Database.Database): void {
  */
 function applyMigrationV11(db: Database.Database): void {
   // Add superseded_by column
-  db.exec(`
-    ALTER TABLE frames ADD COLUMN superseded_by TEXT;
-  `);
+  addColumnIfMissing(db, "frames", "superseded_by", "TEXT");
 
   // Add merged_from column (JSON array)
-  db.exec(`
-    ALTER TABLE frames ADD COLUMN merged_from TEXT;
-  `);
+  addColumnIfMissing(db, "frames", "merged_from", "TEXT");
 
   // Create index for superseded_by to efficiently filter out superseded frames
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_frames_superseded_by
     ON frames(superseded_by);
   `);
+}
+
+/**
+ * Migration V12: Add LMV epistemic envelope to frames table
+ *
+ * Adds optional JSON metadata for evidence-backed recall. Existing frames retain
+ * NULL lmv and should be rendered as memory without explicit LMV evidence.
+ */
+function applyMigrationV12(db: Database.Database): void {
+  addColumnIfMissing(db, "frames", "lmv", "TEXT");
+}
+
+/**
+ * Migration V13: Persist the full canonical optional Frame envelope
+ *
+ * Adds columns for optional canonical fields that were previously accepted by
+ * the contract but silently dropped at persistence time.
+ */
+function applyMigrationV13(db: Database.Database): void {
+  addColumnIfMissing(db, "frames", "image_ids", "TEXT");
+  addColumnIfMissing(db, "frames", "executor_role", "TEXT");
+  addColumnIfMissing(db, "frames", "tool_calls", "TEXT");
+  addColumnIfMissing(db, "frames", "guardrail_profile", "TEXT");
+  addColumnIfMissing(db, "frames", "turn_cost", "TEXT");
+  addColumnIfMissing(db, "frames", "capability_tier", "TEXT");
+  addColumnIfMissing(db, "frames", "task_complexity", "TEXT");
+  addColumnIfMissing(db, "frames", "contradiction_resolution", "TEXT");
 }
 
 /**

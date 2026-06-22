@@ -42,8 +42,8 @@ lex recall "auth" --auto-radius --max-tokens 5000
 ### 3. Programmatic Usage
 
 ```typescript
-import { generateAtlasFrame } from '@smartergpt/lex/shared/atlas';
-import { parseCodeUnit, parseCodeAtlasRun } from '@smartergpt/lex/atlas';
+import { generateAtlasFrame, parseCodeUnit } from '@smartergpt/lex/atlas';
+import { parseCodeAtlasRun } from '@smartergpt/lex/atlas/schemas';
 
 // Generate Atlas Frame for a set of modules
 const atlasFrame = generateAtlasFrame(

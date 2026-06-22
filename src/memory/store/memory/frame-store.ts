@@ -14,8 +14,7 @@ import type {
   StoreStats,
   TurnCostMetrics,
 } from "../frame-store.js";
-import type { Frame } from "../../frames/types.js";
-import { Frame as FrameSchema } from "../../frames/types.js";
+import { parseFrame, safeParseFrame, type Frame } from "../../../shared/types/frame-schema.js";
 
 /**
  * Cursor for stable pagination.
@@ -67,14 +66,18 @@ export class MemoryFrameStore implements FrameStore {
    * @param initialFrames - Optional array of Frames to pre-populate the store.
    */
   constructor(initialFrames?: Frame[]) {
-    initialFrames?.forEach((f) => this.frames.set(f.id, f));
+    initialFrames?.forEach((f) => {
+      const parsedFrame = parseFrame(f);
+      this.frames.set(parsedFrame.id, parsedFrame);
+    });
   }
 
   /**
    * Persist a Frame to storage (upsert).
    */
   async saveFrame(frame: Frame): Promise<void> {
-    this.frames.set(frame.id, frame);
+    const parsedFrame = parseFrame(frame);
+    this.frames.set(parsedFrame.id, parsedFrame);
   }
 
   /**
@@ -83,8 +86,9 @@ export class MemoryFrameStore implements FrameStore {
    */
   async saveFrames(frames: Frame[]): Promise<SaveResult[]> {
     // Validate all frames first (all-or-nothing on validation failure)
+    const parsedFrames: Frame[] = [];
     for (const frame of frames) {
-      const parseResult = FrameSchema.safeParse(frame);
+      const parseResult = safeParseFrame(frame);
       if (!parseResult.success) {
         // Validation failed - return error results for all frames
         return frames.map((f, i) => ({
@@ -96,11 +100,12 @@ export class MemoryFrameStore implements FrameStore {
               : "Transaction aborted due to validation failure in another frame",
         }));
       }
+      parsedFrames.push(parseResult.data);
     }
 
     // All validations passed - insert all frames
     const results: SaveResult[] = [];
-    for (const frame of frames) {
+    for (const frame of parsedFrames) {
       this.frames.set(frame.id, frame);
       results.push({ id: frame.id, success: true });
     }
@@ -277,7 +282,7 @@ export class MemoryFrameStore implements FrameStore {
       id: existing.id,
       timestamp: existing.timestamp,
     };
-    this.frames.set(id, updated);
+    this.frames.set(id, parseFrame(updated));
     return true;
   }
 

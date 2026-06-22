@@ -638,7 +638,6 @@ throw new Error("Module not found");
 ### Further Reading
 
 - [AX Contract](./docs/specs/AX-CONTRACT.md) — The AX guarantees Lex provides
-- [AX Implementation Plan](./docs/specs/AX-IMPLEMENTATION-PLAN.md) — Roadmap
 - [AX Governance Primitives](./docs/specs/AX-GOVERNANCE-PRIMITIVES.md) — Policy concepts
 
 ---

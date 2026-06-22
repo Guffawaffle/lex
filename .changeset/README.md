@@ -44,20 +44,18 @@ git tag -s v0.X.Y -m "Release v0.X.Y"
 git push origin v0.X.Y
 ```
 
-### 3. Publishing (Automated)
+### 3. Publishing
 
-When the signed tag is pushed, GitHub Actions will:
-- Validate the tag
-- Build and test
-- Publish to npm with provenance
-- Create GitHub release
+When the signed tag is pushed, GitHub Actions validates the tag and builds the
+package. npm publishing is a manual release-manager step unless
+`.github/workflows/release.yml` is changed to enable the publish job.
 
 ## Changeset Examples
 
 ### Feature (minor)
 ```md
 ---
-'lex': minor
+'@smartergpt/lex': minor
 ---
 
 Add new frame visualization command
@@ -66,7 +64,7 @@ Add new frame visualization command
 ### Bug fix (patch)
 ```md
 ---
-'lex': patch
+'@smartergpt/lex': patch
 ---
 
 Fix SQLite connection leak in frame queries
@@ -75,7 +73,7 @@ Fix SQLite connection leak in frame queries
 ### Breaking change (major)
 ```md
 ---
-'lex': major
+'@smartergpt/lex': major
 ---
 
 BREAKING: Change policy file format to YAML
@@ -86,4 +84,4 @@ BREAKING: Change policy file format to YAML
 - Always create a changeset when making user-facing changes
 - Use semantic versioning correctly (major/minor/patch)
 - Write clear, user-focused summaries
-- Reference the single 'lex' package (not lex/* subpackages)
+- Reference the single `@smartergpt/lex` package (not subpath exports)

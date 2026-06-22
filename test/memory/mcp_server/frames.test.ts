@@ -173,6 +173,64 @@ describe("Frame Ingestion API Tests", () => {
       assert.ok(response.body.message.includes("module_scope"));
     });
 
+    test("should return 400 for invalid LMV metadata", async () => {
+      const invalidFrame = {
+        reference_point: "invalid lmv frame",
+        summary_caption: "Invalid LMV metadata",
+        module_scope: ["services/auth"],
+        status_snapshot: {
+          next_action: "Fix LMV metadata",
+        },
+        lmv: {
+          claim: "Invalid evidence status should be rejected.",
+          evidence: [
+            {
+              kind: "test",
+              ref: "test/memory/mcp_server/frames.test.ts",
+              status: "maybe",
+            },
+          ],
+          status: "observed",
+          confidence: "high",
+        },
+      };
+
+      const response = await new Promise<{ status: number; body: any }>((resolve) => {
+        const req = {
+          method: "POST",
+          url: "/",
+          body: invalidFrame,
+          headers: {
+            authorization: `Bearer ${TEST_API_KEY}`,
+            "content-type": "application/json",
+          },
+        } as any;
+
+        const res = {
+          statusCode: 200,
+          _body: null as any,
+          status(code: number) {
+            this.statusCode = code;
+            return this;
+          },
+          json(data: any) {
+            this._body = data;
+            resolve({
+              status: this.statusCode,
+              body: this._body,
+            });
+          },
+        } as any;
+
+        const router = createFramesRouter(db, TEST_API_KEY);
+        router(req, res, () => {});
+      });
+
+      assert.strictEqual(response.status, 400);
+      assert.strictEqual(response.body.error, "VALIDATION_FAILED");
+      assert.strictEqual(response.body.field, "lmv.evidence.0.status");
+    });
+
     test("should return 409 for duplicate Frame (same content hash)", async () => {
       const frame = {
         reference_point: "duplicate test frame",

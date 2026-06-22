@@ -17,7 +17,10 @@ import { createDatabase, getDefaultDbPath } from "./db.js";
 
 export type { FrameRow, CodeAtlasRunRow } from "./db.js";
 export type { BehaviorRuleRow } from "./lexsona-queries.js";
-export type { Frame, FrameStatusSnapshot } from "../frames/types.js";
+export type {
+  Frame,
+  StatusSnapshot as FrameStatusSnapshot,
+} from "../../shared/types/frame-schema.js";
 export type { SearchResult, ExportFramesOptions } from "./queries.js";
 export type {
   FrameStore,

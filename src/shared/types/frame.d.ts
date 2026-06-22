@@ -4,7 +4,7 @@
  * Canonical TypeScript types for work session snapshots.
  * A Frame is a timestamped record of what you were doing, stored locally with structured metadata.
  *
- * @see FRAME.md for complete schema documentation
+ * @see frame-schema.ts for the canonical schema definition
  */
 /**
  * Status snapshot capturing the current state of work in a session.

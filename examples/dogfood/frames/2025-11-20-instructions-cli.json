@@ -24,9 +24,7 @@
   "taskComplexity": {
     "tier": "senior",
     "assignedModel": "gpt-4",
-    "actualModel": "gpt-4",
     "escalated": false,
-    "retryCount": 3,
-    "tierMismatch": false
+    "retryCount": 3
   }
 }

@@ -282,6 +282,6 @@ When we build for AI Experience first, we create systems that AI agents can reli
 
 - [UX Design Principles](https://www.nngroup.com/articles/ten-usability-heuristics/)
 - [Developer Experience (DX)](https://developerexperience.io/)
-- Lex Frame Schema: `schemas/frame-v3.json`
+- Lex Frame contract: `src/shared/types/frame-schema.ts`
 - LexRunner AGENTS.md: Core operating principles
 - Jordan-mode: Deterministic prep → vacuum-ready prompt → stochastic call

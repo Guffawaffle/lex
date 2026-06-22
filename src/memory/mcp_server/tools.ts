@@ -72,6 +72,11 @@ export const MCP_TOOLS: MCPTool[] = [
           type: "string",
           description: "Reference to Atlas Frame (fold radius snapshot)",
         },
+        lmv: {
+          type: "object",
+          description:
+            "Optional LMV epistemic envelope with claim, evidence, status, confidence, uncertainty, lineage, boundaries, and experiment metadata",
+        },
         images: {
           type: "array",
           items: {
@@ -148,6 +153,11 @@ export const MCP_TOOLS: MCPTool[] = [
         atlas_frame_id: {
           type: "string",
           description: "Reference to Atlas Frame (fold radius snapshot)",
+        },
+        lmv: {
+          type: "object",
+          description:
+            "Optional LMV epistemic envelope with claim, evidence, status, confidence, uncertainty, lineage, boundaries, and experiment metadata",
         },
         images: {
           type: "array",

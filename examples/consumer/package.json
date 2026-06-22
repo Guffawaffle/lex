@@ -12,7 +12,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "lex": "file:../../"
+    "@smartergpt/lex": "file:../../"
   },
   "devDependencies": {
     "tsx": "^4.20.6"

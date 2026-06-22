@@ -1,71 +1,87 @@
 /**
- * Example: Using Module ID Validation in Frame Creation
- * 
- * This demonstrates how memory/frames/ can use the validator
- * to enforce THE CRITICAL RULE before creating a Frame.
+ * Example: Validating Frame payloads against Lex's canonical schema.
+ *
+ * This shows the two supported validation views:
+ * - `safeParseFrame()` for canonical schema parsing
+ * - `validateFramePayload()` for ingestion-oriented preflight validation
+ *   with unknown-field warnings
+ *
+ * Usage:
+ *   npx tsx examples/frame-validation-example.mjs
  */
 
-import { validateModuleIds, ModuleNotFoundError } from '../shared/module_ids/index.js';
-import { readFileSync } from 'fs';
+import { safeParseFrame } from "../src/shared/types/frame-schema.js";
+import { validateFramePayload } from "../src/memory/validation/index.js";
 
-// Example function that might exist in memory/frames/
-function createFrame(frameData, policyPath = './policy/policy_spec/lexmap.policy.json') {
-  // Load policy
-  const policyContent = readFileSync(policyPath, 'utf-8');
-  const policy = JSON.parse(policyContent);
-  
-  // Validate module_scope against policy
-  const validationResult = validateModuleIds(frameData.module_scope, policy);
-  
-  if (!validationResult.valid) {
-    // Throw error with first invalid module
-    throw new ModuleNotFoundError(
-      validationResult.errors[0].module,
-      validationResult.errors[0].suggestions
-    );
+const validFrame = {
+  id: "frame-001",
+  timestamp: "2025-11-01T16:04:12-05:00",
+  branch: "feature/auth-fix",
+  module_scope: ["services/auth-core"],
+  summary_caption: "Auth timeout fix",
+  reference_point: "auth timeout session",
+  status_snapshot: {
+    next_action: "Run integration tests",
+  },
+  taskComplexity: {
+    tier: "mid",
+    assignedModel: "gpt-4",
+    retryCount: 1,
+  },
+};
+
+const legacyIngestionFrame = {
+  id: "frame-002",
+  timestamp: "2025-11-01T16:04:12-05:00",
+  branch: "feature/auth-fix",
+  module_scope: ["services/auth-core"],
+  summary_caption: "Auth timeout fix",
+  reference_point: "auth timeout session",
+  status_snapshot: {
+    next_action: "Run integration tests",
+  },
+  taskComplexity: {
+    tier: "mid",
+    assignedModel: "gpt-4",
+    actualModel: "gpt-4",
+    tierMismatch: false,
+  },
+  unknownTopLevelField: true,
+};
+
+function printCanonicalResult(label, payload) {
+  const result = safeParseFrame(payload);
+  console.log(`\n[canonical] ${label}`);
+  if (result.success) {
+    console.log("OK: valid Frame");
+  } else {
+    for (const issue of result.error.issues) {
+      console.log(`ERR ${issue.path.join(".") || "(root)"}: ${issue.message}`);
+    }
   }
-  
-  // If validation passes, proceed with Frame creation
-  console.log('✓ Module IDs validated successfully');
-  return {
-    ...frameData,
-    validated: true
-  };
 }
 
-// Example usage
-try {
-  // This should fail - 'auth-core' doesn't exist
-  createFrame({
-    id: 'frame-001',
-    timestamp: '2025-11-01T16:04:12-05:00',
-    branch: 'feature/auth-fix',
-    module_scope: ['auth-core'],  // Invalid - should be 'services/auth-core'
-    summary_caption: 'Auth fix',
-    reference_point: 'auth deadlock',
-    status_snapshot: {
-      next_action: 'Fix auth'
+function printPreflightResult(label, payload) {
+  const result = validateFramePayload(payload);
+  console.log(`\n[preflight] ${label}`);
+  if (result.valid) {
+    console.log("OK: valid for ingestion");
+  } else {
+    for (const error of result.errors) {
+      console.log(`ERR ${error.path}: ${error.message}`);
     }
-  }, '/tmp/test-proper-policy.json');
-} catch (error) {
-  console.error('Expected error:', error.message);
-  console.log('Suggestions:', error.suggestions);
+  }
+
+  if (result.warnings.length > 0) {
+    console.log("Warnings:");
+    for (const warning of result.warnings) {
+      console.log(`- ${warning.path}: ${warning.message}`);
+    }
+  }
 }
 
-// This should succeed
-try {
-  const frame2 = createFrame({
-    id: 'frame-002',
-    timestamp: '2025-11-01T16:04:12-05:00',
-    branch: 'feature/auth-fix',
-    module_scope: ['services/auth-core'],  // Valid
-    summary_caption: 'Auth fix',
-    reference_point: 'auth deadlock',
-    status_snapshot: {
-      next_action: 'Fix auth'
-    }
-  }, '/tmp/test-proper-policy.json');
-  console.log('\n✓ Frame created successfully:', frame2.id);
-} catch (error) {
-  console.error('Unexpected error:', error.message);
-}
+printCanonicalResult("valid frame", validFrame);
+printPreflightResult("valid frame", validFrame);
+
+printCanonicalResult("legacy ingestion frame", legacyIngestionFrame);
+printPreflightResult("legacy ingestion frame", legacyIngestionFrame);

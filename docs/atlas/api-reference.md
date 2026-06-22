@@ -329,7 +329,7 @@ import {
   setEnableCache,
   autoTuneRadius,
   estimateTokens
-} from '@smartergpt/lex/shared/atlas';
+} from '@smartergpt/lex/atlas';
 
 // Generate Atlas Frame
 const frame = generateAtlasFrame(
@@ -356,17 +356,16 @@ setEnableCache(false);  // Disable caching
 
 ```typescript
 import type {
+  AtlasEdge,
+  AtlasFrame,
+  AtlasModuleData,
   CodeUnit,
   CodeUnitKind,
   CodeUnitSpan,
-  CodeAtlasRun,
-  Limits,
-  AtlasFrame,
-  AtlasModule,
-  AtlasEdge,
   Policy,
   PolicyModule
-} from '@smartergpt/lex/shared/atlas';
+} from '@smartergpt/lex/atlas';
+import type { CodeAtlasRun, Limits } from '@smartergpt/lex/atlas/schemas';
 ```
 
 ---
@@ -390,8 +389,10 @@ import type {
 ### Starting the HTTP Server
 
 ```typescript
-import { createDatabase } from '@smartergpt/lex/memory/store';
-import { startHttpServer } from '@smartergpt/lex/memory/mcp_server/http-server';
+// Source-level contributor example. The embedded HTTP server helpers are not
+// public npm subpath exports.
+import { createDatabase } from '../../src/memory/store/db.js';
+import { startHttpServer } from '../../src/memory/mcp_server/http-server.js';
 
 const db = createDatabase('/path/to/frames.db');
 

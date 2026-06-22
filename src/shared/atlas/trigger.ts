@@ -12,7 +12,7 @@
  * @module atlas/trigger
  */
 
-import type { Frame } from "../types/frame.js";
+import type { Frame } from "../types/frame-schema.js";
 import { rebuildAtlas, type Atlas } from "./rebuild.js";
 import { validateAtlas, type ValidationResult } from "./validate.js";
 

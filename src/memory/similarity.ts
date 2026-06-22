@@ -5,7 +5,7 @@
  * Uses multiple dimensions: semantic (keywords), structural (modules), and temporal.
  */
 
-import type { Frame } from "./frames/types.js";
+import type { Frame } from "../shared/types/frame-schema.js";
 
 /**
  * Breakdown of similarity score by dimension

@@ -5,9 +5,30 @@
  * memory/ and policy/ workspaces.
  */
 
-// Frame types (original interface-based)
-export type { Frame, StatusSnapshot, SpendMetadata } from "./frame.js";
+// Frame types (canonical schema-backed compatibility facade)
+export type {
+  CapabilityTier,
+  ContradictionResolution,
+  Frame,
+  SpendMetadata,
+  StatusSnapshot,
+  TaskComplexity,
+  TurnCost,
+  TurnCostComponent,
+  TurnCostWeights,
+} from "./frame.js";
+export type {
+  LmvConfidence,
+  LmvEpistemic,
+  LmvEvidenceRef,
+  LmvEvidenceStatus,
+  LmvExperiment,
+  LmvStatus,
+  LmvStopCondition,
+} from "./frame.js";
 export { FRAME_SCHEMA_VERSION, validateFrameMetadata } from "./frame.js";
+export { summarizeLmvForRecall } from "./lmv.js";
+export type { LmvRecallState, LmvRecallSummary } from "./lmv.js";
 
 // Frame Zod schemas (for validation and runner integration)
 export {

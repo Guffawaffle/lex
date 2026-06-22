@@ -218,6 +218,25 @@ describe("Image Manager", () => {
     }
   });
 
+  test("re-saving a Frame preserves attached images", () => {
+    const { imageManager } = setup();
+    try {
+      const frame = createTestFrame();
+      const imageId = imageManager.storeImage(frame.id, Buffer.from("image-1"), "image/png");
+
+      saveFrame(db, {
+        ...frame,
+        summary_caption: "Updated frame after image attach",
+      });
+
+      const images = imageManager.listFrameImages(frame.id);
+      assert.strictEqual(images.length, 1, "Attached image should survive frame upsert");
+      assert.strictEqual(images[0].image_id, imageId, "Original image should still be attached");
+    } finally {
+      teardown();
+    }
+  });
+
   test("deleteImage removes image from storage", () => {
     const { imageManager } = setup();
     try {

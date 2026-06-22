@@ -347,6 +347,30 @@ describe("Batch Frame Ingestion - External Orchestrator Pattern", () => {
       assert.strictEqual(retrieved.jira, "PROJ-123");
       assert.strictEqual(retrieved.runId, "run-001");
     });
+
+    test("should normalize deprecated taskComplexity fields before saving", async () => {
+      const legacyFrame = {
+        ...createValidFrame("legacy-task-complexity", 0),
+        taskComplexity: {
+          tier: "mid",
+          assignedModel: "gpt-4",
+          actualModel: "gpt-4",
+          tierMismatch: false,
+        },
+      } as unknown as FrameInput;
+
+      const result = await insertFramesBatch(store, [legacyFrame]);
+
+      assert.strictEqual(result.success, true);
+      assert.strictEqual(result.count, 1);
+
+      const retrieved = await store.getFrameById("legacy-task-complexity");
+      assert.ok(retrieved);
+      assert.deepStrictEqual(retrieved.taskComplexity, {
+        tier: "mid",
+        assignedModel: "gpt-4",
+      });
+    });
   });
 
   describe("Atlas Rebuild Hooks (L-EXE-004)", () => {

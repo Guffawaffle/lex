@@ -3,8 +3,7 @@ import { SqliteFrameStore } from "../store/sqlite/index.js";
 import type { FrameStore, FrameSearchCriteria } from "../store/frame-store.js";
 // @ts-ignore - importing from compiled dist directories
 import { ImageManager } from "../store/images.js";
-// @ts-ignore - importing from compiled dist directories
-import type { Frame } from "../frames/types.js";
+import { FrameSchema, LmvEpistemicSchema, type Frame } from "../../shared/types/frame-schema.js";
 import { MCP_TOOLS } from "./tools.js";
 import { MCPError, MCPErrorCode, MCP_ERROR_METADATA, createModuleIdError } from "./errors.js";
 import { IdempotencyCache } from "./idempotency.js";
@@ -29,9 +28,10 @@ import { resolveCallerWorkspaceRoot } from "../../shared/config/index.js";
 import { validatePolicySchema } from "../../shared/policy/schema.js";
 import { randomUUID } from "crypto";
 import { join, dirname, resolve } from "path";
-import { existsSync, readFileSync } from "fs";
+import { readFileSync } from "fs";
 import { fileURLToPath } from "url";
 import { AXErrorException, isAXErrorException } from "../../shared/errors/ax-error.js";
+import { summarizeLmvForRecall } from "../../shared/types/lmv.js";
 // @ts-ignore - importing from compiled dist directories
 import {
   buildTimeline,
@@ -67,6 +67,15 @@ function getPackageVersion(): string {
  */
 const MAX_FILTER_FETCH_LIMIT = 1000;
 
+function formatZodIssues(error: {
+  issues: Array<{ path: PropertyKey[]; message: string }>;
+}): Array<{ path: string; message: string }> {
+  return error.issues.map((issue) => ({
+    path: issue.path.map((part) => String(part)).join("."),
+    message: issue.message,
+  }));
+}
+
 interface RememberArgs {
   reference_point: string;
   summary_caption: string;
@@ -81,6 +90,7 @@ interface RememberArgs {
   jira?: string;
   keywords?: string[];
   atlas_frame_id?: string;
+  lmv?: Frame["lmv"];
   images?: { data: string; mime_type: string }[];
   request_id?: string;
 }
@@ -490,6 +500,7 @@ export class MCPServer {
       jira,
       keywords,
       atlas_frame_id,
+      lmv,
       images,
       request_id,
     } = args as unknown as RememberArgs;
@@ -531,6 +542,19 @@ export class MCPServer {
         MCPErrorCode.VALIDATION_INVALID_STATUS,
         "status_snapshot.next_action is required"
       );
+    }
+
+    let validatedLmv: Frame["lmv"] | undefined;
+    if (lmv !== undefined) {
+      const lmvResult = LmvEpistemicSchema.safeParse(lmv);
+      if (!lmvResult.success) {
+        throw new MCPError(
+          MCPErrorCode.VALIDATION_INVALID_FORMAT,
+          "lmv must match the LMV epistemic envelope schema",
+          { field: "lmv", issues: formatZodIssues(lmvResult.error) }
+        );
+      }
+      validatedLmv = lmvResult.data;
     }
 
     // THE CRITICAL RULE: Resolve aliases and validate module IDs against policy (if available)
@@ -576,7 +600,7 @@ export class MCPServer {
       frameBranch = "unknown";
     }
 
-    const frame = {
+    const frame: Frame = {
       id: frameId,
       timestamp,
       branch: frameBranch,
@@ -587,10 +611,21 @@ export class MCPServer {
       status_snapshot,
       keywords: keywords || undefined,
       atlas_frame_id: atlas_frame_id || undefined,
+      lmv: validatedLmv,
       image_ids: [] as string[],
     };
 
-    await this.frameStore.saveFrame(frame);
+    const frameResult = FrameSchema.safeParse(frame);
+    if (!frameResult.success) {
+      throw new MCPError(
+        MCPErrorCode.VALIDATION_INVALID_FORMAT,
+        "Frame payload failed schema validation",
+        { issues: formatZodIssues(frameResult.error) }
+      );
+    }
+
+    let persistedFrame = frameResult.data;
+    await this.frameStore.saveFrame(persistedFrame);
 
     // Process image attachments if provided
     const imageIds: string[] = [];
@@ -621,8 +656,21 @@ export class MCPServer {
       }
 
       // Update frame with image IDs
-      frame.image_ids = imageIds;
-      await this.frameStore.saveFrame(frame);
+      const hydratedFrame = {
+        ...persistedFrame,
+        image_ids: imageIds,
+      };
+      const hydratedFrameResult = FrameSchema.safeParse(hydratedFrame);
+      if (!hydratedFrameResult.success) {
+        await this.frameStore.deleteFrame(frameId);
+        throw new MCPError(
+          MCPErrorCode.VALIDATION_INVALID_FORMAT,
+          "Frame payload failed schema validation after image processing",
+          { issues: formatZodIssues(hydratedFrameResult.error) }
+        );
+      }
+      persistedFrame = hydratedFrameResult.data;
+      await this.frameStore.saveFrame(persistedFrame);
     }
 
     // Generate Atlas Frame for the module scope (skip if no policy available)
@@ -647,8 +695,8 @@ export class MCPServer {
     };
 
     // Include atlas_frame_id if one was provided or stored
-    if (frame.atlas_frame_id) {
-      responseData.atlas_frame_id = frame.atlas_frame_id;
+    if (persistedFrame.atlas_frame_id) {
+      responseData.atlas_frame_id = persistedFrame.atlas_frame_id;
     }
 
     const response: MCPResponse = {
@@ -694,12 +742,14 @@ export class MCPServer {
       jira,
       keywords: _keywords,
       atlas_frame_id: _atlas_frame_id,
+      lmv,
       images,
     } = args as unknown as RememberArgs;
 
     const errors: Array<{ field: string; code: string; message: string; suggestions?: string[] }> =
       [];
     const warnings: Array<{ field: string; message: string }> = [];
+    let canonicalModuleScope = Array.isArray(module_scope) ? module_scope : [];
 
     // Validate required fields
     if (!reference_point) {
@@ -754,6 +804,21 @@ export class MCPServer {
       }
     }
 
+    if (lmv !== undefined) {
+      const lmvResult = LmvEpistemicSchema.safeParse(lmv);
+      if (!lmvResult.success) {
+        errors.push({
+          field: "lmv",
+          code: MCPErrorCode.VALIDATION_INVALID_FORMAT,
+          message: `lmv must match the LMV epistemic envelope schema: ${formatZodIssues(
+            lmvResult.error
+          )
+            .map((issue) => `${issue.path || "lmv"} ${issue.message}`)
+            .join("; ")}`,
+        });
+      }
+    }
+
     // Validate module IDs against policy (if available and module_scope is valid)
     if (this.policy && module_scope && Array.isArray(module_scope) && module_scope.length > 0) {
       try {
@@ -769,6 +834,8 @@ export class MCPServer {
               suggestions: err.suggestions,
             });
           }
+        } else if (validationResult.canonical) {
+          canonicalModuleScope = validationResult.canonical;
         }
       } catch (error: unknown) {
         // If module validation fails unexpectedly, add it as an error
@@ -812,6 +879,36 @@ export class MCPServer {
           warnings.push({
             field: `images[${i}].mime_type`,
             message: `Uncommon MIME type: ${img.mime_type}. Supported types: image/png, image/jpeg, image/jpg, image/gif, image/webp`,
+          });
+        }
+      }
+    }
+
+    if (errors.length === 0) {
+      const candidateFrame = {
+        id: "frame-validate-preview",
+        timestamp: new Date().toISOString(),
+        branch: typeof _branch === "string" && _branch.length > 0 ? _branch : "unknown",
+        jira: typeof jira === "string" && jira.length > 0 ? jira : undefined,
+        module_scope: canonicalModuleScope,
+        summary_caption,
+        reference_point,
+        status_snapshot,
+        keywords: Array.isArray(_keywords) ? _keywords : undefined,
+        atlas_frame_id:
+          typeof _atlas_frame_id === "string" && _atlas_frame_id.length > 0
+            ? _atlas_frame_id
+            : undefined,
+        lmv,
+        image_ids: Array.isArray(images) ? [] : undefined,
+      };
+      const frameResult = FrameSchema.safeParse(candidateFrame);
+      if (!frameResult.success) {
+        for (const issue of formatZodIssues(frameResult.error)) {
+          errors.push({
+            field: issue.path || "(root)",
+            code: MCPErrorCode.VALIDATION_INVALID_FORMAT,
+            message: issue.message,
           });
         }
       }
@@ -996,6 +1093,7 @@ export class MCPServer {
         const blockers = f.status_snapshot?.blockers || [];
         const mergeBlockers = f.status_snapshot?.merge_blockers || [];
         const testsFailing = f.status_snapshot?.tests_failing || [];
+        const lmv = summarizeLmvForRecall(f);
 
         // Generate Atlas Frame for this Frame's modules (skip if no policy)
         let atlasOutput = "";
@@ -1011,6 +1109,10 @@ export class MCPServer {
           `ID: ${f.id}\n` +
           `📍 Reference: ${f.reference_point}\n` +
           `💬 Summary: ${f.summary_caption}\n` +
+          `🧾 LMV: ${lmv.label}\n` +
+          `${lmv.claim ? `   Claim: ${lmv.claim}\n` : ""}` +
+          `${lmv.status || lmv.confidence ? `   Claim status: ${lmv.status || "unknown"}; confidence: ${lmv.confidence || "unknown"}; evidence: ${lmv.evidenceCount}\n` : ""}` +
+          `${lmv.nextValidation ? `   Next validation: ${lmv.nextValidation}\n` : ""}` +
           `📦 Modules: ${f.module_scope.join(", ")}\n` +
           `🌿 Branch: ${f.branch}\n` +
           `${f.jira ? `🎫 Jira: ${f.jira}\n` : ""}` +
@@ -1081,11 +1183,16 @@ export class MCPServer {
     const blockers = frame.status_snapshot?.blockers || [];
     const mergeBlockers = frame.status_snapshot?.merge_blockers || [];
     const testsFailing = frame.status_snapshot?.tests_failing || [];
+    const lmv = summarizeLmvForRecall(frame);
 
     let result =
       `✅ Frame retrieved: ${frame.id}\n` +
       `📍 Reference: ${frame.reference_point}\n` +
       `💬 Summary: ${frame.summary_caption}\n` +
+      `🧾 LMV: ${lmv.label}\n` +
+      `${lmv.claim ? `   Claim: ${lmv.claim}\n` : ""}` +
+      `${lmv.status || lmv.confidence ? `   Claim status: ${lmv.status || "unknown"}; confidence: ${lmv.confidence || "unknown"}; evidence: ${lmv.evidenceCount}\n` : ""}` +
+      `${lmv.nextValidation ? `   Next validation: ${lmv.nextValidation}\n` : ""}` +
       `📦 Modules: ${frame.module_scope.join(", ")}\n` +
       `🌿 Branch: ${frame.branch}\n` +
       `${frame.jira ? `🎫 Jira: ${frame.jira}\n` : ""}` +

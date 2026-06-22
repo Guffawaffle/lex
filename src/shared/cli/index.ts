@@ -40,6 +40,7 @@ import { epicSync, type EpicSyncOptions } from "./epic.js";
 import { waveComplete, type WaveCompleteOptions } from "./wave.js";
 import { introspect, type IntrospectOptions } from "./introspect.js";
 import { hints, type HintsOptions } from "./hints.js";
+import { axfBearings, type AxfBearingsOptions } from "./axf-bearings.js";
 import * as output from "./output.js";
 import { readFileSync } from "fs";
 import { join, dirname } from "path";
@@ -577,6 +578,27 @@ export function createProgram(): Command {
       await waveComplete(options);
     });
 
+  const axfCommand = program.command("axf").description("AXF orientation and capability helpers");
+
+  // lex axf bearings command
+  axfCommand
+    .command("bearings")
+    .description("Inspect read-only AXF bearings for the current workspace")
+    .option(
+      "--max-status <number>",
+      "Maximum dirty/untracked status entries to include",
+      parseInteger,
+      50
+    )
+    .action(async (cmdOptions) => {
+      const globalOptions = program.opts();
+      const options: AxfBearingsOptions = {
+        json: globalOptions.json || false,
+        maxStatus: cmdOptions.maxStatus,
+      };
+      await axfBearings(options);
+    });
+
   // lex introspect command
   program
     .command("introspect")
@@ -624,6 +646,10 @@ function parseList(value: string): string[] | undefined {
     .split(",")
     .map((item) => item.trim())
     .filter((item) => item.length > 0);
+}
+
+function parseInteger(value: string): number {
+  return Number.parseInt(value, 10);
 }
 
 /**

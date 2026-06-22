@@ -41,6 +41,50 @@ function createTestFrame(id: string, overrides: Partial<Frame> = {}): Frame {
   };
 }
 
+function createTestLmv(): NonNullable<Frame["lmv"]> {
+  return {
+    claim: "The LMV envelope survives store persistence.",
+    evidence: [
+      {
+        kind: "test",
+        ref: "test/memory/store/update-frame.test.ts",
+        status: "supports",
+        line: 1,
+      },
+    ],
+    status: "observed",
+    confidence: "high",
+    uncertainty: ["Only the focused store contract is covered here."],
+    nextValidation: "Run the focused store test against SQLite and Memory stores.",
+    boundaries: {
+      trustZone: "workspace",
+      privilege: "normal",
+      dataClass: "local_private",
+      egress: "none",
+      pathScope: ["test/memory/store/update-frame.test.ts"],
+    },
+    experiment: {
+      hypothesis: "A typed LMV envelope can be stored without changing required Frame fields.",
+      bounds: {
+        pathScope: ["src/memory/store/**", "test/memory/store/**"],
+        maxAttempts: 1,
+        allowedEffects: ["read", "write"],
+        stopConditions: [
+          {
+            code: "schema_rejection",
+            action: "stop",
+            message: "Stop if Frame validation rejects the LMV shape.",
+          },
+        ],
+      },
+      rollbackOrContainment: "Drop the optional LMV update and leave existing Frame fields intact.",
+      result: "supported",
+      lesson: "Optional LMV metadata can be persisted as JSON.",
+      changedFutureAction: true,
+    },
+  };
+}
+
 /**
  * Test suite factory for a specific FrameStore implementation.
  */
@@ -107,6 +151,25 @@ function createUpdateFrameTests(name: string, createStore: () => FrameStore) {
       const frame = await store.getFrameById("f-001");
       assert.ok(frame);
       assert.deepStrictEqual(frame.merged_from, ["f-002", "f-003"]);
+    });
+
+    test("updates lmv field", async () => {
+      const lmv = createTestLmv();
+      await store.saveFrame(createTestFrame("f-001"));
+      await store.updateFrame("f-001", { lmv });
+
+      const frame = await store.getFrameById("f-001");
+      assert.ok(frame);
+      assert.deepStrictEqual(frame.lmv, lmv);
+    });
+
+    test("updates image_ids field", async () => {
+      await store.saveFrame(createTestFrame("f-001"));
+      await store.updateFrame("f-001", { image_ids: ["img-001", "img-002"] });
+
+      const frame = await store.getFrameById("f-001");
+      assert.ok(frame);
+      assert.deepStrictEqual(frame.image_ids, ["img-001", "img-002"]);
     });
 
     test("preserves unchanged fields", async () => {
@@ -206,6 +269,27 @@ function createSaveFrameBugFixTests(name: string, createStore: () => FrameStore)
       assert.deepStrictEqual(retrieved.merged_from, ["f-002", "f-003"]);
     });
 
+    test("saveFrame persists image_ids", async () => {
+      const frame = createTestFrame("f-001", {
+        image_ids: ["img-001", "img-002"],
+      });
+      await store.saveFrame(frame);
+
+      const retrieved = await store.getFrameById("f-001");
+      assert.ok(retrieved);
+      assert.deepStrictEqual(retrieved.image_ids, ["img-001", "img-002"]);
+    });
+
+    test("saveFrame persists lmv", async () => {
+      const lmv = createTestLmv();
+      const frame = createTestFrame("f-001", { lmv });
+      await store.saveFrame(frame);
+
+      const retrieved = await store.getFrameById("f-001");
+      assert.ok(retrieved);
+      assert.deepStrictEqual(retrieved.lmv, lmv);
+    });
+
     test("saveFrame upsert preserves superseded_by", async () => {
       // Save with superseded_by
       await store.saveFrame(createTestFrame("f-001", { superseded_by: "f-002" }));
@@ -224,9 +308,10 @@ function createSaveFrameBugFixTests(name: string, createStore: () => FrameStore)
     });
 
     test("saveFrames batch persists superseded_by and merged_from", async () => {
+      const lmv = createTestLmv();
       const frames = [
         createTestFrame("f-001", { superseded_by: "f-003" }),
-        createTestFrame("f-002", { merged_from: ["f-004", "f-005"] }),
+        createTestFrame("f-002", { merged_from: ["f-004", "f-005"], lmv }),
       ];
       const results = await store.saveFrames(frames);
       assert.ok(results.every((r) => r.success));
@@ -238,6 +323,7 @@ function createSaveFrameBugFixTests(name: string, createStore: () => FrameStore)
       const f2 = await store.getFrameById("f-002");
       assert.ok(f2);
       assert.deepStrictEqual(f2.merged_from, ["f-004", "f-005"]);
+      assert.deepStrictEqual(f2.lmv, lmv);
     });
   });
 }

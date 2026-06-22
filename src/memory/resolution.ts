@@ -8,7 +8,7 @@
  * - Cancel: Don't store the new frame
  */
 
-import type { Frame } from "./frames/types.js";
+import type { Frame } from "../shared/types/frame-schema.js";
 import type { ContradictionResult } from "./contradictions.js";
 
 /**

@@ -6,69 +6,50 @@
 
 import Database from "better-sqlite3-multiple-ciphers";
 import type { FrameRow } from "./db.js";
-import type { Frame, FrameStatusSnapshot, FrameSpendMetadata } from "../frames/types.js";
+import type { Frame } from "../../shared/types/frame-schema.js";
 import { getNDJSONLogger } from "../../shared/logger/index.js";
 import { normalizeFTS5Query } from "./fts5-utils.js";
+import { frameToRow, rowToFrame } from "./frame-row-codec.js";
 
 const logger = getNDJSONLogger("memory/store");
 
-/**
- * Convert Frame object to database row
- */
-function frameToRow(frame: Frame): FrameRow {
-  return {
-    id: frame.id,
-    timestamp: frame.timestamp,
-    branch: frame.branch,
-    jira: frame.jira || null,
-    module_scope: JSON.stringify(frame.module_scope),
-    summary_caption: frame.summary_caption,
-    reference_point: frame.reference_point,
-    status_snapshot: JSON.stringify(frame.status_snapshot),
-    keywords: frame.keywords ? JSON.stringify(frame.keywords) : null,
-    atlas_frame_id: frame.atlas_frame_id || null,
-    feature_flags: frame.feature_flags ? JSON.stringify(frame.feature_flags) : null,
-    permissions: frame.permissions ? JSON.stringify(frame.permissions) : null,
-    // Merge-weave metadata (v2)
-    run_id: frame.runId || null,
-    plan_hash: frame.planHash || null,
-    spend: frame.spend ? JSON.stringify(frame.spend) : null,
-    // OAuth2/JWT user isolation (v3)
-    user_id: frame.userId || null,
-    // Deduplication metadata (v5)
-    superseded_by: frame.superseded_by || null,
-    merged_from: frame.merged_from ? JSON.stringify(frame.merged_from) : null,
-  };
-}
-
-/**
- * Convert database row to Frame object
- */
-function rowToFrame(row: FrameRow): Frame {
-  return {
-    id: row.id,
-    timestamp: row.timestamp,
-    branch: row.branch,
-    jira: row.jira || undefined,
-    module_scope: JSON.parse(row.module_scope) as string[],
-    summary_caption: row.summary_caption,
-    reference_point: row.reference_point,
-    status_snapshot: JSON.parse(row.status_snapshot) as FrameStatusSnapshot,
-    keywords: row.keywords ? (JSON.parse(row.keywords) as string[]) : undefined,
-    atlas_frame_id: row.atlas_frame_id || undefined,
-    feature_flags: row.feature_flags ? (JSON.parse(row.feature_flags) as string[]) : undefined,
-    permissions: row.permissions ? (JSON.parse(row.permissions) as string[]) : undefined,
-    // Merge-weave metadata (v2) - backward compatible, defaults to undefined
-    runId: row.run_id || undefined,
-    planHash: row.plan_hash || undefined,
-    spend: row.spend ? (JSON.parse(row.spend) as FrameSpendMetadata) : undefined,
-    // OAuth2/JWT user isolation (v3) - backward compatible, defaults to undefined
-    userId: row.user_id || undefined,
-    // Deduplication metadata (v5) - backward compatible, defaults to undefined
-    superseded_by: row.superseded_by || undefined,
-    merged_from: row.merged_from ? (JSON.parse(row.merged_from) as string[]) : undefined,
-  };
-}
+const FRAME_UPSERT_SQL = `
+  INSERT INTO frames (
+    id, timestamp, branch, jira, module_scope, summary_caption,
+    reference_point, status_snapshot, keywords, atlas_frame_id,
+    feature_flags, permissions, image_ids, run_id, plan_hash, spend,
+    user_id, executor_role, tool_calls, guardrail_profile, turn_cost,
+    capability_tier, task_complexity, superseded_by, merged_from,
+    contradiction_resolution, lmv
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  ON CONFLICT(id) DO UPDATE SET
+    timestamp = excluded.timestamp,
+    branch = excluded.branch,
+    jira = excluded.jira,
+    module_scope = excluded.module_scope,
+    summary_caption = excluded.summary_caption,
+    reference_point = excluded.reference_point,
+    status_snapshot = excluded.status_snapshot,
+    keywords = excluded.keywords,
+    atlas_frame_id = excluded.atlas_frame_id,
+    feature_flags = excluded.feature_flags,
+    permissions = excluded.permissions,
+    image_ids = excluded.image_ids,
+    run_id = excluded.run_id,
+    plan_hash = excluded.plan_hash,
+    spend = excluded.spend,
+    user_id = excluded.user_id,
+    executor_role = excluded.executor_role,
+    tool_calls = excluded.tool_calls,
+    guardrail_profile = excluded.guardrail_profile,
+    turn_cost = excluded.turn_cost,
+    capability_tier = excluded.capability_tier,
+    task_complexity = excluded.task_complexity,
+    superseded_by = excluded.superseded_by,
+    merged_from = excluded.merged_from,
+    contradiction_resolution = excluded.contradiction_resolution,
+    lmv = excluded.lmv
+`;
 
 /**
  * Save a Frame to the database (insert or update)
@@ -76,15 +57,7 @@ function rowToFrame(row: FrameRow): Frame {
 export function saveFrame(db: Database.Database, frame: Frame): void {
   const startTime = Date.now();
   const row = frameToRow(frame);
-
-  const stmt = db.prepare(`
-    INSERT OR REPLACE INTO frames (
-      id, timestamp, branch, jira, module_scope, summary_caption,
-      reference_point, status_snapshot, keywords, atlas_frame_id,
-      feature_flags, permissions, run_id, plan_hash, spend, user_id,
-      superseded_by, merged_from
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `);
+  const stmt = db.prepare(FRAME_UPSERT_SQL);
 
   stmt.run(
     row.id,
@@ -99,12 +72,21 @@ export function saveFrame(db: Database.Database, frame: Frame): void {
     row.atlas_frame_id,
     row.feature_flags,
     row.permissions,
+    row.image_ids,
     row.run_id,
     row.plan_hash,
     row.spend,
     row.user_id,
+    row.executor_role,
+    row.tool_calls,
+    row.guardrail_profile,
+    row.turn_cost,
+    row.capability_tier,
+    row.task_complexity,
     row.superseded_by,
-    row.merged_from
+    row.merged_from,
+    row.contradiction_resolution,
+    row.lmv
   );
 
   const duration = Date.now() - startTime;

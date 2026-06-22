@@ -5,7 +5,7 @@
  * Supports merge, supersede, and keep-both modes.
  */
 
-import type { Frame } from "./frames/types.js";
+import type { Frame } from "../shared/types/frame-schema.js";
 import { computeSimilarity, type SimilarityResult } from "./similarity.js";
 
 /**

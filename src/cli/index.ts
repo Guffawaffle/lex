@@ -12,6 +12,7 @@ export type { TimelineCommandOptions } from "../shared/cli/timeline.js";
 export type { ExportCommandOptions } from "../shared/cli/export.js";
 export type { ImportCommandOptions } from "../shared/cli/import.js";
 export type { DedupeOptions } from "../shared/cli/dedupe.js";
+export type { AxfBearingsOptions } from "../shared/cli/axf-bearings.js";
 export type {
   CodeAtlasOptions,
   CodeAtlasOutput,

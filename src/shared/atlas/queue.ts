@@ -11,7 +11,7 @@
  * - In-memory queue: Simple, fast, no external dependencies
  */
 
-import type { Frame } from "../types/frame.js";
+import type { Frame } from "../types/frame-schema.js";
 import { rebuildAtlas, type Atlas } from "./rebuild.js";
 import { validateAtlas } from "./validate.js";
 

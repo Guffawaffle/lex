@@ -5,7 +5,8 @@
  * while preserving essential information.
  */
 
-import type { Frame } from "../../shared/types/frame.js";
+import type { Frame } from "../../shared/types/frame-schema.js";
+import { summarizeLmvForRecall, type LmvRecallSummary } from "../../shared/types/lmv.js";
 
 /**
  * Maximum length for truncated text fields
@@ -28,6 +29,10 @@ export interface CompactFrame {
   mergeBlockers?: string[];
   testsFailing?: string[];
   keywords?: string[];
+  lmv?: Pick<
+    LmvRecallSummary,
+    "state" | "label" | "claim" | "status" | "confidence" | "evidenceCount"
+  >;
   _truncated?: boolean; // Flag indicating content was shortened
 }
 
@@ -75,9 +80,7 @@ export function compactFrame(frame: Frame): CompactFrame {
 
   // Only include non-empty arrays
   if (frame.status_snapshot.blockers && frame.status_snapshot.blockers.length > 0) {
-    compact.blockers = frame.status_snapshot.blockers.map((b) =>
-      truncateText(b, MAX_TEXT_LENGTH)
-    );
+    compact.blockers = frame.status_snapshot.blockers.map((b) => truncateText(b, MAX_TEXT_LENGTH));
     if (frame.status_snapshot.blockers.some((b) => b.length > MAX_TEXT_LENGTH)) {
       wasTruncated = true;
     }
@@ -103,6 +106,20 @@ export function compactFrame(frame: Frame): CompactFrame {
 
   if (frame.keywords && frame.keywords.length > 0) {
     compact.keywords = frame.keywords;
+  }
+
+  const lmv = summarizeLmvForRecall(frame);
+  compact.lmv = {
+    state: lmv.state,
+    label: lmv.label,
+    ...(lmv.claim && { claim: truncateText(lmv.claim, MAX_TEXT_LENGTH) }),
+    ...(lmv.status && { status: lmv.status }),
+    ...(lmv.confidence && { confidence: lmv.confidence }),
+    evidenceCount: lmv.evidenceCount,
+  };
+
+  if (lmv.claim && lmv.claim.length > MAX_TEXT_LENGTH) {
+    wasTruncated = true;
   }
 
   // Add truncation flag if any content was shortened

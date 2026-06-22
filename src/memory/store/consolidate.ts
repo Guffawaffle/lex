@@ -6,10 +6,10 @@
  *
  * Uses FrameStore.updateFrame() for targeted field updates instead of
  * re-saving entire frames via saveFrame(), which avoids the risk of
- * clobbering unrelated fields during INSERT OR REPLACE.
+ * clobbering unrelated fields during full-row frame upserts.
  */
 
-import type { Frame } from "../frames/types.js";
+import type { Frame } from "../../shared/types/frame-schema.js";
 import type { FrameStore } from "./frame-store.js";
 
 /**

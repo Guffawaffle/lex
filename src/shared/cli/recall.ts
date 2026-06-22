@@ -4,7 +4,7 @@
  * Searches Frames via query, returns Frame + Atlas Frame with pretty output.
  */
 
-import type { Frame } from "../types/frame.js";
+import type { Frame } from "../types/frame-schema.js";
 import { createFrameStore, type FrameStore } from "../../memory/store/index.js";
 import { loadPolicy } from "../policy/loader.js";
 import {
@@ -20,6 +20,7 @@ import { compactFrameList } from "../../memory/renderer/compact.js";
 import { parseNaturalQuery, isConversationalQuery } from "../../memory/natural-query.js";
 import { formatAsNarrative } from "../../memory/narrative.js";
 import { isAXErrorException } from "../errors/ax-error.js";
+import { summarizeLmvForRecall } from "../types/lmv.js";
 
 export interface RecallOptions {
   json?: boolean;
@@ -150,6 +151,7 @@ export async function recall(
         } else {
           // For list mode, output minimal frame info
           const results = frames.map((frame) => ({
+            lmv: summarizeLmvForRecall(frame),
             id: frame.id,
             timestamp: frame.timestamp,
             summary_caption: frame.summary_caption,
@@ -172,6 +174,7 @@ export async function recall(
             const atlasResult = await generateAtlasFrameWithAutoTune(frame, options);
             results.push({
               frame,
+              lmv: summarizeLmvForRecall(frame),
               atlasFrame: atlasResult.atlasFrame,
               foldRadius: atlasResult.actualRadius,
               autoTuned: atlasResult.autoTuned,
@@ -201,8 +204,10 @@ export async function recall(
           const date = new Date(frame.timestamp).toISOString().substring(0, 10);
           const keywordsStr = frame.keywords?.join(", ") ?? "none";
           const modulesStr = frame.module_scope.join(", ") || "none";
+          const lmv = summarizeLmvForRecall(frame);
 
           output.info(`${i + 1}. [${date}] ${frame.summary_caption}`);
+          output.info(`   LMV: ${lmv.label}`);
           output.info(`   Keywords: ${keywordsStr}`);
           output.info(`   Modules: ${modulesStr}`);
           if (frame.jira) {
@@ -255,6 +260,19 @@ async function displayFrame(frame: Frame, options: RecallOptions): Promise<void>
   output.info(`   Branch: ${frame.branch}`);
   output.info(`\n   Reference: "${frame.reference_point}"`);
   output.info(`\n   Summary: ${frame.summary_caption}`);
+  const lmv = summarizeLmvForRecall(frame);
+  output.info(`\n   LMV: ${lmv.label}`);
+  if (lmv.claim) {
+    output.info(`   Claim: ${lmv.claim}`);
+  }
+  if (lmv.confidence || lmv.status) {
+    output.info(
+      `   Claim status: ${lmv.status || "unknown"}; confidence: ${lmv.confidence || "unknown"}; evidence: ${lmv.evidenceCount}`
+    );
+  }
+  if (lmv.nextValidation) {
+    output.info(`   Next validation: ${lmv.nextValidation}`);
+  }
 
   output.info(`\n   Next action: ${frame.status_snapshot.next_action}`);
 

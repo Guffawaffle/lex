@@ -231,6 +231,11 @@ test("CLI-004: recall with matches exits with code 0", () => {
     assert.strictEqual(result.status, 0, "Should exit with code 0 when frames found");
     const output = result.stdout + result.stderr;
     assert.match(output, /test frame for recall/, "Should show the frame");
+    assert.match(
+      output,
+      /Unsupported memory: no LMV evidence/,
+      "Should label legacy frames without LMV evidence"
+    );
   } finally {
     cleanup();
   }
@@ -276,6 +281,7 @@ test("recall from non-Lex consumer repo uses caller workspace policy for Atlas",
     assert.strictEqual(result.status, 0, result.stderr || result.stdout);
     const json = JSON.parse(result.stdout.trim());
     assert.ok(Array.isArray(json), "Should return recall result array");
+    assert.strictEqual(json[0].lmv?.state, "unsupported_memory");
     assert.ok(json[0].atlasFrame, "Should include Atlas Frame from caller policy");
     assert.ok(
       json[0].atlasFrame.modules.some((module: { id: string }) => module.id === "consumer/module"),

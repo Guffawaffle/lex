@@ -39,23 +39,26 @@ lex remember \
 ### Programmatic Extraction
 
 ```typescript
+import { randomUUID } from 'node:crypto';
 import { saveFrame, getDb, closeDb } from '@smartergpt/lex';
 
 const db = getDb();
 
 await saveFrame(db, {
-  referencePoint: 'implementing auth middleware',
-  summaryCaption: 'Added JWT validation to API routes',
-  statusSnapshot: { 
-    nextAction: 'Add refresh token support',
+  id: randomUUID(),
+  timestamp: new Date().toISOString(),
+  reference_point: 'implementing auth middleware',
+  summary_caption: 'Added JWT validation to API routes',
+  status_snapshot: {
+    next_action: 'Add refresh token support',
     blockers: []
   },
-  moduleScope: ['services/auth', 'api/middleware'],
+  module_scope: ['services/auth', 'api/middleware'],
   branch: 'feature/auth',
   jira: 'AUTH-123'
 });
 
-closeDb(db);
+closeDb();
 ```
 
 ---
@@ -214,7 +217,7 @@ echo '{
 ### Basic Generation
 
 ```typescript
-import { generateAtlasFrame } from '@smartergpt/lex/shared/atlas';
+import { generateAtlasFrame } from '@smartergpt/lex/atlas';
 
 // Generate Atlas Frame with 1-hop radius
 const atlasFrame = generateAtlasFrame(
@@ -248,7 +251,7 @@ atlasFrame.edges.forEach(edge => {
 ### With Custom Policy Path
 
 ```typescript
-import { generateAtlasFrame } from '@smartergpt/lex/shared/atlas';
+import { generateAtlasFrame } from '@smartergpt/lex/atlas';
 
 const atlasFrame = generateAtlasFrame(
   ['services/payment'],
@@ -260,7 +263,7 @@ const atlasFrame = generateAtlasFrame(
 ### JSON Output
 
 ```typescript
-import { generateAtlasFrame } from '@smartergpt/lex/shared/atlas';
+import { generateAtlasFrame } from '@smartergpt/lex/atlas';
 
 const atlasFrame = generateAtlasFrame(['services/auth'], 1);
 
@@ -320,25 +323,23 @@ lex recall "auth" --cache-stats
 
 ```typescript
 import { searchFrames, getDb, closeDb } from '@smartergpt/lex';
-import { generateAtlasFrame } from '@smartergpt/lex/shared/atlas';
+import { generateAtlasFrame } from '@smartergpt/lex/atlas';
 
 const db = getDb();
 
 // Search for frames
-const frames = await searchFrames(db, { 
-  referencePoint: 'auth middleware' 
-});
+const { frames } = searchFrames(db, 'auth middleware');
 
 if (frames.length > 0) {
   const frame = frames[0];
   
   // Generate Atlas Frame for the recalled frame
   const atlasFrame = generateAtlasFrame(
-    frame.moduleScope,
+    frame.module_scope,
     1  // fold radius
   );
   
-  console.log('Recalled frame:', frame.referencePoint);
+  console.log('Recalled frame:', frame.reference_point);
   console.log('Atlas neighborhood:', atlasFrame.modules.map(m => m.id));
   
   // Check for forbidden edges
@@ -351,7 +352,7 @@ if (frames.length > 0) {
   }
 }
 
-closeDb(db);
+closeDb();
 ```
 
 ---
@@ -371,7 +372,7 @@ lex recall "auth" --fold-radius 3 --auto-radius --max-tokens 3000
 ### Programmatic Auto-Tune
 
 ```typescript
-import { autoTuneRadius, generateAtlasFrame, estimateTokens } from '@smartergpt/lex/shared/atlas';
+import { autoTuneRadius, generateAtlasFrame, estimateTokens } from '@smartergpt/lex/atlas';
 
 // Auto-tune with callback for logging
 const result = autoTuneRadius(
@@ -396,7 +397,7 @@ console.log(`Estimated tokens: ${tokens}`);
 ### Token Estimation
 
 ```typescript
-import { estimateTokens, estimateTokensBeforeGeneration } from '@smartergpt/lex/shared/atlas';
+import { estimateTokens, estimateTokensBeforeGeneration } from '@smartergpt/lex/atlas';
 
 // Estimate before generating (fast, heuristic-based)
 const estimatedTokens = estimateTokensBeforeGeneration(
@@ -419,7 +420,7 @@ console.log(`Actual tokens: ${actualTokens}`);
 ### Merge Conflict Resolution
 
 ```typescript
-import { generateAtlasFrame } from '@smartergpt/lex/shared/atlas';
+import { generateAtlasFrame } from '@smartergpt/lex/atlas';
 
 interface ConflictContext {
   file: string;
@@ -464,7 +465,7 @@ const result = await analyzeConflict({
 ### Task Distribution
 
 ```typescript
-import { generateAtlasFrame, getCacheStats } from '@smartergpt/lex/shared/atlas';
+import { generateAtlasFrame, getCacheStats } from '@smartergpt/lex/atlas';
 
 interface Task {
   id: string;
@@ -500,7 +501,7 @@ import {
   generateAtlasFrame, 
   setEnableCache, 
   resetCache 
-} from '@smartergpt/lex/shared/atlas';
+} from '@smartergpt/lex/atlas';
 
 async function batchProcessModules(moduleGroups: string[][]) {
   // Enable caching for batch efficiency
@@ -526,22 +527,26 @@ async function batchProcessModules(moduleGroups: string[][]) {
 ### Full Workflow: Capture → Recall → Analyze
 
 ```typescript
+import { randomUUID } from 'node:crypto';
 import { saveFrame, searchFrames, getDb, closeDb } from '@smartergpt/lex';
-import { generateAtlasFrame, autoTuneRadius } from '@smartergpt/lex/shared/atlas';
+import { generateAtlasFrame, autoTuneRadius } from '@smartergpt/lex/atlas';
 
 async function completeWorkflow() {
   const db = getDb();
   
   try {
     // 1. Capture work session
-    const frameId = await saveFrame(db, {
-      referencePoint: 'implementing payment webhook',
-      summaryCaption: 'Added Stripe webhook handler with signature verification',
-      statusSnapshot: {
-        nextAction: 'Add retry logic for failed events',
+    const frameId = randomUUID();
+    await saveFrame(db, {
+      id: frameId,
+      timestamp: new Date().toISOString(),
+      reference_point: 'implementing payment webhook',
+      summary_caption: 'Added Stripe webhook handler with signature verification',
+      status_snapshot: {
+        next_action: 'Add retry logic for failed events',
         blockers: ['Need Stripe test mode credentials'],
       },
-      moduleScope: ['services/payment', 'api/webhooks'],
+      module_scope: ['services/payment', 'api/webhooks'],
       branch: 'feature/stripe-webhooks',
       jira: 'PAY-789',
     });
@@ -549,16 +554,14 @@ async function completeWorkflow() {
     console.log(`✅ Frame captured: ${frameId}`);
     
     // 2. Recall with Atlas context
-    const frames = await searchFrames(db, {
-      referencePoint: 'payment webhook',
-    });
+    const { frames } = searchFrames(db, 'payment webhook');
     
     if (frames.length > 0) {
       const frame = frames[0];
       
       // 3. Generate auto-tuned Atlas Frame
       const result = autoTuneRadius(
-        (r) => generateAtlasFrame(frame.moduleScope, r),
+        (r) => generateAtlasFrame(frame.module_scope, r),
         2,     // Start with radius 2
         3000   // Fit in 3000 tokens
       );
@@ -580,7 +583,7 @@ async function completeWorkflow() {
       }
     }
   } finally {
-    closeDb(db);
+    closeDb();
   }
 }
 

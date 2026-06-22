@@ -79,6 +79,43 @@ describe("AX-014: Tool Naming Aliases", () => {
       }
     });
 
+    test("frame_create rejects invalid LMV metadata", async () => {
+      const srv = setup();
+      try {
+        const response = await srv.handleRequest({
+          method: "tools/call",
+          params: {
+            name: "frame_create",
+            arguments: {
+              reference_point: "Invalid LMV metadata",
+              summary_caption: "Testing LMV validation",
+              status_snapshot: {
+                next_action: "Fix LMV metadata",
+              },
+              module_scope: ["test"],
+              lmv: {
+                claim: "Invalid evidence status should be rejected.",
+                evidence: [
+                  {
+                    kind: "test",
+                    ref: "test/memory/mcp_server/tool-naming-aliases.test.ts",
+                    status: "maybe",
+                  },
+                ],
+                status: "observed",
+                confidence: "high",
+              },
+            },
+          },
+        });
+
+        assert.ok(response.error, "Invalid LMV metadata should fail");
+        assert.strictEqual(response.error.code, "VALIDATION_INVALID_FORMAT");
+      } finally {
+        await teardown();
+      }
+    });
+
     test("frame_search works", async () => {
       const srv = setup();
       try {
