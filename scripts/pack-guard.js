@@ -2,7 +2,7 @@
 /**
  * Pack guard script - validates tarball structure
  * Ensures:
- * - No canon/ source directories in tarball
+ * - Only declared package defaults from canon/ are included
  * - Only expected directories and files are included
  */
 import fs from "fs";
@@ -35,13 +35,18 @@ if (!packData[0].files || !Array.isArray(packData[0].files)) {
 }
 
 const files = packData[0].files.map((x) => x?.path).filter((p) => p != null);
-const allowed = ["README.md", "LICENSE", "package.json", "CHANGELOG.md"];
+const allowed = ["README.md", "README.mcp.md", "LICENSE", "package.json", "CHANGELOG.md"];
 
 // Check for unexpected files
 const bad = files.filter((p) => {
   if (/^dist\//.test(p)) return false;
   if (/^prompts\//.test(p)) return false;
   if (/^schemas\//.test(p)) return false;
+  if (/^rules\//.test(p)) return false;
+  if (p === "canon/README.md") return false;
+  if (/^canon\/prompts\//.test(p)) return false;
+  if (/^canon\/schemas\//.test(p)) return false;
+  if (/^canon\/rules\//.test(p)) return false;
   if (/^examples\//.test(p)) return false;
   if (/^src\/policy\//.test(p)) return false;
   if (allowed.includes(p)) return false;
@@ -53,20 +58,25 @@ if (bad.length) {
   process.exit(1);
 }
 
-// Verify no canon/ source directories in tarball
-const canonFiles = files.filter((p) => /^canon\//.test(p));
+// Verify no undeclared canon/ source directories are in the tarball.
+const canonFiles = files.filter(
+  (p) =>
+    /^canon\//.test(p) && p !== "canon/README.md" && !/^canon\/(prompts|schemas|rules)\//.test(p)
+);
 if (canonFiles.length) {
-  console.error("❌ Canon source directories should not be in tarball:", canonFiles);
+  console.error("❌ Undeclared canon source directories should not be in tarball:", canonFiles);
   process.exit(1);
 }
 
-console.log("✅ Pack guard passed: valid structure, no canon/ source");
+console.log("✅ Pack guard passed: valid package structure");
 console.log("");
 console.log("Tarball summary:");
 console.log("  Total files:", files.length);
 console.log("  dist/ files:", files.filter((p) => /^dist\//.test(p)).length);
 console.log("  prompts/ files:", files.filter((p) => /^prompts\//.test(p)).length);
 console.log("  schemas/ files:", files.filter((p) => /^schemas\//.test(p)).length);
+console.log("  rules/ files:", files.filter((p) => /^rules\//.test(p)).length);
+console.log("  canon/ package-default files:", files.filter((p) => /^canon\//.test(p)).length);
 console.log("  examples/ files:", files.filter((p) => /^examples\//.test(p)).length);
 console.log("  src/policy/ files:", files.filter((p) => /^src\/policy\//.test(p)).length);
 console.log("  metadata files:", files.filter((p) => allowed.includes(p)).length);

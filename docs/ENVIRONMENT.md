@@ -41,6 +41,12 @@ export LEX_WORKSPACE_ROOT=/path/to/my/project
 export LEX_DB_PATH=/custom/path/frames.db
 ```
 
+For multi-root workspaces, use the same absolute value for direct CLI, MCP, and routed Lex processes. `lex introspect` and `lex context` expose the canonical active path, store identity, and alternate-store warnings.
+
+### `LEX_MEMORY_DB`
+
+Compatibility alias for `LEX_DB_PATH`. When both are set, `LEX_DB_PATH` wins. New configuration should use `LEX_DB_PATH`.
+
 ---
 
 ### `LEX_POLICY_PATH`
@@ -319,6 +325,7 @@ export LEX_ENABLE_EXTERNAL_SCANNER_TESTS=1
 |----------|---------|---------|-----------------|
 | `LEX_WORKSPACE_ROOT` | Workspace root | Auto-detect | 1.0.0 |
 | `LEX_DB_PATH` | Database path | `.smartergpt/lex/memory.db` | 1.0.0 |
+| `LEX_MEMORY_DB` | Compatibility alias for `LEX_DB_PATH` | — | Compatibility |
 | `LEX_POLICY_PATH` | Policy file path | `.smartergpt/lex/lexmap.policy.json` | 1.0.0 |
 | `LEX_APP_ROOT` | App root | Auto-detect | 1.0.0 |
 | `LEX_GIT_MODE` | Git integration | `live` | 1.0.0 |

@@ -82,6 +82,7 @@ test("CLI: lex --help shows help text", () => {
     const output = execFileSync(process.execPath, [lexBin, "--help"], { encoding: "utf-8" });
     assert.match(output, /remember/, "Help should mention remember command");
     assert.match(output, /recall/, "Help should mention recall command");
+    assert.match(output, /context/, "Help should mention context command");
     assert.match(output, /check/, "Help should mention check command");
   } finally {
     cleanup();

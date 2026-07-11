@@ -8,6 +8,7 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
 import { getDefaultDbPath } from "@app/memory/store/db.js";
+import { resetConfig } from "@app/shared/config/index.js";
 
 describe("Database root resolution", () => {
   let testDir: string | undefined;
@@ -20,6 +21,7 @@ describe("Database root resolution", () => {
 
   afterEach(() => {
     restoreEnv();
+    resetConfig();
     process.chdir(originalCwd);
 
     if (testDir) {
@@ -90,5 +92,31 @@ describe("Database root resolution", () => {
     process.env.LEX_WORKSPACE_ROOT = explicitRoot;
 
     assert.strictEqual(getDefaultDbPath(), join(explicitRoot, ".smartergpt", "lex", "memory.db"));
+  });
+
+  test("workspace .lex.config.json database path overrides default DB location", () => {
+    const repo = createConsumerRepo();
+    const nested = join(repo, "nested", "workspace");
+    mkdirSync(nested, { recursive: true });
+    writeFileSync(
+      join(repo, ".lex.config.json"),
+      JSON.stringify(
+        {
+          paths: {
+            appRoot: repo,
+            database: "./configured/shared-memory.db",
+          },
+        },
+        null,
+        2
+      )
+    );
+
+    delete process.env.LEX_DB_PATH;
+    delete process.env.LEX_MEMORY_DB;
+    delete process.env.LEX_WORKSPACE_ROOT;
+    process.chdir(nested);
+
+    assert.strictEqual(getDefaultDbPath(), join(repo, "configured", "shared-memory.db"));
   });
 });

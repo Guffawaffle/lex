@@ -47,6 +47,8 @@ npm install -g @smartergpt/lex-mcp
 npx @smartergpt/lex-mcp
 ```
 
+For multi-root workspaces, set the same absolute `LEX_DB_PATH` in every direct Lex, MCP, and AXF launch configuration. Keep `LEX_WORKSPACE_ROOT` set to the repository whose branch and policy should be active. See [MCP configuration examples](./docs/MCP_CONFIG.md#shared-store-for-multi-root-workspaces).
+
 ## Tools
 
 | Tool | Description |
@@ -72,7 +74,7 @@ npx @smartergpt/lex-mcp
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `LEX_WORKSPACE_ROOT` | Workspace root directory | Current directory |
+| `LEX_WORKSPACE_ROOT` | Project root directory (compat env var name) | Current directory |
 | `LEX_DB_PATH` | SQLite database path | `.smartergpt/lex/memory.db` |
 | `LEX_MEMORY_DB` | Alias for `LEX_DB_PATH` (backwards compat) | — |
 | `LEX_DEBUG` | Enable debug logging | Off |

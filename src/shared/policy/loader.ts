@@ -6,12 +6,13 @@
  */
 
 import { readFileSync, existsSync } from "fs";
-import { resolve, dirname, join } from "path";
+import { resolve, join } from "path";
 // @ts-ignore - importing from compiled dist directory
 import type { Policy } from "../../types/policy.js";
 import { getNDJSONLogger } from "../logger/index.js";
 import { AXErrorException } from "../errors/ax-error.js";
 import { POLICY_ERROR_CODES, STANDARD_NEXT_ACTIONS } from "../errors/error-codes.js";
+import { resolveCallerWorkspaceRoot, type WorkspaceRootResolution } from "../config/index.js";
 
 const logger = getNDJSONLogger("policy/loader");
 
@@ -47,43 +48,93 @@ const WORKSPACE_ROOT_ENV = "LEX_WORKSPACE_ROOT";
  */
 let cachedPolicy: Policy | null = null;
 
-/**
- * Resolve the caller workspace root, not the installed Lex package root.
- *
- * Precedence:
- * 1. LEX_WORKSPACE_ROOT
- * 2. Nearest git repository root
- * 3. Nearest package.json root
- * 4. Current working directory
- */
-function findCallerWorkspaceRoot(startPath: string): string {
-  const explicitRoot = process.env[WORKSPACE_ROOT_ENV];
-  if (explicitRoot) {
-    return resolve(explicitRoot);
+export type PolicyPathSource =
+  | "env:LEX_POLICY_PATH"
+  | "argument"
+  | "workspace-working"
+  | "workspace-canon"
+  | "workspace-example"
+  | "not-found";
+
+export interface PolicyPathResolution {
+  path: string | null;
+  source: PolicyPathSource;
+  searchedPaths: string[];
+  workspaceRoot: WorkspaceRootResolution | null;
+}
+
+export interface PolicyPathOptions {
+  startPath?: string;
+  workspaceRootOverride?: string | null;
+}
+
+export function resolvePolicyPath(
+  path?: string,
+  options: PolicyPathOptions = {}
+): PolicyPathResolution {
+  const envPath = process.env[POLICY_PATH_ENV];
+
+  if (envPath) {
+    return {
+      path: resolve(envPath),
+      source: "env:LEX_POLICY_PATH",
+      searchedPaths: [resolve(envPath)],
+      workspaceRoot: null,
+    };
   }
 
-  let currentPath = resolve(startPath);
-  let packageRoot: string | null = null;
-
-  while (currentPath !== dirname(currentPath)) {
-    if (existsSync(join(currentPath, ".git"))) {
-      return currentPath;
-    }
-
-    const packageJsonPath = join(currentPath, "package.json");
-    if (!packageRoot && existsSync(packageJsonPath)) {
-      try {
-        JSON.parse(readFileSync(packageJsonPath, "utf-8"));
-        packageRoot = currentPath;
-      } catch {
-        // Invalid package.json should not prevent walking to a higher root.
-      }
-    }
-
-    currentPath = dirname(currentPath);
+  if (path) {
+    return {
+      path: resolve(path),
+      source: "argument",
+      searchedPaths: [resolve(path)],
+      workspaceRoot: null,
+    };
   }
 
-  return packageRoot ?? resolve(startPath);
+  const workspaceRoot = resolveCallerWorkspaceRoot({
+    startPath: options.startPath ?? process.cwd(),
+    explicitRoot: options.workspaceRootOverride ?? process.env[WORKSPACE_ROOT_ENV] ?? null,
+  });
+
+  const workingPath = join(workspaceRoot.path, DEFAULT_POLICY_PATH);
+  const canonPath = join(workspaceRoot.path, CANON_POLICY_PATH);
+  const examplePath = join(workspaceRoot.path, EXAMPLE_POLICY_PATH);
+  const searchedPaths = [workingPath, canonPath, examplePath];
+
+  if (existsSync(workingPath)) {
+    return {
+      path: workingPath,
+      source: "workspace-working",
+      searchedPaths,
+      workspaceRoot,
+    };
+  }
+
+  if (existsSync(canonPath)) {
+    return {
+      path: canonPath,
+      source: "workspace-canon",
+      searchedPaths,
+      workspaceRoot,
+    };
+  }
+
+  if (existsSync(examplePath)) {
+    return {
+      path: examplePath,
+      source: "workspace-example",
+      searchedPaths,
+      workspaceRoot,
+    };
+  }
+
+  return {
+    path: null,
+    source: "not-found",
+    searchedPaths,
+    workspaceRoot,
+  };
 }
 
 /**
@@ -123,66 +174,39 @@ export function loadPolicy(path?: string): Policy {
     return cachedPolicy;
   }
 
-  // Determine policy path with fallback chain
-  const envPath = process.env[POLICY_PATH_ENV];
+  const resolution = resolvePolicyPath(path);
 
   try {
-    let resolvedPath: string;
-
-    if (envPath) {
-      // Priority 1: Environment variable (explicit override)
-      resolvedPath = resolve(envPath);
-    } else if (path) {
-      // Priority 2: Custom path parameter
-      resolvedPath = resolve(path);
-    } else {
-      // Priority 3-5: Try caller working file, then caller canon, then caller example.
-      // This intentionally resolves the caller workspace, not the installed Lex package root.
-      const repoRoot = findCallerWorkspaceRoot(process.cwd());
-
-      // Try working file first
-      const workingPath = join(repoRoot, DEFAULT_POLICY_PATH);
-      if (existsSync(workingPath)) {
-        resolvedPath = workingPath;
-      } else {
-        // Fallback to canonical policy file
-        const canonPath = join(repoRoot, CANON_POLICY_PATH);
-        if (existsSync(canonPath)) {
-          resolvedPath = canonPath;
-          logger.warn("Using canonical policy (working file not found)", {
-            operation: "loadPolicy",
-            metadata: { path: canonPath },
-          });
-        } else {
-          // Fallback to example file
-          const examplePath = join(repoRoot, EXAMPLE_POLICY_PATH);
-          if (existsSync(examplePath)) {
-            resolvedPath = examplePath;
-            logger.warn("Using fallback policy path", {
-              operation: "loadPolicy",
-              metadata: { path: examplePath },
-            });
-          } else {
-            throw new AXErrorException(
-              POLICY_ERROR_CODES.POLICY_NOT_FOUND,
-              `Policy file not found`,
-              [
-                STANDARD_NEXT_ACTIONS.INIT_WORKSPACE,
-                'Run "npm run setup-local" to initialize working files',
-                "Set LEX_POLICY_PATH environment variable to custom path",
-              ],
-              {
-                searchedPaths: [workingPath, canonPath, examplePath],
-              }
-            );
-          }
+    if (!resolution.path) {
+      throw new AXErrorException(
+        POLICY_ERROR_CODES.POLICY_NOT_FOUND,
+        `Policy file not found`,
+        [
+          STANDARD_NEXT_ACTIONS.INIT_WORKSPACE,
+          'Run "npm run setup-local" to initialize working files',
+          "Set LEX_POLICY_PATH environment variable to custom path",
+        ],
+        {
+          searchedPaths: resolution.searchedPaths,
         }
-      }
+      );
+    }
+
+    if (resolution.source === "workspace-canon") {
+      logger.warn("Using canonical policy (working file not found)", {
+        operation: "loadPolicy",
+        metadata: { path: resolution.path },
+      });
+    } else if (resolution.source === "workspace-example") {
+      logger.warn("Using fallback policy path", {
+        operation: "loadPolicy",
+        metadata: { path: resolution.path },
+      });
     }
 
     // Read and parse policy file
     const startTime = Date.now();
-    const policyContent = readFileSync(resolvedPath, "utf-8");
+    const policyContent = readFileSync(resolution.path, "utf-8");
     const rawPolicy = JSON.parse(policyContent);
 
     // Cast to Policy type (no transformation needed - all policies use modules format)
@@ -198,7 +222,7 @@ export function loadPolicy(path?: string): Policy {
           'Ensure "modules" field is an object',
           STANDARD_NEXT_ACTIONS.CHECK_POLICY,
         ],
-        { path: resolvedPath }
+        { path: resolution.path }
       );
     }
 
@@ -206,11 +230,11 @@ export function loadPolicy(path?: string): Policy {
     logger.info("Policy loaded", {
       operation: "loadPolicy",
       duration_ms: duration,
-      metadata: { path: resolvedPath, moduleCount: Object.keys(policy.modules).length },
+      metadata: { path: resolution.path, moduleCount: Object.keys(policy.modules).length },
     });
 
     // Cache policy if using default path (not env var or custom path)
-    if (!envPath && !path) {
+    if (resolution.source.startsWith("workspace-")) {
       cachedPolicy = policy;
     }
 
@@ -225,7 +249,7 @@ export function loadPolicy(path?: string): Policy {
       code?: string;
     }
     const err = error as NodeError;
-    const policyPath = envPath || path || DEFAULT_POLICY_PATH;
+    const policyPath = resolution.path || path || DEFAULT_POLICY_PATH;
 
     if (err.code === "ENOENT") {
       logger.error("Policy file not found", {

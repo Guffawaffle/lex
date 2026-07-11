@@ -286,7 +286,7 @@ describe("MCP Server - validate_remember", () => {
   });
 
   test("validate_remember accepts valid Jira format without warning", async () => {
-    const srv = setup();
+    const srv = setup(true);
     try {
       const response = await srv.handleRequest({
         method: "tools/call",

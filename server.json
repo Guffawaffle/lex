@@ -7,12 +7,12 @@
     "url": "https://github.com/Guffawaffle/lex",
     "source": "github"
   },
-  "version": "2.7.0",
+  "version": "2.8.0",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "@smartergpt/lex-mcp",
-      "version": "2.7.0",
+      "version": "2.8.0",
       "transport": {
         "type": "stdio"
       },
@@ -20,14 +20,14 @@
       "environmentVariables": [
         {
           "name": "LEX_WORKSPACE_ROOT",
-          "description": "Root directory for the workspace. Defaults to current working directory.",
+          "description": "Project root directory for Lex runtime discovery. Defaults to current working directory.",
           "isRequired": false,
           "format": "string",
           "isSecret": false
         },
         {
           "name": "LEX_DB_PATH",
-          "description": "Path to SQLite database file. Defaults to .smartergpt/lex/memory.db in workspace root.",
+          "description": "Path to SQLite database file. Defaults to .smartergpt/lex/memory.db under the project root.",
           "isRequired": false,
           "format": "string",
           "isSecret": false

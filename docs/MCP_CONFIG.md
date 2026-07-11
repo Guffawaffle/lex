@@ -37,6 +37,40 @@ Add to `~/.config/Claude/claude_desktop_config.json` (Linux) or `~/Library/Appli
 }
 ```
 
+## Shared store for multi-root workspaces
+
+When several repositories should share continuity, configure every Lex launch path with the same absolute `LEX_DB_PATH`. Keep `LEX_WORKSPACE_ROOT` pointed at the repository whose branch and policy should be active for that server:
+
+```json
+{
+  "servers": {
+    "lex": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["@smartergpt/lex-mcp"],
+      "env": {
+        "LEX_WORKSPACE_ROOT": "D:\\dev\\stfc-mod",
+        "LEX_DB_PATH": "D:\\dev\\.smartergpt\\lex\\memory.db"
+      }
+    }
+  }
+}
+```
+
+Use the same `LEX_DB_PATH` for direct CLI commands, Codex MCP configuration, and AXF-routed Lex. Verify alignment with `lex introspect`, `lex --json introspect --format compact`, or `lex context`; each reports the canonical store path and a comparable `path-v1` identity. Lex also warns when other conventional store files exist in the project, its ancestors, or the user home directory.
+
+Installed CLI and MCP consumers discover `.lex.config.json` from the caller project root. This provides a file-based alternative when the host does not support environment wiring:
+
+```json
+{
+  "paths": {
+    "appRoot": ".",
+    "database": "D:\\dev\\.smartergpt\\lex\\memory.db",
+    "policy": ".smartergpt/lex/lexmap.policy.json"
+  }
+}
+```
+
 ## Environment Variables
 
 | Variable | Description | Default |
@@ -45,6 +79,8 @@ Add to `~/.config/Claude/claude_desktop_config.json` (Linux) or `~/Library/Appli
 | `LEX_DB_PATH` | SQLite database path | `.smartergpt/lex/memory.db` |
 | `LEX_MEMORY_DB` | Alias for `LEX_DB_PATH` (backwards compat) | — |
 | `LEX_DEBUG` | Enable debug logging | Disabled |
+
+`LEX_DB_PATH` takes precedence over the compatibility alias `LEX_MEMORY_DB`, then `.lex.config.json`, then the project-local default.
 
 ## Available Tools
 

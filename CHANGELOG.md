@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.8.0
+
+### Minor Changes
+
+- Add a bounded, prompt-safe `lex context` command for agent session bootstrap. Align installed CLI and MCP caller-root configuration, expose canonical active-store identity and provenance, detect alternate conventional stores, and document shared `LEX_DB_PATH` configuration for multi-root workspaces.
+
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),

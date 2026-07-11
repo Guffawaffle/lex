@@ -10,9 +10,10 @@
  */
 
 import Database from "better-sqlite3-multiple-ciphers";
-import { join, dirname, resolve } from "path";
-import { mkdirSync, existsSync, readFileSync } from "fs";
+import { dirname } from "path";
+import { mkdirSync, existsSync } from "fs";
 import { pbkdf2Sync } from "crypto";
+import { loadConfig } from "../../shared/config/index.js";
 
 /**
  * FrameStore schema version following SemVer.
@@ -188,43 +189,14 @@ export function getDefaultDbPath(): string {
     return process.env.LEX_MEMORY_DB;
   }
 
-  const repoRoot = process.env.LEX_WORKSPACE_ROOT
-    ? resolve(process.env.LEX_WORKSPACE_ROOT)
-    : findWorkspaceRoot(process.cwd());
-  const localDir = join(repoRoot, ".smartergpt", "lex");
+  const configuredPath = loadConfig().paths.database;
+  const localDir = dirname(configuredPath);
 
   if (!existsSync(localDir)) {
     mkdirSync(localDir, { recursive: true });
   }
 
-  return join(localDir, "memory.db");
-}
-
-/**
- * Resolve caller workspace root by preferring git root, then package root, then cwd.
- */
-function findWorkspaceRoot(startPath: string): string {
-  let currentPath = resolve(startPath);
-  let packageRoot: string | null = null;
-
-  while (currentPath !== dirname(currentPath)) {
-    if (existsSync(join(currentPath, ".git"))) {
-      return currentPath;
-    }
-
-    const packageJsonPath = join(currentPath, "package.json");
-    if (!packageRoot && existsSync(packageJsonPath)) {
-      try {
-        JSON.parse(readFileSync(packageJsonPath, "utf-8"));
-        packageRoot = currentPath;
-      } catch {
-        // Invalid package.json, continue searching
-      }
-    }
-    currentPath = dirname(currentPath);
-  }
-
-  return packageRoot ?? resolve(startPath);
+  return configuredPath;
 }
 
 /**
@@ -978,6 +950,9 @@ function applyMigrationV8(db: Database.Database): void {
  */
 export function createDatabase(dbPath?: string): Database.Database {
   const path = dbPath || getDefaultDbPath();
+  if (path !== ":memory:" && !path.startsWith("file:")) {
+    mkdirSync(dirname(path), { recursive: true });
+  }
   const db = new Database(path);
 
   // Apply encryption if key is available
