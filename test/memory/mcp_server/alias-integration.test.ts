@@ -30,7 +30,7 @@ describe("MCP Server Alias Resolution Integration Tests", () => {
     testRepoRoot = tmpDir;
 
     // Create minimal test policy structure
-    const policyDir = join(tmpDir, "policy", "policy_spec");
+    const policyDir = join(tmpDir, ".smartergpt", "lex");
     mkdirSync(policyDir, { recursive: true });
 
     const testPolicy = {

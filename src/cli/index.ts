@@ -7,6 +7,12 @@
 export { createProgram, run } from "../shared/cli/index.js";
 export type { RememberOptions } from "../shared/cli/remember.js";
 export type { RecallOptions } from "../shared/cli/recall.js";
+export {
+  buildSessionContext,
+  renderSessionContextText,
+  type ContextOptions,
+  type SessionContext,
+} from "../shared/cli/context.js";
 export type { CheckOptions } from "../shared/cli/check.js";
 export type { TimelineCommandOptions } from "../shared/cli/timeline.js";
 export type { ExportCommandOptions } from "../shared/cli/export.js";

@@ -33,6 +33,7 @@ export type ConfigFileSource = "caller-workspace" | "package-fallback" | "none";
 export type ConfigValueSource =
   | "env:LEX_APP_ROOT"
   | "env:LEX_DB_PATH"
+  | "env:LEX_MEMORY_DB"
   | "env:LEX_POLICY_PATH"
   | "file:.lex.config.json"
   | "default";
@@ -119,10 +120,10 @@ export interface LexConfig {
 /**
  * Default configuration values.
  */
-function createDefaultConfig(): LexConfig {
+function createDefaultConfig(workspaceRoot: WorkspaceRootResolution): LexConfig {
   return {
     paths: {
-      appRoot: resolveCallerWorkspaceRoot().path,
+      appRoot: workspaceRoot.path,
       database: "./.smartergpt/lex/memory.db",
       policy: "./.smartergpt/lex/lexmap.policy.json",
     },
@@ -151,8 +152,10 @@ function findLexPackageRoot(): string {
   return process.cwd();
 }
 
-function resolveConfigFilePath(): { path: string | null; source: ConfigFileSource } {
-  const callerRoot = resolveCallerWorkspaceRoot();
+function resolveConfigFilePath(callerRoot: WorkspaceRootResolution): {
+  path: string | null;
+  source: ConfigFileSource;
+} {
   const callerConfigPath = path.join(callerRoot.path, ".lex.config.json");
   if (fs.existsSync(callerConfigPath)) {
     return {
@@ -179,9 +182,7 @@ function resolveConfigFilePath(): { path: string | null; source: ConfigFileSourc
 /**
  * Load configuration from .lex.config.json file if it exists.
  */
-function loadConfigFile(): Partial<LexConfig> | null {
-  const configPath = resolveConfigFilePath().path;
-
+function loadConfigFile(configPath: string | null): Partial<LexConfig> | null {
   if (!configPath) {
     return null;
   }
@@ -213,6 +214,8 @@ function loadEnvConfig(): Partial<LexConfig> {
 
   if (process.env.LEX_DB_PATH) {
     paths.database = process.env.LEX_DB_PATH;
+  } else if (process.env.LEX_MEMORY_DB) {
+    paths.database = process.env.LEX_MEMORY_DB;
   }
 
   if (process.env.LEX_POLICY_PATH) {
@@ -270,6 +273,48 @@ function resolveConfigPaths(config: LexConfig, baseDir: string): LexConfig {
 let cachedConfigResolution: ConfigResolution | null = null;
 
 /**
+ * Resolve configuration for a specific caller without populating the process-wide cache.
+ * MCP hosts use this form when their execution root is supplied as a constructor option.
+ */
+export function resolveConfigResolution(options: WorkspaceRootOptions = {}): ConfigResolution {
+  const workspaceRoot = resolveCallerWorkspaceRoot(options);
+  const defaultConfig = createDefaultConfig(workspaceRoot);
+  const configFile = resolveConfigFilePath(workspaceRoot);
+  const fileConfig = loadConfigFile(configFile.path);
+  const envConfig = loadEnvConfig();
+
+  // Merge: defaults < file < env vars
+  const mergedConfig = mergeConfig(defaultConfig, fileConfig, envConfig);
+  const configBaseDir = configFile.path ? path.dirname(configFile.path) : workspaceRoot.path;
+  const config = resolveConfigPaths(mergedConfig, configBaseDir);
+
+  return {
+    config,
+    workspaceRoot,
+    configFile,
+    pathSources: {
+      appRoot: process.env.LEX_APP_ROOT
+        ? "env:LEX_APP_ROOT"
+        : fileConfig?.paths?.appRoot
+          ? "file:.lex.config.json"
+          : "default",
+      database: process.env.LEX_DB_PATH
+        ? "env:LEX_DB_PATH"
+        : process.env.LEX_MEMORY_DB
+          ? "env:LEX_MEMORY_DB"
+          : fileConfig?.paths?.database
+            ? "file:.lex.config.json"
+            : "default",
+      policy: process.env.LEX_POLICY_PATH
+        ? "env:LEX_POLICY_PATH"
+        : fileConfig?.paths?.policy
+          ? "file:.lex.config.json"
+          : "default",
+    },
+  };
+}
+
+/**
  * Load and return the application configuration.
  * Configuration is loaded once and cached for subsequent calls.
  *
@@ -285,39 +330,7 @@ export function loadConfigResolution(): ConfigResolution {
     return cachedConfigResolution;
   }
 
-  const workspaceRoot = resolveCallerWorkspaceRoot();
-  const defaultConfig = createDefaultConfig();
-  const configFile = resolveConfigFilePath();
-  const fileConfig = loadConfigFile();
-  const envConfig = loadEnvConfig();
-
-  // Merge: defaults < file < env vars
-  const mergedConfig = mergeConfig(defaultConfig, fileConfig, envConfig);
-  const configBaseDir = configFile.path ? path.dirname(configFile.path) : workspaceRoot.path;
-  const config = resolveConfigPaths(mergedConfig, configBaseDir);
-
-  cachedConfigResolution = {
-    config,
-    workspaceRoot,
-    configFile,
-    pathSources: {
-      appRoot: process.env.LEX_APP_ROOT
-        ? "env:LEX_APP_ROOT"
-        : fileConfig?.paths?.appRoot
-          ? "file:.lex.config.json"
-          : "default",
-      database: process.env.LEX_DB_PATH
-        ? "env:LEX_DB_PATH"
-        : fileConfig?.paths?.database
-          ? "file:.lex.config.json"
-          : "default",
-      policy: process.env.LEX_POLICY_PATH
-        ? "env:LEX_POLICY_PATH"
-        : fileConfig?.paths?.policy
-          ? "file:.lex.config.json"
-          : "default",
-    },
-  };
+  cachedConfigResolution = resolveConfigResolution();
 
   return cachedConfigResolution;
 }

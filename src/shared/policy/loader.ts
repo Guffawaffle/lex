@@ -6,7 +6,7 @@
  */
 
 import { readFileSync, existsSync } from "fs";
-import { resolve, dirname, join } from "path";
+import { resolve, join } from "path";
 // @ts-ignore - importing from compiled dist directory
 import type { Policy } from "../../types/policy.js";
 import { getNDJSONLogger } from "../logger/index.js";

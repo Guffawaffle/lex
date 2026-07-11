@@ -10,8 +10,8 @@
  */
 
 import Database from "better-sqlite3-multiple-ciphers";
-import { join, dirname, resolve } from "path";
-import { mkdirSync, existsSync, readFileSync } from "fs";
+import { dirname } from "path";
+import { mkdirSync, existsSync } from "fs";
 import { pbkdf2Sync } from "crypto";
 import { loadConfig } from "../../shared/config/index.js";
 
@@ -950,6 +950,9 @@ function applyMigrationV8(db: Database.Database): void {
  */
 export function createDatabase(dbPath?: string): Database.Database {
   const path = dbPath || getDefaultDbPath();
+  if (path !== ":memory:" && !path.startsWith("file:")) {
+    mkdirSync(dirname(path), { recursive: true });
+  }
   const db = new Database(path);
 
   // Apply encryption if key is available

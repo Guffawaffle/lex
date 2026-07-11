@@ -19,6 +19,7 @@ import { createOutput, raw } from "./output.js";
 import { createAXError, type AXError } from "../errors/ax-error.js";
 import { LEX_ERROR_CODES } from "../errors/error-codes.js";
 import { loadConfigResolution } from "../config/index.js";
+import { alternateStoreWarning, resolveStoreIdentity } from "../config/store-identity.js";
 import { readFileSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
@@ -125,6 +126,20 @@ export async function introspect(
     }
 
     const databasePath = store instanceof SqliteFrameStore ? store.db.name : getDefaultDbPath();
+    const databaseSource = process.env.LEX_DB_PATH
+      ? "env:LEX_DB_PATH"
+      : process.env.LEX_MEMORY_DB
+        ? "env:LEX_MEMORY_DB"
+        : configResolution.pathSources.database;
+    const storeIdentity = resolveStoreIdentity(
+      databasePath,
+      databaseSource,
+      configResolution.workspaceRoot.path
+    );
+    const storeWarning = alternateStoreWarning(storeIdentity);
+    const warnings = storeWarning
+      ? [{ code: "ALTERNATE_STORES_FOUND", message: storeWarning }]
+      : [];
 
     const runtimeResolution = {
       workspaceRoot: {
@@ -141,11 +156,10 @@ export async function introspect(
       configFile: configResolution.configFile,
       database: {
         path: databasePath,
-        source: process.env.LEX_DB_PATH
-          ? "env:LEX_DB_PATH"
-          : process.env.LEX_MEMORY_DB
-            ? "env:LEX_MEMORY_DB"
-            : configResolution.pathSources.database,
+        canonicalPath: storeIdentity.canonicalPath,
+        identity: storeIdentity.identity,
+        source: databaseSource,
+        candidates: storeIdentity.candidates,
       },
       policy: {
         path: policyResolution.path,
@@ -207,6 +221,7 @@ export async function introspect(
         mods: policyData ? policyData.moduleCount : 0,
         // Abbreviate error codes
         errs: errorCodes.map((code) => abbreviateErrorCode(code)).sort(),
+        warnings,
       };
 
       // Add capability abbreviations
@@ -239,6 +254,7 @@ export async function introspect(
         capabilities,
         errorCodes,
         errorCodeMetadata,
+        warnings,
       };
 
       if (options.json) {
@@ -276,6 +292,11 @@ export async function introspect(
           `  Policy: ${runtimeResolution.policy.path || "none"} (${runtimeResolution.policy.source})`
         );
         raw(`  Branch Source: ${runtimeResolution.branch.source}\n`);
+
+        for (const warning of warnings) {
+          raw(`⚠️  ${warning.code}: ${warning.message}`);
+        }
+        if (warnings.length > 0) raw("");
 
         raw(`⚙️  Capabilities:`);
         raw(`  Encryption: ${capabilities.encryption ? "✅" : "❌"}`);

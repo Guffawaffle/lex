@@ -24,12 +24,13 @@ import {
 import type { Policy } from "../../shared/types/policy.js";
 // @ts-ignore - importing from compiled dist directories
 import { getCurrentBranch } from "../../shared/git/branch.js";
-import { resolveCallerWorkspaceRoot } from "../../shared/config/index.js";
+import { resolveConfigResolution, type ConfigResolution } from "../../shared/config/index.js";
+import { alternateStoreWarning, resolveStoreIdentity } from "../../shared/config/store-identity.js";
 // @ts-ignore - importing from compiled dist directories
 import { validatePolicySchema } from "../../shared/policy/schema.js";
 import { randomUUID } from "crypto";
 import { join, dirname, resolve } from "path";
-import { existsSync, readFileSync } from "fs";
+import { readFileSync } from "fs";
 import { fileURLToPath } from "url";
 import { AXErrorException, isAXErrorException } from "../../shared/errors/ax-error.js";
 // @ts-ignore - importing from compiled dist directories
@@ -190,6 +191,7 @@ export class MCPServer {
   private repoRoot: string | null; // Repository root path
   private policyResolution: PolicyPathResolution | null;
   private dbPathSource: string;
+  private configResolution: ConfigResolution;
   private idempotencyCache: IdempotencyCache; // Idempotency cache for mutation tools
 
   /**
@@ -213,6 +215,12 @@ export class MCPServer {
       options = dbPathOrOptions;
     }
 
+    this.repoRoot = options.repoRoot || null;
+    this.configResolution = resolveConfigResolution({
+      startPath: process.cwd(),
+      explicitRoot: this.repoRoot,
+    });
+
     // Create or use provided FrameStore
     if (options.frameStore) {
       this.frameStore = options.frameStore;
@@ -220,19 +228,12 @@ export class MCPServer {
     } else if (options.dbPath) {
       this.frameStore = new SqliteFrameStore(options.dbPath);
       this.dbPathSource =
-        process.env.LEX_DB_PATH && resolve(process.env.LEX_DB_PATH) === resolve(options.dbPath)
-          ? "env:LEX_DB_PATH"
-          : process.env.LEX_MEMORY_DB &&
-              resolve(process.env.LEX_MEMORY_DB) === resolve(options.dbPath)
-            ? "env:LEX_MEMORY_DB"
-            : "constructor.dbPath";
+        resolve(this.configResolution.config.paths.database) === resolve(options.dbPath)
+          ? this.configResolution.pathSources.database
+          : "constructor.dbPath";
     } else {
-      this.frameStore = new SqliteFrameStore();
-      this.dbPathSource = process.env.LEX_DB_PATH
-        ? "env:LEX_DB_PATH"
-        : process.env.LEX_MEMORY_DB
-          ? "env:LEX_MEMORY_DB"
-          : "default";
+      this.frameStore = new SqliteFrameStore(this.configResolution.config.paths.database);
+      this.dbPathSource = this.configResolution.pathSources.database;
     }
 
     // ImageManager requires raw SQLite access — only available with SqliteFrameStore
@@ -242,7 +243,6 @@ export class MCPServer {
       this.imageManager = null;
     }
 
-    this.repoRoot = options.repoRoot || null;
     this.policyResolution = null;
 
     // Initialize idempotency cache (24 hour TTL by default)
@@ -1666,37 +1666,40 @@ export class MCPServer {
         }
       }
 
-      const workspaceResolution = this.repoRoot
-        ? {
-            path: this.repoRoot,
-            source: process.env.LEX_WORKSPACE_ROOT ? "env:LEX_WORKSPACE_ROOT" : "server-option",
-          }
-        : (() => {
-            const resolvedWorkspace = resolveCallerWorkspaceRoot();
-            return {
-              path: resolvedWorkspace.path,
-              source:
-                resolvedWorkspace.source === "explicit"
-                  ? process.env.LEX_WORKSPACE_ROOT
-                    ? "env:LEX_WORKSPACE_ROOT"
-                    : process.env.LEX_APP_ROOT
-                      ? "env:LEX_APP_ROOT"
-                      : "explicit"
-                  : resolvedWorkspace.source,
-            };
-          })();
+      const workspaceResolution = {
+        path: this.configResolution.workspaceRoot.path,
+        source:
+          this.configResolution.workspaceRoot.source === "explicit"
+            ? this.repoRoot
+              ? "server-option"
+              : process.env.LEX_WORKSPACE_ROOT
+                ? "env:LEX_WORKSPACE_ROOT"
+                : process.env.LEX_APP_ROOT
+                  ? "env:LEX_APP_ROOT"
+                  : "explicit"
+            : this.configResolution.workspaceRoot.source,
+      };
 
       const databasePath =
         this.frameStore instanceof SqliteFrameStore ? this.frameStore.db.name : "memory-store";
+      const storeIdentity = resolveStoreIdentity(
+        databasePath,
+        this.dbPathSource,
+        workspaceResolution.path
+      );
+      const storeWarning = alternateStoreWarning(storeIdentity);
+      const warnings = storeWarning
+        ? [{ code: "ALTERNATE_STORES_FOUND", message: storeWarning }]
+        : [];
       const runtimeResolution = {
         workspaceRoot: workspaceResolution,
-        configFile: {
-          path: null,
-          source: "none",
-        },
+        configFile: this.configResolution.configFile,
         database: {
           path: databasePath,
+          canonicalPath: storeIdentity.canonicalPath,
+          identity: storeIdentity.identity,
           source: this.dbPathSource,
+          candidates: storeIdentity.candidates,
         },
         policy: {
           path: this.policyResolution?.path ?? null,
@@ -1743,6 +1746,7 @@ export class MCPServer {
           mods: policyData ? policyData.moduleCount : 0,
           // Abbreviate error codes and re-sort (abbreviation changes alphabetical order)
           errs: errorCodes.map((code) => this.abbreviateErrorCode(code)).sort(),
+          warnings,
         };
 
         // Add capability abbreviations in deterministic order
@@ -1779,6 +1783,7 @@ export class MCPServer {
           capabilities,
           errorCodes,
           errorCodeMetadata,
+          warnings,
         };
 
         // Format human-readable output
@@ -1805,6 +1810,11 @@ export class MCPServer {
         text += `  Database: ${runtimeResolution.database.path} (${runtimeResolution.database.source})\n`;
         text += `  Policy: ${runtimeResolution.policy.path || "none"} (${runtimeResolution.policy.source})\n`;
         text += `  Branch Source: ${runtimeResolution.branch.source}\n\n`;
+
+        for (const warning of warnings) {
+          text += `⚠️  ${warning.code}: ${warning.message}\n`;
+        }
+        if (warnings.length > 0) text += "\n";
 
         text += `⚙️  Capabilities:\n`;
         text += `  Encryption: ${capabilities.encryption ? "✅" : "❌"}\n`;

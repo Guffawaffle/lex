@@ -1,33 +1,29 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Consumer smoke test for lex package
-# Tests that the built tarball can be installed and imported correctly
+# Consumer smoke test for @smartergpt/lex.
+# Tests that the built tarball can be installed and imported through declared
+# package.json exports only.
 
 echo "==> Consumer Smoke Test Starting"
 echo ""
 
-# Ensure we're in the repo root
 cd "$(dirname "$0")/.."
 REPO_ROOT=$(pwd)
 
-# Step 1: Build and pack
 echo "==> Step 1: Building package"
 npm run build
 
 echo "==> Step 2: Creating tarball"
-npm pack
-TARBALL=$(ls -t lex-*.tgz | head -1)
+TARBALL=$(npm pack --silent | tail -n 1)
 echo "Created: $TARBALL"
 echo ""
 
-# Step 3: Create temporary consumer project
 TEST_DIR=$(mktemp -d)
 echo "==> Step 3: Creating test consumer project in $TEST_DIR"
 
 cd "$TEST_DIR"
 
-# Initialize a minimal package.json
 cat > package.json << 'EOF'
 {
   "name": "lex-consumer-test",
@@ -40,39 +36,33 @@ EOF
 echo "==> Step 4: Installing tarball"
 npm install "$REPO_ROOT/$TARBALL" --no-audit --no-fund
 
-# Step 5: Create test files for each subpath export
 echo "==> Step 5: Creating test files (TypeScript with tsx)"
-
-# Install tsx for TypeScript execution
 npm install tsx --no-audit --no-fund > /dev/null 2>&1
 
-# Initialize array to track validated paths
 VALIDATED_PATHS=()
 
-# Test 1: Main entry point (lex)
 cat > test-main.mts << 'EOF'
-// Test: Import from main entry point 'lex'
-import { getDb, saveFrame, searchFrames } from 'lex';
+import { getDb, saveFrame, searchFrames } from '@smartergpt/lex';
 
-console.log('✅ Main entry (lex): Core functions imported successfully');
+console.log('✅ Main entry (@smartergpt/lex): Core functions imported successfully');
 console.log('   getDb type:', typeof getDb);
 console.log('   saveFrame type:', typeof saveFrame);
 console.log('   searchFrames type:', typeof searchFrames);
 
-if (typeof getDb !== 'function' ||
-    typeof saveFrame !== 'function' ||
-    typeof searchFrames !== 'function') {
+if (
+  typeof getDb !== 'function' ||
+  typeof saveFrame !== 'function' ||
+  typeof searchFrames !== 'function'
+) {
   console.error('❌ One or more core functions are not functions');
   process.exit(1);
 }
 EOF
 
-# Test 2: CLI subpath (lex/cli)
 cat > test-cli.mts << 'EOF'
-// Test: Import from 'lex/cli'
-import { createProgram, run } from 'lex/cli';
+import { createProgram, run } from '@smartergpt/lex/cli';
 
-console.log('✅ CLI subpath (lex/cli): Functions imported successfully');
+console.log('✅ CLI subpath (@smartergpt/lex/cli): Functions imported successfully');
 console.log('   createProgram type:', typeof createProgram);
 console.log('   run type:', typeof run);
 
@@ -82,73 +72,79 @@ if (typeof createProgram !== 'function' || typeof run !== 'function') {
 }
 EOF
 
-# Test 3: Policy check subpath (lex/policy/check/*)
-cat > test-policy-check.mts << 'EOF'
-// Test: Import from 'lex/policy/check/*'
-import { detectViolations } from 'lex/policy/check/violations.js';
+cat > test-policy.mts << 'EOF'
+import { loadPolicy, clearPolicyCache } from '@smartergpt/lex/policy';
 
-console.log('✅ Policy check subpath (lex/policy/check/violations): detectViolations imported successfully');
-console.log('   detectViolations type:', typeof detectViolations);
+console.log('✅ Policy subpath (@smartergpt/lex/policy): Functions imported successfully');
+console.log('   loadPolicy type:', typeof loadPolicy);
+console.log('   clearPolicyCache type:', typeof clearPolicyCache);
 
-if (typeof detectViolations !== 'function') {
-  console.error('❌ detectViolations is not a function');
+if (typeof loadPolicy !== 'function' || typeof clearPolicyCache !== 'function') {
+  console.error('❌ Policy functions are not functions');
   process.exit(1);
 }
 EOF
 
-# Test 4: Policy merge subpath (lex/policy/merge/*)
-cat > test-policy-merge.mts << 'EOF'
-// Test: Import from 'lex/policy/merge/*'
-import { mergeScans } from 'lex/policy/merge/merge.js';
+cat > test-atlas.mts << 'EOF'
+import { generateAtlasFrame, parseCodeUnit } from '@smartergpt/lex/atlas';
 
-console.log('✅ Policy merge subpath (lex/policy/merge/merge): mergeScans imported successfully');
-console.log('   mergeScans type:', typeof mergeScans);
+console.log('✅ Atlas subpath (@smartergpt/lex/atlas): Functions imported successfully');
+console.log('   generateAtlasFrame type:', typeof generateAtlasFrame);
+console.log('   parseCodeUnit type:', typeof parseCodeUnit);
 
-if (typeof mergeScans !== 'function') {
-  console.error('❌ mergeScans is not a function');
+if (typeof generateAtlasFrame !== 'function' || typeof parseCodeUnit !== 'function') {
+  console.error('❌ Atlas functions are not functions');
   process.exit(1);
 }
 EOF
 
-# Test 5: Memory store subpath (lex/memory/store/*)
-cat > test-memory-store.mts << 'EOF'
-// Test: Import from 'lex/memory/store/*'
-import { getDb, saveFrame, searchFrames } from 'lex/memory/store/index.js';
+cat > test-store.mts << 'EOF'
+import { getDb, saveFrame, searchFrames } from '@smartergpt/lex/store';
 
-console.log('✅ Memory store subpath (lex/memory/store): Functions imported successfully');
+console.log('✅ Store subpath (@smartergpt/lex/store): Functions imported successfully');
 console.log('   getDb type:', typeof getDb);
 console.log('   saveFrame type:', typeof saveFrame);
 console.log('   searchFrames type:', typeof searchFrames);
 
-if (typeof getDb !== 'function' ||
-    typeof saveFrame !== 'function' ||
-    typeof searchFrames !== 'function') {
-  console.error('❌ One or more memory store functions are not functions');
+if (
+  typeof getDb !== 'function' ||
+  typeof saveFrame !== 'function' ||
+  typeof searchFrames !== 'function'
+) {
+  console.error('❌ One or more store functions are not functions');
   process.exit(1);
 }
 EOF
 
-# Test 6: Shared policy subpath (lex/shared/policy/*)
-cat > test-shared-policy.mts << 'EOF'
-// Test: Import from 'lex/shared/policy/*'
-import { loadPolicy } from 'lex/shared/policy/index.js';
+cat > test-aliases.mts << 'EOF'
+import { resolveModuleId, clearAliasTableCache } from '@smartergpt/lex/aliases';
 
-console.log('✅ Shared policy subpath (lex/shared/policy): loadPolicy imported successfully');
-console.log('   loadPolicy type:', typeof loadPolicy);
+console.log('✅ Aliases subpath (@smartergpt/lex/aliases): Functions imported successfully');
+console.log('   resolveModuleId type:', typeof resolveModuleId);
+console.log('   clearAliasTableCache type:', typeof clearAliasTableCache);
 
-if (typeof loadPolicy !== 'function') {
-  console.error('❌ loadPolicy is not a function');
+if (typeof resolveModuleId !== 'function' || typeof clearAliasTableCache !== 'function') {
+  console.error('❌ Alias functions are not functions');
   process.exit(1);
 }
 EOF
 
-# Test 7: Negative test - non-exported path (should fail)
+cat > test-memory-validation.mts << 'EOF'
+import { validateFramePayload } from '@smartergpt/lex/memory';
+
+console.log('✅ Memory validation subpath (@smartergpt/lex/memory): Function imported successfully');
+console.log('   validateFramePayload type:', typeof validateFramePayload);
+
+if (typeof validateFramePayload !== 'function') {
+  console.error('❌ validateFramePayload is not a function');
+  process.exit(1);
+}
+EOF
+
 cat > test-negative.mts << 'EOF'
-// Test: Attempt to import from a non-exported path
-// This should fail, demonstrating export boundaries are enforced
 try {
-  // @ts-expect-error - Testing that non-exported paths cannot be imported
-  const { something } = await import('lex/internal/non-exported.js');
+  // @ts-expect-error - Testing that non-exported paths cannot be imported.
+  await import('@smartergpt/lex/internal/non-exported.js');
   console.error('❌ SECURITY ISSUE: Non-exported path was accessible!');
   process.exit(1);
 } catch (error) {
@@ -157,65 +153,73 @@ try {
 }
 EOF
 
-# Step 6: Run the tests with tsx (TypeScript compilation validation)
 echo "==> Step 6: Running import tests with tsx"
 echo ""
 
-echo "--- Test 1: Main entry point (lex) ---"
+echo "--- Test 1: Main entry point (@smartergpt/lex) ---"
 if npx tsx test-main.mts; then
-  VALIDATED_PATHS+=("lex (main entry)")
+  VALIDATED_PATHS+=("@smartergpt/lex (main entry)")
 else
   echo "❌ Test failed"
   exit 1
 fi
 echo ""
 
-echo "--- Test 2: CLI subpath (lex/cli) ---"
+echo "--- Test 2: CLI subpath (@smartergpt/lex/cli) ---"
 if npx tsx test-cli.mts; then
-  VALIDATED_PATHS+=("lex/cli")
+  VALIDATED_PATHS+=("@smartergpt/lex/cli")
 else
   echo "❌ Test failed"
   exit 1
 fi
 echo ""
 
-echo "--- Test 3: Policy check subpath (lex/policy/check/*) ---"
-if npx tsx test-policy-check.mts; then
-  VALIDATED_PATHS+=("lex/policy/check/*")
+echo "--- Test 3: Policy subpath (@smartergpt/lex/policy) ---"
+if npx tsx test-policy.mts; then
+  VALIDATED_PATHS+=("@smartergpt/lex/policy")
 else
   echo "❌ Test failed"
   exit 1
 fi
 echo ""
 
-echo "--- Test 4: Policy merge subpath (lex/policy/merge/*) ---"
-if npx tsx test-policy-merge.mts; then
-  VALIDATED_PATHS+=("lex/policy/merge/*")
+echo "--- Test 4: Atlas subpath (@smartergpt/lex/atlas) ---"
+if npx tsx test-atlas.mts; then
+  VALIDATED_PATHS+=("@smartergpt/lex/atlas")
 else
   echo "❌ Test failed"
   exit 1
 fi
 echo ""
 
-echo "--- Test 5: Memory store subpath (lex/memory/store/*) ---"
-if npx tsx test-memory-store.mts; then
-  VALIDATED_PATHS+=("lex/memory/store/*")
+echo "--- Test 5: Store subpath (@smartergpt/lex/store) ---"
+if npx tsx test-store.mts; then
+  VALIDATED_PATHS+=("@smartergpt/lex/store")
 else
   echo "❌ Test failed"
   exit 1
 fi
 echo ""
 
-echo "--- Test 6: Shared policy subpath (lex/shared/policy/*) ---"
-if npx tsx test-shared-policy.mts; then
-  VALIDATED_PATHS+=("lex/shared/policy/*")
+echo "--- Test 6: Aliases subpath (@smartergpt/lex/aliases) ---"
+if npx tsx test-aliases.mts; then
+  VALIDATED_PATHS+=("@smartergpt/lex/aliases")
 else
   echo "❌ Test failed"
   exit 1
 fi
 echo ""
 
-echo "--- Test 7: Negative test (non-exported path) ---"
+echo "--- Test 7: Memory validation subpath (@smartergpt/lex/memory) ---"
+if npx tsx test-memory-validation.mts; then
+  VALIDATED_PATHS+=("@smartergpt/lex/memory")
+else
+  echo "❌ Test failed"
+  exit 1
+fi
+echo ""
+
+echo "--- Test 8: Negative test (non-exported path) ---"
 if npx tsx test-negative.mts; then
   VALIDATED_PATHS+=("Non-exported paths (boundary enforcement)")
 else
@@ -224,20 +228,15 @@ else
 fi
 echo ""
 
-# Step 6b: Test the consumer example
-echo "--- Test 8: Consumer example (examples/consumer) ---"
-# Copy the consumer example
+echo "--- Test 9: Consumer example (examples/consumer) ---"
 cp -r "$REPO_ROOT/examples/consumer" ./consumer-example
 cd consumer-example
 
-# Install the tarball in the consumer example
 npm install "$REPO_ROOT/$TARBALL" --no-audit --no-fund
 
-# Run the example and capture output
 if EXAMPLE_OUTPUT=$(npm start 2>&1); then
   echo "$EXAMPLE_OUTPUT"
 
-  # Check for RECEIPT_OK token
   if echo "$EXAMPLE_OUTPUT" | grep -q "RECEIPT_OK"; then
     echo ""
     echo "✅ Consumer example: RECEIPT_OK found in output"
@@ -260,12 +259,10 @@ else
   exit 1
 fi
 
-cd "$TEST_DIR"
+cd "$REPO_ROOT"
 echo ""
 
-# Step 7: Cleanup
 echo "==> Step 7: Cleaning up"
-cd "$REPO_ROOT"
 rm -rf "$TEST_DIR"
 rm -f "$TARBALL"
 

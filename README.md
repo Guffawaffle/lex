@@ -82,6 +82,17 @@ lex recall "authentication"
 
 Recall is the everyday adoption path: before changing code, ask Lex what prior work, blockers, and nearby boundaries matter.
 
+### Context: bounded agent bootstrap
+
+For session-start hooks and agent hosts, use the read-only context product:
+
+```bash
+lex context --max-tokens 1200
+lex --json context --branch main --limit 5
+```
+
+`lex context` selects Frames by optional query, exact branch, workspace policy-module overlap, and recency. Both text and JSON output identify the active project root, config file, database path and store identity, selection reasons, warnings, and enforced output budget. Historical Frame fields are labeled as untrusted data and structurally escaped for direct prompt injection.
+
 ### Atlas: nearby repository context
 
 When a Frame is recalled, Lex can provide an Atlas Frame: the touched modules plus their immediate neighborhood, including dependencies, dependents, and permissions.
@@ -256,7 +267,7 @@ Claude Desktop configuration:
 
 Lex is designed to be consumed by agents and tools, not only read by humans.
 
-- CLI: `lex remember`, `lex recall`, `lex check`, `lex timeline`, `lex instructions`, and database maintenance commands are scriptable entry points.
+- CLI: `lex remember`, `lex recall`, `lex context`, `lex check`, `lex timeline`, `lex instructions`, and database maintenance commands are scriptable entry points.
 - MCP: `@smartergpt/lex-mcp` exposes Lex through Model Context Protocol for assistants that support MCP.
 - Structured JSON: supported commands can emit machine-parseable output for orchestration and recovery.
 - Recoverable errors: AXError includes `code`, `message`, `context`, and `nextActions[]` fields.
@@ -424,7 +435,7 @@ closeDb(db);
 
 ## Project status
 
-**Current Version:** `2.7.1` ([Changelog](./CHANGELOG.md))
+**Current Version:** `2.8.0` ([Changelog](./CHANGELOG.md))
 
 Current Lex releases include structured output, recoverable errors, and Frame Schema v3 for agent and orchestrator integration.
 
@@ -567,6 +578,7 @@ LEX_CANON_DIR=/my/custom/canon lex remember ...
 | `LEX_LOG_PRETTY` | Pretty-print logs (`1` = enabled) | Auto-detect TTY |
 | `LEX_POLICY_PATH` | Custom policy file location | `.smartergpt/lex/lexmap.policy.json` |
 | `LEX_DB_PATH` | Database location | `.smartergpt/lex/memory.db` |
+| `LEX_MEMORY_DB` | Compatibility alias for `LEX_DB_PATH` | — |
 | `LEX_DB_KEY` | Database encryption passphrase (required in production) | None (unencrypted) |
 | `LEX_GIT_MODE` | Git integration (`off`, `live`) | `off` |
 | `LEX_DEFAULT_BRANCH` | Override default branch detection | Auto-detect from git |

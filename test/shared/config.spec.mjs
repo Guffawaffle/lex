@@ -35,6 +35,7 @@ describe("Config system", () => {
     originalEnv = {
       LEX_APP_ROOT: process.env.LEX_APP_ROOT,
       LEX_DB_PATH: process.env.LEX_DB_PATH,
+      LEX_MEMORY_DB: process.env.LEX_MEMORY_DB,
       LEX_POLICY_PATH: process.env.LEX_POLICY_PATH,
     };
 
@@ -47,6 +48,7 @@ describe("Config system", () => {
     // Clear environment variables
     delete process.env.LEX_APP_ROOT;
     delete process.env.LEX_DB_PATH;
+    delete process.env.LEX_MEMORY_DB;
     delete process.env.LEX_POLICY_PATH;
     delete process.env.LEX_WORKSPACE_ROOT;
 
@@ -202,6 +204,15 @@ describe("Config system", () => {
       const config = loadConfig();
 
       assert.strictEqual(config.paths.database, "/env/root/env.db");
+    });
+
+    it("should use LEX_MEMORY_DB as a compatibility alias", () => {
+      process.env.LEX_APP_ROOT = "/env/root";
+      process.env.LEX_MEMORY_DB = "./legacy-env.db";
+
+      const config = loadConfig();
+
+      assert.strictEqual(config.paths.database, "/env/root/legacy-env.db");
     });
 
     it("should override policy from LEX_POLICY_PATH", () => {

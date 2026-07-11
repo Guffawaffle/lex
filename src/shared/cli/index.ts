@@ -39,6 +39,7 @@ import { dedupe, type DedupeOptions } from "./dedupe.js";
 import { epicSync, type EpicSyncOptions } from "./epic.js";
 import { waveComplete, type WaveCompleteOptions } from "./wave.js";
 import { introspect, type IntrospectOptions } from "./introspect.js";
+import { context, type ContextOptions } from "./context.js";
 import { hints, type HintsOptions } from "./hints.js";
 import * as output from "./output.js";
 import { readFileSync } from "fs";
@@ -207,6 +208,27 @@ export function createProgram(): Command {
       }
 
       await recall(searchQuery, options);
+    });
+
+  // lex context command
+  program
+    .command("context [query]")
+    .description("Produce bounded, prompt-safe, read-only context for agent session bootstrap")
+    .option("--project-root <path>", "Explicit project/workspace root")
+    .option("--branch <name>", "Git branch/ref override")
+    .option("--limit <number>", "Maximum selected Frames (default: 5)", parseInt)
+    .option("--max-tokens <number>", "Maximum approximate output tokens (default: 1200)", parseInt)
+    .action(async (query, cmdOptions) => {
+      const globalOptions = program.opts();
+      const options: ContextOptions = {
+        query,
+        projectRoot: cmdOptions.projectRoot,
+        branch: cmdOptions.branch,
+        limit: cmdOptions.limit,
+        maxTokens: cmdOptions.maxTokens,
+        json: globalOptions.json || false,
+      };
+      await context(options);
     });
 
   // lex check command

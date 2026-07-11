@@ -47,6 +47,8 @@ npm install -g @smartergpt/lex-mcp
 npx @smartergpt/lex-mcp
 ```
 
+For multi-root workspaces, set the same absolute `LEX_DB_PATH` in every direct Lex, MCP, and AXF launch configuration. Keep `LEX_WORKSPACE_ROOT` set to the repository whose branch and policy should be active. See [MCP configuration examples](./docs/MCP_CONFIG.md#shared-store-for-multi-root-workspaces).
+
 ## Tools
 
 | Tool | Description |

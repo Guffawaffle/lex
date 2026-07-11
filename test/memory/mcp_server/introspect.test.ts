@@ -467,4 +467,34 @@ describe("MCP Server - Introspect Tool", () => {
       await teardown();
     }
   });
+
+  test("introspect preserves workspace config provenance when MCP resolves its own store", async () => {
+    const workspaceRoot = mkdtempSync(join(tmpdir(), "lex-introspect-config-"));
+    const configuredDb = join(workspaceRoot, "shared", "memory.db");
+    writeFileSync(
+      join(workspaceRoot, ".lex.config.json"),
+      JSON.stringify({ paths: { appRoot: ".", database: "./shared/memory.db" } })
+    );
+    const configuredServer = new MCPServer({ repoRoot: workspaceRoot });
+
+    try {
+      const response = await configuredServer.handleRequest({
+        method: "tools/call",
+        params: { name: "introspect", arguments: {} },
+      });
+      const data = response.data as Record<string, unknown>;
+      const resolution = data.resolution as Record<string, unknown>;
+      const configFile = resolution.configFile as Record<string, unknown>;
+      const database = resolution.database as Record<string, unknown>;
+
+      assert.strictEqual(configFile.path, join(workspaceRoot, ".lex.config.json"));
+      assert.strictEqual(configFile.source, "caller-workspace");
+      assert.strictEqual(database.path, configuredDb);
+      assert.strictEqual(database.source, "file:.lex.config.json");
+      assert.match(database.identity as string, /^path-v1:[a-f0-9]{16}$/);
+    } finally {
+      await configuredServer.close();
+      rmSync(workspaceRoot, { recursive: true, force: true });
+    }
+  });
 });

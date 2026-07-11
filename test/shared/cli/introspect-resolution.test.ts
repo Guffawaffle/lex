@@ -97,6 +97,8 @@ test("lex introspect --json exposes workspace and path provenance for consumer w
     assert.strictEqual(configFile.source, "caller-workspace");
     assert.strictEqual(database.path, join(consumerDir, "data", "shared.db"));
     assert.strictEqual(database.source, "file:.lex.config.json");
+    assert.strictEqual(database.canonicalPath, join(consumerDir, "data", "shared.db"));
+    assert.match(database.identity as string, /^path-v1:[a-f0-9]{16}$/);
     assert.strictEqual(policy.path, join(consumerDir, ".smartergpt", "lex", "lexmap.policy.json"));
     assert.strictEqual(policy.source, "workspace-working");
     assert.strictEqual(policy.loaded, true);
