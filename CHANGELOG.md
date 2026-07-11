@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.9.0
+
+### Minor Changes
+
+- Expose the Frame write contract in context and introspection, add bounded
+  `--modules auto` inference plus an explicit `workspace/unscoped` fallback, and
+  persist module attribution provenance with each Frame.
+
 ## 2.8.0
 
 ### Minor Changes
@@ -142,6 +150,7 @@ Consumers that previously cast `(store as any)._db` to call `getDbStats()` or `g
 ### Notes
 
 If you encounter the error `table frames has no column named feature_flags`:
+
 1. **Quick fix**: Delete `lex-memory.db` (loses existing frames)
 2. **Preserve data**: Run `node scripts/migrate-db.mjs ./lex-memory.db`
 3. **Restart** your editor/MCP client to reconnect
@@ -190,14 +199,14 @@ This release removes the namespace prefix from tool definitions to match the Git
 
 #### Migration Guide
 
-| v2.0.x Tool Name | v2.1.x Tool Name | VS Code Display |
-|------------------|------------------|-----------------|
-| `lex_remember` | `remember` | `mcp_lex_remember` |
-| `lex_recall` | `recall` | `mcp_lex_recall` |
-| `lex_list_frames` | `list_frames` | `mcp_lex_list_frames` |
-| `lex_timeline` | `timeline` | `mcp_lex_timeline` |
-| `lex_policy_check` | `policy_check` | `mcp_lex_policy_check` |
-| `lex_code_atlas` | `code_atlas` | `mcp_lex_code_atlas` |
+| v2.0.x Tool Name   | v2.1.x Tool Name | VS Code Display        |
+| ------------------ | ---------------- | ---------------------- |
+| `lex_remember`     | `remember`       | `mcp_lex_remember`     |
+| `lex_recall`       | `recall`         | `mcp_lex_recall`       |
+| `lex_list_frames`  | `list_frames`    | `mcp_lex_list_frames`  |
+| `lex_timeline`     | `timeline`       | `mcp_lex_timeline`     |
+| `lex_policy_check` | `policy_check`   | `mcp_lex_policy_check` |
+| `lex_code_atlas`   | `code_atlas`     | `mcp_lex_code_atlas`   |
 
 **Backwards Compatibility:** The old `lex_*` names are preserved as deprecated aliases and will continue to work. They will be removed in v3.0.0.
 
@@ -271,12 +280,12 @@ This release graduates from alpha with all AX guarantees verified and documented
 
 This release freezes the following contracts:
 
-| Contract | Version | Document |
-|----------|---------|----------|
-| AX Guarantees | v0.1 | `docs/specs/AX-CONTRACT.md` |
-| Frame Schema | v3 | `docs/specs/FRAME-SCHEMA-V3.md` |
-| Error Schema | v1 | AXError in `src/shared/errors/` |
-| FrameStore | 1.0.0 | `src/memory/store/CONTRACT.md` |
+| Contract      | Version | Document                        |
+| ------------- | ------- | ------------------------------- |
+| AX Guarantees | v0.1    | `docs/specs/AX-CONTRACT.md`     |
+| Frame Schema  | v3      | `docs/specs/FRAME-SCHEMA-V3.md` |
+| Error Schema  | v1      | AXError in `src/shared/errors/` |
+| FrameStore    | 1.0.0   | `src/memory/store/CONTRACT.md`  |
 
 Breaking these contracts requires a major version bump and explicit changelog entry.
 
@@ -296,23 +305,23 @@ This is the first release where AX guarantees are real, not just documented.
 
 This release freezes the following contracts:
 
-| Contract | Version | Document |
-|----------|---------|----------|
-| AX Guarantees | v0.1 | `docs/specs/AX-CONTRACT.md` |
-| Frame Schema | v3 | `docs/specs/FRAME-SCHEMA-V3.md` |
-| Error Schema | v1 | AXError in `src/shared/errors/` |
-| FrameStore | 1.0.0 | `src/memory/store/CONTRACT.md` |
+| Contract      | Version | Document                        |
+| ------------- | ------- | ------------------------------- |
+| AX Guarantees | v0.1    | `docs/specs/AX-CONTRACT.md`     |
+| Frame Schema  | v3      | `docs/specs/FRAME-SCHEMA-V3.md` |
+| Error Schema  | v1      | AXError in `src/shared/errors/` |
+| FrameStore    | 1.0.0   | `src/memory/store/CONTRACT.md`  |
 
 Breaking these contracts requires a major version bump and explicit changelog entry.
 
 ### AX Contract v0.1 Compliance
 
-| Guarantee | Status | Details |
-|-----------|--------|---------|
-| Structured Output | ✅ | `--json` on `remember`, `timeline` |
-| Recoverable Errors | ✅ | AXError schema with `nextActions[]` |
-| Memory & Recall | ✅ | FTS5 case-insensitive, hyphen-safe |
-| Frame Emission | ✅ | Frame v3 schema stable for runners |
+| Guarantee          | Status | Details                             |
+| ------------------ | ------ | ----------------------------------- |
+| Structured Output  | ✅     | `--json` on `remember`, `timeline`  |
+| Recoverable Errors | ✅     | AXError schema with `nextActions[]` |
+| Memory & Recall    | ✅     | FTS5 case-insensitive, hyphen-safe  |
+| Frame Emission     | ✅     | Frame v3 schema stable for runners  |
 
 **This table is a contract.** If we break any of these guarantees, it's a bug.
 
@@ -347,13 +356,14 @@ Breaking these contracts requires a major version bump and explicit changelog en
 
 ### New Exports
 
-| Import | Purpose |
-|--------|---------|
+| Import                   | Purpose                      |
+| ------------------------ | ---------------------------- |
 | `@smartergpt/lex/errors` | AXError schema and utilities |
 
 ### For LexRunner Integration
 
 LexRunner 1.0.0 can now:
+
 - Import `AXErrorSchema`, `createAXError` from `@smartergpt/lex/errors`
 - Import `FrameSchema`, `createFrame` from `@smartergpt/lex/types`
 - Emit Frames for merge-weave completions
@@ -398,25 +408,25 @@ and the FrameStore interface is frozen for 1.0.x releases.
 
 ### Subpath Exports
 
-| Import | Purpose |
-|--------|---------|
-| `@smartergpt/lex` | Core types + store API |
-| `@smartergpt/lex/types` | All shared types |
-| `@smartergpt/lex/store` | Database operations |
-| `@smartergpt/lex/policy` | Policy loading |
-| `@smartergpt/lex/atlas` | Atlas Frame generation |
-| `@smartergpt/lex/module-ids` | Module ID validation |
-| `@smartergpt/lex/aliases` | Alias resolution |
-| `@smartergpt/lex/cli-output` | CLI JSON utilities |
+| Import                       | Purpose                |
+| ---------------------------- | ---------------------- |
+| `@smartergpt/lex`            | Core types + store API |
+| `@smartergpt/lex/types`      | All shared types       |
+| `@smartergpt/lex/store`      | Database operations    |
+| `@smartergpt/lex/policy`     | Policy loading         |
+| `@smartergpt/lex/atlas`      | Atlas Frame generation |
+| `@smartergpt/lex/module-ids` | Module ID validation   |
+| `@smartergpt/lex/aliases`    | Alias resolution       |
+| `@smartergpt/lex/cli-output` | CLI JSON utilities     |
 
 ### Metrics
 
-| Metric | Value |
-|--------|-------|
-| Tests | 1013 |
-| Source files | 108 |
-| Exports | 14 subpaths |
-| Schema version | 2 |
+| Metric         | Value       |
+| -------------- | ----------- |
+| Tests          | 1013        |
+| Source files   | 108         |
+| Exports        | 14 subpaths |
+| Schema version | 2           |
 
 ## [0.6.0] - 2025-11-27
 
@@ -580,6 +590,7 @@ and the FrameStore interface is frozen for 1.0.x releases.
 ### Migration Guide
 
 1. **Replace environment variables:**
+
    ```bash
    # OLD
    export LEX_PROMPTS_DIR=/custom/prompts
@@ -590,6 +601,7 @@ and the FrameStore interface is frozen for 1.0.x releases.
    ```
 
 2. **Move local overrides (if using deprecated .smartergpt/prompts):**
+
    ```bash
    # Only needed if you were reading from .smartergpt/prompts at runtime
    # (typically you weren't - this was mostly for internal development)
@@ -662,7 +674,7 @@ and the FrameStore interface is frozen for 1.0.x releases.
 
 - **ESLint Configuration Optimized** ([#173](https://github.com/Guffawaffle/lex/pull/173)): Reduced type-safety warnings by 94.6%
   - Lint warnings reduced from 661 → 154 (73% overall reduction)
-  - Type-safety rules (no-unsafe-*) exempted for test files and data boundary layers
+  - Type-safety rules (no-unsafe-\*) exempted for test files and data boundary layers
   - Core business logic in `src/memory` and `src/policy` remains strictly typed
   - Zero hard-stop errors
 
@@ -681,6 +693,7 @@ and the FrameStore interface is frozen for 1.0.x releases.
 ## [0.3.0] - 2025-11-08
 
 ### ⚠️ Breaking Changes
+
 - **Module ID Validation Strictness** ([#119](https://github.com/Guffawaffle/lex/pull/119)): Substring matching is now disabled in the validator
   - **Previous behavior**: `'auth-core'` would match `'services/auth-core'` automatically
   - **New behavior**: Only exact matches or explicit aliases are accepted (confidence === 1.0)
@@ -688,6 +701,7 @@ and the FrameStore interface is frozen for 1.0.x releases.
   - **Why**: Prevents unintended module resolution and enforces stricter validation
 
 ### Added
+
 - **Performance Optimization**: O(1) policy lookup caching via WeakMap for module ID validation ([#117](https://github.com/Guffawaffle/lex/pull/117))
   - Fast path for all-exact-matches case, bypassing resolver entirely
   - 1000-module policy now validates in same time as 10-module (~0.003ms)
@@ -698,6 +712,7 @@ and the FrameStore interface is frozen for 1.0.x releases.
   - Better handling of edge cases: unicode, special chars, and malformed queries
 
 ### Changed
+
 - **Stricter Module ID Validation**: Disabled substring matching in validator ([#119](https://github.com/Guffawaffle/lex/pull/119))
   - Now only accepts `confidence === 1.0` resolutions (exact match or explicit alias)
   - Substring matches (confidence 0.9) correctly fail validation but suggest alternatives
@@ -711,6 +726,7 @@ and the FrameStore interface is frozen for 1.0.x releases.
   - Added import pattern reference and subpath exports documentation
 
 ### Fixed
+
 - **ESM Compatibility**: Fixed CommonJS `require()` in ES module test file ([#118](https://github.com/Guffawaffle/lex/pull/118))
   - Replaced `require("fs")` with ES module import
   - All 12 integration tests now execute properly in ESM context
@@ -724,6 +740,7 @@ and the FrameStore interface is frozen for 1.0.x releases.
 All changes were integrated via umbrella PR [#121](https://github.com/Guffawaffle/lex/pull/121) (batch integration, 2025-11-07).
 
 The 5 PRs were merged locally in dependency order:
+
 1. PR #112 - Documentation updates (independent)
 2. PR #118 - ESM test fix (independent)
 3. PR #117 - Performance & caching (independent)
@@ -763,6 +780,7 @@ The validation performance improvements are automatic and require no code change
 #### Documentation Updates
 
 If you're referencing old monorepo documentation:
+
 - Update import patterns from `@lex/*` to relative paths
 - Use subpath exports: `lex/cli`, `lex/policy/*`, `lex/memory/*`, `lex/shared/*`
 - Build command simplified to `npm run build`
@@ -776,6 +794,7 @@ Empty search results and special character handling is now more graceful. If you
 Initial release with unified single-package structure after monorepo consolidation (PR #91).
 
 ### Features
+
 - Policy-aware memory system with receipts
 - Frame storage with SQLite FTS5 search
 - MCP (Model Context Protocol) server for memory access
@@ -784,6 +803,7 @@ Initial release with unified single-package structure after monorepo consolidati
 - Policy checking and scanning
 
 ### Architecture
+
 - Single package with subpath exports
 - ESM-first design
 - TypeScript with strict type checking

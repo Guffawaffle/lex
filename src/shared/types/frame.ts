@@ -15,6 +15,12 @@ export interface SpendMetadata {
   tokens_estimated?: number;
 }
 
+export interface ModuleAttribution {
+  mode: "explicit" | "inferred" | "fallback";
+  confidence: "high" | "medium" | "low";
+  evidence: string[];
+}
+
 export interface TurnCostComponent {
   latency: number;
   contextReset: number;
@@ -64,6 +70,7 @@ export interface Frame {
   atlas_frame_id?: string;
   feature_flags?: string[];
   permissions?: string[];
+  module_attribution?: ModuleAttribution;
   image_ids?: string[];
   // Merge-weave metadata (v2)
   runId?: string;
@@ -92,8 +99,10 @@ export interface Frame {
  * v3: Added executorRole, toolCalls, guardrailProfile for LexRunner (0.5.0)
  * v4: Added turnCost, capabilityTier, taskComplexity for governance model (2.0.0)
  * v5: Added superseded_by, merged_from for deduplication (2.2.0)
+ * v6: Added contradiction resolution metadata (2.3.0)
+ * v7: Added module attribution provenance (2.9.0)
  */
-export const FRAME_SCHEMA_VERSION = 5;
+export const FRAME_SCHEMA_VERSION = 7;
 
 export function validateFrameMetadata(frame: unknown): frame is Frame {
   if (typeof frame !== "object" || frame === null) return false;
@@ -133,6 +142,14 @@ export function validateFrameMetadata(frame: unknown): frame is Frame {
   if (f.permissions !== undefined) {
     if (!Array.isArray(f.permissions)) return false;
     if (!f.permissions.every((p: unknown) => typeof p === "string")) return false;
+  }
+  if (f.module_attribution !== undefined) {
+    if (typeof f.module_attribution !== "object" || f.module_attribution === null) return false;
+    const attribution = f.module_attribution as Record<string, unknown>;
+    if (!["explicit", "inferred", "fallback"].includes(String(attribution.mode))) return false;
+    if (!["high", "medium", "low"].includes(String(attribution.confidence))) return false;
+    if (!Array.isArray(attribution.evidence)) return false;
+    if (!attribution.evidence.every((item: unknown) => typeof item === "string")) return false;
   }
   // Validate v2 fields (optional, backward compatible)
   if (f.runId !== undefined && typeof f.runId !== "string") return false;

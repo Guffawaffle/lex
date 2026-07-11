@@ -52,11 +52,13 @@ lex remember \
 ```
 
 **Implementation:**
-1. Validate `--modules` against `lexmap.policy.json` using `shared/module_ids/`
-2. Create Frame object with structured metadata
-3. Store in `memory/store/` (SQLite)
-4. Optionally generate memory card image via `memory/renderer/`
-5. Return Frame ID for later recall
+1. Require `--summary` and `--modules` for non-interactive use.
+2. Accept explicit module IDs, `--modules auto` for bounded inference, or
+   `--modules unscoped` for the canonical `workspace/unscoped` fallback.
+3. Validate policy-backed IDs against `lexmap.policy.json` using
+   `shared/module_ids/`; `--skip-policy` skips only this ontology validation.
+4. Persist the explicit/inferred/fallback attribution receipt with the Frame.
+5. Store the Frame in `memory/store/` (SQLite) and return its ID.
 
 ### `lex recall`
 Retrieve a Frame by reference point or ticket ID.

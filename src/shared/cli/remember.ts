@@ -17,6 +17,11 @@ import { createFrameStore, type FrameStore } from "../../memory/store/index.js";
 import { getCurrentBranch } from "../git/branch.js";
 import { createOutput } from "./output.js";
 import { createAXError, type AXError } from "../errors/ax-error.js";
+import {
+  buildFrameWriteContract,
+  resolveModuleAttribution,
+  type ModuleAttribution,
+} from "./frame-write-contract.js";
 
 export interface RememberOptions {
   jira?: string;
@@ -67,6 +72,20 @@ export async function remember(
   try {
     // Get current git branch
     const branch = await getCurrentBranch();
+    const policy = options.noPolicy ? null : loadPolicyIfAvailable();
+    let recentFrames: Frame[] = [];
+    try {
+      recentFrames = (await store.listFrames({ limit: 10 })).frames;
+    } catch {
+      // A write may still succeed against stores that do not support useful history reads.
+    }
+    const writeContract = buildFrameWriteContract({
+      policy,
+      projectRoot: process.cwd(),
+      branch,
+      query: [options.summary, options.next, options.referencePoint].filter(Boolean).join(" "),
+      recentFrames,
+    });
 
     // AX Level 3: In JSON mode, NEVER prompt — fail-fast with structured guidance
     if (options.json) {
@@ -80,11 +99,14 @@ export async function remember(
           `Missing required parameters: ${missingRequired.join(", ")}`,
           [
             ...missingRequired.map((p) => `Add ${p} parameter`),
-            "Example: lex remember --summary 'What happened' --modules 'cli,memory/store'",
+            "Use --modules auto for bounded policy-backed inference",
+            "Use --modules unscoped for an explicit workspace/unscoped fallback",
+            "Example: lex remember --summary 'What happened' --modules auto",
             "Use --interactive for guided input",
           ],
           {
             missingParams: missingRequired,
+            frameWriteContract: writeContract,
             providedParams: Object.keys(options).filter(
               (k) => options[k as keyof RememberOptions] !== undefined
             ),
@@ -101,36 +123,38 @@ export async function remember(
         ? await promptForFrameData(options, branch)
         : applyDefaults(options);
 
-    // Resolve and validate module_scope against policy (THE CRITICAL RULE + auto-correction)
-    // Load policy if available, or skip validation if --no-policy or no policy file exists
-    const policy = options.noPolicy ? null : loadPolicyIfAvailable();
-
+    // Resolve explicit, inferred, or fallback module attribution before validation.
+    const moduleResolution = resolveModuleAttribution(answers.modules || [], writeContract);
     let resolvedModules: string[];
+    let moduleAttribution: ModuleAttribution = moduleResolution.attribution;
 
-    if (!policy) {
+    if (!policy || moduleAttribution.mode === "fallback") {
       // No policy available - emit warning and use modules as-is
       if (!options.json) {
-        const reason = options.noPolicy
-          ? "Policy validation disabled (--skip-policy flag)"
-          : "No policy file found";
+        const reason =
+          moduleAttribution.mode === "fallback"
+            ? "Explicit workspace/unscoped module attribution"
+            : options.noPolicy
+              ? "Policy validation disabled (--skip-policy flag)"
+              : "No policy file found";
         out.warn(
           `${reason}. Module validation skipped.`,
           undefined,
           "POLICY_SKIPPED",
-          options.noPolicy
+          options.noPolicy || moduleAttribution.mode === "fallback"
             ? undefined
             : "To enable validation, create a policy file or set LEX_POLICY_PATH."
         );
       }
-      resolvedModules = answers.modules || [];
+      resolvedModules = moduleResolution.modules;
     } else {
       // Policy exists - validate modules
-      const validationResult = await validateModuleIds(answers.modules || [], policy);
+      const validationResult = await validateModuleIds(moduleResolution.modules, policy);
 
       if (!validationResult.valid) {
         // Get valid modules from policy for helpful error recovery
         const validModules = Object.keys(policy.modules || {});
-        const providedModules = answers.modules || [];
+        const providedModules = moduleResolution.modules;
 
         // Build specific next actions based on what went wrong
         const nextActions: string[] = [];
@@ -184,6 +208,13 @@ export async function remember(
       resolvedModules = validationResult.canonical || [];
     }
 
+    if (moduleAttribution.mode === "inferred" && resolvedModules.length > 0) {
+      moduleAttribution = {
+        ...moduleAttribution,
+        evidence: [...moduleAttribution.evidence, `resolved:${resolvedModules.join(",")}`],
+      };
+    }
+
     // Build Frame object
     const frame: Frame = {
       id: uuidv4(),
@@ -191,7 +222,7 @@ export async function remember(
       branch: branch,
       module_scope: resolvedModules, // Use resolved (potentially auto-corrected) module IDs
       summary_caption: answers.summary || "",
-      reference_point: answers.referencePoint || "",
+      reference_point: answers.referencePoint || deriveReferencePoint(answers.summary || ""),
       status_snapshot: {
         next_action: answers.next || "",
         blockers: answers.blockers,
@@ -202,6 +233,7 @@ export async function remember(
       keywords: answers.keywords,
       feature_flags: answers.featureFlags,
       permissions: answers.permissions,
+      module_attribution: moduleAttribution,
     };
 
     // Dry-run mode: validate but don't store (matches frame_validate MCP tool)
@@ -221,6 +253,7 @@ export async function remember(
               referencePoint: frame.reference_point,
               summary: frame.summary_caption,
               nextAction: frame.status_snapshot.next_action,
+              moduleAttribution: frame.module_attribution,
             },
           },
         });
@@ -252,6 +285,7 @@ export async function remember(
           branch: frame.branch,
           modules: frame.module_scope,
           referencePoint: frame.reference_point,
+          moduleAttribution: frame.module_attribution,
         },
       });
     } else {
@@ -264,6 +298,7 @@ export async function remember(
       }
       out.info(`Reference: ${frame.reference_point}`);
       out.info(`Modules: ${frame.module_scope.join(", ")}`);
+      out.info(`Module attribution: ${moduleAttribution.mode} (${moduleAttribution.confidence})`);
     }
   } catch (error: unknown) {
     if (options.json) {
@@ -290,6 +325,14 @@ export async function remember(
       await store.close();
     }
   }
+}
+
+function deriveReferencePoint(summary: string): string {
+  const value = summary
+    .replace(/[\r\n\t]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return value.slice(0, 96) || "work-session";
 }
 
 /**

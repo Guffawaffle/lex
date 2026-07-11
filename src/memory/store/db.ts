@@ -25,7 +25,7 @@ import { loadConfig } from "../../shared/config/index.js";
  *
  * @see CONTRACT.md for change protocol
  */
-export const FRAME_STORE_SCHEMA_VERSION = "1.0.0";
+export const FRAME_STORE_SCHEMA_VERSION = "1.0.1";
 
 export interface FrameRow {
   id: string;
@@ -40,6 +40,7 @@ export interface FrameRow {
   atlas_frame_id: string | null;
   feature_flags: string | null; // JSON stringified array
   permissions: string | null; // JSON stringified array
+  module_attribution: string | null; // JSON stringified attribution receipt
   // Merge-weave metadata (v2)
   run_id: string | null;
   plan_hash: string | null;
@@ -334,6 +335,10 @@ export function initializeDatabase(db: Database.Database): void {
   if (currentVersion < 11) {
     applyMigrationV11(db);
     db.prepare("INSERT INTO schema_version (version) VALUES (?)").run(11);
+  }
+  if (currentVersion < 12) {
+    applyMigrationV12(db);
+    db.prepare("INSERT INTO schema_version (version) VALUES (?)").run(12);
   }
 }
 
@@ -832,6 +837,13 @@ function applyMigrationV11(db: Database.Database): void {
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_frames_superseded_by
     ON frames(superseded_by);
+  `);
+}
+
+/** Migration V12: persist module attribution provenance for Frame writes. */
+function applyMigrationV12(db: Database.Database): void {
+  db.exec(`
+    ALTER TABLE frames ADD COLUMN module_attribution TEXT;
   `);
 }
 

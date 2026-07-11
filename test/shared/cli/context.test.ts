@@ -95,6 +95,9 @@ test("context reports a missing store without creating it", async () => {
     assert.strictEqual(result.resolution.store.exists, false);
     assert.ok(result.warnings.some((warning) => warning.code === "STORE_NOT_FOUND"));
     assert.ok(result.warnings.some((warning) => warning.code === "NO_FRAMES"));
+    assert.strictEqual(result.frameWriteContract.policyState, "unavailable");
+    assert.strictEqual(result.frameWriteContract.fallbackModule, "workspace/unscoped");
+    assert.match(renderSessionContextText(result), /Frame write contract:/);
     assert.strictEqual(existsSync(expectedStore), false);
   } finally {
     rmSync(projectRoot, { recursive: true, force: true });

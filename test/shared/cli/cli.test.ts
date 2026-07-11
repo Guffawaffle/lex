@@ -89,6 +89,48 @@ test("CLI: lex --help shows help text", () => {
   }
 });
 
+test("CLI: lex remember --help surfaces the required module contract", () => {
+  setupTest();
+  try {
+    const output = execFileSync(process.execPath, [lexBin, "remember", "--help"], {
+      encoding: "utf-8",
+    });
+    assert.match(output, /Required module IDs/);
+    assert.match(output, /auto.*inference/);
+    assert.match(output, /unscoped.*fallback/);
+    assert.match(output, /required Frame\s+fields still apply/);
+  } finally {
+    cleanup();
+  }
+});
+
+test("CLI: lex remember --modules auto records inferred attribution", () => {
+  setupTest();
+  try {
+    const output = execFileSync(
+      process.execPath,
+      [
+        lexBin,
+        "--json",
+        "remember",
+        "--summary",
+        "Continue user API work",
+        "--next",
+        "Run API tests",
+        "--modules",
+        "auto",
+      ],
+      { encoding: "utf-8", env: getTestEnv() }
+    );
+    const event = JSON.parse(output.trim());
+    assert.strictEqual(event.data.moduleAttribution.mode, "inferred");
+    assert.ok(event.data.modules.length > 0);
+    assert.strictEqual(event.data.referencePoint, "Continue user API work");
+  } finally {
+    cleanup();
+  }
+});
+
 test("CLI: lex remember with valid module_scope succeeds", () => {
   setupTest();
   try {
