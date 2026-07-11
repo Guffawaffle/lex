@@ -93,6 +93,24 @@ lex --json context --branch main --limit 5
 
 `lex context` selects Frames by optional query, exact branch, workspace policy-module overlap, and recency. Both text and JSON output identify the active project root, config file, database path and store identity, selection reasons, warnings, and enforced output budget. Historical Frame fields are labeled as untrusted data and structurally escaped for direct prompt injection.
 
+Context also carries the Frame write contract: required fields, policy state,
+bounded module suggestions, `--modules auto` inference availability, and the
+explicit `workspace/unscoped` fallback. This lets an agent prepare a valid
+checkpoint without a failed discovery attempt.
+
+```bash
+# Infer from changed paths, intent, branch, and recent Frames
+lex remember --summary "Finished context wiring" --next "Run validation" --modules auto
+
+# Explicitly record that no useful module ontology is available
+lex remember --summary "Repository-level handoff" --next "Add policy" --modules unscoped
+```
+
+The stored Frame records whether module attribution was explicit, inferred, or
+a fallback, plus confidence and bounded evidence. `--skip-policy` skips only
+ontology validation; it does not skip required Frame fields. See
+[Agent Continuity](./docs/AGENT_CONTINUITY.md) for the shared AXF/Lex workflow.
+
 ### Atlas: nearby repository context
 
 When a Frame is recalled, Lex can provide an Atlas Frame: the touched modules plus their immediate neighborhood, including dependencies, dependents, and permissions.

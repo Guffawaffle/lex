@@ -152,6 +152,22 @@ describe("SqliteFrameStore Tests", () => {
         assert.strictEqual(retrieved!.spend!.prompts, 3);
         assert.strictEqual(retrieved!.spend!.tokens_estimated, 1500);
       });
+
+      test("should persist module attribution provenance", async () => {
+        const attributedFrame = {
+          ...testFrame1,
+          id: "frame-module-attribution",
+          module_attribution: {
+            mode: "inferred" as const,
+            confidence: "high" as const,
+            evidence: ["changed-path:src/memory/store/db.ts"],
+          },
+        };
+
+        await store.saveFrame(attributedFrame);
+        const retrieved = await store.getFrameById(attributedFrame.id);
+        assert.deepStrictEqual(retrieved?.module_attribution, attributedFrame.module_attribution);
+      });
     });
 
     describe("listFrames()", () => {

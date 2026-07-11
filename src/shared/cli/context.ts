@@ -21,6 +21,8 @@ import {
 } from "../config/store-identity.js";
 import { loadPolicy, resolvePolicyPath } from "../policy/loader.js";
 import { json, raw } from "./output.js";
+import { buildFrameWriteContract } from "./frame-write-contract.js";
+import type { Policy } from "../types/policy.js";
 
 const CONTEXT_SCHEMA_VERSION = "1.0.0";
 const DEFAULT_LIMIT = 5;
@@ -95,6 +97,17 @@ export interface SessionContext {
     candidateCount: number;
     selectedCount: number;
     strategy: string[];
+  };
+  frameWriteContract: {
+    requiredFields: string[];
+    recommendedFields: string[];
+    policyState: "loaded" | "unavailable";
+    inferenceAvailable: boolean;
+    inferenceArgument: "--modules auto";
+    fallbackModule: "workspace/unscoped";
+    fallbackArgument: "--modules unscoped";
+    suggestions: string[];
+    compact: string;
   };
   frames: ContextFrame[];
   warnings: ContextWarning[];
@@ -244,6 +257,8 @@ export function renderSessionContextText(context: SessionContext): string {
     `Store: ${quote(context.resolution.store.canonicalPath)} (${context.resolution.store.source}; ${context.resolution.store.identity})`,
     `Config: ${quote(context.resolution.configFile.path || "none")} (${context.resolution.configFile.source})`,
     `Policy: ${quote(context.resolution.policy.path || "none")} (${context.resolution.policy.source})`,
+    context.frameWriteContract.compact,
+    `Module suggestions: ${quote(context.frameWriteContract.suggestions.join(",") || "none")}`,
     `Selection: ${context.selection.selectedCount}/${context.selection.candidateCount} frames; query=${quote(context.selection.query || "none")}`,
   ];
 
@@ -375,10 +390,12 @@ export async function buildSessionContext(
     workspaceRootOverride: projectRoot,
   });
   let policyModules = new Set<string>();
+  let loadedPolicy: Policy | null = null;
   let policyLoaded = false;
   if (policyResolution.path) {
     try {
       const policy = loadPolicy(policyResolution.path);
+      loadedPolicy = policy;
       policyModules = new Set(Object.keys(policy.modules));
       policyLoaded = true;
     } catch {
@@ -452,6 +469,13 @@ export async function buildSessionContext(
     });
   }
 
+  const writeContract = buildFrameWriteContract({
+    policy: loadedPolicy,
+    projectRoot,
+    branch: branch.name,
+    query: options.query,
+    recentFrames: candidateFrames,
+  });
   const context: SessionContext = {
     schemaVersion: CONTEXT_SCHEMA_VERSION,
     generatedAt: new Date().toISOString(),
@@ -486,6 +510,17 @@ export async function buildSessionContext(
       candidateCount: candidateFrames.length,
       selectedCount: selected.length,
       strategy: ["query", "branch", "workspace-module-overlap", "recency"],
+    },
+    frameWriteContract: {
+      requiredFields: writeContract.requiredFields,
+      recommendedFields: writeContract.recommendedFields,
+      policyState: writeContract.policy.state,
+      inferenceAvailable: writeContract.inference.available,
+      inferenceArgument: writeContract.inference.argument,
+      fallbackModule: writeContract.fallback.moduleId,
+      fallbackArgument: writeContract.fallback.argument,
+      suggestions: writeContract.suggestions.map((item) => item.moduleId),
+      compact: writeContract.compact,
     },
     frames: selected.map((item) => toContextFrame(item.frame, item.reasons)),
     warnings,

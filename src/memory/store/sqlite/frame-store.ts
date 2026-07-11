@@ -76,6 +76,7 @@ function frameToRow(frame: Frame): FrameRow {
     atlas_frame_id: frame.atlas_frame_id || null,
     feature_flags: frame.feature_flags ? JSON.stringify(frame.feature_flags) : null,
     permissions: frame.permissions ? JSON.stringify(frame.permissions) : null,
+    module_attribution: frame.module_attribution ? JSON.stringify(frame.module_attribution) : null,
     // Merge-weave metadata (v2)
     run_id: frame.runId || null,
     plan_hash: frame.planHash || null,
@@ -109,6 +110,9 @@ function rowToFrame(row: FrameRow): Frame {
     atlas_frame_id: row.atlas_frame_id || undefined,
     feature_flags: row.feature_flags ? (JSON.parse(row.feature_flags) as string[]) : undefined,
     permissions: row.permissions ? (JSON.parse(row.permissions) as string[]) : undefined,
+    module_attribution: row.module_attribution
+      ? (JSON.parse(row.module_attribution) as Frame["module_attribution"])
+      : undefined,
     // Merge-weave metadata (v2) - backward compatible, defaults to undefined
     runId: row.run_id || undefined,
     planHash: row.plan_hash || undefined,
@@ -179,9 +183,9 @@ export class SqliteFrameStore implements FrameStore {
       INSERT OR REPLACE INTO frames (
         id, timestamp, branch, jira, module_scope, summary_caption,
         reference_point, status_snapshot, keywords, atlas_frame_id,
-        feature_flags, permissions, run_id, plan_hash, spend, user_id,
+        feature_flags, permissions, module_attribution, run_id, plan_hash, spend, user_id,
         superseded_by, merged_from
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     stmt.run(
@@ -197,6 +201,7 @@ export class SqliteFrameStore implements FrameStore {
       row.atlas_frame_id,
       row.feature_flags,
       row.permissions,
+      row.module_attribution,
       row.run_id,
       row.plan_hash,
       row.spend,
@@ -238,9 +243,9 @@ export class SqliteFrameStore implements FrameStore {
       INSERT OR REPLACE INTO frames (
         id, timestamp, branch, jira, module_scope, summary_caption,
         reference_point, status_snapshot, keywords, atlas_frame_id,
-        feature_flags, permissions, run_id, plan_hash, spend, user_id,
+        feature_flags, permissions, module_attribution, run_id, plan_hash, spend, user_id,
         superseded_by, merged_from
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const insertAll = this._db.transaction((framesToInsert: Frame[]) => {
@@ -259,6 +264,7 @@ export class SqliteFrameStore implements FrameStore {
           row.atlas_frame_id,
           row.feature_flags,
           row.permissions,
+          row.module_attribution,
           row.run_id,
           row.plan_hash,
           row.spend,
@@ -714,6 +720,10 @@ export class SqliteFrameStore implements FrameStore {
       atlas_frame_id: { column: "atlas_frame_id", serialize: (v) => v ?? null },
       feature_flags: { column: "feature_flags", serialize: (v) => (v ? JSON.stringify(v) : null) },
       permissions: { column: "permissions", serialize: (v) => (v ? JSON.stringify(v) : null) },
+      module_attribution: {
+        column: "module_attribution",
+        serialize: (v) => (v ? JSON.stringify(v) : null),
+      },
       runId: { column: "run_id", serialize: (v) => v ?? null },
       planHash: { column: "plan_hash", serialize: (v) => v ?? null },
       spend: { column: "spend", serialize: (v) => (v ? JSON.stringify(v) : null) },

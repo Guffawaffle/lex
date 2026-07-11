@@ -23,6 +23,7 @@ import { alternateStoreWarning, resolveStoreIdentity } from "../config/store-ide
 import { readFileSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
+import { buildFrameWriteContract } from "./frame-write-contract.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -206,6 +207,12 @@ export async function introspect(
 
     // Schema version for contract stability
     const schemaVersion = "1.0.0";
+    const frameWriteContract = buildFrameWriteContract({
+      policy,
+      projectRoot: configResolution.workspaceRoot.path,
+      branch: currentBranch,
+      recentFrames: allFrames.frames.slice(0, 10),
+    });
 
     if (format === "compact") {
       // Compact format for small-context agents
@@ -219,6 +226,13 @@ export async function introspect(
         },
         ctx: runtimeResolution,
         mods: policyData ? policyData.moduleCount : 0,
+        frameWriteContract: {
+          requiredFields: frameWriteContract.requiredFields,
+          policyState: frameWriteContract.policy.state,
+          inferenceAvailable: frameWriteContract.inference.available,
+          suggestions: frameWriteContract.suggestions.map((item) => item.moduleId),
+          fallback: frameWriteContract.fallback.moduleId,
+        },
         // Abbreviate error codes
         errs: errorCodes.map((code) => abbreviateErrorCode(code)).sort(),
         warnings,
@@ -245,6 +259,7 @@ export async function introspect(
               moduleCount: policyData.moduleCount,
             }
           : null,
+        frameWriteContract,
         state: {
           frameCount,
           latestFrame,

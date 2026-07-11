@@ -50,6 +50,12 @@ export const SpendMetadataSchema = z.object({
 
 export type SpendMetadata = z.infer<typeof SpendMetadataSchema>;
 
+export const ModuleAttributionSchema = z.object({
+  mode: z.enum(["explicit", "inferred", "fallback"]),
+  confidence: z.enum(["high", "medium", "low"]),
+  evidence: z.array(z.string()),
+});
+
 /**
  * TurnCostComponent schema - Turn Cost components
  */
@@ -168,6 +174,9 @@ export const FrameSchema = z.object({
   /** Required permissions */
   permissions: z.array(z.string()).optional(),
 
+  /** How module_scope was selected for this Frame. */
+  module_attribution: ModuleAttributionSchema.optional(),
+
   /** Associated image references */
   image_ids: z.array(z.string()).optional(),
 
@@ -217,8 +226,10 @@ export type Frame = z.infer<typeof FrameSchema>;
  * v3: Added executorRole, toolCalls, guardrailProfile for LexRunner (0.5.0)
  * v4: Added turnCost for governance Turn Cost measurement (2.0.0-alpha.1)
  * v5: Added superseded_by, merged_from for frame deduplication (2.1.x)
+ * v6: Added contradiction resolution metadata (2.3.0)
+ * v7: Added module attribution provenance (2.9.0)
  */
-export const FRAME_SCHEMA_VERSION = 5;
+export const FRAME_SCHEMA_VERSION = 7;
 
 /**
  * Validate a Frame using Zod schema

@@ -106,9 +106,13 @@ export function createProgram(): Command {
     .description("Capture a work session Frame")
     .option("--jira <ticket>", "Jira ticket ID")
     .option("--reference-point <phrase>", "Human-memorable anchor phrase")
-    .option("--summary <text>", "One-line summary")
+    .option("--summary <text>", "One-line summary (required for non-interactive use)")
     .option("--next <action>", "Next action to take")
-    .option("--modules <list>", "Comma-separated module IDs", parseList)
+    .option(
+      "--modules <list>",
+      "Required module IDs, 'auto' for inference, or 'unscoped' for fallback",
+      parseList
+    )
     .option("--blockers <list>", "Comma-separated blockers", parseList)
     .option("--merge-blockers <list>", "Comma-separated merge blockers", parseList)
     .option("--tests-failing <list>", "Comma-separated test names", parseList)
@@ -118,7 +122,7 @@ export function createProgram(): Command {
     .option("-i, --interactive", "Interactive mode (prompt for all fields)")
     .option("--strict", "Disable auto-correction for typos (for CI)")
     .option("--no-substring", "Disable substring matching for module IDs (for CI)")
-    .option("--skip-policy", "Skip policy validation (allow any module ID)")
+    .option("--skip-policy", "Skip ontology validation only; required Frame fields still apply")
     .option("--dry-run", "Validate frame without storing (matches frame_validate MCP tool)")
     .action(async (cmdOptions) => {
       const globalOptions = program.opts();

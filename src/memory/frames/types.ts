@@ -17,6 +17,12 @@ export const FrameSpendMetadata = z.object({
 
 export type FrameSpendMetadata = z.infer<typeof FrameSpendMetadata>;
 
+export const ModuleAttribution = z.object({
+  mode: z.enum(["explicit", "inferred", "fallback"]),
+  confidence: z.enum(["high", "medium", "low"]),
+  evidence: z.array(z.string()),
+});
+
 /**
  * Turn Cost Component schema
  * Represents the five components of Turn Cost from the governance thesis
@@ -106,6 +112,7 @@ export const Frame = z.object({
   atlas_frame_id: z.string().optional(), // Link to Atlas Frame (spatial neighborhood)
   feature_flags: z.array(z.string()).optional(),
   permissions: z.array(z.string()).optional(),
+  module_attribution: ModuleAttribution.optional(),
   // Merge-weave metadata (v2)
   runId: z.string().optional(),
   planHash: z.string().optional(),
@@ -145,8 +152,9 @@ export type Frame = z.infer<typeof Frame>;
  * v4: Added turnCost, capabilityTier, taskComplexity for governance model (2.0.0)
  * v5: Added superseded_by, merged_from for deduplication (2.2.0)
  * v6: Added contradiction_resolution for contradiction detection (2.3.0)
+ * v7: Added module_attribution provenance (2.9.0)
  */
-export const FRAME_SCHEMA_VERSION = 6;
+export const FRAME_SCHEMA_VERSION = 7;
 
 /**
  * Frame search query interface
