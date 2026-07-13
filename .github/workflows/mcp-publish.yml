@@ -54,7 +54,10 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: "20"
+          cache: "npm"
 
+      - name: Install dependencies (hermetic)
+        run: npm ci --ignore-scripts
       - name: Resolve and validate release version
         id: version
         run: |
