@@ -301,7 +301,7 @@ export function createAtlasRouter(db: Database.Database): Router {
     try {
       const { id } = req.params;
 
-      if (!id) {
+      if (typeof id !== "string" || !id) {
         return res.status(400).json({
           error: "VALIDATION_FAILED",
           message: "Missing required parameter: id",
@@ -397,7 +397,7 @@ export function createAtlasRouter(db: Database.Database): Router {
     try {
       const { runId } = req.params;
 
-      if (!runId) {
+      if (typeof runId !== "string" || !runId) {
         return res.status(400).json({
           error: "VALIDATION_FAILED",
           message: "Missing required parameter: runId",
