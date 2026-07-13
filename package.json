@@ -1,6 +1,6 @@
 {
   "name": "@smartergpt/lex",
-  "version": "2.9.0",
+  "version": "2.9.1",
   "description": "MIT-licensed memory, policy, and atlas framework with MCP server. For local dev and private automation.",
   "type": "module",
   "main": "dist/index.js",
@@ -157,6 +157,7 @@
     "guard:no-js-src": "node ./scripts/check-no-js-in-src.mjs",
     "guard:pack": "node scripts/create-pack-json.js && node scripts/pack-guard.js && rm pack.json *.tgz",
     "check:release-drift": "node scripts/check-release-drift.mjs",
+    "check:mcp-registry-contract": "node scripts/verify-mcp-registry-contract.mjs --version $(node -p \"require('./package.json').version\")",
     "coverage": "c8 -r text -r lcov npm test",
     "check:coverage": "c8 --check-coverage --branches 60 --functions 60 --lines 60 --statements 60 npm test",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
