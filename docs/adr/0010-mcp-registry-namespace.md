@@ -144,24 +144,17 @@ openssl genpkey -algorithm Ed25519 -out key.pem
 # https://smartergpt.dev/.well-known/mcp-registry-auth
 ```
 
-## 3. Rationale for Recommendation
+## 3. Historical Initial Recommendation (Superseded)
 
-We recommend **Option A (GitHub namespace)** for the initial publication:
+The initial draft recommended **Option A (GitHub namespace)** because it had
+fewer moving parts. That recommendation was superseded before implementation
+when DNS ownership of `smartergpt.dev` was verified. The accepted decision is
+Option B: `dev.smartergpt/lex`.
 
 1. **Minimal moving parts**: No key management, no DNS changes, no secrets
 2. **Fastest path to publish**: Can publish immediately after package.json update
 3. **Reversible**: We can later add a custom domain namespace (servers can have multiple registry entries)
 4. **Registry is in preview**: Taking the simpler path reduces risk during API freeze
-
-### Future Migration Path
-
-If custom domain becomes important:
-1. Verify domain ownership via DNS TXT record on `smartergpt.dev`
-2. Publish **new** registry entry: `dev.smartergpt/lex`
-3. Update documentation to point to new namespace
-4. (Optional) Deprecate GitHub namespace entry
-
-**Note:** The registry supports multiple entries pointing to the same npm package.
 
 ## 4. Unknowns (Require Research)
 
@@ -174,14 +167,18 @@ If custom domain becomes important:
 
 ## 5. Consequences
 
-### If we accept Option A:
+### Accepted DNS Delivery Contract
 
-- `mcpName` in `@smartergpt/lex-mcp/package.json`: `io.github.guffawaffle/lex`
-- `name` in server.json: `io.github.guffawaffle/lex`
+- `mcpName` in `@smartergpt/lex-mcp/package.json`: `dev.smartergpt/lex`
+- `name` in server.json: `dev.smartergpt/lex`
 - `identifier` in server.json: `@smartergpt/lex-mcp`
 - CI workflow uses `mcp-publisher login dns --domain "smartergpt.dev" --private-key "$KEY"`
 - Secret: `MCP_REGISTRY_PRIVATE_KEY_HEX` (repo-level or org-level with restricted access)
 - Users search for "smartergpt/lex" or "lex" in registry
+
+The wrapper, Lex core, and both manifest version fields form one release unit.
+The wrapper must pin the matching Lex version exactly; a compatibility range
+would let a registry entry advertise one version while executing another.
 
 ### Registry Entry
 
@@ -213,13 +210,21 @@ If custom domain becomes important:
 ### Security Controls
 
 1. **Protected Environment** — `mcp-publish` environment requires reviewer approval
-2. **Tag-only triggers** — Publish only runs on GitHub releases or explicit manual trigger
+2. **Tag-only triggers** — Publish runs from a signed Lex release tag or a tag-bound recovery dispatch
 3. **Minimal permissions** — `contents: read` only (no id-token needed for DNS auth)
 4. **Secret isolation** — `MCP_REGISTRY_PRIVATE_KEY_HEX` restricted to lex repo only
+5. **Release provenance** — both automatic and recovery publication verify an
+   annotated tag signature against `TRUSTED_GPG_KEYS` before DNS authentication
 
 ## 6. Decision Outcome
 
 **Accepted and Implemented (2026-01-20).**
+
+**Delivery contract clarified (2026-07-12).** Registry publication validates
+the committed manifest against the official schema and requires the matching
+published core and wrapper packages before the protected DNS publish job runs.
+The publisher binary is pinned and checksum-verified; publication is restricted
+to a verified, immutable release tag.
 
 Checklist:
 - [x] DNS TXT record verified at smartergpt.dev

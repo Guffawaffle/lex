@@ -1,11 +1,18 @@
 name: Publish to MCP Registry
 
-# SECURITY: Runs ONLY on release tags or explicit manual trigger with reviewer approval
+# SECURITY: Runs only from a signed release tag or a recovery dispatch that
+# checks out that same immutable tag. The protected publish job requires
+# reviewer approval before it can use the DNS key.
 on:
-  release:
-    types: [published]
+  push:
+    tags:
+      - "v*.*.*"
   workflow_dispatch:
     inputs:
+      version:
+        description: "Published coordinated release version (for example, 2.9.0)"
+        required: true
+        type: string
       dry_run:
         description: "Dry run (validate only, do not publish)"
         required: false
@@ -14,6 +21,10 @@ on:
         options:
           - "true"
           - "false"
+
+env:
+  MCP_PUBLISHER_VERSION: "1.7.9"
+  MCP_PUBLISHER_SHA256: "ab128162b0616090b47cf245afe0a23f3ef08936fdce19074f5ba0a4469281ac"
 
 # MINIMAL PERMISSIONS: No id-token needed for DNS auth (uses private key signing)
 permissions:
@@ -32,110 +43,91 @@ jobs:
         uses: step-security/harden-runner@v2
         with:
           egress-policy: audit
-          disable-sudo: false
+          disable-sudo: true
 
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event_name == 'workflow_dispatch' && format('v{0}', inputs.version) || github.sha }}
 
-      - name: Validate trigger (release tags only for auto-publish)
-        if: github.event_name == 'release'
-        run: |
-          TAG="${{ github.event.release.tag_name }}"
-          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$ ]]; then
-            echo "❌ Invalid release tag format: $TAG"
-            echo "Expected: v{major}.{minor}.{patch} or v{major}.{minor}.{patch}-{prerelease}"
-            exit 1
-          fi
-          echo "✅ Valid release tag: $TAG"
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "20"
+          cache: "npm"
 
-      - name: Get version
+      - name: Install dependencies (hermetic)
+        run: npm ci --ignore-scripts
+      - name: Resolve and validate release version
         id: version
         run: |
-          VERSION=$(jq -r '.version' package.json)
+          if [ "${{ github.event_name }}" = "push" ]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+          else
+            VERSION="${{ inputs.version }}"
+          fi
+
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "❌ Invalid release version: $VERSION"
+            echo "Expected: {major}.{minor}.{patch}"
+            exit 1
+          fi
+          PACKAGE_VERSION=$(jq -r '.version' package.json)
+          if [ "$VERSION" != "$PACKAGE_VERSION" ]; then
+            echo "❌ Version mismatch: requested $VERSION, package.json $PACKAGE_VERSION"
+            exit 1
+          fi
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "📦 Package version: $VERSION"
+          echo "✅ Release version: $VERSION"
 
-      - name: Verify release tag matches package.json version
-        if: github.event_name == 'release'
+      - name: Verify selected signed release tag
+        env:
+          TRUSTED_GPG_KEYS: ${{ secrets.TRUSTED_GPG_KEYS }}
         run: |
-          TAG="${{ github.event.release.tag_name }}"
           VERSION="${{ steps.version.outputs.version }}"
-          # Strip 'v' prefix from tag for comparison
-          TAG_VERSION="${TAG#v}"
-          if [ "$TAG_VERSION" != "$VERSION" ]; then
-            echo "❌ Version mismatch!"
-            echo "   Release tag: $TAG (version: $TAG_VERSION)"
-            echo "   package.json: $VERSION"
-            echo ""
-            echo "Fix: Update package.json to $TAG_VERSION before releasing,"
-            echo "     or create a release with tag v$VERSION"
+          TAG="v${VERSION}"
+          if [ -z "$TRUSTED_GPG_KEYS" ]; then
+            echo "❌ TRUSTED_GPG_KEYS is required to verify release tags"
             exit 1
           fi
-          echo "✅ Release tag v$VERSION matches package.json version $VERSION"
+          echo "$TRUSTED_GPG_KEYS" | base64 -d | gpg --import
+          if ! git rev-parse --verify "${TAG}^{tag}" >/dev/null 2>&1; then
+            echo "❌ ${TAG} must be an annotated tag"
+            exit 1
+          fi
+          git verify-tag "$TAG"
+          echo "✅ Verified signed release tag: $TAG"
 
-      - name: Sync server.json version with package.json
+      - name: Verify manifest, published packages, and schema
         run: |
-          echo "📦 Syncing versions..."
           VERSION="${{ steps.version.outputs.version }}"
-
-          # Update both top-level version and packages[0].version
-          jq --arg v "$VERSION" '.version = $v | .packages[0].version = $v' server.json > server.json.tmp
-          mv server.json.tmp server.json
-
-          echo "✅ server.json updated to version $VERSION"
-          cat server.json | jq '{name: .name, version: .version, packages: [.packages[0] | {version: .version, identifier: .identifier}]}'
-
-      - name: Download mcp-publisher
-        run: |
-          echo "📥 Downloading mcp-publisher..."
-          curl -fsSL "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_linux_amd64.tar.gz" | tar xz
-          sudo mv mcp-publisher /usr/local/bin/
-          mcp-publisher --help | head -5
-          echo "✅ mcp-publisher installed"
-
-      - name: Validate server.json schema
-        run: |
-          echo "🔍 Validating server.json..."
-          # Check JSON is valid
-          if ! jq empty server.json 2>/dev/null; then
-            echo "❌ server.json is not valid JSON"
-            exit 1
-          fi
-          # Check required fields exist
-          NAME=$(jq -r '.name' server.json)
-          VERSION=$(jq -r '.version' server.json)
-          IDENTIFIER=$(jq -r '.packages[0].identifier' server.json)
-          if [ -z "$NAME" ] || [ "$NAME" = "null" ]; then
-            echo "❌ server.json missing 'name' field"
-            exit 1
-          fi
-          if [ -z "$VERSION" ] || [ "$VERSION" = "null" ]; then
-            echo "❌ server.json missing 'version' field"
-            exit 1
-          fi
-          if [ -z "$IDENTIFIER" ] || [ "$IDENTIFIER" = "null" ]; then
-            echo "❌ server.json missing 'packages[0].identifier' field"
-            exit 1
-          fi
-          echo "✅ server.json validated: $NAME v$VERSION ($IDENTIFIER)"
+          curl -fsSL "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json" -o /tmp/mcp-server.schema.json
+          npm view "@smartergpt/lex@${VERSION}" --json > /tmp/lex-core-package.json
+          npm view "@smartergpt/lex-mcp@${VERSION}" --json > /tmp/lex-mcp-package.json
+          node scripts/verify-mcp-registry-contract.mjs \
+            --version "$VERSION" \
+            --schema /tmp/mcp-server.schema.json \
+            --core-metadata /tmp/lex-core-package.json \
+            --wrapper-metadata /tmp/lex-mcp-package.json
 
       - name: Check if should publish
         id: check
         run: |
-          if [ "${{ github.event_name }}" = "release" ]; then
+          if [ "${{ github.event_name }}" = "push" ]; then
             echo "should_publish=true" >> $GITHUB_OUTPUT
-          elif [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ github.event.inputs.dry_run }}" = "false" ]; then
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.dry_run }}" = "false" ]; then
             echo "should_publish=true" >> $GITHUB_OUTPUT
           else
             echo "should_publish=false" >> $GITHUB_OUTPUT
           fi
 
       - name: Dry Run Summary
-        if: github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == 'true'
+        if: github.event_name == 'workflow_dispatch' && inputs.dry_run == 'true'
         run: |
-          echo "🧪 Dry run complete - server.json is valid"
+          echo "🧪 Dry run complete - manifest and published package contract are valid"
           echo "ℹ️  To publish:"
           echo "   - Re-run this workflow with dry_run=false, OR"
-          echo "   - Create a GitHub Release (triggers auto-publish)"
+          echo "   - Push the signed release tag after both npm packages are published"
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### MCP Registry Validation (Dry Run)" >> $GITHUB_STEP_SUMMARY
           echo "🧪 Dry run completed - validation only" >> $GITHUB_STEP_SUMMARY
@@ -154,21 +146,23 @@ jobs:
         uses: step-security/harden-runner@v2
         with:
           egress-policy: audit
-          disable-sudo: false
+          disable-sudo: true
 
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event_name == 'workflow_dispatch' && format('v{0}', inputs.version) || github.sha }}
 
-      - name: Sync server.json version
+      - name: Confirm immutable release checkout
         run: |
-          VERSION="${{ needs.validate.outputs.version }}"
-          jq --arg v "$VERSION" '.version = $v | .packages[0].version = $v' server.json > server.json.tmp
-          mv server.json.tmp server.json
-          echo "✅ server.json synced to version $VERSION"
+          echo "Checked out the immutable release tag."
 
       - name: Download mcp-publisher
         run: |
-          curl -fsSL "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_linux_amd64.tar.gz" | tar xz
-          sudo mv mcp-publisher /usr/local/bin/
+          curl -fsSL "https://github.com/modelcontextprotocol/registry/releases/download/v${MCP_PUBLISHER_VERSION}/mcp-publisher_linux_amd64.tar.gz" -o mcp-publisher.tar.gz
+          echo "${MCP_PUBLISHER_SHA256}  mcp-publisher.tar.gz" | sha256sum -c -
+          tar xzf mcp-publisher.tar.gz
+          chmod +x mcp-publisher
 
       # DNS Authentication with Ed25519 private key
       # SECURITY: Private key is never echoed; uses proper quoting
@@ -177,22 +171,36 @@ jobs:
           MCP_REGISTRY_PRIVATE_KEY_HEX: ${{ secrets.MCP_REGISTRY_PRIVATE_KEY_HEX }}
         run: |
           echo "🔐 Authenticating with DNS verification (smartergpt.dev)..."
-          mcp-publisher login dns --domain "smartergpt.dev" --private-key "${MCP_REGISTRY_PRIVATE_KEY_HEX}"
+          ./mcp-publisher login dns --domain "smartergpt.dev" --private-key "${MCP_REGISTRY_PRIVATE_KEY_HEX}"
           echo "✅ Authentication successful"
 
       - name: Publish to MCP Registry
         run: |
           echo "🚀 Publishing to MCP Registry..."
-          mcp-publisher publish
+          ./mcp-publisher publish
           echo "✅ Published successfully to registry.modelcontextprotocol.io"
+
+      - name: Verify live registry entry
+        env:
+          VERSION: ${{ needs.validate.outputs.version }}
+        run: |
+          for attempt in {1..12}; do
+            if node scripts/verify-mcp-registry-publication.mjs --version "$VERSION"; then
+              exit 0
+            fi
+            echo "Registry entry not visible yet (attempt $attempt/12); retrying in 5 seconds..."
+            sleep 5
+          done
+          echo "❌ Published registry entry did not become the latest version in time"
+          exit 1
 
       - name: Summary
         if: always()
         run: |
           echo "### MCP Registry Publication Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          if [ "${{ github.event_name }}" = "release" ]; then
-            echo "✅ Triggered by release: \`${{ github.event.release.tag_name }}\`" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ github.event_name }}" = "push" ]; then
+            echo "✅ Triggered by release tag: \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
           else
             echo "✅ Manual publish completed" >> $GITHUB_STEP_SUMMARY
           fi
