@@ -332,10 +332,11 @@ function readDatabaseSnapshot(dbPath: string): Buffer {
 // a header-only sidecar left by a prior read does not block subsequent reads.
 // Rollback journals have no fixed header, so any non-zero size is active.
 const WAL_ACTIVE_THRESHOLD = 32n;
+export { WAL_ACTIVE_THRESHOLD };
 const JOURNAL_ACTIVE_THRESHOLD = 0n;
 
-function isJournalActive(journal: FileSnapshotState, index: number): boolean {
-  return journal.size > (index === 0 ? WAL_ACTIVE_THRESHOLD : JOURNAL_ACTIVE_THRESHOLD);
+function isJournalActive(journal: FileSnapshotState, journalIndex: number): boolean {
+  return journal.size > (journalIndex === 0 ? WAL_ACTIVE_THRESHOLD : JOURNAL_ACTIVE_THRESHOLD);
 }
 
 /**

@@ -20,6 +20,7 @@ import {
   openDatabaseReadOnly,
   readStableDatabaseSnapshot,
   ReadOnlyDatabaseError,
+  WAL_ACTIVE_THRESHOLD,
 } from "@app/memory/store/db.js";
 import { SqliteFrameStore } from "@app/memory/store/sqlite/index.js";
 
@@ -222,7 +223,7 @@ test("openDatabaseReadOnly refuses an active WAL instead of returning stale cont
   try {
     writable = createDatabase(dbPath);
     writable.exec("CREATE TABLE active_writer_probe (id TEXT)");
-    assert.ok(statSync(`${dbPath}-wal`).size > 32);
+    assert.ok(statSync(`${dbPath}-wal`).size > Number(WAL_ACTIVE_THRESHOLD));
     const filesBefore = filesystemSnapshot(dbPath);
 
     assert.throws(
