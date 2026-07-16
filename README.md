@@ -453,7 +453,7 @@ closeDb(db);
 
 ## Project status
 
-**Current Version:** `2.8.0` ([Changelog](./CHANGELOG.md))
+**Current Version:** `2.9.0` ([Changelog](./CHANGELOG.md))
 
 Current Lex releases include structured output, recoverable errors, and Frame Schema v3 for agent and orchestrator integration.
 

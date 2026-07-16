@@ -21,7 +21,6 @@ import {
   upsertPersona,
   getPersonaChecksum,
 } from "@app/memory/store/index.js";
-import type { PersonaRecord } from "@app/memory/store/index.js";
 
 // Test database path
 const TEST_DB_PATH = join(tmpdir(), `test-personas-${Date.now()}.db`);

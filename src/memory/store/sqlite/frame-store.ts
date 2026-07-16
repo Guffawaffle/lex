@@ -18,8 +18,15 @@ import type {
 import type { Frame, FrameStatusSnapshot, FrameSpendMetadata } from "../../frames/types.js";
 import type { FrameRow } from "../db.js";
 import { Frame as FrameSchema } from "../../frames/types.js";
-import { createDatabase } from "../db.js";
+import { createDatabase, openDatabaseReadOnly } from "../db.js";
 import { normalizeFTS5Query } from "../fts5-utils.js";
+
+export type SqliteFrameStoreAccessMode = "read-only" | "read-write";
+
+export interface SqliteFrameStoreOptions {
+  /** Defaults to read-write to preserve existing explicit write/control-plane behavior. */
+  accessMode?: SqliteFrameStoreAccessMode;
+}
 
 /**
  * Cursor for stable pagination.
@@ -133,6 +140,8 @@ function rowToFrame(row: FrameRow): Frame {
  */
 export class SqliteFrameStore implements FrameStore {
   private _db: Database.Database;
+  private _databasePath: string;
+  private _accessMode: SqliteFrameStoreAccessMode;
   private ownsConnection: boolean;
   private isClosed: boolean = false;
 
@@ -149,22 +158,52 @@ export class SqliteFrameStore implements FrameStore {
     return this._db;
   }
 
+  /** Canonical source path, retained even when read-only access uses a detached snapshot. */
+  get databasePath(): string {
+    return this._databasePath;
+  }
+
+  /** Whether this store's SQLite connection can mutate the database. */
+  get accessMode(): SqliteFrameStoreAccessMode {
+    return this._accessMode;
+  }
+
   /**
    * Create a new SqliteFrameStore.
    *
    * @param dbOrPath - Either an existing Database connection or a path to create/open a database.
-   *                   If a path is provided (or undefined for default), the store owns the connection
-   *                   and will close it on close(). If a Database is provided, the caller is
-   *                   responsible for closing it.
+   *                   A read-only store requires an explicit filesystem path. If a path is provided,
+   *                   the store owns the connection and will close it on close(). If a Database is
+   *                   provided, the caller is responsible for closing it.
+   * @param options - Explicit connection access mode. The existing default remains read-write.
    */
-  constructor(dbOrPath?: Database.Database | string) {
+  constructor(dbOrPath?: Database.Database | string, options: SqliteFrameStoreOptions = {}) {
     if (typeof dbOrPath === "string" || dbOrPath === undefined) {
-      // Create a new database connection (we own it)
-      this._db = createDatabase(dbOrPath);
+      const accessMode = options.accessMode ?? "read-write";
+      if (accessMode === "read-only" && dbOrPath === undefined) {
+        throw new TypeError("A filesystem database path is required for read-only access");
+      }
+
+      this._db =
+        accessMode === "read-only"
+          ? openDatabaseReadOnly(dbOrPath as string)
+          : createDatabase(dbOrPath);
+      this._databasePath = dbOrPath ?? this._db.name;
+      this._accessMode = accessMode;
       this.ownsConnection = true;
     } else {
-      // Use existing connection (caller owns it)
+      const connectionMode: SqliteFrameStoreAccessMode = dbOrPath.readonly
+        ? "read-only"
+        : "read-write";
+      if (options.accessMode && options.accessMode !== connectionMode) {
+        throw new TypeError(
+          `The supplied SQLite connection is ${connectionMode}, not ${options.accessMode}`
+        );
+      }
+
       this._db = dbOrPath;
+      this._databasePath = dbOrPath.name;
+      this._accessMode = connectionMode;
       this.ownsConnection = false;
     }
   }

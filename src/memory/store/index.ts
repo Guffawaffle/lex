@@ -15,7 +15,7 @@
 import Database from "better-sqlite3-multiple-ciphers";
 import { createDatabase, getDefaultDbPath } from "./db.js";
 
-export type { FrameRow, CodeAtlasRunRow } from "./db.js";
+export type { FrameRow, CodeAtlasRunRow, ReadOnlyDatabaseErrorCode } from "./db.js";
 export type { BehaviorRuleRow } from "./lexsona-queries.js";
 export type { Frame, FrameStatusSnapshot } from "../frames/types.js";
 export type { SearchResult, ExportFramesOptions } from "./queries.js";
@@ -32,6 +32,7 @@ export type { CodeAtlasStore } from "./code-atlas-store.js";
 
 // SqliteFrameStore - production-ready FrameStore implementation
 export { SqliteFrameStore } from "./sqlite/index.js";
+export type { SqliteFrameStoreAccessMode, SqliteFrameStoreOptions } from "./sqlite/index.js";
 
 // Memory-based store implementations for testing
 export { MemoryFrameStore } from "./memory/index.js";
@@ -212,11 +213,14 @@ setupGracefulShutdown();
 // Export database creation for testing
 export {
   createDatabase,
+  openDatabaseReadOnly,
   getDefaultDbPath,
   deriveEncryptionKey,
   getEncryptionKey,
   validatePassphraseStrength,
   FRAME_STORE_SCHEMA_VERSION,
+  DATABASE_SCHEMA_VERSION,
+  ReadOnlyDatabaseError,
 } from "./db.js";
 export type { PassphraseValidationResult } from "./db.js";
 

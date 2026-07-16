@@ -1,9 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert";
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
+import { createHash } from "node:crypto";
 import { MemoryFrameStore } from "@app/memory/store/memory/index.js";
+import { SqliteFrameStore } from "@app/memory/store/sqlite/index.js";
+import { DATABASE_SCHEMA_VERSION } from "@app/memory/store/db.js";
 import type { Frame } from "@app/shared/types/frame-schema.js";
 import { buildSessionContext, renderSessionContextText } from "@app/shared/cli/context.js";
 
@@ -22,6 +25,13 @@ function frame(
     summary_caption: summary,
     reference_point: `${id}-reference`,
     status_snapshot: { next_action: nextAction },
+  };
+}
+
+function storeSnapshot(dbPath: string): { databaseSha256: string; entries: string[] } {
+  return {
+    databaseSha256: createHash("sha256").update(readFileSync(dbPath)).digest("hex"),
+    entries: readdirSync(dirname(dbPath)).sort(),
   };
 }
 
@@ -93,12 +103,70 @@ test("context reports a missing store without creating it", async () => {
     const result = await buildSessionContext({ projectRoot, branch: "main", maxTokens: 1200 });
 
     assert.strictEqual(result.resolution.store.exists, false);
+    assert.strictEqual(result.resolution.store.accessMode, "read-only");
     assert.ok(result.warnings.some((warning) => warning.code === "STORE_NOT_FOUND"));
     assert.ok(result.warnings.some((warning) => warning.code === "NO_FRAMES"));
     assert.strictEqual(result.frameWriteContract.policyState, "unavailable");
     assert.strictEqual(result.frameWriteContract.fallbackModule, "workspace/unscoped");
     assert.match(renderSessionContextText(result), /Frame write contract:/);
     assert.strictEqual(existsSync(expectedStore), false);
+    assert.strictEqual(existsSync(dirname(expectedStore)), false);
+  } finally {
+    rmSync(projectRoot, { recursive: true, force: true });
+  }
+});
+
+test("context opens an existing SQLite store read-only without changing its files", async () => {
+  const projectRoot = mkdtempSync(join(tmpdir(), "lex-context-read-only-"));
+  const dbPath = join(projectRoot, "data", "memory.db");
+  writeFileSync(join(projectRoot, "package.json"), JSON.stringify({ name: "read-only-context" }));
+  writeFileSync(
+    join(projectRoot, ".lex.config.json"),
+    JSON.stringify({ paths: { appRoot: projectRoot, database: "./data/memory.db" } })
+  );
+
+  try {
+    const writable = new SqliteFrameStore(dbPath);
+    await writable.saveFrame(
+      frame("sqlite-context", "2026-07-14T00:00:00Z", "main", "Read-only context")
+    );
+    await writable.close();
+    const before = storeSnapshot(dbPath);
+
+    const result = await buildSessionContext({ projectRoot, branch: "main", maxTokens: 1200 });
+
+    assert.strictEqual(result.schemaVersion, "1.1.0");
+    assert.strictEqual(result.resolution.store.accessMode, "read-only");
+    assert.strictEqual(result.frames[0]?.id, "sqlite-context");
+    assert.ok(!result.warnings.some((warning) => warning.code === "STORE_UNAVAILABLE"));
+    assert.deepStrictEqual(storeSnapshot(dbPath), before);
+  } finally {
+    rmSync(projectRoot, { recursive: true, force: true });
+  }
+});
+
+test("context reports an older SQLite store without migrating or changing it", async () => {
+  const projectRoot = mkdtempSync(join(tmpdir(), "lex-context-old-store-"));
+  const dbPath = join(projectRoot, "data", "memory.db");
+  writeFileSync(join(projectRoot, "package.json"), JSON.stringify({ name: "old-context" }));
+  writeFileSync(
+    join(projectRoot, ".lex.config.json"),
+    JSON.stringify({ paths: { appRoot: projectRoot, database: "./data/memory.db" } })
+  );
+
+  try {
+    const writable = new SqliteFrameStore(dbPath);
+    writable.db
+      .prepare("DELETE FROM schema_version WHERE version = ?")
+      .run(DATABASE_SCHEMA_VERSION);
+    await writable.close();
+    const before = storeSnapshot(dbPath);
+
+    const result = await buildSessionContext({ projectRoot, branch: "main", maxTokens: 1200 });
+
+    assert.strictEqual(result.resolution.store.accessMode, "read-only");
+    assert.ok(result.warnings.some((warning) => warning.code === "STORE_REQUIRES_MIGRATION"));
+    assert.deepStrictEqual(storeSnapshot(dbPath), before);
   } finally {
     rmSync(projectRoot, { recursive: true, force: true });
   }
