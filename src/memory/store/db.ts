@@ -335,6 +335,7 @@ const WAL_ACTIVE_THRESHOLD = 32n;
 export { WAL_ACTIVE_THRESHOLD };
 const JOURNAL_ACTIVE_THRESHOLD = 0n;
 
+// journalIndex mirrors the journalPaths array: 0 = "-wal", 1 = "-journal".
 function isJournalActive(journal: FileSnapshotState, journalIndex: number): boolean {
   return journal.size > (journalIndex === 0 ? WAL_ACTIVE_THRESHOLD : JOURNAL_ACTIVE_THRESHOLD);
 }
