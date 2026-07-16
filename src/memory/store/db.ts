@@ -341,7 +341,7 @@ export function readStableDatabaseSnapshot(
   const sourceBefore = fileSnapshotState(dbPath);
   const journalsBefore = journalPaths.map(fileSnapshotState);
 
-  if (journalsBefore.some((journal) => journal.size > 0n)) {
+  if (journalsBefore.some((journal, index) => journal.size > (index === 0 ? 32n : 0n))) {
     throw new ReadOnlyDatabaseError(
       "STORE_UNAVAILABLE",
       "The selected Lex store has an active SQLite journal and cannot be snapshotted without risking stale or incoherent bootstrap context."
@@ -355,7 +355,7 @@ export function readStableDatabaseSnapshot(
   const journalChanged = journalsBefore.some(
     (journal, index) => journal.signature !== journalsAfter[index]?.signature
   );
-  const journalBecameActive = journalsAfter.some((journal) => journal.size > 0n);
+  const journalBecameActive = journalsAfter.some((journal, index) => journal.size > (index === 0 ? 32n : 0n));
 
   if (sourceChanged || journalChanged || journalBecameActive) {
     throw new ReadOnlyDatabaseError(
