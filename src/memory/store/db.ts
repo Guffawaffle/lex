@@ -327,6 +327,17 @@ function readDatabaseSnapshot(dbPath: string): Buffer {
   return readFileSync(dbPath);
 }
 
+// A WAL file starts with a 32-byte file header. A file containing only the
+// header has no frames and is effectively idle; treat it as inactive so that
+// a header-only sidecar left by a prior read does not block subsequent reads.
+// Rollback journals have no fixed header, so any non-zero size is active.
+const WAL_ACTIVE_THRESHOLD = 32n;
+const JOURNAL_ACTIVE_THRESHOLD = 0n;
+
+function isJournalActive(journal: FileSnapshotState, index: number): boolean {
+  return journal.size > (index === 0 ? WAL_ACTIVE_THRESHOLD : JOURNAL_ACTIVE_THRESHOLD);
+}
+
 /**
  * Read a coherent main-file snapshot without asking SQLite to touch WAL bookkeeping.
  *
@@ -341,7 +352,7 @@ export function readStableDatabaseSnapshot(
   const sourceBefore = fileSnapshotState(dbPath);
   const journalsBefore = journalPaths.map(fileSnapshotState);
 
-  if (journalsBefore.some((journal, index) => journal.size > (index === 0 ? 32n : 0n))) {
+  if (journalsBefore.some(isJournalActive)) {
     throw new ReadOnlyDatabaseError(
       "STORE_UNAVAILABLE",
       "The selected Lex store has an active SQLite journal and cannot be snapshotted without risking stale or incoherent bootstrap context."
@@ -355,7 +366,7 @@ export function readStableDatabaseSnapshot(
   const journalChanged = journalsBefore.some(
     (journal, index) => journal.signature !== journalsAfter[index]?.signature
   );
-  const journalBecameActive = journalsAfter.some((journal, index) => journal.size > (index === 0 ? 32n : 0n));
+  const journalBecameActive = journalsAfter.some(isJournalActive);
 
   if (sourceChanged || journalChanged || journalBecameActive) {
     throw new ReadOnlyDatabaseError(

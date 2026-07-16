@@ -222,7 +222,7 @@ test("openDatabaseReadOnly refuses an active WAL instead of returning stale cont
   try {
     writable = createDatabase(dbPath);
     writable.exec("CREATE TABLE active_writer_probe (id TEXT)");
-    assert.ok(statSync(`${dbPath}-wal`).size > 0);
+    assert.ok(statSync(`${dbPath}-wal`).size > 32);
     const filesBefore = filesystemSnapshot(dbPath);
 
     assert.throws(
