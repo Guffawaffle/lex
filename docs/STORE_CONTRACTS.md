@@ -28,9 +28,26 @@ Lex 1.0.0 introduces persistence contracts that abstract database operations beh
 - `since`/`until` filter by Frame timestamp (UTC)
 - For "last N frames," use `limit`/`offset` instead
 
-### Default Implementation
+### Backend Selection
 
-SQLite via `SqliteFrameStore` is the default OSS implementation.
+SQLite via `SqliteFrameStore` remains the default OSS implementation. PostgreSQL via
+`PostgresFrameStore` is an explicit opt-in for shared cross-host storage. New CLI and MCP code
+should call `createFrameStore()`, which selects the backend from `LEX_STORE=sqlite|postgres` and
+defaults to SQLite.
+
+### Access Modes
+
+Both production implementations support explicit `read-write` and `read-only` access modes.
+`read-write` remains the default for backward compatibility. Callers that must not initialize,
+migrate, or mutate the selected store use:
+
+```typescript
+createFrameStore(undefined, { accessMode: "read-only" });
+```
+
+`lex context` always requests this hard read-only mode because it is the bounded
+session/bootstrap surface. It does not create or migrate either backend. Mutation methods reject
+without changing the selected store when the store is read-only.
 
 ### SQLite Access Modes
 
@@ -51,12 +68,23 @@ active, Lex reports `STORE_UNAVAILABLE` rather than returning potentially stale/
 Encrypted stores are also unavailable through this snapshot path until the driver can deserialize
 an encrypted snapshot without first opening the canonical database.
 
-`lex context` uses the hard read-only path because it is the bounded session/bootstrap surface.
-It does not create or migrate storage. The other current SQLite-backed CLI paths—`recall`,
+The other current SQLite-backed CLI paths—`recall`,
 `timeline`, `export`, `introspect`, `remember`, `import`, `dedupe`, `check-contradictions`, `wave`,
 `turncost`, and `db` operations—still obtain writable stores/connections and therefore may
 initialize or migrate the selected database. Callers that require a non-mutating read must use
 the explicit read-only constructor or `openDatabaseReadOnly(path)`.
+
+### PostgreSQL Access Modes
+
+`new PostgresFrameStore(url)` keeps the default `read-write` behavior and may apply PostgreSQL
+schema migrations before serving operations. `new PostgresFrameStore(url, {
+accessMode: "read-only" })` checks that the existing schema is exactly the supported version and
+never starts a migration transaction. Missing, older, or newer schemas fail with a diagnostic
+instead of being changed.
+
+PostgreSQL read-only mode is an application-level no-write contract rather than a replacement for
+database permissions. Deployments that require defense in depth should also use a PostgreSQL role
+whose grants prohibit schema and data mutation.
 
 ## CodeAtlasStore (@experimental)
 
@@ -64,7 +92,8 @@ Experimental interface for Code Atlas data. API may change including breaking ch
 
 ## Extension Points
 
-Custom drivers can implement `FrameStore` for alternative backends (e.g., PostgreSQL, in-memory for testing).
+Custom drivers can implement `FrameStore` for alternative backends (for example, in-memory stores
+for testing).
 
 ## See Also
 

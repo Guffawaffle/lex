@@ -14,12 +14,18 @@ import type {
   SaveResult,
   StoreStats,
   TurnCostMetrics,
+  FrameStoreMetadata,
+  FrameStoreHealth,
 } from "../frame-store.js";
 import type { Frame, FrameStatusSnapshot, FrameSpendMetadata } from "../../frames/types.js";
 import type { FrameRow } from "../db.js";
 import { Frame as FrameSchema } from "../../frames/types.js";
 import { createDatabase, openDatabaseReadOnly } from "../db.js";
 import { normalizeFTS5Query } from "../fts5-utils.js";
+import {
+  canonicalizeStorePath,
+  createStoreIdentity,
+} from "../../../shared/config/store-identity.js";
 
 export type SqliteFrameStoreAccessMode = "read-only" | "read-write";
 
@@ -205,6 +211,52 @@ export class SqliteFrameStore implements FrameStore {
       this._databasePath = dbOrPath.name;
       this._accessMode = connectionMode;
       this.ownsConnection = false;
+    }
+  }
+
+  getMetadata(): FrameStoreMetadata {
+    const location = this.databasePath;
+    const canonicalLocation = location === ":memory:" ? location : canonicalizeStorePath(location);
+    return {
+      backend: "sqlite",
+      location,
+      canonicalLocation,
+      identity:
+        canonicalLocation === ":memory:"
+          ? "sqlite-v1:memory"
+          : createStoreIdentity(canonicalLocation),
+      capabilities: { encryption: true, images: true },
+    };
+  }
+
+  async getHealth(): Promise<FrameStoreHealth> {
+    const checkedAt = new Date().toISOString();
+    if (this.isClosed) {
+      return {
+        healthy: false,
+        schemaVersion: "unknown",
+        checkedAt,
+        message: "SqliteFrameStore is closed",
+      };
+    }
+    try {
+      const integrity = this._db.pragma("quick_check", { simple: true }) as string;
+      const version = this._db
+        .prepare("SELECT MAX(version) AS version FROM schema_version")
+        .get() as { version: number | null };
+      return {
+        healthy: integrity === "ok",
+        schemaVersion: String(version.version ?? 0),
+        checkedAt,
+        ...(integrity === "ok" ? {} : { message: `SQLite quick_check returned ${integrity}` }),
+      };
+    } catch {
+      return {
+        healthy: false,
+        schemaVersion: "unknown",
+        checkedAt,
+        message: "SQLite health check failed",
+      };
     }
   }
 

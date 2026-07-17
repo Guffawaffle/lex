@@ -32,7 +32,7 @@ Agents get:
 - Policy-aware recall that can surface nearby module context instead of asking the human to restate it
 - Structured CLI and MCP responses that are easier for tools to parse
 - Stable tool names and explicit error codes for recovery
-- Repo-local context stored in SQLite and repository files, not a cloud memory service
+- Local-first context stored in SQLite by default, with explicit self-managed PostgreSQL opt-in
 - CLI, MCP, and TypeScript API surfaces for different agent runtimes
 
 Humans do not need to understand the whole framework before adoption. The first useful question is simply whether your agent keeps asking you to repeat context the repository could remember.
@@ -318,14 +318,14 @@ Dogfooding examples are available in [examples/dogfood/](./examples/dogfood/). T
 
 Humans see a local, inspectable record instead of an opaque assistant memory:
 
-- Frames are stored in SQLite at `.smartergpt/lex/memory.db` by default.
+- Frames are stored in SQLite at `.smartergpt/lex/memory.db` by default. PostgreSQL is an explicit opt-in for shared cross-host storage.
 - Policy files live in the repository and can be reviewed in code review.
 - NDJSON logs are written to `.smartergpt/lex/logs/lex.log.ndjson` with structured fields such as `timestamp`, `level`, `operation`, `duration_ms`, `metadata`, and `error`.
 - Policy checks can run in CI with `lex check merged-facts.json`.
 - Database maintenance commands support backups, rotation, and vacuuming.
 
 ```bash
-# Create a timestamped backup (memory-20251123.sqlite)
+# Create a collision-safe timestamped backup (memory-20251123-120000.000.sqlite)
 lex db backup --rotate 7
 # Keeps last 7 backups, stored in .smartergpt/lex/backups/
 
@@ -595,7 +595,10 @@ LEX_CANON_DIR=/my/custom/canon lex remember ...
 | `LEX_LOG_LEVEL` | Log verbosity (`silent`, `trace`, `debug`, `info`, `warn`, `error`, `fatal`) | `info` (tests: `silent`) |
 | `LEX_LOG_PRETTY` | Pretty-print logs (`1` = enabled) | Auto-detect TTY |
 | `LEX_POLICY_PATH` | Custom policy file location | `.smartergpt/lex/lexmap.policy.json` |
-| `LEX_DB_PATH` | Database location | `.smartergpt/lex/memory.db` |
+| `LEX_STORE` | Frame backend (`sqlite` or `postgres`) | `sqlite` |
+| `LEX_DATABASE_URL` | PostgreSQL connection URL; required only when `LEX_STORE=postgres` | — |
+| `LEX_POSTGRES_PASSWORD` | Optional separate password for a credential-free PostgreSQL URL | — |
+| `LEX_DB_PATH` | SQLite database location; ignored by the PostgreSQL backend | `.smartergpt/lex/memory.db` |
 | `LEX_MEMORY_DB` | Compatibility alias for `LEX_DB_PATH` | — |
 | `LEX_DB_KEY` | Database encryption passphrase (required in production) | None (unencrypted) |
 | `LEX_GIT_MODE` | Git integration (`off`, `live`) | `off` |

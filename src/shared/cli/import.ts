@@ -25,7 +25,12 @@ export interface ImportCommandOptions {
  * Read and parse a single JSON file
  * @returns Array of Frames (handles both single Frame and array formats)
  */
-function readFramesFromFile(filepath: string): Frame[] {
+interface FrameReadResult {
+  frames: Frame[];
+  validationErrors: number;
+}
+
+function readFramesFromFile(filepath: string): FrameReadResult {
   try {
     const content = readFileSync(filepath, "utf-8");
     const parsed = JSON.parse(content);
@@ -64,7 +69,7 @@ function readFramesFromFile(filepath: string): Frame[] {
       errors.forEach((err) => output.warn(`  - ${err}`));
     }
 
-    return frames;
+    return { frames, validationErrors: errors.length };
   } catch (error) {
     throw new AXErrorException(
       "IMPORT_FILE_READ_ERROR",
@@ -85,6 +90,7 @@ function readFramesFromFile(filepath: string): Frame[] {
 function readFramesFromDirectory(dirpath: string): {
   filesMap: Map<string, Frame[]>;
   readErrors: number;
+  validationErrors: number;
 } {
   if (!existsSync(dirpath)) {
     throw new AXErrorException(
@@ -107,18 +113,20 @@ function readFramesFromDirectory(dirpath: string): {
   const filesMap = new Map<string, Frame[]>();
   const files = readdirSync(dirpath).filter((f) => f.endsWith(".json"));
   let readErrors = 0;
+  let validationErrors = 0;
 
   if (files.length === 0) {
     output.warn(`No JSON files found in directory: ${dirpath}`);
-    return { filesMap, readErrors };
+    return { filesMap, readErrors, validationErrors };
   }
 
   for (const file of files) {
     const filepath = join(dirpath, file);
     try {
-      const frames = readFramesFromFile(filepath);
-      if (frames.length > 0) {
-        filesMap.set(file, frames);
+      const result = readFramesFromFile(filepath);
+      validationErrors += result.validationErrors;
+      if (result.frames.length > 0) {
+        filesMap.set(file, result.frames);
       }
     } catch (error) {
       readErrors++;
@@ -126,7 +134,7 @@ function readFramesFromDirectory(dirpath: string): {
     }
   }
 
-  return { filesMap, readErrors };
+  return { filesMap, readErrors, validationErrors };
 }
 
 /**
@@ -172,19 +180,23 @@ export async function importFrames(
     const startTime = Date.now();
     let allFrames: Frame[] = [];
     let readErrors = 0;
+    let validationErrors = 0;
 
     // Read frames from source
     if (options.fromDir) {
       const result = readFramesFromDirectory(options.fromDir);
       readErrors = result.readErrors;
+      validationErrors = result.validationErrors;
       for (const frames of result.filesMap.values()) {
         allFrames.push(...frames);
       }
     } else if (options.fromFile) {
-      allFrames = readFramesFromFile(options.fromFile);
+      const result = readFramesFromFile(options.fromFile);
+      allFrames = result.frames;
+      validationErrors = result.validationErrors;
     }
 
-    if (allFrames.length === 0 && readErrors === 0) {
+    if (allFrames.length === 0 && readErrors === 0 && validationErrors === 0) {
       const message = "No valid frames found to import";
       if (options.json) {
         output.json({
@@ -201,20 +213,22 @@ export async function importFrames(
     }
 
     // If there were read errors, exit with error
-    if (readErrors > 0 && allFrames.length === 0) {
-      const message = `Failed to read ${readErrors} file(s)`;
+    if ((readErrors > 0 || validationErrors > 0) && allFrames.length === 0) {
+      const totalErrors = readErrors + validationErrors;
+      const message = `No valid frames found; encountered ${totalErrors} error(s)`;
       if (options.json) {
         output.json({
           success: false,
           imported: 0,
           skipped: 0,
-          errors: readErrors,
+          errors: totalErrors,
           message,
         });
       } else {
         output.error(`\n❌ ${message}\n`);
       }
-      process.exit(1);
+      process.exitCode = 1;
+      return;
     }
 
     let imported = 0;
@@ -230,21 +244,27 @@ export async function importFrames(
       // Frames are already validated during readFramesFromFile/readFramesFromDirectory
       // In dry-run mode, we just report the count of valid frames
       imported = allFrames.length;
+      errors = readErrors + validationErrors;
 
       const duration = ((Date.now() - startTime) / 1000).toFixed(2);
 
       if (options.json) {
         output.json({
-          success: true,
+          success: errors === 0,
           dryRun: true,
           validated: imported,
           errors,
           durationSeconds: parseFloat(duration),
         });
       } else {
-        output.success(`\n✅ Dry run complete: ${imported} frames valid, ${errors} errors`);
+        if (errors === 0) {
+          output.success(`\n✅ Dry run complete: ${imported} frames valid, ${errors} errors`);
+        } else {
+          output.error(`\n❌ Dry run failed: ${imported} frames valid, ${errors} errors`);
+        }
         output.info(`Duration: ${duration}s\n`);
       }
+      if (errors > 0) process.exitCode = 1;
       return;
     }
 
@@ -292,7 +312,7 @@ export async function importFrames(
     const duration = ((Date.now() - startTime) / 1000).toFixed(2);
 
     // Include readErrors in total error count
-    const totalErrors = errors + readErrors;
+    const totalErrors = errors + readErrors + validationErrors;
 
     // Output results
     if (options.json) {
@@ -318,7 +338,7 @@ export async function importFrames(
 
     // Exit with error code if there were errors
     if (totalErrors > 0) {
-      process.exit(1);
+      process.exitCode = 1;
     }
   } catch (error) {
     if (options.json) {
@@ -329,7 +349,7 @@ export async function importFrames(
     } else {
       output.error(`\n❌ Import failed: ${String(error)}\n`);
     }
-    process.exit(1);
+    process.exitCode = 1;
   } finally {
     // Close store if we own it
     if (ownsStore) {

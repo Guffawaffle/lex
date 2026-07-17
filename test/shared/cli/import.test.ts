@@ -233,6 +233,33 @@ test("CLI: lex frames import --dry-run validates without writing", () => {
   }
 });
 
+test("CLI: lex frames import --dry-run fails when any frame is rejected", () => {
+  setupTest();
+  try {
+    const testFile = join(importDir, "partial-invalid-dry-run.json");
+    const invalid = { ...createValidFrame("2", "Invalid frame"), reference_point: "" };
+    writeFileSync(testFile, JSON.stringify([createValidFrame("1", "Valid frame"), invalid]));
+
+    try {
+      execFileSync(
+        process.execPath,
+        [lexBin, "--json", "frames", "import", "--from-file", testFile, "--dry-run"],
+        { encoding: "utf-8", env: getTestEnv() }
+      );
+      assert.fail("Dry-run should fail when one candidate is rejected");
+    } catch (error: unknown) {
+      const execError = error as { status?: number; stdout?: Buffer | string };
+      assert.strictEqual(execError.status, 1);
+      const result = JSON.parse(String(execError.stdout).trim());
+      assert.strictEqual(result.success, false);
+      assert.strictEqual(result.validated, 1);
+      assert.strictEqual(result.errors, 1);
+    }
+  } finally {
+    cleanup();
+  }
+});
+
 test("CLI: lex frames import --skip-duplicates skips existing frames", () => {
   setupTest();
   try {

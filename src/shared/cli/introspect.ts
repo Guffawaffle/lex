@@ -11,8 +11,7 @@
  * @module shared/cli/introspect
  */
 
-import { createFrameStore, SqliteFrameStore, type FrameStore } from "../../memory/store/index.js";
-import { getDefaultDbPath } from "../../memory/store/db.js";
+import { createFrameStore, type FrameStore } from "../../memory/store/index.js";
 import { loadPolicyIfAvailable, resolvePolicyPath } from "../policy/loader.js";
 import { getCurrentBranch } from "../git/branch.js";
 import { createOutput, raw } from "./output.js";
@@ -100,13 +99,16 @@ export async function introspect(
         }
       : null;
 
-    // Get state information
-    const result = await store.listFrames({ limit: 1 });
-
-    // Count all frames by querying with a high limit
-    // Note: This is a simple approach; for large DBs, a dedicated count query would be better
-    const allFrames = await store.listFrames({ limit: 10000 });
-    const frameCount = allFrames.frames.length;
+    // Probe backend health before issuing state queries so introspection can
+    // still describe an unavailable configured store without leaking credentials.
+    const storeHealth = await store.getHealth();
+    const result = storeHealth.healthy
+      ? await store.listFrames({ limit: 1 })
+      : { frames: [] as Awaited<ReturnType<FrameStore["listFrames"]>>["frames"] };
+    const allFrames = storeHealth.healthy
+      ? await store.listFrames({ limit: 10 })
+      : { frames: [] as Awaited<ReturnType<FrameStore["listFrames"]>>["frames"] };
+    const frameCount = storeHealth.healthy ? await store.getFrameCount() : 0;
     const latestFrame = result.frames.length > 0 ? result.frames[0].timestamp : null;
 
     // Get current git branch (if available)
@@ -126,21 +128,32 @@ export async function introspect(
       }
     }
 
-    const databasePath = store instanceof SqliteFrameStore ? store.db.name : getDefaultDbPath();
-    const databaseSource = process.env.LEX_DB_PATH
-      ? "env:LEX_DB_PATH"
-      : process.env.LEX_MEMORY_DB
-        ? "env:LEX_MEMORY_DB"
-        : configResolution.pathSources.database;
-    const storeIdentity = resolveStoreIdentity(
-      databasePath,
-      databaseSource,
-      configResolution.workspaceRoot.path
-    );
-    const storeWarning = alternateStoreWarning(storeIdentity);
-    const warnings = storeWarning
-      ? [{ code: "ALTERNATE_STORES_FOUND", message: storeWarning }]
-      : [];
+    const metadata = store.getMetadata();
+    const databaseSource =
+      metadata.backend === "postgres"
+        ? "env:LEX_DATABASE_URL"
+        : process.env.LEX_DB_PATH
+          ? "env:LEX_DB_PATH"
+          : process.env.LEX_MEMORY_DB
+            ? "env:LEX_MEMORY_DB"
+            : configResolution.pathSources.database;
+    const sqliteIdentity =
+      metadata.backend === "sqlite"
+        ? resolveStoreIdentity(
+            metadata.location,
+            databaseSource,
+            configResolution.workspaceRoot.path
+          )
+        : null;
+    const storeWarning = sqliteIdentity ? alternateStoreWarning(sqliteIdentity) : null;
+    const warnings: Array<{ code: string; message: string }> = [];
+    if (storeWarning) warnings.push({ code: "ALTERNATE_STORES_FOUND", message: storeWarning });
+    if (!storeHealth.healthy) {
+      warnings.push({
+        code: "STORE_UNAVAILABLE",
+        message: storeHealth.message ?? "The configured FrameStore is unavailable.",
+      });
+    }
 
     const runtimeResolution = {
       workspaceRoot: {
@@ -156,11 +169,13 @@ export async function introspect(
       },
       configFile: configResolution.configFile,
       database: {
-        path: databasePath,
-        canonicalPath: storeIdentity.canonicalPath,
-        identity: storeIdentity.identity,
+        backend: metadata.backend,
+        path: metadata.location,
+        canonicalPath: metadata.canonicalLocation,
+        identity: metadata.identity,
         source: databaseSource,
-        candidates: storeIdentity.candidates,
+        candidates: sqliteIdentity?.candidates ?? [],
+        health: storeHealth,
       },
       policy: {
         path: policyResolution.path,
@@ -174,10 +189,7 @@ export async function introspect(
     };
 
     // Capabilities (basic detection - MCP server has more sophisticated checks)
-    const capabilities = {
-      encryption: !!process.env.LEX_DB_KEY,
-      images: true, // Always supported in current version
-    };
+    const capabilities = metadata.capabilities;
 
     // Error codes - get all LEX_ERROR_CODES values and sort for deterministic ordering
     const errorCodes = Object.values(LEX_ERROR_CODES).sort();
@@ -359,7 +371,7 @@ export async function introspect(
       const errorMessage = error instanceof Error ? error.message : String(error);
       out.error(`Error: ${errorMessage}`);
     }
-    process.exit(1);
+    process.exitCode = 1;
   } finally {
     // Close store if we own it
     if (ownsStore) {

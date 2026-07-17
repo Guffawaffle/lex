@@ -119,6 +119,8 @@ test("SqliteFrameStore exposes read-only mode and retains its canonical source p
     assert.strictEqual(store.accessMode, "read-only");
     assert.strictEqual(store.databasePath, dbPath);
     assert.strictEqual(store.db.name, ":memory:");
+    assert.strictEqual(store.getMetadata().location, dbPath);
+    assert.notStrictEqual(store.getMetadata().identity, "sqlite-v1:memory");
     await assert.rejects(
       store.saveFrame({
         id: "forbidden-write",

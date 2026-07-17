@@ -1,5 +1,5 @@
 import { getLogger } from "@smartergpt/lex/logger";
-import { SqliteFrameStore } from "../store/sqlite/index.js";
+import { createFrameStore, SqliteFrameStore } from "../store/index.js";
 import type { FrameStore, FrameSearchCriteria } from "../store/frame-store.js";
 // @ts-ignore - importing from compiled dist directories
 import { ImageManager } from "../store/images.js";
@@ -172,7 +172,7 @@ export interface ToolCallParams {
 export interface MCPServerOptions {
   /**
    * FrameStore instance to use for frame persistence.
-   * If not provided, creates a SqliteFrameStore with the given dbPath.
+   * If not provided, uses the shared LEX_STORE-aware FrameStore factory.
    */
   frameStore?: FrameStore;
   /** Database path. Only used if frameStore is not provided. */
@@ -226,14 +226,19 @@ export class MCPServer {
       this.frameStore = options.frameStore;
       this.dbPathSource = "frameStore";
     } else if (options.dbPath) {
-      this.frameStore = new SqliteFrameStore(options.dbPath);
+      this.frameStore = createFrameStore(options.dbPath);
       this.dbPathSource =
-        resolve(this.configResolution.config.paths.database) === resolve(options.dbPath)
-          ? this.configResolution.pathSources.database
-          : "constructor.dbPath";
+        this.frameStore.getMetadata().backend === "postgres"
+          ? "env:LEX_DATABASE_URL"
+          : resolve(this.configResolution.config.paths.database) === resolve(options.dbPath)
+            ? this.configResolution.pathSources.database
+            : "constructor.dbPath";
     } else {
-      this.frameStore = new SqliteFrameStore(this.configResolution.config.paths.database);
-      this.dbPathSource = this.configResolution.pathSources.database;
+      this.frameStore = createFrameStore(this.configResolution.config.paths.database);
+      this.dbPathSource =
+        this.frameStore.getMetadata().backend === "postgres"
+          ? "env:LEX_DATABASE_URL"
+          : this.configResolution.pathSources.database;
     }
 
     // ImageManager requires raw SQLite access — only available with SqliteFrameStore
@@ -590,23 +595,30 @@ export class MCPServer {
       image_ids: [] as string[],
     };
 
-    await this.frameStore.saveFrame(frame);
-
     // Process image attachments if provided
     const imageIds: string[] = [];
+    const imageManager = this.imageManager;
     if (images && Array.isArray(images) && images.length > 0) {
-      if (!this.imageManager) {
+      if (!imageManager) {
         throw new MCPError(
           MCPErrorCode.STORAGE_IMAGE_FAILED,
-          "Image storage is not available with the current store implementation",
-          { frameId }
+          `Image storage is not available because it is unsupported by the ${this.frameStore.getMetadata().backend} backend`,
+          { frameId, backend: this.frameStore.getMetadata().backend }
         );
+      }
+    }
+
+    await this.frameStore.saveFrame(frame);
+
+    if (images && Array.isArray(images) && images.length > 0) {
+      if (!imageManager) {
+        throw new Error("Image manager became unavailable after image capability validation");
       }
       for (const img of images) {
         try {
           // Decode base64 image data
           const imageBuffer = Buffer.from(img.data, "base64");
-          const imageId = this.imageManager.storeImage(frameId, imageBuffer, img.mime_type);
+          const imageId = imageManager.storeImage(frameId, imageBuffer, img.mime_type);
           imageIds.push(imageId);
         } catch (error: unknown) {
           // If image storage fails, clean up the Frame and rethrow
@@ -1642,9 +1654,12 @@ export class MCPServer {
           }
         : null;
 
-      // Get state information
-      const result = await this.frameStore.listFrames({ limit: 1 });
-      const frameCount = await this.getFrameCount();
+      // Get state information through a backend-neutral health probe.
+      const storeHealth = await this.frameStore.getHealth();
+      const result = storeHealth.healthy
+        ? await this.frameStore.listFrames({ limit: 1 })
+        : { frames: [] };
+      const frameCount = storeHealth.healthy ? await this.getFrameCount() : 0;
       const latestFrame = result.frames.length > 0 ? result.frames[0].timestamp : null;
 
       // Get current branch (if available)
@@ -1680,26 +1695,33 @@ export class MCPServer {
             : this.configResolution.workspaceRoot.source,
       };
 
-      const databasePath =
-        this.frameStore instanceof SqliteFrameStore ? this.frameStore.db.name : "memory-store";
-      const storeIdentity = resolveStoreIdentity(
-        databasePath,
-        this.dbPathSource,
-        workspaceResolution.path
-      );
-      const storeWarning = alternateStoreWarning(storeIdentity);
-      const warnings = storeWarning
-        ? [{ code: "ALTERNATE_STORES_FOUND", message: storeWarning }]
-        : [];
+      const metadata = this.frameStore.getMetadata();
+      const sqliteIdentity =
+        metadata.backend === "sqlite"
+          ? resolveStoreIdentity(metadata.location, this.dbPathSource, workspaceResolution.path)
+          : null;
+      const storeWarning = sqliteIdentity ? alternateStoreWarning(sqliteIdentity) : null;
+      const warnings: Array<{ code: string; message: string }> = [];
+      if (storeWarning) {
+        warnings.push({ code: "ALTERNATE_STORES_FOUND", message: storeWarning });
+      }
+      if (!storeHealth.healthy) {
+        warnings.push({
+          code: "STORE_UNAVAILABLE",
+          message: storeHealth.message ?? "The configured FrameStore is unavailable.",
+        });
+      }
       const runtimeResolution = {
         workspaceRoot: workspaceResolution,
         configFile: this.configResolution.configFile,
         database: {
-          path: databasePath,
-          canonicalPath: storeIdentity.canonicalPath,
-          identity: storeIdentity.identity,
+          backend: metadata.backend,
+          path: metadata.location,
+          canonicalPath: metadata.canonicalLocation,
+          identity: metadata.identity,
           source: this.dbPathSource,
-          candidates: storeIdentity.candidates,
+          candidates: sqliteIdentity?.candidates ?? [],
+          health: storeHealth,
         },
         policy: {
           path: this.policyResolution?.path ?? null,
@@ -1716,8 +1738,8 @@ export class MCPServer {
       const capabilities = {
         // SQLite database with better-sqlite3-multiple-ciphers supports encryption
         // (though encryption may not be active for all databases)
-        encryption: this.frameStore instanceof SqliteFrameStore,
-        images: this.imageManager !== null,
+        encryption: metadata.capabilities.encryption,
+        images: metadata.capabilities.images,
       };
 
       // Error codes - get all MCPErrorCode values and sort for deterministic ordering
@@ -2585,6 +2607,8 @@ export class MCPServer {
     const storeStats = await this.frameStore.getStats(detailed);
 
     const result: Record<string, unknown> = {
+      store: this.frameStore.getMetadata(),
+      health: await this.frameStore.getHealth(),
       frames: {
         total: storeStats.totalFrames,
         thisWeek: storeStats.thisWeek,

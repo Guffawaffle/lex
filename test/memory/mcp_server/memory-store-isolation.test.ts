@@ -395,6 +395,11 @@ describe("MCP Server with MemoryFrameStore - Test Isolation", () => {
           response.error.message.includes("Image storage is not available"),
           "Error should mention image storage limitation"
         );
+        assert.strictEqual(
+          await memoryStore.getFrameCount(),
+          0,
+          "Rejected images must not write a Frame"
+        );
       } finally {
         await server.close();
       }

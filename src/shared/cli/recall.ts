@@ -67,7 +67,8 @@ export async function recall(
           limit = options.list;
         } else {
           output.error(`\n❌ Error: --list limit must be greater than 0\n`);
-          process.exit(1);
+          process.exitCode = 1;
+          return;
         }
       }
       const result = await store.listFrames({ limit });
@@ -79,13 +80,15 @@ export async function recall(
         } else {
           output.info(`\nNo frames found in database\n`);
         }
-        process.exit(options.strict ? 1 : 0);
+        process.exitCode = options.strict ? 1 : 0;
+        return;
       }
     } else {
       // Normal search mode - query is required
       if (!query) {
         output.error(`\n❌ Error: Search query required when not using --list\n`);
-        process.exit(1);
+        process.exitCode = 1;
+        return;
       }
 
       // Parse natural query for metadata extraction
@@ -124,7 +127,8 @@ export async function recall(
         } else {
           output.info(`\nNo frames found matching: "${query}"\n`);
         }
-        process.exit(options.strict ? 1 : 0);
+        process.exitCode = options.strict ? 1 : 0;
+        return;
       }
     }
 
@@ -186,7 +190,8 @@ export async function recall(
       if (!query || !naturalQuery) {
         // Shouldn't happen, but fallback to default
         output.error(`\n❌ Error: Query required for prose format\n`);
-        process.exit(1);
+        process.exitCode = 1;
+        return;
       }
       const narrative = formatAsNarrative(frames, naturalQuery);
       output.info(`\n${narrative}\n`);
@@ -237,7 +242,7 @@ export async function recall(
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     output.error(`\n❌ Error: ${errorMessage}\n`);
-    process.exit(2);
+    process.exitCode = 2;
   } finally {
     // Close store if we own it
     if (ownsStore) {

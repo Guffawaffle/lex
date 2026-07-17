@@ -8,6 +8,11 @@ import { existsSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import type { Frame } from "../types/frame-schema.js";
 import type { FrameStore } from "../../memory/store/frame-store.js";
+import {
+  createFrameStore,
+  PostgresFrameStore,
+  resolveFrameStoreBackend,
+} from "../../memory/store/index.js";
 import { SqliteFrameStore } from "../../memory/store/sqlite/index.js";
 import { ReadOnlyDatabaseError } from "../../memory/store/db.js";
 import {
@@ -84,7 +89,7 @@ export interface SessionContext {
     store: {
       path: string;
       canonicalPath: string;
-      source: ConfigValueSource | "frameStore";
+      source: ConfigValueSource | "frameStore" | "env:LEX_DATABASE_URL";
       identity: string;
       exists: boolean;
       accessMode: ContextStoreAccessMode;
@@ -328,7 +333,7 @@ function fitToBudget(context: SessionContext, format: "json" | "text"): SessionC
   if (context.budget.truncated) {
     context.warnings.push({
       code: "OUTPUT_TRUNCATED",
-      message: `${context.budget.omittedFrames} selected Frame(s) omitted to enforce the output budget.`,
+      message: `${context.budget.omittedFrames} Frame(s) omitted for the output budget.`,
     });
     estimate = updateBudgetEstimate(context, format);
   }
@@ -362,26 +367,44 @@ export async function buildSessionContext(
   });
   const projectRoot = configResolution.workspaceRoot.path;
   const branch = resolveBranch(projectRoot, options.branch);
-  const selectedStorePath =
-    injectedStore instanceof SqliteFrameStore
-      ? injectedStore.databasePath
-      : configResolution.config.paths.database;
-  const storeSource: ConfigValueSource | "frameStore" = injectedStore
+  let store = injectedStore;
+  let ownsStore = false;
+  const backend = injectedStore?.getMetadata().backend ?? resolveFrameStoreBackend();
+  if (!store && backend === "postgres") {
+    store = createFrameStore(undefined, { accessMode: "read-only" });
+    ownsStore = true;
+  }
+  const metadata = store?.getMetadata();
+  const selectedStorePath = metadata?.location ?? configResolution.config.paths.database;
+  const storeSource: ConfigValueSource | "frameStore" | "env:LEX_DATABASE_URL" = injectedStore
     ? "frameStore"
-    : configResolution.pathSources.database;
-  const storeExists = injectedStore !== undefined || existsSync(selectedStorePath);
+    : backend === "postgres"
+      ? "env:LEX_DATABASE_URL"
+      : configResolution.pathSources.database;
+  const storeExists = store !== undefined || existsSync(selectedStorePath);
   const storeAccessMode: ContextStoreAccessMode =
-    injectedStore instanceof SqliteFrameStore
-      ? injectedStore.accessMode
-      : injectedStore
-        ? "injected"
-        : "read-only";
-  const storeIdentity = resolveStoreIdentity(selectedStorePath, storeSource, projectRoot);
+    store instanceof SqliteFrameStore
+      ? store.accessMode
+      : store instanceof PostgresFrameStore
+        ? store.accessMode
+        : store
+          ? "injected"
+          : "read-only";
+  const storeIdentity =
+    backend === "sqlite"
+      ? resolveStoreIdentity(selectedStorePath, storeSource, projectRoot)
+      : {
+          path: selectedStorePath,
+          canonicalPath: metadata?.canonicalLocation ?? selectedStorePath,
+          identity: metadata?.identity ?? `${backend}-v1:unavailable`,
+          exists: storeExists,
+          candidates: [],
+        };
   const canonicalStorePath = storeIdentity.canonicalPath;
   const candidates = storeIdentity.candidates;
   const warnings: ContextWarning[] = [];
 
-  const alternateWarning = alternateStoreWarning(storeIdentity);
+  const alternateWarning = backend === "sqlite" ? alternateStoreWarning(storeIdentity) : null;
   if (alternateWarning) {
     warnings.push({
       code: "ALTERNATE_STORES_FOUND",
@@ -421,8 +444,6 @@ export async function buildSessionContext(
     });
   }
 
-  let store = injectedStore;
-  let ownsStore = false;
   let candidateFrames: Frame[] = [];
   if (!storeExists) {
     warnings.push({
@@ -432,7 +453,7 @@ export async function buildSessionContext(
   } else {
     try {
       if (!store) {
-        store = new SqliteFrameStore(selectedStorePath, { accessMode: "read-only" });
+        store = createFrameStore(selectedStorePath, { accessMode: "read-only" });
         ownsStore = true;
       }
       const candidateLimit = Math.min(MAX_CANDIDATES, Math.max(requestedLimit * 10, 50));

@@ -58,7 +58,7 @@ describe("Database Backup and Maintenance", () => {
   test("should generate timestamped backup filename", () => {
     const date = new Date("2025-11-23T12:00:00.000Z");
     const filename = generateBackupFilename(date);
-    assert.strictEqual(filename, "memory-20251123.sqlite");
+    assert.strictEqual(filename, "memory-20251123-120000.000.sqlite");
   });
 
   test("should get backup directory", () => {
@@ -103,6 +103,14 @@ describe("Database Backup and Maintenance", () => {
 
     const backups = readdirSync(backupDir).filter((f) => f.startsWith("memory-"));
     assert.ok(backups.length <= 2, "Should keep at most 2 backups");
+  });
+
+  test("should never overwrite backups created in the same millisecond", () => {
+    const first = backupDatabase(testDbPath, 0, testWorkspaceRoot);
+    const second = backupDatabase(testDbPath, 0, testWorkspaceRoot);
+    assert.notStrictEqual(first, second);
+    assert.ok(existsSync(first));
+    assert.ok(existsSync(second));
   });
 
   test("should get backup retention from environment", () => {

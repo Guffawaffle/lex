@@ -113,7 +113,8 @@ export async function remember(
           }
         );
         out.json({ level: "error", message: axError.message, data: axError, code: axError.code });
-        process.exit(1);
+        process.exitCode = 1;
+        return;
       }
     }
 
@@ -201,7 +202,8 @@ export async function remember(
             out.info(`  → ${action}`);
           }
         }
-        process.exit(1);
+        process.exitCode = 1;
+        return;
       }
 
       // Use canonical (resolved) module IDs from validation
@@ -318,7 +320,7 @@ export async function remember(
       const errorMessage = error instanceof Error ? error.message : String(error);
       out.error(`Error: ${errorMessage}`);
     }
-    process.exit(2);
+    process.exitCode = 2;
   } finally {
     // Close store if we own it
     if (ownsStore) {

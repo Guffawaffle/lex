@@ -4,7 +4,15 @@
  * Provides backup, vacuum, and rotation functionality for SQLite database.
  */
 
-import { copyFileSync, mkdirSync, existsSync, readdirSync, statSync, unlinkSync } from "fs";
+import {
+  constants,
+  copyFileSync,
+  mkdirSync,
+  existsSync,
+  readdirSync,
+  statSync,
+  unlinkSync,
+} from "fs";
 import { join } from "path";
 import type Database from "better-sqlite3-multiple-ciphers";
 
@@ -23,13 +31,11 @@ export function getBackupDir(workspaceRoot?: string): string {
 }
 
 /**
- * Generate timestamped backup filename (format: memory-YYYYMMDD.sqlite)
+ * Generate a millisecond-precision UTC backup filename.
  */
 export function generateBackupFilename(date: Date = new Date()): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `memory-${year}${month}${day}.sqlite`;
+  const stamp = date.toISOString().replace(/[-:]/g, "").replace("T", "-").replace("Z", "");
+  return `memory-${stamp}.sqlite`;
 }
 
 /**
@@ -62,10 +68,24 @@ export function rotateBackups(backupDir: string, maxBackups: number = 7): void {
 export function backupDatabase(dbPath: string, rotate: number = 7, workspaceRoot?: string): string {
   const backupDir = getBackupDir(workspaceRoot);
   const backupFilename = generateBackupFilename();
-  const backupPath = join(backupDir, backupFilename);
+  const extension = ".sqlite";
+  const basename = backupFilename.slice(0, -extension.length);
+  let backupPath = join(backupDir, backupFilename);
+  let collision = 0;
 
-  // Copy database file
-  copyFileSync(dbPath, backupPath);
+  // COPYFILE_EXCL plus a suffix loop prevents same-tick and concurrent backups
+  // from silently replacing a previous recovery point.
+  while (true) {
+    try {
+      copyFileSync(dbPath, backupPath, constants.COPYFILE_EXCL);
+      break;
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code !== "EEXIST") throw error;
+      collision++;
+      backupPath = join(backupDir, `${basename}-${collision}${extension}`);
+    }
+  }
 
   // Rotate old backups if requested
   if (rotate > 0) {

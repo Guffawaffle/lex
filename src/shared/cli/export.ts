@@ -86,23 +86,30 @@ function getDefaultOutputDir(): string {
  * Prepare frame for export by including only defined fields
  */
 function prepareFrameForExport(frame: Frame): Frame {
-  return {
-    id: frame.id,
-    reference_point: frame.reference_point,
-    summary_caption: frame.summary_caption,
-    status_snapshot: frame.status_snapshot,
-    module_scope: frame.module_scope,
-    branch: frame.branch,
-    timestamp: frame.timestamp,
-    ...(frame.jira && { jira: frame.jira }),
-    ...(frame.keywords && { keywords: frame.keywords }),
-    ...(frame.atlas_frame_id && { atlas_frame_id: frame.atlas_frame_id }),
-    ...(frame.feature_flags && { feature_flags: frame.feature_flags }),
-    ...(frame.permissions && { permissions: frame.permissions }),
-    ...(frame.runId && { runId: frame.runId }),
-    ...(frame.planHash && { planHash: frame.planHash }),
-    ...(frame.spend && { spend: frame.spend }),
-  };
+  // Preserve every field returned by the active store. Reconstructing a
+  // hand-picked subset silently discarded newer optional Frame metadata and
+  // made exports unsuitable as lossless migration/recovery artifacts.
+  return { ...frame };
+}
+
+/** Read every frame through stable cursor pagination. */
+async function listAllFrames(store: FrameStore): Promise<Frame[]> {
+  const frames: Frame[] = [];
+  let cursor: string | undefined;
+  const seenCursors = new Set<string>();
+
+  while (true) {
+    const result = await store.listFrames({ limit: 500, cursor });
+    frames.push(...result.frames);
+    if (!result.page.hasMore || !result.page.nextCursor) break;
+    if (seenCursors.has(result.page.nextCursor)) {
+      throw new Error("Frame export pagination returned a repeated cursor");
+    }
+    seenCursors.add(result.page.nextCursor);
+    cursor = result.page.nextCursor;
+  }
+
+  return frames;
 }
 
 /**
@@ -135,8 +142,7 @@ export async function exportFrames(
       frames = await store.searchFrames(searchCriteria);
     } else {
       // Get all frames
-      const result = await store.listFrames();
-      frames = result.frames;
+      frames = await listAllFrames(store);
     }
 
     // Apply additional filters (jira, branch) in memory
@@ -221,7 +227,7 @@ export async function exportFrames(
     } else {
       output.error(`\n❌ Export failed: ${String(error)}\n`);
     }
-    process.exit(1);
+    process.exitCode = 1;
   } finally {
     // Close store if we own it
     if (ownsStore) {

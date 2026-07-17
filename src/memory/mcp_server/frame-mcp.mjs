@@ -91,19 +91,16 @@ process.stdin.on("data", async (chunk) => {
     }
   }
 }); // Graceful shutdown
-process.on("SIGINT", () => {
-  if (mcpServer) {
-    mcpServer.close();
-  }
+let shuttingDown = false;
+async function shutdown() {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  if (mcpServer) await mcpServer.close();
   process.exit(0);
-});
+}
 
-process.on("SIGTERM", () => {
-  if (mcpServer) {
-    mcpServer.close();
-  }
-  process.exit(0);
-});
+process.on("SIGINT", () => void shutdown());
+process.on("SIGTERM", () => void shutdown());
 
 if (process.env.LEX_DEBUG) {
   console.error("[LEX] Memory MCP server ready (stdio mode)");

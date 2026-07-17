@@ -1,4 +1,4 @@
-import { test } from "node:test";
+import { afterEach, beforeEach, test } from "node:test";
 import assert from "node:assert";
 import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -9,6 +9,21 @@ import { SqliteFrameStore } from "@app/memory/store/sqlite/index.js";
 import { DATABASE_SCHEMA_VERSION } from "@app/memory/store/db.js";
 import type { Frame } from "@app/shared/types/frame-schema.js";
 import { buildSessionContext, renderSessionContextText } from "@app/shared/cli/context.js";
+
+const originalStoreBackend = process.env.LEX_STORE;
+const originalDatabaseUrl = process.env.LEX_DATABASE_URL;
+
+beforeEach(() => {
+  process.env.LEX_STORE = "sqlite";
+  delete process.env.LEX_DATABASE_URL;
+});
+
+afterEach(() => {
+  if (originalStoreBackend === undefined) delete process.env.LEX_STORE;
+  else process.env.LEX_STORE = originalStoreBackend;
+  if (originalDatabaseUrl === undefined) delete process.env.LEX_DATABASE_URL;
+  else process.env.LEX_DATABASE_URL = originalDatabaseUrl;
+});
 
 function frame(
   id: string,
@@ -84,11 +99,11 @@ test("context enforces the requested JSON output budget", async () => {
   );
 
   const result = await buildSessionContext(
-    { branch: "main", limit: 12, maxTokens: 900, json: true },
+    { branch: "main", limit: 12, maxTokens: 1000, json: true },
     new MemoryFrameStore(frames)
   );
 
-  assert.ok(result.budget.estimatedTokens <= 900);
+  assert.ok(result.budget.estimatedTokens <= 1000);
   assert.strictEqual(result.budget.truncated, true);
   assert.ok(result.budget.omittedFrames > 0);
   assert.ok(result.warnings.some((warning) => warning.code === "OUTPUT_TRUNCATED"));

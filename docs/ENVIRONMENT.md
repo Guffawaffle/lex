@@ -15,6 +15,44 @@ Lex follows a consistent precedence order for configuration:
 
 ## Core Path Variables
 
+### `LEX_STORE`
+
+**Purpose:** Select the Frame storage backend.
+
+**Values:** `sqlite` (default) or `postgres`.
+
+Lex does not switch backends merely because a PostgreSQL-related variable exists. PostgreSQL is selected only with `LEX_STORE=postgres`.
+
+```bash
+export LEX_STORE=postgres
+export LEX_DATABASE_URL='postgresql://lex:<password>@127.0.0.1:5432/lex'
+```
+
+### `LEX_DATABASE_URL`
+
+**Purpose:** PostgreSQL connection URL used when `LEX_STORE=postgres`.
+
+The URL is required for PostgreSQL and ignored by SQLite. Introspection redacts the password and query parameters. Keep credentials in the host environment or a secret manager; do not commit them.
+
+To keep credentials out of launcher configuration, use a password-free URL and
+provide the secret separately:
+
+```bash
+export LEX_DATABASE_URL=postgresql://lex@127.0.0.1:5433/lex
+export LEX_POSTGRES_PASSWORD=secret
+```
+
+### `LEX_POSTGRES_PASSWORD`
+
+**Purpose:** Optional PostgreSQL password used only when `LEX_DATABASE_URL`
+does not embed one. It is never included in store metadata or introspection.
+
+### `LEX_POSTGRES_POOL_MAX`
+
+**Purpose:** Maximum PostgreSQL pool size.
+
+**Default:** `10`.
+
 ### `LEX_WORKSPACE_ROOT`
 
 **Purpose:** Override the workspace root directory.
@@ -31,11 +69,11 @@ export LEX_WORKSPACE_ROOT=/path/to/my/project
 
 ### `LEX_DB_PATH`
 
-**Purpose:** Override the database file location.
+**Purpose:** Override the SQLite database file location.
 
 **Default:** `.smartergpt/lex/memory.db` relative to workspace root.
 
-**Used by:** Frame storage, all memory operations.
+**Used by:** SQLite Frame storage. It is not used by the PostgreSQL backend.
 
 ```bash
 export LEX_DB_PATH=/custom/path/frames.db
@@ -324,7 +362,11 @@ export LEX_ENABLE_EXTERNAL_SCANNER_TESTS=1
 | Variable | Purpose | Default | Contract Status |
 |----------|---------|---------|-----------------|
 | `LEX_WORKSPACE_ROOT` | Workspace root | Auto-detect | 1.0.0 |
-| `LEX_DB_PATH` | Database path | `.smartergpt/lex/memory.db` | 1.0.0 |
+| `LEX_STORE` | Frame backend (`sqlite` or `postgres`) | `sqlite` | Experimental |
+| `LEX_DATABASE_URL` | PostgreSQL connection URL | — | Experimental |
+| `LEX_POSTGRES_PASSWORD` | Separate PostgreSQL password | — | Experimental |
+| `LEX_POSTGRES_POOL_MAX` | PostgreSQL pool size | `10` | Experimental |
+| `LEX_DB_PATH` | SQLite database path | `.smartergpt/lex/memory.db` | 1.0.0 |
 | `LEX_MEMORY_DB` | Compatibility alias for `LEX_DB_PATH` | — | Compatibility |
 | `LEX_POLICY_PATH` | Policy file path | `.smartergpt/lex/lexmap.policy.json` | 1.0.0 |
 | `LEX_APP_ROOT` | App root | Auto-detect | 1.0.0 |
