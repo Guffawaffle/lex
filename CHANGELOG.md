@@ -1,5 +1,21 @@
 # Changelog
 
+## 2.10.0
+
+### Minor Changes
+
+- Add a shared PostgreSQL FrameStore so WSL2 and Windows clients can use one
+  coordinated store while preserving SQLite as the default local backend.
+- Make `lex init` backend-aware, including PostgreSQL-only bootstrap support and
+  explicit handling for existing shared stores.
+
+### Patch Changes
+
+- Add hard read-only SQLite access for inspection workflows without creating or
+  mutating store files.
+- Align the compiler and build graph with TypeScript 6 while retaining the
+  existing runtime, CLI, MCP, and package contracts.
+
 ## 2.9.1
 
 ### Patch Changes
