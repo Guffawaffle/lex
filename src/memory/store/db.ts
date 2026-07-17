@@ -404,7 +404,14 @@ function normalizeDetachedSnapshotJournalMode(snapshot: Buffer): Buffer {
  * migrations, or set file-backed pragmas such as journal_mode.
  */
 export function openDatabaseReadOnly(dbPath: string): Database.Database {
-  if (!dbPath || dbPath === ":memory:" || dbPath.startsWith("file:") || !existsSync(dbPath)) {
+  if (dbPath.startsWith("file:")) {
+    throw new ReadOnlyDatabaseError(
+      "STORE_UNAVAILABLE",
+      "SQLite file URIs cannot yet be opened through the detached read-only snapshot path. Configure LEX_DB_PATH with a filesystem path for hard read-only context reads."
+    );
+  }
+
+  if (!dbPath || dbPath === ":memory:" || !existsSync(dbPath)) {
     throw new ReadOnlyDatabaseError(
       "STORE_NOT_FOUND",
       `The selected Lex store does not exist as a filesystem database: ${dbPath}.`

@@ -13,6 +13,7 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { createHash } from "node:crypto";
+import { pathToFileURL } from "node:url";
 import Database from "better-sqlite3-multiple-ciphers";
 import {
   createDatabase,
@@ -154,6 +155,30 @@ test("openDatabaseReadOnly does not create a missing store, parent, or sidecars"
     );
     assert.strictEqual(existsSync(dirname(dbPath)), false);
     assert.deepStrictEqual(readdirSync(root), entriesBefore);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("openDatabaseReadOnly reports SQLite file URIs as unavailable, not missing", () => {
+  const root = mkdtempSync(join(tmpdir(), "lex-read-only-file-uri-"));
+  const dbPath = join(root, "memory.db");
+
+  try {
+    createDatabase(dbPath).close();
+    const filesBefore = filesystemSnapshot(dbPath);
+
+    assert.throws(
+      () => openDatabaseReadOnly(pathToFileURL(dbPath).href),
+      (error: unknown) => {
+        assert.ok(error instanceof ReadOnlyDatabaseError);
+        assert.strictEqual(error.code, "STORE_UNAVAILABLE");
+        assert.match(error.message, /SQLite file URIs/i);
+        assert.match(error.message, /filesystem path/i);
+        return true;
+      }
+    );
+    assert.deepStrictEqual(filesystemSnapshot(dbPath), filesBefore);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
