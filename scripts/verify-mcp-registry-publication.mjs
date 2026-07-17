@@ -3,7 +3,7 @@
  * Verifies that a just-published Lex entry is the live MCP Registry latest
  * version. Intended for the protected post-publication workflow step.
  *
- * Usage: node scripts/verify-mcp-registry-publication.mjs --version 2.9.1
+ * Usage: node scripts/verify-mcp-registry-publication.mjs --version 2.10.0
  */
 
 const versionIndex = process.argv.indexOf("--version");
