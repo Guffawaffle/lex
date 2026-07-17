@@ -273,35 +273,56 @@ On non-tag branches or manual dispatch:
 
 1. CHANGELOG.md is automatically updated via changesets
 2. GitHub Release is created automatically
-3. **MCP Registry is automatically updated** (see below)
+3. **MCP Registry is published from the signed release tag** (see below)
 4. Announce in relevant channels
 5. Update documentation if needed
 
 ### MCP Registry Publication
 
-The MCP (Model Context Protocol) Registry is automatically updated when a new release is published.
+The MCP (Model Context Protocol) Registry entry is published from Lex's signed
+release tag after the matching npm artifacts are available.
+
+The entry describes `@smartergpt/lex-mcp`, not the Lex CLI package. A registry
+release is therefore a coordinated release: `@smartergpt/lex`,
+`@smartergpt/lex-mcp`, and `server.json` must use the exact same version.
 
 #### Automatic Publication
 
-When a GitHub release is published (via the release workflow):
-1. The `.github/workflows/mcp-publish.yml` workflow triggers automatically
-2. Version sync: `server.json` version is synced with `package.json` version
-3. Validation: `server.json` is validated against MCP schema
-4. Authentication: GitHub OIDC is used for secure authentication
-5. Publication: Package is published to the MCP Registry
+After publishing the two npm artifacts and pushing Lex's signed `vX.Y.Z` tag:
+1. The `.github/workflows/mcp-publish.yml` workflow triggers directly from the tag.
+2. It validates the committed `server.json` against the official registry schema.
+3. It verifies the published core and wrapper metadata, including the wrapper's
+   `mcpName`, exact core dependency, Node engine, and package version.
+4. The protected `mcp-publish` environment requires approval before DNS-key use.
+5. The approved job publishes the entry to the MCP Registry.
 
-**No manual intervention required** - the workflow handles everything automatically.
+The GitHub Release created by `release.yml` is informational; it is not the
+registry trigger. This avoids relying on a downstream `release` event created
+by `GITHUB_TOKEN`.
+
+### Required Release Order
+
+1. Merge the coordinated Lex and `lex-mcp` release changes with the same version.
+2. Publish `@smartergpt/lex@X.Y.Z` to npm.
+3. Publish `@smartergpt/lex-mcp@X.Y.Z` to npm. Its dependency on Lex must be
+   exactly `X.Y.Z`, not a range.
+4. Run the contract check and push Lex's signed, annotated `vX.Y.Z` tag.
+5. Approve the protected MCP Registry publish job and verify the live entry.
+
+Both the release and registry workflows require the repository's
+`TRUSTED_GPG_KEYS` secret. They fail closed if the selected tag is unsigned,
+lightweight, or not verifiable by one of those keys.
 
 #### Manual Testing/Publication
 
 To manually test or publish to the MCP Registry:
 
 ```bash
-# Via GitHub Actions (dry run - validation only)
-gh workflow run mcp-publish.yml -f dry_run=true
+# Via GitHub Actions from the immutable signed tag (dry run - validation only)
+gh workflow run mcp-publish.yml --ref vX.Y.Z -f version=X.Y.Z -f dry_run=true
 
 # Via GitHub Actions (actual publish)
-gh workflow run mcp-publish.yml -f dry_run=false
+gh workflow run mcp-publish.yml --ref vX.Y.Z -f version=X.Y.Z -f dry_run=false
 ```
 
 #### Local Testing
@@ -309,37 +330,33 @@ gh workflow run mcp-publish.yml -f dry_run=false
 For local testing before release:
 
 ```bash
-# Install mcp-publisher
-# Note: For production use, consider verifying checksums or pinning to a specific version
-curl -L "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_linux_amd64.tar.gz" | tar xz
-sudo mv mcp-publisher /usr/local/bin/
+# Check the committed manifest/version contract.
+npm run check:mcp-registry-contract
 
-# Sync versions (automated in workflow)
-VERSION=$(jq -r '.version' package.json)
-jq --arg v "$VERSION" '.version = $v | .packages[0].version = $v' server.json > server.json.tmp
-mv server.json.tmp server.json
+# Validate against the official schema.
+curl -fsSL "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json" \
+  -o /tmp/mcp-server.schema.json
+node scripts/verify-mcp-registry-contract.mjs \
+  --version "$(node -p \"require('./package.json').version\")" \
+  --schema /tmp/mcp-server.schema.json
 
-# Validate server.json
-mcp-publisher validate
-
-# Authenticate (requires GitHub OAuth)
-mcp-publisher login github
-
-# Publish (requires authentication)
-mcp-publisher publish
+# Registry publishing uses DNS authentication in the protected GitHub workflow.
+# Use workflow_dispatch for recovery rather than publishing ad hoc from a laptop.
 ```
 
 #### Version Synchronization
 
-The workflow automatically ensures `server.json` stays in sync with `package.json`:
+The release PR keeps these values in sync; the workflow rejects drift rather
+than rewriting a manifest at publish time:
 - Top-level `version` field
 - `packages[0].version` field (npm package version)
+- `@smartergpt/lex-mcp` package version and its exact Lex dependency
 
-**Important:** Both versions must match the npm package version for successful publication.
+**Important:** all three versions must match before registry publication.
 
 #### Registry Entry
 
-- **Registry Name:** `io.github.guffawaffle/lex`
+- **Registry Name:** `dev.smartergpt/lex`
 - **Package Name:** `@smartergpt/lex-mcp`
 - **Registry Type:** npm
 - **Transport:** stdio
@@ -349,17 +366,19 @@ The workflow automatically ensures `server.json` stays in sync with `package.jso
 
 If MCP registry publication fails:
 
-1. **Check GitHub OIDC permissions**: Ensure `id-token: write` permission is granted
-2. **Validate server.json**: Run `mcp-publisher validate` locally
-3. **Check version sync**: Ensure `server.json` versions match `package.json`
-4. **Review workflow logs**: Check `.github/workflows/mcp-publish.yml` run logs
-5. **Manual publish**: Use workflow dispatch with `dry_run=false`
+1. **Check package availability**: both exact npm versions must exist before the tag.
+2. **Validate the contract**: run `npm run check:mcp-registry-contract`.
+3. **Check DNS credentials**: ensure the protected environment has the current
+   `MCP_REGISTRY_PRIVATE_KEY_HEX` secret and the apex TXT record.
+4. **Review workflow logs**: check `.github/workflows/mcp-publish.yml`.
+5. **Recover deliberately**: dispatch the workflow from the immutable tag with
+   `version=X.Y.Z` and `dry_run=false`.
 
 For registry-specific issues, see [MCP Registry Documentation](https://github.com/modelcontextprotocol/registry)
 
 ## Notes
 
-- Package uses semantic versioning (currently `0.6.0`)
+- Package uses semantic versioning (currently `2.9.1`)
 - MIT license
 - Repository: `https://github.com/Guffawaffle/lex.git`
 - Package uses ESM (`"type": "module"`)

@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.9.1
+
+### Patch Changes
+
+- Harden the MCP Registry delivery contract: coordinated wrapper/core versions,
+  signed-tag provenance, schema and package validation, and protected DNS
+  publication from an immutable release tag.
+
 ## 2.9.0
 
 ### Minor Changes
