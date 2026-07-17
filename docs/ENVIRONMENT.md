@@ -21,7 +21,7 @@ Lex follows a consistent precedence order for configuration:
 
 **Values:** `sqlite` (default) or `postgres`.
 
-Lex does not switch backends merely because a PostgreSQL-related variable exists. PostgreSQL is selected only with `LEX_STORE=postgres`.
+Runtime FrameStore selection remains explicit: PostgreSQL is selected with `LEX_STORE=postgres`. The `lex init` bootstrap is intentionally more defensive; when `LEX_STORE` is unset, the presence of `LEX_DATABASE_URL` selects its PostgreSQL-only path so initialization cannot accidentally create SQLite state. `lex init --store sqlite|postgres` has the highest precedence for that command.
 
 ```bash
 export LEX_STORE=postgres

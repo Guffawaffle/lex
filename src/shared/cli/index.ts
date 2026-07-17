@@ -79,6 +79,7 @@ export function createProgram(): Command {
     .command("init")
     .description("Initialize .smartergpt/ workspace with prompts, policy, and instructions")
     .option("--force", "Overwrite existing files")
+    .option("--store <backend>", "Storage backend for initialization (sqlite or postgres)")
     .option("--policy", "Generate seed policy from src/ directory structure")
     .option("--prompts-dir <path>", "Custom prompts directory (default: .smartergpt/prompts)")
     .option("--no-instructions", "Skip creating canonical instructions file")
@@ -89,6 +90,7 @@ export function createProgram(): Command {
       const globalOptions = program.opts();
       const options: InitOptions = {
         force: cmdOptions.force || false,
+        store: cmdOptions.store,
         policy: cmdOptions.policy || false,
         json: globalOptions.json || false,
         promptsDir: cmdOptions.promptsDir,

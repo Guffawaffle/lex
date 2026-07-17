@@ -202,6 +202,11 @@ npx @smartergpt/lex init --yes
 # Shows MCP server configuration guidance
 # Idempotent: safe to run multiple times
 
+# PostgreSQL-only bootstrap (never creates memory.db)
+lex init --store postgres --yes
+# Also selected automatically for init by LEX_STORE=postgres, or by
+# LEX_DATABASE_URL when LEX_STORE is unset. Credentials are neither copied nor printed.
+
 # Interactive mode (prompts for first Frame)
 lex init --interactive
 
@@ -215,7 +220,7 @@ lex init --policy
 lex init --force
 ```
 
-During init, Lex detects common project types, creates IDE instruction files with LEX markers, writes `lex.yaml`, initializes `.smartergpt/lex/memory.db`, and prints MCP server configuration guidance.
+During init, Lex detects common project types, creates IDE instruction files with LEX markers, writes `lex.yaml`, and prints MCP server configuration guidance. SQLite remains the default and creates `.smartergpt/lex/memory.db` on first store use. PostgreSQL initialization creates only the repo-local bootstrap files and never creates or opens `memory.db`. Re-running init fills in missing bootstrap files while preserving existing files unless `--force` is supplied.
 
 ### Capture the first useful Frame
 
