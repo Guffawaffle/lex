@@ -3,7 +3,6 @@
   "compilerOptions": {
     "composite": true,
     "types": ["node"],
-    "baseUrl": ".",
     "paths": {
       "lex/logger": ["../../shared/logger"],
       "lex/logger/*": ["../../shared/logger/*"]

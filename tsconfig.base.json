@@ -6,16 +6,12 @@
     "strict": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,
-    // Disabled per Phase 3H: Pure ESM codebase doesn't need CJS interop flags
-    // All dependencies work correctly without these flags
-    "allowSyntheticDefaultImports": false,
-    "esModuleInterop": false,
+    "types": ["node"],
     "forceConsistentCasingInFileNames": true,
     "declaration": true,
     "sourceMap": true,
     "rootDir": "src",
     "outDir": "dist",
-    "baseUrl": ".",
     "paths": {
       "@app/*": ["./src/*"]
     }
