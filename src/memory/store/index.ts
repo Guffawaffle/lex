@@ -27,6 +27,8 @@ export type {
   SaveResult,
   StoreStats,
   TurnCostMetrics,
+  FrameStoreMetadata,
+  FrameStoreHealth,
 } from "./frame-store.js";
 export type { CodeAtlasStore } from "./code-atlas-store.js";
 
@@ -34,25 +36,56 @@ export type { CodeAtlasStore } from "./code-atlas-store.js";
 export { SqliteFrameStore } from "./sqlite/index.js";
 export type { SqliteFrameStoreAccessMode, SqliteFrameStoreOptions } from "./sqlite/index.js";
 
+// PostgreSQL FrameStore - opt-in shared backend for cross-platform storage
+export {
+  PostgresFrameStore,
+  migratePostgresFrameStore,
+  POSTGRES_FRAME_STORE_SCHEMA_VERSION,
+} from "./postgres/index.js";
+export type { PostgresFrameStoreAccessMode, PostgresFrameStoreOptions } from "./postgres/index.js";
+
 // Memory-based store implementations for testing
 export { MemoryFrameStore } from "./memory/index.js";
 
 // Import FrameStore interface and SqliteFrameStore for factory function
 import type { FrameStore } from "./frame-store.js";
 import { SqliteFrameStore } from "./sqlite/index.js";
+import { PostgresFrameStore } from "./postgres/index.js";
+
+export type FrameStoreBackend = "sqlite" | "postgres";
+
+export interface FrameStoreFactoryOptions {
+  /** Defaults to read-write; read-only prevents initialization and mutation. */
+  accessMode?: "read-only" | "read-write";
+}
+
+/** Resolve and validate the configured FrameStore backend. */
+export function resolveFrameStoreBackend(value = process.env.LEX_STORE): FrameStoreBackend {
+  const backend = value?.trim().toLowerCase() || "sqlite";
+  if (backend !== "sqlite" && backend !== "postgres") {
+    throw new Error(`Unsupported LEX_STORE value: ${value}. Expected sqlite or postgres.`);
+  }
+  return backend;
+}
 
 /**
- * Create a FrameStore instance with the default SQLite implementation.
+ * Create a FrameStore using LEX_STORE=sqlite|postgres (SQLite by default).
  *
  * This factory function provides a clean interface for CLI commands to obtain
  * a FrameStore, enabling easy testing by allowing injection of alternative
  * implementations (e.g., MemoryFrameStore).
  *
  * @param dbPath - Optional database path (defaults to standard ~/.lex/frames.db)
+ * @param options - Explicit access mode shared by SQLite and PostgreSQL backends.
  * @returns A FrameStore instance configured with the specified database path.
  */
-export function createFrameStore(dbPath?: string): FrameStore {
-  return new SqliteFrameStore(dbPath ?? getDefaultDbPath());
+export function createFrameStore(
+  dbPath?: string,
+  options: FrameStoreFactoryOptions = {}
+): FrameStore {
+  return resolveFrameStoreBackend() === "postgres"
+    ? new PostgresFrameStore(process.env.LEX_DATABASE_URL, options)
+    : new SqliteFrameStore(dbPath ?? getDefaultDbPath(), options);
 }
 
 export {

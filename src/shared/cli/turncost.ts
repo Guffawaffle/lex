@@ -7,8 +7,7 @@
  * - Time period analysis
  */
 
-import { getDb } from "../../memory/store/index.js";
-import { getTurnCostMetrics } from "../../memory/store/queries.js";
+import { createFrameStore, type FrameStore } from "../../memory/store/index.js";
 import * as output from "./output.js";
 import { getNDJSONLogger } from "../logger/index.js";
 
@@ -96,11 +95,15 @@ function formatPeriod(period: string): string {
 /**
  * Execute turncost command
  */
-export async function turncost(options: TurnCostOptions = {}): Promise<void> {
+export async function turncost(
+  options: TurnCostOptions = {},
+  frameStore?: FrameStore
+): Promise<void> {
   const startTime = Date.now();
+  const store = frameStore ?? createFrameStore();
+  const ownsStore = frameStore === undefined;
 
   try {
-    const db = getDb();
     const periodStr = options.period || "24h";
     const sinceTimestamp = parsePeriod(periodStr);
 
@@ -109,7 +112,7 @@ export async function turncost(options: TurnCostOptions = {}): Promise<void> {
       metadata: { period: periodStr, since: sinceTimestamp },
     });
 
-    const metrics = getTurnCostMetrics(db, sinceTimestamp);
+    const metrics = await store.getTurnCostMetrics(sinceTimestamp);
 
     const duration = Date.now() - startTime;
 
@@ -141,7 +144,7 @@ export async function turncost(options: TurnCostOptions = {}): Promise<void> {
       output.info(`Estimated Tokens: ${metrics.estimatedTokens.toLocaleString()}`);
       output.info(`Prompts: ${metrics.prompts}`);
       output.info("");
-      
+
       if (metrics.frameCount === 0) {
         output.info("💡 No frames found in the specified period.");
         output.info("   Use 'lex remember' to start tracking your work sessions.");
@@ -151,7 +154,7 @@ export async function turncost(options: TurnCostOptions = {}): Promise<void> {
           const avgTokens = Math.round(metrics.estimatedTokens / metrics.frameCount);
           output.info(`Average tokens per frame: ${avgTokens.toLocaleString()}`);
         }
-        
+
         output.info("");
         output.info("💡 Use --period to adjust time window (e.g., --period 7d)");
       }
@@ -168,8 +171,12 @@ export async function turncost(options: TurnCostOptions = {}): Promise<void> {
         error: error instanceof Error ? error.message : "Turn Cost calculation failed",
       });
     } else {
-      output.error(`Error: ${error instanceof Error ? error.message : "Turn Cost calculation failed"}`);
+      output.error(
+        `Error: ${error instanceof Error ? error.message : "Turn Cost calculation failed"}`
+      );
     }
-    process.exit(1);
+    process.exitCode = 1;
+  } finally {
+    if (ownsStore) await store.close();
   }
 }

@@ -103,7 +103,8 @@ export async function timeline(
         out.error(`No frames found for: "${ticketOrBranch}"`);
         out.info("Try using a Jira ticket ID (e.g., TICKET-123) or a branch name.");
       }
-      process.exit(1);
+      process.exitCode = 1;
+      return;
     }
 
     // Build timeline
@@ -145,7 +146,8 @@ export async function timeline(
         } else {
           out.error("No frames found in the specified date range.");
         }
-        process.exit(1);
+        process.exitCode = 1;
+        return;
       }
     }
 
@@ -225,7 +227,7 @@ export async function timeline(
       const errorMessage = error instanceof Error ? error.message : String(error);
       out.error(`Error: ${errorMessage}`);
     }
-    process.exit(2);
+    process.exitCode = 2;
   } finally {
     // Close store if we own it
     if (ownsStore) {

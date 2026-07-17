@@ -13,9 +13,12 @@ import type {
   SaveResult,
   StoreStats,
   TurnCostMetrics,
+  FrameStoreMetadata,
+  FrameStoreHealth,
 } from "../frame-store.js";
 import type { Frame } from "../../frames/types.js";
 import { Frame as FrameSchema } from "../../frames/types.js";
+import { normalizeSearchTerms } from "../search-utils.js";
 
 /**
  * Cursor for stable pagination.
@@ -68,6 +71,24 @@ export class MemoryFrameStore implements FrameStore {
    */
   constructor(initialFrames?: Frame[]) {
     initialFrames?.forEach((f) => this.frames.set(f.id, f));
+  }
+
+  getMetadata(): FrameStoreMetadata {
+    return {
+      backend: "memory",
+      location: "memory-store",
+      canonicalLocation: "memory-store",
+      identity: "memory-v1:ephemeral",
+      capabilities: { encryption: false, images: false },
+    };
+  }
+
+  async getHealth(): Promise<FrameStoreHealth> {
+    return {
+      healthy: true,
+      schemaVersion: "memory-v1",
+      checkedAt: new Date().toISOString(),
+    };
   }
 
   /**
@@ -127,11 +148,26 @@ export class MemoryFrameStore implements FrameStore {
 
     // Filter by query (substring match on reference_point + summary_caption)
     if (criteria.query) {
-      const queryLower = criteria.query.toLowerCase();
-      results = results.filter((f) => {
-        const searchText = `${f.reference_point} ${f.summary_caption}`.toLowerCase();
-        return searchText.includes(queryLower);
-      });
+      const terms = normalizeSearchTerms(criteria);
+      if (terms.length > 0) {
+        results = results.filter((f) => {
+          const searchText = [
+            f.reference_point,
+            f.summary_caption,
+            ...(f.keywords ?? []),
+            f.status_snapshot.next_action,
+            ...f.module_scope,
+            f.jira ?? "",
+            f.branch,
+          ].join(" ");
+          const tokens = searchText.toLowerCase().match(/[a-z0-9_]+/g) ?? [];
+          const matches = (term: (typeof terms)[number]) =>
+            tokens.some((token) =>
+              term.prefix ? token.startsWith(term.value) : token === term.value
+            );
+          return criteria.mode === "any" ? terms.some(matches) : terms.every(matches);
+        });
+      }
     }
 
     // Filter by moduleScope (any match)

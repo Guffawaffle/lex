@@ -1,13 +1,14 @@
 # Frame Storage
 
-SQLite-based local storage for Frames with FTS5 full-text search.
+Backend-neutral Frame storage with SQLite as the default and opt-in PostgreSQL for shared stores.
 
 > **📋 Contract:** See [CONTRACT.md](./CONTRACT.md) for the FrameStore persistence contract (frozen for 1.0.0).
 
 ## Features
 
-- **Local-first storage**: SQLite database at `~/.lex/frames.db` (configurable)
-- **Full-text search**: FTS5 virtual table for fuzzy search on `reference_point`, `keywords`, and `summary_caption`
+- **Backward-compatible default**: SQLite at `.smartergpt/lex/memory.db`
+- **Shared storage**: PostgreSQL via `LEX_STORE=postgres` and `LEX_DATABASE_URL`
+- **Full-text search parity**: Fuzzy/exact and all/any matching across SQLite FTS5 and PostgreSQL text search
 - **All Frame fields**: Supports all fields from `src/shared/types/frame.ts`
 - **Migration support**: Schema versioning for database upgrades
 - **Performant queries**: Indexed searches by branch, jira, module_scope
@@ -19,6 +20,21 @@ SQLite-based local storage for Frames with FTS5 full-text search.
 This module is part of the Lex single package. It's not installed separately.
 
 ### Basic CRUD Operations
+
+New CLI and MCP code should use the shared asynchronous `FrameStore` factory:
+
+```typescript
+import { createFrameStore } from "../../memory/store/index.js";
+
+const store = createFrameStore();
+await store.saveFrame(frame);
+const saved = await store.getFrameById(frame.id);
+await store.close();
+```
+
+`LEX_STORE` defaults to `sqlite`. When it is `postgres`, `LEX_DATABASE_URL` is required and `LEX_DB_PATH` is not consulted. PostgreSQL images are intentionally unsupported until image persistence no longer requires a raw SQLite connection.
+
+The functions below are the legacy raw-SQLite API and remain available for compatibility.
 
 ```typescript
 import { getDb, saveFrame, getFrameById, deleteFrame } from '../../memory/store/index.js';
@@ -155,11 +171,11 @@ Tests cover:
 
 The storage system uses schema versioning via the `schema_version` table. Migrations are applied automatically on database initialization.
 
-Current schema version: **1**
+SQLite and PostgreSQL maintain separate explicit migration tables. The selected backend reports its live schema version through `FrameStore.getHealth()` and CLI/MCP introspection.
 
 ## Privacy & Security
 
-- **Local-only**: No network calls, no cloud sync
+- **Local-first by default**: SQLite makes no storage network calls; PostgreSQL is used only when explicitly selected
 - **No telemetry**: No tracking or analytics
 - **User-controlled**: Database stored at `~/.lex/frames.db` or custom path
 - **SQLite security**: Uses WAL mode, proper pragmas for data integrity

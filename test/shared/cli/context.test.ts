@@ -1,4 +1,4 @@
-import { test } from "node:test";
+import { afterEach, beforeEach, test } from "node:test";
 import assert from "node:assert";
 import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -9,6 +9,21 @@ import { SqliteFrameStore } from "@app/memory/store/sqlite/index.js";
 import { DATABASE_SCHEMA_VERSION } from "@app/memory/store/db.js";
 import type { Frame } from "@app/shared/types/frame-schema.js";
 import { buildSessionContext, renderSessionContextText } from "@app/shared/cli/context.js";
+
+const originalStoreBackend = process.env.LEX_STORE;
+const originalDatabaseUrl = process.env.LEX_DATABASE_URL;
+
+beforeEach(() => {
+  process.env.LEX_STORE = "sqlite";
+  delete process.env.LEX_DATABASE_URL;
+});
+
+afterEach(() => {
+  if (originalStoreBackend === undefined) delete process.env.LEX_STORE;
+  else process.env.LEX_STORE = originalStoreBackend;
+  if (originalDatabaseUrl === undefined) delete process.env.LEX_DATABASE_URL;
+  else process.env.LEX_DATABASE_URL = originalDatabaseUrl;
+});
 
 function frame(
   id: string,
@@ -84,11 +99,11 @@ test("context enforces the requested JSON output budget", async () => {
   );
 
   const result = await buildSessionContext(
-    { branch: "main", limit: 12, maxTokens: 900, json: true },
+    { branch: "main", limit: 12, maxTokens: 1000, json: true },
     new MemoryFrameStore(frames)
   );
 
-  assert.ok(result.budget.estimatedTokens <= 900);
+  assert.ok(result.budget.estimatedTokens <= 1000);
   assert.strictEqual(result.budget.truncated, true);
   assert.ok(result.budget.omittedFrames > 0);
   assert.ok(result.warnings.some((warning) => warning.code === "OUTPUT_TRUNCATED"));
@@ -111,6 +126,36 @@ test("context reports a missing store without creating it", async () => {
     assert.match(renderSessionContextText(result), /Frame write contract:/);
     assert.strictEqual(existsSync(expectedStore), false);
     assert.strictEqual(existsSync(dirname(expectedStore)), false);
+  } finally {
+    rmSync(projectRoot, { recursive: true, force: true });
+  }
+});
+
+test("context reports unavailable PostgreSQL configuration without throwing", async () => {
+  const projectRoot = mkdtempSync(join(tmpdir(), "lex-context-postgres-unavailable-"));
+  writeFileSync(
+    join(projectRoot, "package.json"),
+    JSON.stringify({ name: "postgres-unavailable-context" })
+  );
+  process.env.LEX_STORE = "postgres";
+
+  try {
+    for (const databaseUrl of [undefined, "not-a-postgresql-url"]) {
+      if (databaseUrl === undefined) delete process.env.LEX_DATABASE_URL;
+      else process.env.LEX_DATABASE_URL = databaseUrl;
+
+      const result = await buildSessionContext({ projectRoot, branch: "main", maxTokens: 1200 });
+
+      assert.strictEqual(result.resolution.store.source, "env:LEX_DATABASE_URL");
+      assert.strictEqual(result.resolution.store.path, "postgresql://unavailable");
+      assert.strictEqual(result.resolution.store.identity, "postgres-v1:unavailable");
+      assert.strictEqual(result.resolution.store.exists, false);
+      assert.strictEqual(result.resolution.store.accessMode, "read-only");
+      assert.ok(result.warnings.some((warning) => warning.code === "STORE_UNAVAILABLE"));
+      assert.ok(!result.warnings.some((warning) => warning.code === "STORE_NOT_FOUND"));
+      assert.ok(result.warnings.some((warning) => warning.code === "NO_FRAMES"));
+      assert.strictEqual(existsSync(join(projectRoot, ".smartergpt", "lex", "memory.db")), false);
+    }
   } finally {
     rmSync(projectRoot, { recursive: true, force: true });
   }

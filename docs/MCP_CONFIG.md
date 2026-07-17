@@ -59,6 +59,20 @@ When several repositories should share continuity, configure every Lex launch pa
 
 Use the same `LEX_DB_PATH` for direct CLI commands, Codex MCP configuration, and AXF-routed Lex. Verify alignment with `lex introspect`, `lex --json introspect --format compact`, or `lex context`; each reports the canonical store path and a comparable `path-v1` identity. Lex also warns when other conventional store files exist in the project, its ancestors, or the user home directory.
 
+For a shared PostgreSQL store, configure every surface with the same two variables instead:
+
+```json
+{
+  "env": {
+    "LEX_STORE": "postgres",
+    "LEX_DATABASE_URL": "postgresql://lex@127.0.0.1:5432/lex",
+    "LEX_POSTGRES_PASSWORD": "<from-secret-configuration>"
+  }
+}
+```
+
+Keep the password in the host environment or secret configuration. A password may alternatively be embedded in `LEX_DATABASE_URL`. PostgreSQL introspection reports a credential-free `postgres-v1` identity, live connection health, schema/server versions, Frame count, and capabilities. Images are reported unsupported on PostgreSQL. `LEX_DB_PATH` remains SQLite-only.
+
 Installed CLI and MCP consumers discover `.lex.config.json` from the caller project root. This provides a file-based alternative when the host does not support environment wiring:
 
 ```json
@@ -76,6 +90,9 @@ Installed CLI and MCP consumers discover `.lex.config.json` from the caller proj
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `LEX_WORKSPACE_ROOT` | Project root directory | Current directory |
+| `LEX_STORE` | Frame backend (`sqlite` or `postgres`) | `sqlite` |
+| `LEX_DATABASE_URL` | PostgreSQL URL (required for PostgreSQL) | — |
+| `LEX_POSTGRES_PASSWORD` | Optional separate PostgreSQL password | — |
 | `LEX_DB_PATH` | SQLite database path | `.smartergpt/lex/memory.db` |
 | `LEX_MEMORY_DB` | Alias for `LEX_DB_PATH` (backwards compat) | — |
 | `LEX_DEBUG` | Enable debug logging | Disabled |

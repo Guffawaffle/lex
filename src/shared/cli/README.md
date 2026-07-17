@@ -14,6 +14,9 @@ Initialize a Lex workspace with prompts and optionally generate seed policy.
 lex init
 # Creates .smartergpt/ workspace with prompts and minimal policy
 
+# PostgreSQL-only initialization (does not create or open memory.db)
+lex init --store postgres --yes
+
 # Generate seed policy from directory structure
 lex init --policy
 # Scans src/ for TypeScript/JavaScript modules
@@ -31,10 +34,12 @@ lex init --force --policy
    - Generate module IDs from directory paths (e.g., `src/memory/store/` → `memory/store`)
    - Create policy file with discovered modules and match patterns
 4. Otherwise, copy example policy or create minimal policy
-5. Non-destructive: skip if workspace exists unless `--force`
+5. Select SQLite by default, or PostgreSQL from `--store`, `LEX_STORE`, or a configured `LEX_DATABASE_URL`
+6. Non-destructive and idempotent: create missing bootstrap files and preserve existing files unless `--force`
 
 **Options:**
 - `--force` — Overwrite existing files
+- `--store <backend>` — Select `sqlite` or `postgres` for initialization
 - `--policy` — Generate seed policy from src/ directory structure
 - `--prompts-dir <path>` — Custom prompts directory (default: .smartergpt/prompts)
 

@@ -170,6 +170,37 @@ export interface TurnCostMetrics {
   prompts: number;
 }
 
+/** Backend-neutral description used by CLI and MCP introspection. */
+export interface FrameStoreMetadata {
+  /** Storage driver selected for this store. */
+  backend: "memory" | "sqlite" | "postgres";
+
+  /** Human-readable, credential-free storage location. */
+  location: string;
+
+  /** Canonical credential-free location used to derive identity. */
+  canonicalLocation: string;
+
+  /** Stable, non-secret identity for comparing active stores across surfaces. */
+  identity: string;
+
+  /** Backend capabilities that callers must not infer from implementation classes. */
+  capabilities: {
+    encryption: boolean;
+    images: boolean;
+  };
+}
+
+/** Live backend health and schema information for diagnostics. */
+export interface FrameStoreHealth {
+  healthy: boolean;
+  schemaVersion: string;
+  checkedAt: string;
+  serverVersion?: string;
+  database?: string;
+  message?: string;
+}
+
 /**
  * FrameStore — persistence contract for Frames.
  *
@@ -177,6 +208,12 @@ export interface TurnCostMetrics {
  * Other drivers (if any) live out-of-tree or in higher layers.
  */
 export interface FrameStore {
+  /** Describe the active backend without exposing credentials. */
+  getMetadata(): FrameStoreMetadata;
+
+  /** Probe connectivity and report the active storage schema version. */
+  getHealth(): Promise<FrameStoreHealth>;
+
   /**
    * Persist a Frame to storage.
    * @param frame - The Frame to save.

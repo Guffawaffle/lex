@@ -98,7 +98,8 @@ export async function waveComplete(
         );
         out.json({ level: "error", message: axError.message, data: axError, code: axError.code });
       }
-      process.exit(1);
+      process.exitCode = 1;
+      return;
     }
 
     // Aggregate metrics
@@ -205,7 +206,7 @@ export async function waveComplete(
       );
       out.json({ level: "error", message: axError.message, data: axError, code: axError.code });
     }
-    process.exit(1);
+    process.exitCode = 1;
   } finally {
     if (ownsStore) {
       await store.close();

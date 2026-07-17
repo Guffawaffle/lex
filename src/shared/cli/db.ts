@@ -7,7 +7,14 @@
  * - lex db encrypt: Encrypt existing database with SQLCipher
  */
 
-import { getDb, getDefaultDbPath } from "../../memory/store/index.js";
+import {
+  createFrameStore,
+  getDb,
+  getDefaultDbPath,
+  resolveFrameStoreBackend,
+  SqliteFrameStore,
+  type FrameStore,
+} from "../../memory/store/index.js";
 import { backupDatabase, vacuumDatabase, getBackupRetention } from "../../memory/store/backup.js";
 import { deriveEncryptionKey, initializeDatabase } from "../../memory/store/db.js";
 import * as output from "./output.js";
@@ -19,6 +26,14 @@ import { dirname, join, basename } from "path";
 import { AXErrorException } from "../errors/ax-error.js";
 
 const logger = getNDJSONLogger("cli/db");
+
+function requireSqliteMaintenance(operation: string): void {
+  if (resolveFrameStoreBackend() !== "sqlite") {
+    throw new Error(
+      `lex db ${operation} is SQLite-only. Use PostgreSQL-native maintenance tooling when LEX_STORE=postgres.`
+    );
+  }
+}
 
 export interface DbVacuumOptions {
   json?: boolean;
@@ -66,6 +81,7 @@ export async function dbVacuum(options: DbVacuumOptions = {}): Promise<void> {
   const startTime = Date.now();
 
   try {
+    requireSqliteMaintenance("vacuum");
     const dbPath = getDefaultDbPath();
     const db = getDb();
 
@@ -123,6 +139,7 @@ export async function dbBackup(options: DbBackupOptions = {}): Promise<void> {
   const startTime = Date.now();
 
   try {
+    requireSqliteMaintenance("backup");
     const dbPath = getDefaultDbPath();
 
     // Use provided rotation count or environment variable default
@@ -926,12 +943,14 @@ export async function receiptValidate(options: ReceiptValidateOptions): Promise<
  */
 export async function dbStats(options: DbStatsOptions = {}): Promise<void> {
   const startTime = Date.now();
+  let store: FrameStore | undefined;
 
   try {
-    const dbPath = getDefaultDbPath();
+    const backend = resolveFrameStoreBackend();
+    const sqlitePath = backend === "sqlite" ? getDefaultDbPath() : null;
 
-    // Check if database exists
-    if (!existsSync(dbPath)) {
+    // Preserve the read-only missing-file behavior for the default SQLite backend.
+    if (sqlitePath && !existsSync(sqlitePath)) {
       if (options.json) {
         output.json({
           success: false,
@@ -943,82 +962,29 @@ export async function dbStats(options: DbStatsOptions = {}): Promise<void> {
       process.exit(1);
     }
 
-    const db = getDb();
+    store = createFrameStore(sqlitePath ?? undefined);
+    const metadata = store.getMetadata();
+    const health = await store.getHealth();
+    if (!health.healthy) throw new Error(health.message ?? "FrameStore health check failed");
 
     logger.info("Gathering database statistics", {
       operation: "dbStats",
-      metadata: { dbPath },
+      metadata: { backend: metadata.backend, identity: metadata.identity },
     });
 
-    // Get file size
-    const stats = statSync(dbPath);
-    const sizeBytes = stats.size;
-    const sizeMB = (sizeBytes / (1024 * 1024)).toFixed(1);
+    const frameStats = await store.getStats(true);
+    const totalFrames = frameStats.totalFrames;
+    const thisWeek = frameStats.thisWeek;
+    const thisMonth = frameStats.thisMonth;
+    const oldestDate = frameStats.oldestDate;
+    const newestDate = frameStats.newestDate;
+    const moduleDistribution = frameStats.moduleDistribution ?? {};
 
-    // Get total frame count
-    const totalCountResult = db.prepare("SELECT COUNT(*) as count FROM frames").get() as {
-      count: number;
-    };
-    const totalFrames = totalCountResult.count;
-
-    // Calculate date for one week ago
-    const oneWeekAgo = new Date();
-    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-    const oneWeekAgoISO = oneWeekAgo.toISOString();
-
-    // Calculate date for one month ago
-    const oneMonthAgo = new Date();
-    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
-    const oneMonthAgoISO = oneMonthAgo.toISOString();
-
-    // Get frames from this week
-    const weekCountResult = db
-      .prepare("SELECT COUNT(*) as count FROM frames WHERE timestamp >= ?")
-      .get(oneWeekAgoISO) as { count: number };
-    const thisWeek = weekCountResult.count;
-
-    // Get frames from this month
-    const monthCountResult = db
-      .prepare("SELECT COUNT(*) as count FROM frames WHERE timestamp >= ?")
-      .get(oneMonthAgoISO) as { count: number };
-    const thisMonth = monthCountResult.count;
-
-    // Get date range (oldest and newest)
-    let oldestDate: string | null = null;
-    let newestDate: string | null = null;
-
-    if (totalFrames > 0) {
-      const oldestResult = db.prepare("SELECT MIN(timestamp) as oldest FROM frames").get() as {
-        oldest: string | null;
-      };
-      oldestDate = oldestResult.oldest;
-
-      const newestResult = db.prepare("SELECT MAX(timestamp) as newest FROM frames").get() as {
-        newest: string | null;
-      };
-      newestDate = newestResult.newest;
-    }
-
-    // Get module distribution
-    const moduleDistribution: Record<string, number> = {};
-
-    // Get all frames and parse module_scope
-    // For large databases, we iterate rather than load all at once
-    const frameIterator = db
-      .prepare("SELECT module_scope FROM frames")
-      .iterate() as IterableIterator<{
-      module_scope: string;
-    }>;
-
-    for (const frame of frameIterator) {
-      try {
-        const modules = JSON.parse(frame.module_scope) as string[];
-        for (const module of modules) {
-          moduleDistribution[module] = (moduleDistribution[module] || 0) + 1;
-        }
-      } catch {
-        // Skip frames with invalid JSON
-      }
+    let sizeBytes: number | null = null;
+    let sizeMB: string | null = null;
+    if (store instanceof SqliteFrameStore && existsSync(metadata.location)) {
+      sizeBytes = statSync(metadata.location).size;
+      sizeMB = (sizeBytes / (1024 * 1024)).toFixed(1);
     }
 
     // Sort modules by count descending
@@ -1027,27 +993,25 @@ export async function dbStats(options: DbStatsOptions = {}): Promise<void> {
       .sort((a, b) => b.count - a.count);
 
     // Get rules count (check if table exists first)
-    let rulesCount = 0;
-    try {
-      const rulesCountResult = db
-        .prepare("SELECT COUNT(*) as count FROM lexsona_behavior_rules")
-        .get() as { count: number };
-      rulesCount = rulesCountResult.count;
-    } catch {
-      // Table doesn't exist yet (pre-migration V7)
-      rulesCount = 0;
-    }
-
-    // Get receipts count (check if table exists first)
-    let receiptsCount = 0;
-    try {
-      const receiptsCountResult = db.prepare("SELECT COUNT(*) as count FROM receipts").get() as {
-        count: number;
-      };
-      receiptsCount = receiptsCountResult.count;
-    } catch {
-      // Table doesn't exist yet (pre-migration V8)
-      receiptsCount = 0;
+    let rulesCount: number | null = null;
+    let receiptsCount: number | null = null;
+    if (store instanceof SqliteFrameStore) {
+      try {
+        rulesCount = (
+          store.db.prepare("SELECT COUNT(*) as count FROM lexsona_behavior_rules").get() as {
+            count: number;
+          }
+        ).count;
+      } catch {
+        rulesCount = 0;
+      }
+      try {
+        receiptsCount = (
+          store.db.prepare("SELECT COUNT(*) as count FROM receipts").get() as { count: number }
+        ).count;
+      } catch {
+        receiptsCount = 0;
+      }
     }
 
     const duration = Date.now() - startTime;
@@ -1055,13 +1019,16 @@ export async function dbStats(options: DbStatsOptions = {}): Promise<void> {
     logger.info("Database statistics gathered", {
       operation: "dbStats",
       duration_ms: duration,
-      metadata: { dbPath, totalFrames },
+      metadata: { backend: metadata.backend, identity: metadata.identity, totalFrames },
     });
 
     // Output results
     if (options.json) {
       const jsonOutput: Record<string, unknown> = {
-        path: dbPath,
+        backend: metadata.backend,
+        path: metadata.location,
+        identity: metadata.identity,
+        health,
         sizeBytes,
         frames: {
           total: totalFrames,
@@ -1085,8 +1052,12 @@ export async function dbStats(options: DbStatsOptions = {}): Promise<void> {
       output.info("Database Statistics");
       output.info("═══════════════════");
       output.info("");
-      output.info(`Location: ${dbPath}`);
-      output.info(`Size: ${sizeMB} MB`);
+      output.info(`Backend: ${metadata.backend}`);
+      output.info(`Location: ${metadata.location}`);
+      output.info(`Identity: ${metadata.identity}`);
+      output.info(`Schema: ${health.schemaVersion}`);
+      output.info(`Health: ${health.healthy ? "healthy" : "unavailable"}`);
+      output.info(`Size: ${sizeMB === null ? "n/a" : `${sizeMB} MB`}`);
       output.info("");
       output.info("Frames:");
       output.info(`  Total: ${totalFrames}`);
@@ -1130,8 +1101,8 @@ export async function dbStats(options: DbStatsOptions = {}): Promise<void> {
         output.info("");
       }
 
-      output.info(`Rules: ${rulesCount}`);
-      output.info(`Receipts: ${receiptsCount}`);
+      output.info(`Rules: ${rulesCount ?? "unsupported"}`);
+      output.info(`Receipts: ${receiptsCount ?? "unsupported"}`);
     }
   } catch (error) {
     logger.error("Database stats failed", {
@@ -1150,6 +1121,8 @@ export async function dbStats(options: DbStatsOptions = {}): Promise<void> {
         `Failed to gather database statistics: ${error instanceof Error ? error.message : String(error)}`
       );
     }
-    process.exit(1);
+    process.exitCode = 1;
+  } finally {
+    await store?.close();
   }
 }

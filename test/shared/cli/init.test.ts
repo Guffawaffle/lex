@@ -2,14 +2,23 @@
  * Init Command Tests - Test policy generation from directory structure
  */
 
-import { test } from "node:test";
+import { afterEach, test } from "node:test";
 import assert from "node:assert";
-import { init } from "../../../src/shared/cli/init.js";
+import { init, resolveInitStoreBackend } from "../../../src/shared/cli/init.js";
 import { writeFileSync, mkdirSync, existsSync, rmSync, readFileSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
 
 const testDir = join(tmpdir(), "lex-init-test-" + Date.now());
+const originalStore = process.env.LEX_STORE;
+const originalDatabaseUrl = process.env.LEX_DATABASE_URL;
+
+afterEach(() => {
+  if (originalStore === undefined) delete process.env.LEX_STORE;
+  else process.env.LEX_STORE = originalStore;
+  if (originalDatabaseUrl === undefined) delete process.env.LEX_DATABASE_URL;
+  else process.env.LEX_DATABASE_URL = originalDatabaseUrl;
+});
 
 function setupTest() {
   if (existsSync(testDir)) {
@@ -151,7 +160,7 @@ test("init: --policy skips directories without TypeScript/JavaScript files", asy
   }
 });
 
-test("init: --policy non-destructive (skips if policy exists)", async () => {
+test("init: --policy non-destructive (preserves policy if it exists)", async () => {
   setupTest();
   const originalCwd = process.cwd();
 
@@ -165,11 +174,12 @@ test("init: --policy non-destructive (skips if policy exists)", async () => {
     // First init
     await init({ policy: true, json: true });
 
-    // Second init should skip
+    // Second init should be an idempotent no-op
     const result = await init({ policy: true, json: true });
 
-    assert.strictEqual(result.success, false, "Should fail (already exists)");
-    assert.match(result.message, /already initialized/, "Should indicate already initialized");
+    assert.strictEqual(result.success, true, "Should succeed without changing existing files");
+    assert.deepStrictEqual(result.filesCreated, [], "Should not rewrite the existing policy");
+    assert.match(result.message, /no changes needed/, "Should report an idempotent no-op");
   } finally {
     process.chdir(originalCwd);
     cleanup();
@@ -336,7 +346,7 @@ test("init: creates instructions file by default", async () => {
   }
 });
 
-test("init: skips instructions file if workspace already exists (unless --force)", async () => {
+test("init: preserves existing instructions file unless --force is used", async () => {
   setupTest();
   const originalCwd = process.cwd();
 
@@ -347,11 +357,10 @@ test("init: skips instructions file if workspace already exists (unless --force)
     mkdirSync(join(testDir, ".smartergpt/instructions"), { recursive: true });
     writeFileSync(join(testDir, ".smartergpt/instructions/lex.md"), "# Custom Instructions");
 
-    // Init should fail because workspace already exists (without --force)
+    // Init should repair other missing bootstrap files without replacing this one
     const result = await init({ json: true });
 
-    assert.strictEqual(result.success, false, "Should fail (workspace already exists)");
-    assert.match(result.message, /already initialized/, "Should indicate already initialized");
+    assert.strictEqual(result.success, true, "Should complete the partial workspace");
 
     // Verify custom content is preserved
     const content = readFileSync(join(testDir, ".smartergpt/instructions/lex.md"), "utf-8");
@@ -537,7 +546,101 @@ test("init: creates lex.yaml with sensible defaults", async () => {
   }
 });
 
-test("init: is idempotent (running twice doesn't break)", async () => {
+test("init: PostgreSQL bootstrap repairs a partial workspace without creating SQLite", async () => {
+  setupTest();
+  const originalCwd = process.cwd();
+
+  try {
+    process.chdir(testDir);
+    process.env.LEX_STORE = "postgres";
+    process.env.LEX_DATABASE_URL = "postgresql://lex:contract-secret@127.0.0.1:5432/lex";
+
+    mkdirSync(join(testDir, ".smartergpt"), { recursive: true });
+    writeFileSync(join(testDir, ".smartergpt/existing.txt"), "preserve me");
+
+    const first = await init({ store: "postgres", json: true, yes: true, mcp: true });
+
+    assert.strictEqual(first.success, true, "Should complete the partial workspace");
+    assert.strictEqual(first.storeBackend, "postgres");
+    assert.strictEqual(first.storeSource, "--store");
+    assert.strictEqual(first.databaseInitialized, false);
+    assert.ok(
+      existsSync(join(testDir, ".smartergpt/lex/lexmap.policy.json")),
+      "Should create a readable workspace policy"
+    );
+    assert.ok(existsSync(join(testDir, "lex.yaml")), "Should create workspace config");
+    assert.ok(
+      !existsSync(join(testDir, ".smartergpt/lex/memory.db")),
+      "Must not create a SQLite database"
+    );
+    assert.strictEqual(
+      readFileSync(join(testDir, ".smartergpt/existing.txt"), "utf-8"),
+      "preserve me",
+      "Should preserve existing workspace content"
+    );
+    assert.ok(!JSON.stringify(first).includes("contract-secret"), "Must not expose credentials");
+
+    const mcpConfig = JSON.parse(readFileSync(join(testDir, ".vscode/mcp.json"), "utf-8"));
+    assert.strictEqual(mcpConfig.servers.lex.env.LEX_STORE, "postgres");
+    assert.ok(
+      !("LEX_DATABASE_URL" in mcpConfig.servers.lex.env),
+      "Generated MCP config must not copy database credentials"
+    );
+
+    const second = await init({ store: "postgres", json: true, yes: true, mcp: true });
+    assert.strictEqual(second.success, true, "Repeated PostgreSQL init should succeed");
+    assert.deepStrictEqual(second.filesCreated, [], "Repeated init should be a no-op");
+    assert.ok(
+      !existsSync(join(testDir, ".smartergpt/lex/memory.db")),
+      "Repeated init must remain SQLite-free"
+    );
+  } finally {
+    process.chdir(originalCwd);
+    cleanup();
+  }
+});
+
+test("init: backend resolution detects PostgreSQL URL without reading or returning it", () => {
+  const environment = {
+    LEX_DATABASE_URL: "postgresql://lex:contract-secret@127.0.0.1:5432/lex",
+  } as NodeJS.ProcessEnv;
+
+  const result = resolveInitStoreBackend(undefined, environment);
+
+  assert.deepStrictEqual(result, { backend: "postgres", source: "LEX_DATABASE_URL" });
+  assert.ok(!JSON.stringify(result).includes("contract-secret"));
+});
+
+test("init: explicit SQLite selection overrides PostgreSQL environment hints", () => {
+  const environment = {
+    LEX_STORE: "postgres",
+    LEX_DATABASE_URL: "postgresql://lex@127.0.0.1:5432/lex",
+  } as NodeJS.ProcessEnv;
+
+  assert.deepStrictEqual(resolveInitStoreBackend("sqlite", environment), {
+    backend: "sqlite",
+    source: "--store",
+  });
+});
+
+test("init: rejects an invalid backend before creating workspace files", async () => {
+  setupTest();
+  const originalCwd = process.cwd();
+
+  try {
+    process.chdir(testDir);
+    const result = await init({ store: "mysql", json: true, yes: true });
+
+    assert.strictEqual(result.success, false);
+    assert.match(result.message, /Expected sqlite or postgres/);
+    assert.ok(!existsSync(join(testDir, ".smartergpt")), "Should not create a partial workspace");
+  } finally {
+    process.chdir(originalCwd);
+    cleanup();
+  }
+});
+
+test("init: is idempotent (running twice is a successful no-op)", async () => {
   setupTest();
   const originalCwd = process.cwd();
 
@@ -548,10 +651,11 @@ test("init: is idempotent (running twice doesn't break)", async () => {
     const result1 = await init({ json: true, yes: true });
     assert.strictEqual(result1.success, true, "First init should succeed");
 
-    // Second init (without --force) should fail gracefully
+    // Second init (without --force) should succeed without rewriting files
     const result2 = await init({ json: true, yes: true });
-    assert.strictEqual(result2.success, false, "Second init should fail gracefully");
-    assert.match(result2.message, /already initialized/, "Should indicate already initialized");
+    assert.strictEqual(result2.success, true, "Second init should succeed");
+    assert.deepStrictEqual(result2.filesCreated, [], "Second init should not rewrite files");
+    assert.match(result2.message, /no changes needed/, "Should report an idempotent no-op");
 
     // Verify files are intact
     assert.ok(

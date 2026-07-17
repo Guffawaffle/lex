@@ -21,6 +21,7 @@ const __dirname = path.dirname(__filename);
 export interface InitOptions {
   force?: boolean;
   json?: boolean;
+  store?: string; // Explicit FrameStore backend for initialization
   promptsDir?: string; // Optional: custom prompts directory
   policy?: boolean; // Generate seed policy from directory structure
   instructions?: boolean; // Create canonical instructions file (default: true)
@@ -34,12 +35,54 @@ export interface InitResult {
   workspaceDir: string;
   message: string;
   filesCreated: string[];
+  storeBackend?: InitStoreBackend;
+  storeSource?: InitStoreSource;
   modulesDiscovered?: number;
   instructionsCreated?: boolean;
   mcpConfigCreated?: boolean;
   projectType?: string;
   databaseInitialized?: boolean;
   mcpGuidanceShown?: boolean;
+}
+
+export type InitStoreBackend = "sqlite" | "postgres";
+export type InitStoreSource = "--store" | "LEX_STORE" | "LEX_DATABASE_URL" | "default";
+
+export interface InitStoreResolution {
+  backend: InitStoreBackend;
+  source: InitStoreSource;
+}
+
+/**
+ * Resolve init's storage backend without opening either store.
+ *
+ * The explicit option wins, followed by LEX_STORE. A configured PostgreSQL URL
+ * is also sufficient for init to take the SQLite-free bootstrap path. Other
+ * commands retain the normal FrameStore resolution contract.
+ */
+export function resolveInitStoreBackend(
+  option: string | undefined = undefined,
+  environment: NodeJS.ProcessEnv = process.env
+): InitStoreResolution {
+  const optionValue = option?.trim().toLowerCase();
+  const envValue = environment.LEX_STORE?.trim().toLowerCase();
+  const value = optionValue || envValue;
+
+  if (value && value !== "sqlite" && value !== "postgres") {
+    const source = optionValue ? "--store" : "LEX_STORE";
+    throw new Error(`Unsupported ${source} value: ${value}. Expected sqlite or postgres.`);
+  }
+
+  if (optionValue) {
+    return { backend: optionValue as InitStoreBackend, source: "--store" };
+  }
+  if (envValue) {
+    return { backend: envValue as InitStoreBackend, source: "LEX_STORE" };
+  }
+  if (environment.LEX_DATABASE_URL?.trim()) {
+    return { backend: "postgres", source: "LEX_DATABASE_URL" };
+  }
+  return { backend: "sqlite", source: "default" };
 }
 
 /**
@@ -82,19 +125,14 @@ export async function init(options: InitOptions = {}): Promise<InitResult> {
   const projectDetection = detectProject(baseDir);
   const projectDesc = describeProject(projectDetection);
 
-  // Show detection results (unless in JSON mode)
-  if (!options.json) {
-    output.info("🔍 Detecting project...");
-    output.info(`   Found: ${projectDesc}`);
-    output.info("");
-  }
-
-  // Check if already initialized
-  if (fs.existsSync(workspaceDir) && !options.force) {
+  let storeResolution: InitStoreResolution;
+  try {
+    storeResolution = resolveInitStoreBackend(options.store);
+  } catch (error) {
     const result: InitResult = {
       success: false,
       workspaceDir,
-      message: `Workspace already initialized at ${workspaceDir}. Use --force to reinitialize.`,
+      message: `Failed to initialize workspace: ${error instanceof Error ? error.message : String(error)}`,
       filesCreated: [],
       projectType: projectDesc,
     };
@@ -102,10 +140,23 @@ export async function init(options: InitOptions = {}): Promise<InitResult> {
     if (options.json) {
       output.json(result);
     } else {
-      output.warn(`Workspace already initialized at ${workspaceDir}. Use --force to reinitialize.`);
+      output.error(result.message);
     }
-
     return result;
+  }
+
+  // Show detection results (unless in JSON mode)
+  if (!options.json) {
+    output.info("🔍 Detecting project...");
+    output.info(`   Found: ${projectDesc}`);
+    output.info("");
+    output.info(
+      `💾 Storage backend: ${storeResolution.backend === "postgres" ? "PostgreSQL" : "SQLite"} (${storeResolution.source})`
+    );
+    if (storeResolution.backend === "postgres") {
+      output.info("   SQLite database creation disabled");
+    }
+    output.info("");
   }
 
   const filesCreated: string[] = [];
@@ -172,7 +223,7 @@ export async function init(options: InitOptions = {}): Promise<InitResult> {
         }
       } else {
         // Use example policy or create minimal policy
-        const packageRoot = resolveCanonDir().replace("/canon", "");
+        const packageRoot = path.dirname(canonDir);
         const examplePath = path.join(
           packageRoot,
           "src/policy/policy_spec/lexmap.policy.json.example"
@@ -270,13 +321,14 @@ export async function init(options: InitOptions = {}): Promise<InitResult> {
       }
     }
 
-    // Initialize database
+    // Preserve the existing lazy SQLite initialization behavior, but never
+    // inspect or create memory.db for a PostgreSQL bootstrap.
     const dbPath = path.join(lexDir, "memory.db");
-    const databaseInitialized = !fs.existsSync(dbPath);
+    const databaseInitialized = storeResolution.backend === "sqlite" && !fs.existsSync(dbPath);
 
     if (!options.json && databaseInitialized) {
       output.info("💾 Initializing database...");
-      output.info(`   ✓ ${path.relative(baseDir, dbPath)} ready`);
+      output.info(`   ✓ ${path.relative(baseDir, dbPath)} ready on first SQLite use`);
       output.info("");
     }
 
@@ -288,7 +340,7 @@ export async function init(options: InitOptions = {}): Promise<InitResult> {
 
       if (!fs.existsSync(mcpConfigPath) || options.force) {
         fs.mkdirSync(vscodeDir, { recursive: true });
-        const mcpConfig = getMCPConfig();
+        const mcpConfig = getMCPConfig(storeResolution.backend);
         fs.writeFileSync(mcpConfigPath, JSON.stringify(mcpConfig, null, 4) + "\n");
         filesCreated.push(path.relative(baseDir, mcpConfigPath));
         mcpConfigCreated = true;
@@ -304,7 +356,7 @@ export async function init(options: InitOptions = {}): Promise<InitResult> {
     // Show MCP guidance (only if not creating config)
     let mcpGuidanceShown = false;
     if (!options.json && !mcpConfigCreated) {
-      showMCPGuidance(projectDetection);
+      showMCPGuidance(projectDetection, storeResolution.backend);
       mcpGuidanceShown = true;
     }
 
@@ -316,8 +368,13 @@ export async function init(options: InitOptions = {}): Promise<InitResult> {
     const result: InitResult = {
       success: true,
       workspaceDir,
-      message: "Workspace initialized successfully",
+      message:
+        filesCreated.length > 0
+          ? "Workspace initialized successfully"
+          : "Workspace already initialized; no changes needed",
       filesCreated,
+      storeBackend: storeResolution.backend,
+      storeSource: storeResolution.source,
       modulesDiscovered: options.policy ? modulesDiscovered : undefined,
       instructionsCreated,
       mcpConfigCreated,
@@ -410,16 +467,21 @@ instructions:
 /**
  * Generate MCP server configuration for VS Code
  */
-function getMCPConfig(): object {
+function getMCPConfig(storeBackend: InitStoreBackend): object {
+  const env: Record<string, string> = {
+    LEX_WORKSPACE_ROOT: "${workspaceFolder}",
+  };
+  if (storeBackend === "postgres") {
+    env.LEX_STORE = "postgres";
+  }
+
   return {
     servers: {
       lex: {
         type: "stdio",
         command: "npx",
         args: ["@smartergpt/lex-mcp"],
-        env: {
-          LEX_WORKSPACE_ROOT: "${workspaceFolder}",
-        },
+        env,
       },
     },
   };
@@ -428,7 +490,10 @@ function getMCPConfig(): object {
 /**
  * Show MCP server configuration guidance
  */
-function showMCPGuidance(detection: ReturnType<typeof detectProject>): void {
+function showMCPGuidance(
+  detection: ReturnType<typeof detectProject>,
+  storeBackend: InitStoreBackend
+): void {
   output.info("📡 MCP Setup:");
 
   if (detection.hasVSCode) {
@@ -441,7 +506,16 @@ function showMCPGuidance(detection: ReturnType<typeof detectProject>): void {
   output.info('     "mcp.servers": {');
   output.info('       "lex": {');
   output.info('         "command": "npx",');
-  output.info('         "args": ["@smartergpt/lex", "mcp"]');
+  output.info('         "args": ["@smartergpt/lex", "mcp"],');
+  output.info('         "env": {');
+  output.info(
+    '           "LEX_WORKSPACE_ROOT": "${workspaceFolder}"' +
+      (storeBackend === "postgres" ? "," : "")
+  );
+  if (storeBackend === "postgres") {
+    output.info('           "LEX_STORE": "postgres"');
+  }
+  output.info("         }");
   output.info("       }");
   output.info("     }");
   output.info("   }");
@@ -488,12 +562,25 @@ async function promptFirstFrame(_baseDir: string): Promise<void> {
  * Display success message with all created files and next steps
  */
 function displaySuccessMessage(
-  _result: InitResult,
+  result: InitResult,
   _baseDir: string,
   _projectDesc: string,
   _modulesDiscovered: number,
   _options: InitOptions
 ): void {
+  if (result.filesCreated.length > 0) {
+    output.info("📁 Files created or updated:");
+    for (const file of result.filesCreated) {
+      output.info(`   ✓ ${file}`);
+    }
+  } else {
+    output.info("📁 No files changed; workspace bootstrap is already complete.");
+  }
+  output.info("");
+  output.info(
+    `💾 Active backend: ${result.storeBackend === "postgres" ? "PostgreSQL (SQLite-free)" : "SQLite"}`
+  );
+  output.info("");
   output.info("🎯 Quick start:");
   output.info("   lex remember    # Save context after work");
   output.info("   lex recall      # Retrieve context next session");
