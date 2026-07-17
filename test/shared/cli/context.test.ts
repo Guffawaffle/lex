@@ -131,6 +131,36 @@ test("context reports a missing store without creating it", async () => {
   }
 });
 
+test("context reports unavailable PostgreSQL configuration without throwing", async () => {
+  const projectRoot = mkdtempSync(join(tmpdir(), "lex-context-postgres-unavailable-"));
+  writeFileSync(
+    join(projectRoot, "package.json"),
+    JSON.stringify({ name: "postgres-unavailable-context" })
+  );
+  process.env.LEX_STORE = "postgres";
+
+  try {
+    for (const databaseUrl of [undefined, "not-a-postgresql-url"]) {
+      if (databaseUrl === undefined) delete process.env.LEX_DATABASE_URL;
+      else process.env.LEX_DATABASE_URL = databaseUrl;
+
+      const result = await buildSessionContext({ projectRoot, branch: "main", maxTokens: 1200 });
+
+      assert.strictEqual(result.resolution.store.source, "env:LEX_DATABASE_URL");
+      assert.strictEqual(result.resolution.store.path, "postgresql://unavailable");
+      assert.strictEqual(result.resolution.store.identity, "postgres-v1:unavailable");
+      assert.strictEqual(result.resolution.store.exists, false);
+      assert.strictEqual(result.resolution.store.accessMode, "read-only");
+      assert.ok(result.warnings.some((warning) => warning.code === "STORE_UNAVAILABLE"));
+      assert.ok(!result.warnings.some((warning) => warning.code === "STORE_NOT_FOUND"));
+      assert.ok(result.warnings.some((warning) => warning.code === "NO_FRAMES"));
+      assert.strictEqual(existsSync(join(projectRoot, ".smartergpt", "lex", "memory.db")), false);
+    }
+  } finally {
+    rmSync(projectRoot, { recursive: true, force: true });
+  }
+});
+
 test("context opens an existing SQLite store read-only without changing its files", async () => {
   const projectRoot = mkdtempSync(join(tmpdir(), "lex-context-read-only-"));
   const dbPath = join(projectRoot, "data", "memory.db");

@@ -142,6 +142,11 @@ function frameStoreContract(
       );
       const prefix = await store.searchFrames({ query: "stor" });
       assert.equal(prefix.length, 3);
+      const punctuationOnly = await store.searchFrames({ query: "--- !!!", mode: "any" });
+      assert.deepEqual(
+        new Set(punctuationOnly.map((item) => item.id)),
+        new Set(frames.map((item) => item.id))
+      );
 
       const firstPage = await store.listFrames({ limit: 2 });
       assert.equal(firstPage.frames.length, 2);

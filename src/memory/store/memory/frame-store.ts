@@ -149,23 +149,25 @@ export class MemoryFrameStore implements FrameStore {
     // Filter by query (substring match on reference_point + summary_caption)
     if (criteria.query) {
       const terms = normalizeSearchTerms(criteria);
-      results = results.filter((f) => {
-        const searchText = [
-          f.reference_point,
-          f.summary_caption,
-          ...(f.keywords ?? []),
-          f.status_snapshot.next_action,
-          ...f.module_scope,
-          f.jira ?? "",
-          f.branch,
-        ].join(" ");
-        const tokens = searchText.toLowerCase().match(/[a-z0-9_]+/g) ?? [];
-        const matches = (term: (typeof terms)[number]) =>
-          tokens.some((token) =>
-            term.prefix ? token.startsWith(term.value) : token === term.value
-          );
-        return criteria.mode === "any" ? terms.some(matches) : terms.every(matches);
-      });
+      if (terms.length > 0) {
+        results = results.filter((f) => {
+          const searchText = [
+            f.reference_point,
+            f.summary_caption,
+            ...(f.keywords ?? []),
+            f.status_snapshot.next_action,
+            ...f.module_scope,
+            f.jira ?? "",
+            f.branch,
+          ].join(" ");
+          const tokens = searchText.toLowerCase().match(/[a-z0-9_]+/g) ?? [];
+          const matches = (term: (typeof terms)[number]) =>
+            tokens.some((token) =>
+              term.prefix ? token.startsWith(term.value) : token === term.value
+            );
+          return criteria.mode === "any" ? terms.some(matches) : terms.every(matches);
+        });
+      }
     }
 
     // Filter by moduleScope (any match)

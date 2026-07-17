@@ -369,19 +369,30 @@ export async function buildSessionContext(
   const branch = resolveBranch(projectRoot, options.branch);
   let store = injectedStore;
   let ownsStore = false;
-  const backend = injectedStore?.getMetadata().backend ?? resolveFrameStoreBackend();
-  if (!store && backend === "postgres") {
-    store = createFrameStore(undefined, { accessMode: "read-only" });
-    ownsStore = true;
+  let backend = injectedStore?.getMetadata().backend ?? "sqlite";
+  let storeResolutionError: unknown;
+  if (!store) {
+    try {
+      backend = resolveFrameStoreBackend();
+      if (backend === "postgres") {
+        store = createFrameStore(undefined, { accessMode: "read-only" });
+        ownsStore = true;
+      }
+    } catch (error) {
+      storeResolutionError = error;
+    }
   }
   const metadata = store?.getMetadata();
-  const selectedStorePath = metadata?.location ?? configResolution.config.paths.database;
+  const selectedStorePath =
+    metadata?.location ??
+    (backend === "postgres" ? "postgresql://unavailable" : configResolution.config.paths.database);
   const storeSource: ConfigValueSource | "frameStore" | "env:LEX_DATABASE_URL" = injectedStore
     ? "frameStore"
     : backend === "postgres"
       ? "env:LEX_DATABASE_URL"
       : configResolution.pathSources.database;
-  const storeExists = store !== undefined || existsSync(selectedStorePath);
+  const storeExists =
+    storeResolutionError === undefined && (store !== undefined || existsSync(selectedStorePath));
   const storeAccessMode: ContextStoreAccessMode =
     store instanceof SqliteFrameStore
       ? store.accessMode
@@ -445,7 +456,16 @@ export async function buildSessionContext(
   }
 
   let candidateFrames: Frame[] = [];
-  if (!storeExists) {
+  if (storeResolutionError !== undefined) {
+    warnings.push({
+      code: "STORE_UNAVAILABLE",
+      message: `The selected Lex store could not be read: ${
+        storeResolutionError instanceof Error
+          ? storeResolutionError.message
+          : String(storeResolutionError)
+      }`,
+    });
+  } else if (!storeExists) {
     warnings.push({
       code: "STORE_NOT_FOUND",
       message: `The selected Lex store does not exist: ${canonicalStorePath}.`,
