@@ -2,8 +2,7 @@
   "extends": "../../../tsconfig.base.json",
   "compilerOptions": {
     "composite": true,
-    "types": ["node"],
-    "baseUrl": "."
+    "types": ["node"]
   },
   "include": ["./**/*.ts", "../frames/types.ts"],
   "exclude": ["node_modules", "dist", "**/*.test.ts"]
