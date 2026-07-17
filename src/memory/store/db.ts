@@ -11,7 +11,7 @@
 
 import Database from "better-sqlite3-multiple-ciphers";
 import { dirname } from "path";
-import { mkdirSync, existsSync } from "fs";
+import { mkdirSync, existsSync, readFileSync, statSync } from "fs";
 import { pbkdf2Sync } from "crypto";
 import { loadConfig } from "../../shared/config/index.js";
 
@@ -26,6 +26,24 @@ import { loadConfig } from "../../shared/config/index.js";
  * @see CONTRACT.md for change protocol
  */
 export const FRAME_STORE_SCHEMA_VERSION = "1.0.1";
+
+/** Latest SQLite migration applied by initializeDatabase(). */
+export const DATABASE_SCHEMA_VERSION = 12;
+
+export type ReadOnlyDatabaseErrorCode =
+  "STORE_NOT_FOUND" | "STORE_REQUIRES_MIGRATION" | "STORE_INCOMPATIBLE" | "STORE_UNAVAILABLE";
+
+/** Stable failure returned when a database cannot be opened safely for bootstrap reads. */
+export class ReadOnlyDatabaseError extends Error {
+  constructor(
+    public readonly code: ReadOnlyDatabaseErrorCode,
+    message: string,
+    public readonly currentVersion?: number
+  ) {
+    super(message);
+    this.name = "ReadOnlyDatabaseError";
+  }
+}
 
 export interface FrameRow {
   id: string;
@@ -266,6 +284,203 @@ export function getEncryptionKey(): string | undefined {
   return passphrase && passphrase.trim() ? deriveEncryptionKey(passphrase) : undefined;
 }
 
+/** Apply connection-local SQLCipher configuration without reading or changing schema. */
+function configureEncryption(db: Database.Database): boolean {
+  const encryptionKey = getEncryptionKey();
+  if (!encryptionKey) return false;
+
+  db.pragma(`cipher='sqlcipher'`);
+  db.pragma(`key="x'${encryptionKey}'"`);
+  return true;
+}
+
+function readDatabaseSchemaVersion(db: Database.Database): number {
+  const row = db.prepare("SELECT MAX(version) AS version FROM schema_version").get() as {
+    version: number | null;
+  };
+  return row?.version ?? 0;
+}
+
+interface FileSnapshotState {
+  signature: string;
+  size: bigint;
+}
+
+function fileSnapshotState(path: string): FileSnapshotState {
+  try {
+    const stat = statSync(path, { bigint: true });
+    return {
+      signature: `${stat.dev}:${stat.ino}:${stat.size}:${stat.mtimeNs}:${stat.ctimeNs}`,
+      size: stat.size,
+    };
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      return { signature: "missing", size: 0n };
+    }
+    throw error;
+  }
+}
+
+type DatabaseSnapshotReader = (dbPath: string) => Buffer;
+
+function readDatabaseSnapshot(dbPath: string): Buffer {
+  return readFileSync(dbPath);
+}
+
+// A WAL file starts with a 32-byte file header. A file containing only the
+// header has no frames and is effectively idle; treat it as inactive so that
+// a header-only sidecar left by a prior read does not block subsequent reads.
+// Rollback journals have no fixed header, so any non-zero size is active.
+const WAL_ACTIVE_THRESHOLD = 32n;
+export { WAL_ACTIVE_THRESHOLD };
+const JOURNAL_ACTIVE_THRESHOLD = 0n;
+
+// journalIndex mirrors the journalPaths array: 0 = "-wal", 1 = "-journal".
+function isJournalActive(journal: FileSnapshotState, journalIndex: number): boolean {
+  return journal.size > (journalIndex === 0 ? WAL_ACTIVE_THRESHOLD : JOURNAL_ACTIVE_THRESHOLD);
+}
+
+/**
+ * Read a coherent main-file snapshot without asking SQLite to touch WAL bookkeeping.
+ *
+ * @internal The injectable reader keeps the before/read/after race contract deterministic in
+ * tests. Production callers use the default filesystem reader.
+ */
+export function readStableDatabaseSnapshot(
+  dbPath: string,
+  readSnapshot: DatabaseSnapshotReader = readDatabaseSnapshot
+): Buffer {
+  const journalPaths = [`${dbPath}-wal`, `${dbPath}-journal`];
+  const sourceBefore = fileSnapshotState(dbPath);
+  const journalsBefore = journalPaths.map(fileSnapshotState);
+
+  if (journalsBefore.some(isJournalActive)) {
+    throw new ReadOnlyDatabaseError(
+      "STORE_UNAVAILABLE",
+      "The selected Lex store has an active SQLite journal and cannot be snapshotted without risking stale or incoherent bootstrap context."
+    );
+  }
+
+  const snapshot = readSnapshot(dbPath);
+  const sourceAfter = fileSnapshotState(dbPath);
+  const journalsAfter = journalPaths.map(fileSnapshotState);
+  const sourceChanged = sourceBefore.signature !== sourceAfter.signature;
+  const journalChanged = journalsBefore.some(
+    (journal, index) => journal.signature !== journalsAfter[index]?.signature
+  );
+  const journalBecameActive = journalsAfter.some(isJournalActive);
+
+  if (sourceChanged || journalChanged || journalBecameActive) {
+    throw new ReadOnlyDatabaseError(
+      "STORE_UNAVAILABLE",
+      "The selected Lex store changed while its read-only snapshot was being captured; retry after the writer is idle."
+    );
+  }
+
+  return snapshot;
+}
+
+/** Make a detached WAL-mode main file self-contained for in-memory deserialization. */
+function normalizeDetachedSnapshotJournalMode(snapshot: Buffer): Buffer {
+  const sqliteHeader = Buffer.from("SQLite format 3\0", "utf8");
+  if (snapshot.length < 20 || !snapshot.subarray(0, sqliteHeader.length).equals(sqliteHeader)) {
+    return snapshot;
+  }
+
+  // Header bytes 18 and 19 are the SQLite file write/read versions. A value of
+  // 2 tells SQLite to consult a WAL beside the database. We already proved no
+  // non-empty WAL exists, so the detached copy can safely use rollback mode.
+  if (snapshot[18] === 2 || snapshot[19] === 2) {
+    snapshot[18] = 1;
+    snapshot[19] = 1;
+  }
+  return snapshot;
+}
+
+/**
+ * Open an existing database through a connection that cannot write.
+ *
+ * This path deliberately does not create directories, initialize schema, apply
+ * migrations, or set file-backed pragmas such as journal_mode.
+ */
+export function openDatabaseReadOnly(dbPath: string): Database.Database {
+  if (dbPath.startsWith("file:")) {
+    throw new ReadOnlyDatabaseError(
+      "STORE_UNAVAILABLE",
+      "SQLite file URIs cannot yet be opened through the detached read-only snapshot path. Configure LEX_DB_PATH with a filesystem path for hard read-only context reads."
+    );
+  }
+
+  if (!dbPath || dbPath === ":memory:" || !existsSync(dbPath)) {
+    throw new ReadOnlyDatabaseError(
+      "STORE_NOT_FOUND",
+      `The selected Lex store does not exist as a filesystem database: ${dbPath}.`
+    );
+  }
+
+  let snapshot: Buffer;
+  try {
+    if (getEncryptionKey()) {
+      throw new ReadOnlyDatabaseError(
+        "STORE_UNAVAILABLE",
+        "Encrypted Lex stores cannot yet be opened through the detached read-only snapshot path."
+      );
+    }
+    snapshot = readStableDatabaseSnapshot(dbPath);
+  } catch (error) {
+    if (error instanceof ReadOnlyDatabaseError) throw error;
+    throw new ReadOnlyDatabaseError(
+      "STORE_UNAVAILABLE",
+      `The selected Lex store could not be snapshotted read-only: ${
+        error instanceof Error ? error.message : String(error)
+      }`
+    );
+  }
+
+  let db: Database.Database | undefined;
+  try {
+    // better-sqlite3's file-level readonly mode still creates WAL/SHM sidecars for
+    // WAL databases. Deserialize a filesystem-read snapshot instead, then make
+    // the detached connection query-only before any caller receives it.
+    db = new Database(normalizeDetachedSnapshotJournalMode(snapshot));
+    db.pragma("query_only = ON");
+
+    const currentVersion = readDatabaseSchemaVersion(db);
+    if (currentVersion < DATABASE_SCHEMA_VERSION) {
+      throw new ReadOnlyDatabaseError(
+        "STORE_REQUIRES_MIGRATION",
+        `The selected Lex store uses SQLite schema version ${currentVersion}; version ${DATABASE_SCHEMA_VERSION} is required. Run an explicit writable Lex command to migrate it.`,
+        currentVersion
+      );
+    }
+    if (currentVersion > DATABASE_SCHEMA_VERSION) {
+      throw new ReadOnlyDatabaseError(
+        "STORE_INCOMPATIBLE",
+        `The selected Lex store uses newer SQLite schema version ${currentVersion}; this Lex build supports version ${DATABASE_SCHEMA_VERSION}.`,
+        currentVersion
+      );
+    }
+
+    return db;
+  } catch (error) {
+    if (db) db.close();
+    if (error instanceof ReadOnlyDatabaseError) throw error;
+
+    const message = error instanceof Error ? error.message : String(error);
+    if (/no such table:\s*schema_version/i.test(message)) {
+      throw new ReadOnlyDatabaseError(
+        "STORE_REQUIRES_MIGRATION",
+        `The selected Lex store has no schema version metadata; version ${DATABASE_SCHEMA_VERSION} is required. Run an explicit writable Lex command to initialize or migrate it.`,
+        0
+      );
+    }
+    throw new ReadOnlyDatabaseError(
+      "STORE_UNAVAILABLE",
+      `The selected Lex store could not be validated read-only: ${message}`
+    );
+  }
+}
+
 /**
  * Initialize database with schema and indexes
  */
@@ -336,9 +551,9 @@ export function initializeDatabase(db: Database.Database): void {
     applyMigrationV11(db);
     db.prepare("INSERT INTO schema_version (version) VALUES (?)").run(11);
   }
-  if (currentVersion < 12) {
+  if (currentVersion < DATABASE_SCHEMA_VERSION) {
     applyMigrationV12(db);
-    db.prepare("INSERT INTO schema_version (version) VALUES (?)").run(12);
+    db.prepare("INSERT INTO schema_version (version) VALUES (?)").run(DATABASE_SCHEMA_VERSION);
   }
 }
 
@@ -968,13 +1183,7 @@ export function createDatabase(dbPath?: string): Database.Database {
   const db = new Database(path);
 
   // Apply encryption if key is available
-  const encryptionKey = getEncryptionKey();
-  if (encryptionKey) {
-    // Set cipher configuration for SQLCipher
-    // Using sqlcipher defaults (PRAGMA cipher_page_size = 4096, etc.)
-    db.pragma(`cipher='sqlcipher'`);
-    db.pragma(`key="x'${encryptionKey}'"`);
-
+  if (configureEncryption(db)) {
     // Verify encryption is working by testing database access
     try {
       db.prepare("SELECT 1").get();

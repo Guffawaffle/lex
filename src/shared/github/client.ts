@@ -80,7 +80,7 @@ export async function getIssue(ref: IssueReference): Promise<GitHubIssue | null>
       title: data.title,
       url: data.url,
     };
-  } catch (_error) {
+  } catch {
     // Issue not found or gh CLI not available
     return null;
   }
@@ -104,7 +104,7 @@ export async function getIssueBody(ref: IssueReference): Promise<string | null> 
 
     const data = JSON.parse(output) as { body: string };
     return data.body || "";
-  } catch (_error) {
+  } catch {
     // Issue not found or gh CLI not available
     return null;
   }
@@ -187,7 +187,7 @@ export async function updateIssue(
     }
 
     return true;
-  } catch (_error) {
+  } catch {
     return false;
   }
 }

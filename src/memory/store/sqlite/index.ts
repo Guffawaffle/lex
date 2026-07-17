@@ -7,4 +7,5 @@
  */
 
 export { SqliteFrameStore } from "./frame-store.js";
+export type { SqliteFrameStoreAccessMode, SqliteFrameStoreOptions } from "./frame-store.js";
 export { SqliteCodeAtlasStore } from "./code-atlas-store.js";

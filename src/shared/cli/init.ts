@@ -479,7 +479,7 @@ async function promptFirstFrame(_baseDir: string): Promise<void> {
       output.info("✓ Frame created! Run 'lex recall' next session to retrieve this context.");
       output.info("");
     }
-  } catch (_error) {
+  } catch {
     // User cancelled or error occurred - gracefully continue
   }
 }

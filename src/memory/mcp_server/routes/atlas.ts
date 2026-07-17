@@ -38,6 +38,10 @@ import { getLogger } from "@smartergpt/lex/logger";
 
 const logger = getLogger("memory:mcp_server:routes:atlas");
 
+function getSingleRouteParameter(value: string | string[] | undefined): string | undefined {
+  return typeof value === "string" && value.length > 0 ? value : undefined;
+}
+
 /**
  * API error response structure
  */
@@ -299,7 +303,7 @@ export function createAtlasRouter(db: Database.Database): Router {
    */
   router.get("/units/:id", (req: Request, res: Response) => {
     try {
-      const { id } = req.params;
+      const id = getSingleRouteParameter(req.params.id);
 
       if (typeof id !== "string" || !id) {
         return res.status(400).json({
@@ -395,7 +399,7 @@ export function createAtlasRouter(db: Database.Database): Router {
    */
   router.get("/runs/:runId", (req: Request, res: Response) => {
     try {
-      const { runId } = req.params;
+      const runId = getSingleRouteParameter(req.params.runId);
 
       if (typeof runId !== "string" || !runId) {
         return res.status(400).json({

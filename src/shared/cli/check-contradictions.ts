@@ -6,7 +6,6 @@
 
 import { createFrameStore, type FrameStore } from "../../memory/store/index.js";
 import { scanForContradictions } from "../../memory/contradictions.js";
-import { formatContradiction } from "../../memory/resolution.js";
 import { createOutput } from "./output.js";
 
 export interface CheckContradictionsOptions {
