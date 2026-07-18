@@ -60,9 +60,12 @@ function normalizeOptional(value: string | undefined): string | undefined {
 }
 
 function assertSurfaceVersion(surface: ExecutionSurfaceEvidenceV1): void {
-  if (surface.schemaVersion !== LOCAL_BINDING_CONTRACT_VERSION) {
+  // Preserve the runtime guard for untyped JavaScript callers without letting
+  // TypeScript narrow the v1 literal to `never` inside the failure branch.
+  const schemaVersion: unknown = surface.schemaVersion;
+  if (schemaVersion !== LOCAL_BINDING_CONTRACT_VERSION) {
     throw new TypeError(
-      `executionSurface schema ${String(surface.schemaVersion)} is not supported by schema ${LOCAL_BINDING_CONTRACT_VERSION}.`
+      `executionSurface schema ${String(schemaVersion)} is not supported by schema ${LOCAL_BINDING_CONTRACT_VERSION}.`
     );
   }
 }
