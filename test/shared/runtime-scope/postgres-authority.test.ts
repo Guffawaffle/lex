@@ -354,6 +354,10 @@ describe("PostgreSQL canonical authority", () => {
     assert.equal(client.calls.filter(({ sql }) => sql.startsWith("BEGIN")).length, 1);
     assert.equal(client.calls.filter(({ sql }) => sql === "COMMIT").length, 1);
     assert.equal(client.releaseCount, 1);
+    assert.match(
+      client.calls.find(({ sql }) => sql.includes("role_can_mutate_authority"))?.sql ?? "",
+      /'lex_authority_migrations'/
+    );
   });
 
   test("rejects repository widening, revocation, expiry, and unsafe runtime roles", async () => {
@@ -436,6 +440,13 @@ describe("PostgreSQL canonical authority", () => {
     assert.equal(JSON.stringify(receipt).includes(AUTH_REF), false);
     assert.equal(
       client.calls.some(({ sql }) => sql.includes("GRANT SELECT ON TABLE")),
+      true
+    );
+    assert.equal(
+      client.calls.some(
+        ({ sql }) =>
+          sql === 'GRANT SELECT ON TABLE lex_authority_migrations TO "lex_authority_runtime"'
+      ),
       true
     );
     assert.equal(

@@ -16,6 +16,8 @@ Every resolver or workspace-administration decision uses one `REPEATABLE READ RE
 transaction. The runtime role is rejected if it is a superuser, has `BYPASSRLS`, owns an authority
 table, or can mutate any identity, alias, membership, repository-association, or grant table.
 Runtime methods expose no provisioning or revocation operation.
+The runtime role receives read-only access to the schema-version ledger because the directory
+checks that version before every authority snapshot; it receives no migration write privilege.
 
 Workspace grants remain capability-bearing canonical records, but the directory returns and
 `resolveRuntimeScope` copies only the capabilities requested for the current CLI command or MCP

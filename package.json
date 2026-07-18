@@ -158,6 +158,7 @@
     "test:all": "npm test && npm run test:integration",
     "test:coverage": "npm run test",
     "test:smoke": "./scripts/consumer-smoke-test.sh",
+    "test:dogfood:postgres": "tsx scripts/lex3-postgres-dogfood-canary.ts",
     "guard:no-js-src": "node ./scripts/check-no-js-in-src.mjs",
     "check:public-api": "node scripts/verify-public-api.mjs",
     "guard:pack": "node scripts/create-pack-json.js && node scripts/pack-guard.js && rm pack.json *.tgz",

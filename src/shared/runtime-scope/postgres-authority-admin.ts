@@ -374,6 +374,7 @@ export class PostgresAuthorityAdministration implements PostgresAuthorityAdminis
         await client.query(`GRANT SELECT ON TABLE ${table} TO ${quotedRole}`);
       }
       await client.query(`REVOKE ALL ON TABLE lex_authority_migrations FROM ${quotedRole}`);
+      await client.query(`GRANT SELECT ON TABLE lex_authority_migrations TO ${quotedRole}`);
     });
     return Object.freeze({
       schemaVersion: POSTGRES_AUTHORITY_ADMIN_CONTRACT_VERSION,
