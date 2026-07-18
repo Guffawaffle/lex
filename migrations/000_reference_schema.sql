@@ -1,6 +1,6 @@
 -- ============================================================================
 -- Lex Database Reference Schema
--- Version: 10 (as of 2.2.0)
+-- Versions: legacy 14; explicit scope-owned 15 (Lex 3.0)
 --
 -- This file documents the complete current schema for reference.
 -- It is NOT executed — actual migrations are in src/memory/store/db.ts.
@@ -35,8 +35,45 @@ CREATE TABLE IF NOT EXISTS frames (
   plan_hash TEXT,
   spend TEXT,                         -- JSON object
   -- V4: OAuth2/JWT user isolation
-  user_id TEXT
+  user_id TEXT,
+  -- V11: deduplication lifecycle
+  superseded_by TEXT,
+  merged_from TEXT,                   -- JSON array of Frame IDs
+  -- V12/V14: module attribution provenance
+  module_attribution TEXT,            -- JSON attribution receipt
+  -- V15: explicit per-workspace ownership (present only after reviewed migration)
+  ownership_schema_version INTEGER NOT NULL CHECK (ownership_schema_version = 1),
+  tenant_id TEXT NOT NULL,
+  workspace_id TEXT NOT NULL,
+  creator_principal_id TEXT NOT NULL,
+  scope_version TEXT NOT NULL,
+  UNIQUE (tenant_id, workspace_id, id)
 );
+
+-- V15: immutable singleton binding for this per-workspace SQLite file.
+CREATE TABLE IF NOT EXISTS frame_store_scope (
+  singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
+  contract_version INTEGER NOT NULL CHECK (contract_version = 1),
+  tenant_id TEXT NOT NULL,
+  workspace_id TEXT NOT NULL,
+  creator_principal_id TEXT NOT NULL,
+  scope_version TEXT NOT NULL,
+  migration_id TEXT NOT NULL UNIQUE,
+  source_sha256 TEXT NOT NULL,
+  migration_manifest_json TEXT NOT NULL,
+  migration_receipt_json TEXT NOT NULL,
+  UNIQUE (tenant_id, workspace_id)
+);
+
+CREATE TRIGGER IF NOT EXISTS frame_store_scope_immutable_update
+BEFORE UPDATE ON frame_store_scope BEGIN
+  SELECT RAISE(ABORT, 'SQLite store scope binding is immutable');
+END;
+
+CREATE TRIGGER IF NOT EXISTS frame_store_scope_immutable_delete
+BEFORE DELETE ON frame_store_scope BEGIN
+  SELECT RAISE(ABORT, 'SQLite store scope binding is immutable');
+END;
 
 -- FTS5 virtual table for full-text search
 -- V9: Expanded to include next_action, module_scope, jira, branch for better search coverage
@@ -54,6 +91,13 @@ CREATE VIRTUAL TABLE IF NOT EXISTS frames_fts USING fts5(
 
 -- FTS sync triggers
 CREATE TRIGGER IF NOT EXISTS frames_ai AFTER INSERT ON frames BEGIN
+  SELECT CASE WHEN NOT EXISTS (
+    SELECT 1 FROM frame_store_scope s
+    WHERE s.singleton = 1
+      AND new.ownership_schema_version = s.contract_version
+      AND new.tenant_id = s.tenant_id
+      AND new.workspace_id = s.workspace_id
+  ) THEN RAISE(ABORT, 'frame ownership does not match SQLite store binding') END;
   INSERT INTO frames_fts(rowid, reference_point, summary_caption, keywords, next_action, module_scope, jira, branch)
   VALUES (
     new.rowid,
@@ -73,6 +117,18 @@ CREATE TRIGGER IF NOT EXISTS frames_ad AFTER DELETE ON frames BEGIN
 END;
 
 CREATE TRIGGER IF NOT EXISTS frames_au AFTER UPDATE ON frames BEGIN
+  SELECT CASE WHEN NOT EXISTS (
+    SELECT 1 FROM frame_store_scope s
+    WHERE s.singleton = 1
+      AND new.ownership_schema_version = s.contract_version
+      AND new.ownership_schema_version = old.ownership_schema_version
+      AND new.tenant_id = s.tenant_id
+      AND new.tenant_id = old.tenant_id
+      AND new.workspace_id = s.workspace_id
+      AND new.workspace_id = old.workspace_id
+      AND new.creator_principal_id = old.creator_principal_id
+      AND new.scope_version = old.scope_version
+  ) THEN RAISE(ABORT, 'frame ownership is immutable and must match SQLite store binding') END;
   INSERT INTO frames_fts(frames_fts, rowid, reference_point, summary_caption, keywords, next_action, module_scope, jira, branch)
   VALUES ('delete', old.rowid, old.reference_point, old.summary_caption, old.keywords, json_extract(old.status_snapshot, '$.next_action'), old.module_scope, old.jira, old.branch);
   INSERT INTO frames_fts(rowid, reference_point, summary_caption, keywords, next_action, module_scope, jira, branch)
@@ -85,6 +141,10 @@ CREATE INDEX IF NOT EXISTS idx_frames_branch ON frames(branch);
 CREATE INDEX IF NOT EXISTS idx_frames_jira ON frames(jira);
 CREATE INDEX IF NOT EXISTS idx_frames_atlas_frame_id ON frames(atlas_frame_id);
 CREATE INDEX IF NOT EXISTS idx_frames_user_id ON frames(user_id);
+CREATE INDEX IF NOT EXISTS idx_frames_superseded_by ON frames(superseded_by);
+CREATE INDEX IF NOT EXISTS idx_frames_scope_timestamp ON frames(tenant_id, workspace_id, timestamp DESC, id DESC);
+CREATE INDEX IF NOT EXISTS idx_frames_scope_branch ON frames(tenant_id, workspace_id, branch);
+CREATE INDEX IF NOT EXISTS idx_frames_scope_superseded ON frames(tenant_id, workspace_id, superseded_by);
 
 -- ============================================================================
 -- IMAGES (V2)

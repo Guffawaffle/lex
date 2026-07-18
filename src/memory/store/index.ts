@@ -52,8 +52,38 @@ export type {
 export type { CodeAtlasStore } from "./code-atlas-store.js";
 
 // SqliteFrameStore - production-ready FrameStore implementation
-export { SqliteFrameStore } from "./sqlite/index.js";
-export type { SqliteFrameStoreAccessMode, SqliteFrameStoreOptions } from "./sqlite/index.js";
+export {
+  SqliteFrameStore,
+  SqliteScopedFrameStoreBackend,
+  SCOPED_SQLITE_SCHEMA_VERSION,
+  LEGACY_SQLITE_SCHEMA_VERSION,
+  SCOPED_SQLITE_ERROR_CODES,
+  ScopedSqliteError,
+  inspectScopedSqliteSchema,
+  requireHealthyScopedSqliteSchema,
+  SQLITE_SCOPE_MIGRATION_MANIFEST_VERSION,
+  SQLITE_SCOPE_MIGRATION_RECEIPT_VERSION,
+  inventorySqliteScope,
+  createSqliteScopeMigrationManifest,
+  validateSqliteScopeMigrationManifest,
+  migrateSqliteStoreToScopedV15,
+  recoverSqliteScopeMigration,
+} from "./sqlite/index.js";
+export type {
+  SqliteFrameStoreAccessMode,
+  SqliteFrameStoreOptions,
+  SqliteScopedFrameStoreOptions,
+  ScopedSqliteErrorCode,
+  ScopedSqliteSchemaState,
+  ScopedSqliteSchemaInspection,
+  SqliteStoreScopeBindingV1,
+  SqliteScopeTargetV1,
+  SqliteScopeInventoryV1,
+  SqliteScopeMigrationManifestV1,
+  SqliteScopeMigrationReceiptV1,
+  SqliteScopeMigrationResult,
+  SqliteScopeRecoveryReceiptV1,
+} from "./sqlite/index.js";
 
 // PostgreSQL FrameStore - opt-in shared backend for cross-platform storage
 export {

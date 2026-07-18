@@ -17,11 +17,19 @@ import {
   dbVacuum,
   dbBackup,
   dbRepair,
+  dbScopeInventory,
+  dbScopeManifest,
+  dbScopeMigrate,
+  dbScopeRecover,
   dbEncrypt,
   dbStats,
   type DbVacuumOptions,
   type DbBackupOptions,
   type DbRepairOptions,
+  type DbScopeInventoryOptions,
+  type DbScopeManifestOptions,
+  type DbScopeMigrateOptions,
+  type DbScopeRecoverOptions,
   type DbEncryptOptions,
   type DbStatsOptions,
 } from "./db.js";
@@ -390,6 +398,77 @@ export function createProgram(options: CreateProgramOptionsV1 = {}): Command {
         json: globalOptions.json || false,
       };
       await dbRepair(options);
+    });
+
+  // lex db scope: explicit SQLite v14 -> v15 ownership staging
+  const dbScopeCommand = dbCommand
+    .command("scope")
+    .description("Stage and apply explicit SQLite tenant/workspace ownership");
+
+  dbScopeCommand
+    .command("inventory")
+    .description("Inspect SQLite ownership state without mutation")
+    .option("--database <path>", "SQLite database file (default: configured Lex store)")
+    .action(async (cmdOptions) => {
+      const options: DbScopeInventoryOptions = {
+        database: cmdOptions.database,
+        json: program.opts().json || false,
+      };
+      await dbScopeInventory(options);
+    });
+
+  dbScopeCommand
+    .command("manifest")
+    .description("Create a deterministic explicit source-to-scope manifest")
+    .requiredOption("--tenant-id <uuid>", "Canonical tenant UUID")
+    .requiredOption("--workspace-id <uuid>", "Canonical workspace UUID")
+    .requiredOption("--creator-principal-id <uuid>", "Canonical migration principal UUID")
+    .requiredOption("--scope-version <version>", "Authority scope version")
+    .option("--database <path>", "SQLite database file (default: configured Lex store)")
+    .option("--output <path>", "Create the manifest file exclusively (0600)")
+    .action(async (cmdOptions) => {
+      const options: DbScopeManifestOptions = {
+        tenantId: cmdOptions.tenantId,
+        workspaceId: cmdOptions.workspaceId,
+        creatorPrincipalId: cmdOptions.creatorPrincipalId,
+        scopeVersion: cmdOptions.scopeVersion,
+        database: cmdOptions.database,
+        output: cmdOptions.output,
+        json: program.opts().json || false,
+      };
+      await dbScopeManifest(options);
+    });
+
+  dbScopeCommand
+    .command("migrate")
+    .description("Validate a manifest; mutate only when --write is explicit")
+    .requiredOption("--manifest <path>", "Reviewed SQLite scope migration manifest")
+    .option("--database <path>", "SQLite database file (default: configured Lex store)")
+    .option("--write", "Back up, transactionally migrate, and verify")
+    .action(async (cmdOptions) => {
+      const options: DbScopeMigrateOptions = {
+        manifest: cmdOptions.manifest,
+        database: cmdOptions.database,
+        write: cmdOptions.write || false,
+        json: program.opts().json || false,
+      };
+      await dbScopeMigrate(options);
+    });
+
+  dbScopeCommand
+    .command("recover")
+    .description("Verify a migration backup; restore only when --write is explicit")
+    .requiredOption("--backup <path>", "Local recovery snapshot created by migration")
+    .option("--database <path>", "SQLite database file (default: configured Lex store)")
+    .option("--write", "Atomically restore and verify the legacy source")
+    .action(async (cmdOptions) => {
+      const options: DbScopeRecoverOptions = {
+        backup: cmdOptions.backup,
+        database: cmdOptions.database,
+        write: cmdOptions.write || false,
+        json: program.opts().json || false,
+      };
+      await dbScopeRecover(options);
     });
 
   // lex db encrypt

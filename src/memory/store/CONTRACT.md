@@ -38,15 +38,34 @@ remain absent from `ScopedFrameStore`. They cannot be reached with a special
 normal selector or type cast.
 
 `MemoryScopedFrameStoreBackend` is the reference implementation for these
-semantics. Its conformance tests establish that equivalent Frame IDs in
-different tenant/workspace partitions do not collide, caller-provided legacy
-`userId` values cannot override creator attribution, and empty or narrow
-capability requests never expand.
+semantics. `SqliteScopedFrameStoreBackend` is the durable per-workspace
+implementation and runs the shared normal-operation conformance suite. Its v15
+schema binds one SQLite file permanently to one tenant/workspace, stamps every
+row with ownership-contract version, creator principal, and authority scope
+version, and filters every normal query and mutation by the bound scope.
 
-The exported unscoped `FrameStore` and physical adapters coexist temporarily so
-the trusted bootstrap, SQLite ownership migration, and PostgreSQL RLS work can
-land independently. This compatibility seam is not the Lex 3.0 normal API and
-must be removed from normal construction/wiring before issue #759 is complete.
+SQLite schema v14 is the last unowned legacy state. The v15 adapter never opens
+it for normal service. Ownership is assigned only through `lex db scope`:
+
+1. `inventory` reads a stable snapshot and returns a path-redacted state;
+2. `manifest` records one explicit source hash and canonical UUID mapping;
+3. `migrate` validates without mutation unless `--write` is present;
+4. write mode captures a mandatory recovery snapshot, rebuilds transactionally,
+   records deterministic manifest/receipt evidence, and verifies structure,
+   ownership, frame count, FTS, integrity, and foreign keys; and
+5. `recover` validates without mutation unless `--write` explicitly restores
+   the exact recorded v14 source.
+
+Directory names, environment variables, repository paths, and legacy `userId`
+values never supply ownership. Ambiguous, stale, partial, conflicting, malformed,
+or newer stores fail closed. The per-workspace file model lets different
+workspaces retain equivalent Frame IDs without a shared-file collision.
+
+The exported unscoped `FrameStore` and legacy SQLite adapter coexist temporarily
+so trusted-bootstrap wiring and PostgreSQL RLS can land independently. The
+legacy adapter rejects v15 as a newer schema and cannot accidentally serve a
+scoped file. This compatibility seam is not the Lex 3.0 normal API and must be
+removed from normal construction/wiring before issue #759 is complete.
 
 ---
 
