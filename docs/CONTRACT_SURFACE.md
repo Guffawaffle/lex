@@ -20,6 +20,27 @@ Lex exposes a contract surface that any runner or tool can target. This document
 
 ## Core Contracts
 
+### 0. Trusted Runtime Scope
+
+**What:** Deterministic separation of canonical authority, surface-local repository/workspace bindings, invocation context, and agent-safe diagnostics.
+
+**Public API:** `@smartergpt/lex/runtime-scope`
+
+**Schema Version:** 1
+
+**Invariants:**
+- Canonical IDs are opaque and immutable; slugs are human selectors, not ownership keys.
+- `AuthorityDirectory` owns shared membership and grants.
+- `LocalBindingRegistry` owns native-environment topology/evidence and cannot mint authority.
+- One invocation binds to one active tenant/workspace.
+- Windows and each WSL distribution use separate local registries and local instance IDs.
+- Paths, Git state, manifests, flags, and environment values may select evidence but cannot grant access.
+- Diagnostics are versioned, redacted observability and never change resolution.
+
+**Conformance:** The package exports deterministic Windows/WSL, clone, worktree, fork, binding, selector, cached-authority, and diagnostic fixtures. Phase 1 adds no resolver or store behavior.
+
+See [Trusted Runtime Scope Contract](./RUNTIME_SCOPE_CONTRACT.md) and [ADR-0011](./adr/0011-trusted-runtime-scope-and-authority.md).
+
 ### 1. Introspect
 
 **What:** Discovery mechanism for agents to understand current Lex state, capabilities, and error codes.

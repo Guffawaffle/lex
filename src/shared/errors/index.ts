@@ -30,9 +30,11 @@ export {
   GIT_ERROR_CODES,
   LEXSONA_ERROR_CODES,
   VALIDATION_ERROR_CODES,
+  WORKSPACE_AUTHORITY_ERROR_CODES,
   STANDARD_NEXT_ACTIONS,
   isLexErrorCode,
   type LexErrorCode,
+  type WorkspaceAuthorityErrorCode,
 } from "./error-codes.js";
 
 // Compact error envelope (AX-012)

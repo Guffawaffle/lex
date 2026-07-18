@@ -17,6 +17,9 @@ This directory contains Architecture Decision Records for Lex. Each ADR document
 | 0006 | [Spec vs Engine Separation](./0006-spec-vs-engine-separation.md) | Proposed | 2025-11-25 |
 | 0007 | [Safety-First Defaults](./0007-safety-first-defaults.md) | Proposed | 2025-11-25 |
 | 0008 | [lex.yaml Workflow Configuration](./0008-lex-yaml.md) | Accepted | 2025-11-27 |
+| 0009 | [MCP Tool Naming Convention](./0009-mcp-tool-naming-convention.md) | Accepted | 2025-12-28 |
+| 0010 | [MCP Registry Namespace Strategy](./0010-mcp-registry-namespace.md) | Accepted | 2025-12-31 |
+| 0011 | [Trusted Runtime Scope and Authority Boundary](./0011-trusted-runtime-scope-and-authority.md) | Accepted | 2026-07-17 |
 
 ## Conventions
 

@@ -150,6 +150,27 @@ export const VALIDATION_ERROR_CODES = {
 } as const;
 
 /**
+ * Trusted workspace identity and authority errors (LEX_*).
+ *
+ * These codes are fixed by the runtime-scope v1 contract. Resolution fails
+ * closed and diagnostics may explain the result without changing it.
+ */
+export const WORKSPACE_AUTHORITY_ERROR_CODES = {
+  /** No trusted local binding matched the invocation. */
+  WORKSPACE_UNBOUND: "LEX_WORKSPACE_UNBOUND",
+  /** Repository declaration, provider, path, or registry evidence disagreed. */
+  REPOSITORY_BINDING_MISMATCH: "LEX_REPOSITORY_BINDING_MISMATCH",
+  /** The requested workspace selector was not authorized for the principal. */
+  WORKSPACE_SELECTOR_UNAUTHORIZED: "LEX_WORKSPACE_SELECTOR_UNAUTHORIZED",
+  /** More than one binding matched without deterministic disambiguation. */
+  WORKSPACE_BINDING_AMBIGUOUS: "LEX_WORKSPACE_BINDING_AMBIGUOUS",
+  /** Cached canonical authority expired before it could be reverified. */
+  AUTHORITY_CACHE_EXPIRED: "LEX_AUTHORITY_CACHE_EXPIRED",
+  /** Canonical authority revoked the previously verified grant. */
+  AUTHORITY_GRANT_REVOKED: "LEX_AUTHORITY_GRANT_REVOKED",
+} as const;
+
+/**
  * All Lex error codes combined
  */
 export const LEX_ERROR_CODES = {
@@ -162,7 +183,11 @@ export const LEX_ERROR_CODES = {
   ...GIT_ERROR_CODES,
   ...LEXSONA_ERROR_CODES,
   ...VALIDATION_ERROR_CODES,
+  ...WORKSPACE_AUTHORITY_ERROR_CODES,
 } as const;
+
+export type WorkspaceAuthorityErrorCode =
+  (typeof WORKSPACE_AUTHORITY_ERROR_CODES)[keyof typeof WORKSPACE_AUTHORITY_ERROR_CODES];
 
 /**
  * Type for any valid Lex error code

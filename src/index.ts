@@ -10,6 +10,7 @@
  * |-------------|---------|
  * | `@smartergpt/lex` | Core types + store API (this file) |
  * | `@smartergpt/lex/types` | All shared types (Frame, Policy, AtlasFrame, etc.) |
+ * | `@smartergpt/lex/runtime-scope` | Trusted identity, authority, binding, and diagnostic contracts |
  * | `@smartergpt/lex/store` | Direct database operations |
  * | `@smartergpt/lex/memory` | Frame payload validation helpers |
  * | `@smartergpt/lex/policy` | Policy loading and validation |
@@ -49,6 +50,9 @@ export type {
   ResolutionResult,
 } from "./shared/types/validation.js";
 export { ModuleNotFoundError } from "./shared/types/validation.js";
+
+// Trusted runtime identity, authority, binding, and diagnostics contracts
+export * from "./shared/runtime-scope/index.js";
 
 // =============================================================================
 // STORE API (1.0.0 Contract)
