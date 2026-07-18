@@ -17,6 +17,7 @@ import type { CodeUnit } from "../../atlas/schemas/code-unit.js";
 import type { CodeAtlasRun } from "../../atlas/schemas/code-atlas-run.js";
 import { generatePolicySeed } from "../../atlas/policy-seed-generator.js";
 import type { PolicySeed } from "../../atlas/schemas/policy-seed.js";
+import { canonicalizeContainedPath, readContainedFile } from "../config/contained-path.js";
 
 /**
  * Convert PolicySeed to YAML format
@@ -75,6 +76,10 @@ export interface CodeAtlasOptions {
   strategy?: "static" | "llm-assisted" | "mixed";
   json?: boolean;
   policySeed?: string;
+  /** Suppress all stdout/stderr presentation for in-process consumers. */
+  emitOutput?: boolean;
+  /** Physically contain every source read to this trusted project root. */
+  trustedProjectRoot?: string;
 }
 
 export interface CodeAtlasOutput {
@@ -121,12 +126,15 @@ function generateRunId(): string {
 /**
  * Get repository ID from directory path
  */
-function getRepoId(repoDir: string): string {
+function getRepoId(repoDir: string, trustedProjectRoot?: string): string {
   // Try to get from package.json name or use directory name
   const packageJsonPath = path.join(repoDir, "package.json");
   if (fs.existsSync(packageJsonPath)) {
+    const content = trustedProjectRoot
+      ? readContainedFile(trustedProjectRoot, packageJsonPath).content
+      : fs.readFileSync(packageJsonPath, "utf-8");
     try {
-      const pkg = JSON.parse(fs.readFileSync(packageJsonPath, "utf-8"));
+      const pkg = JSON.parse(content);
       if (pkg.name) {
         return pkg.name;
       }
@@ -166,31 +174,29 @@ function detectLanguage(filePath: string): string {
  * but may not cover all gitignore edge cases (negation, escaping, etc.).
  * Consider using a dedicated gitignore parsing library for more robust handling.
  */
-function parseGitignore(repoDir: string): string[] {
+function parseGitignore(repoDir: string, trustedProjectRoot?: string): string[] {
   const gitignorePath = path.join(repoDir, ".gitignore");
   if (!fs.existsSync(gitignorePath)) {
     return [];
   }
 
-  try {
-    const content = fs.readFileSync(gitignorePath, "utf-8");
-    return content
-      .split("\n")
-      .map((line) => line.trim())
-      .filter((line) => line && !line.startsWith("#") && !line.startsWith("!"))
-      .map((pattern) => {
-        // Convert gitignore patterns to glob patterns (simplified)
-        if (pattern.startsWith("/")) {
-          return pattern.substring(1) + "/**";
-        }
-        if (!pattern.includes("/")) {
-          return "**/" + pattern + "/**";
-        }
-        return "**/" + pattern;
-      });
-  } catch {
-    return [];
-  }
+  const content = trustedProjectRoot
+    ? readContainedFile(trustedProjectRoot, gitignorePath).content
+    : fs.readFileSync(gitignorePath, "utf-8");
+  return content
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line && !line.startsWith("#") && !line.startsWith("!"))
+    .map((pattern) => {
+      // Convert gitignore patterns to glob patterns (simplified)
+      if (pattern.startsWith("/")) {
+        return pattern.substring(1) + "/**";
+      }
+      if (!pattern.includes("/")) {
+        return "**/" + pattern + "/**";
+      }
+      return "**/" + pattern;
+    });
 }
 
 /**
@@ -580,7 +586,11 @@ function extractUnits(
  * Execute the 'lex code-atlas' command
  */
 export async function codeAtlas(options: CodeAtlasOptions = {}): Promise<CodeAtlasResult> {
-  const repoDir = path.resolve(options.repo || ".");
+  const emitOutput = options.emitOutput !== false;
+  const requestedRepoDir = path.resolve(options.repo || ".");
+  const repoDir = options.trustedProjectRoot
+    ? canonicalizeContainedPath(options.trustedProjectRoot, requestedRepoDir)
+    : requestedRepoDir;
   const includePattern = options.include || DEFAULT_INCLUDE;
   const excludePattern = options.exclude || DEFAULT_EXCLUDE;
   const maxFiles = options.maxFiles || DEFAULT_MAX_FILES;
@@ -589,20 +599,26 @@ export async function codeAtlas(options: CodeAtlasOptions = {}): Promise<CodeAtl
   // Validate repository directory
   if (!fs.existsSync(repoDir)) {
     const errorMsg = `Repository directory not found: ${repoDir}`;
-    if (options.json) {
+    if (emitOutput && options.json) {
       output.json({ success: false, error: errorMsg });
-    } else {
+    } else if (emitOutput) {
       output.error(errorMsg);
     }
     return { success: false, error: errorMsg };
   }
 
-  const repoId = getRepoId(repoDir);
+  if (options.trustedProjectRoot && (options.out || options.policySeed)) {
+    const errorMsg = "Trusted in-process Code Atlas does not permit filesystem output options.";
+    if (emitOutput) output.error(errorMsg);
+    return { success: false, error: errorMsg };
+  }
+
+  const repoId = getRepoId(repoDir, options.trustedProjectRoot);
   const runId = generateRunId();
   const startTime = Date.now();
 
   // Parse .gitignore patterns
-  const gitignorePatterns = parseGitignore(repoDir);
+  const gitignorePatterns = parseGitignore(repoDir, options.trustedProjectRoot);
 
   // Build ignore patterns
   const ignorePatterns = [
@@ -616,7 +632,7 @@ export async function codeAtlas(options: CodeAtlasOptions = {}): Promise<CodeAtl
     "**/*.d.ts",
   ];
 
-  if (!options.json) {
+  if (emitOutput && !options.json) {
     output.info(`Scanning repository: ${repoDir}`);
     output.info(`Include pattern: ${includePattern}`);
     output.info(`Max files: ${maxFiles}`);
@@ -639,24 +655,29 @@ export async function codeAtlas(options: CodeAtlasOptions = {}): Promise<CodeAtl
     const truncated = allFiles.length > maxFiles;
     const filesToScan = truncated ? allFiles.slice(0, maxFiles) : allFiles;
 
-    if (!options.json) {
+    if (emitOutput && !options.json) {
       output.info(`Found ${allFiles.length} files, scanning ${filesToScan.length}...`);
     }
 
     const units: CodeUnit[] = [];
+    const scannedFiles: string[] = [];
     let filesProcessed = 0;
 
     // Process files
     for (const filePath of filesToScan) {
       try {
-        const content = fs.readFileSync(filePath, "utf-8");
-        const relativePath = path.relative(repoDir, filePath).replace(/\\/g, "/");
-        const fileUnits = extractUnits(filePath, content, repoId, relativePath);
+        const snapshot = options.trustedProjectRoot
+          ? readContainedFile(options.trustedProjectRoot, filePath)
+          : { canonicalPath: filePath, content: fs.readFileSync(filePath, "utf-8") };
+        const content = snapshot.content;
+        const relativePath = path.relative(repoDir, snapshot.canonicalPath).replace(/\\/g, "/");
+        const fileUnits = extractUnits(snapshot.canonicalPath, content, repoId, relativePath);
         units.push(...fileUnits);
+        scannedFiles.push(relativePath);
         filesProcessed++;
 
         // Progress indicator for large repos
-        if (!options.json && filesProcessed % 50 === 0) {
+        if (emitOutput && !options.json && filesProcessed % 50 === 0) {
           output.info(
             `Processed ${filesProcessed}/${filesToScan.length} files (${units.length} units)...`
           );
@@ -673,7 +694,9 @@ export async function codeAtlas(options: CodeAtlasOptions = {}): Promise<CodeAtl
       runId,
       repoId,
       filesRequested: allFiles.map((f) => path.relative(repoDir, f).replace(/\\/g, "/")),
-      filesScanned: filesToScan.map((f) => path.relative(repoDir, f).replace(/\\/g, "/")),
+      filesScanned: options.trustedProjectRoot
+        ? scannedFiles
+        : filesToScan.map((filePath) => path.relative(repoDir, filePath).replace(/\\/g, "/")),
       unitsEmitted: units.length,
       limits: {
         maxFiles,
@@ -702,7 +725,7 @@ export async function codeAtlas(options: CodeAtlasOptions = {}): Promise<CodeAtl
       const yamlContent = policySeedToYaml(policySeed);
       fs.writeFileSync(policySeedPath, yamlContent);
 
-      if (!options.json) {
+      if (emitOutput && !options.json) {
         output.info(`Policy seed written to: ${policySeedPath}`);
       }
     }
@@ -717,7 +740,7 @@ export async function codeAtlas(options: CodeAtlasOptions = {}): Promise<CodeAtl
       }
       fs.writeFileSync(outPath, JSON.stringify(atlasOutput, null, 2));
 
-      if (options.json) {
+      if (emitOutput && options.json) {
         output.json({
           success: true,
           outputPath: outPath,
@@ -727,7 +750,7 @@ export async function codeAtlas(options: CodeAtlasOptions = {}): Promise<CodeAtl
           truncated,
           durationSeconds: parseFloat(duration),
         });
-      } else {
+      } else if (emitOutput) {
         output.success(`\n✅ Code Atlas extraction complete`);
         output.info(`Output written to: ${outPath}`);
         output.info(
@@ -745,9 +768,9 @@ export async function codeAtlas(options: CodeAtlasOptions = {}): Promise<CodeAtl
       };
     } else {
       // Output to stdout
-      if (options.json) {
+      if (emitOutput && options.json) {
         output.raw(JSON.stringify(atlasOutput, null, 2));
-      } else {
+      } else if (emitOutput) {
         // Human-readable summary first, then JSON
         output.success(`\n✅ Code Atlas extraction complete`);
         output.info(
@@ -767,9 +790,9 @@ export async function codeAtlas(options: CodeAtlasOptions = {}): Promise<CodeAtl
     }
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
-    if (options.json) {
+    if (emitOutput && options.json) {
       output.json({ success: false, error: errorMsg });
-    } else {
+    } else if (emitOutput) {
       output.error(`\n❌ Code Atlas extraction failed: ${errorMsg}`);
     }
     return { success: false, error: errorMsg };

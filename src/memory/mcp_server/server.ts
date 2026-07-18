@@ -17,7 +17,11 @@ import { MCP_TOOLS } from "./tools.js";
 import { MCPError, MCPErrorCode, MCP_ERROR_METADATA, createModuleIdError } from "./errors.js";
 import { IdempotencyCache } from "./idempotency.js";
 // @ts-ignore - importing from compiled dist directories
-import { generateAtlasFrame, formatAtlasFrame } from "../../shared/atlas/atlas-frame.js";
+import {
+  generateAtlasFrame,
+  generateAtlasFrameFromPolicy,
+  formatAtlasFrame,
+} from "../../shared/atlas/atlas-frame.js";
 // @ts-ignore - importing from compiled dist directories
 import { validateModuleIds } from "../../shared/module_ids/validator.js";
 // @ts-ignore - importing from compiled dist directories
@@ -25,6 +29,7 @@ import type { ModuleIdError } from "../../shared/types/validation.js";
 // @ts-ignore - importing from compiled dist directories
 import {
   loadPolicy,
+  loadPolicySnapshot,
   resolvePolicyPath,
   type PolicyPathResolution,
 } from "../../shared/policy/loader.js";
@@ -32,15 +37,22 @@ import {
 import type { Policy } from "../../shared/types/policy.js";
 // @ts-ignore - importing from compiled dist directories
 import { getCurrentBranch } from "../../shared/git/branch.js";
-import { resolveConfigResolution, type ConfigResolution } from "../../shared/config/index.js";
+import {
+  canonicalizeContainedPath,
+  readContainedFile,
+  resolveConfigResolution,
+  type ConfigResolution,
+} from "../../shared/config/index.js";
 import { alternateStoreWarning, resolveStoreIdentity } from "../../shared/config/store-identity.js";
 // @ts-ignore - importing from compiled dist directories
 import { validatePolicySchema } from "../../shared/policy/schema.js";
 import { randomUUID } from "crypto";
-import { join, dirname, resolve } from "path";
+import { join, dirname, isAbsolute, resolve } from "path";
 import { readFileSync } from "fs";
 import { fileURLToPath } from "url";
 import { AXErrorException, isAXErrorException } from "../../shared/errors/ax-error.js";
+// @ts-ignore - importing from compiled dist directories
+import { codeAtlas } from "../../shared/cli/code-atlas.js";
 // @ts-ignore - importing from compiled dist directories
 import {
   buildTimeline,
@@ -63,6 +75,7 @@ import {
   type DiagnosticEnvelopeV1,
   type DiagnosticRequestV1,
   type CapabilityId,
+  type InvocationContextV1,
   type TrustedRuntimeScopeBootstrapResultV1,
   type TrustedRuntimeScopeEntrypointGuardV1,
 } from "../../shared/runtime-scope/index.js";
@@ -208,6 +221,15 @@ export interface MCPServerOptions {
 
 export interface MCPRuntimeScopeGuardV1 extends TrustedRuntimeScopeEntrypointGuardV1 {}
 
+interface MCPDispatchWorkspaceContext {
+  readonly trusted: boolean;
+  readonly projectRoot: string | null;
+  readonly policy: Policy | null;
+  readonly policyResolution: PolicyPathResolution | null;
+  readonly configResolution: ConfigResolution;
+  readonly sourceRevision?: InvocationContextV1["sourceRevision"];
+}
+
 function requireDispatchFrameStore(store: FrameStore | undefined): FrameStore {
   if (!store) {
     throw new ScopedFrameStoreError(
@@ -228,7 +250,7 @@ export class MCPServer {
   private repoRoot: string | null; // Repository root path
   private policyResolution: PolicyPathResolution | null;
   private dbPathSource = "scope-bound";
-  private configResolution: ConfigResolution;
+  private configResolution: ConfigResolution | null;
   private idempotencyCache: IdempotencyCache; // Idempotency cache for mutation tools
   private readonly runtimeScope: MCPRuntimeScopeGuardV1 | undefined;
   private readonly frameStoreBinder: ScopedFrameStoreBinder | undefined;
@@ -257,10 +279,12 @@ export class MCPServer {
     this.repoRoot = options.repoRoot || null;
     this.runtimeScope = options.runtimeScope;
     this.frameStoreBinder = options.frameStoreBinder;
-    this.configResolution = resolveConfigResolution({
-      startPath: process.cwd(),
-      explicitRoot: this.repoRoot,
-    });
+    this.configResolution = this.runtimeScope
+      ? null
+      : resolveConfigResolution({
+          startPath: process.cwd(),
+          explicitRoot: this.repoRoot,
+        });
 
     // Create or use provided FrameStore
     if (options.frameStore) {
@@ -271,10 +295,14 @@ export class MCPServer {
       this.dbPathSource =
         this.frameStore.getMetadata().backend === "postgres"
           ? "env:LEX_DATABASE_URL"
-          : resolve(this.configResolution.config.paths.database) === resolve(options.dbPath)
+          : this.configResolution &&
+              resolve(this.configResolution.config.paths.database) === resolve(options.dbPath)
             ? this.configResolution.pathSources.database
             : "constructor.dbPath";
     } else if (!this.runtimeScope) {
+      if (!this.configResolution) {
+        throw new Error("Legacy MCP configuration resolution is unavailable.");
+      }
       this.frameStore = createFrameStore(this.configResolution.config.paths.database);
       this.dbPathSource =
         this.frameStore.getMetadata().backend === "postgres"
@@ -294,23 +322,182 @@ export class MCPServer {
     // Initialize idempotency cache (24 hour TTL by default)
     this.idempotencyCache = new IdempotencyCache();
 
-    // Load policy once at initialization for better performance
-    // If policy is not found, operate without policy enforcement
-    try {
-      this.policyResolution = resolvePolicyPath(undefined, {
-        startPath: process.cwd(),
-        workspaceRootOverride: this.repoRoot,
-      });
+    this.policy = null;
+    if (!this.runtimeScope) {
+      // Legacy unscoped servers retain their process-oriented, eager policy snapshot.
+      try {
+        this.policyResolution = resolvePolicyPath(undefined, {
+          startPath: process.cwd(),
+          workspaceRootOverride: this.repoRoot,
+        });
 
-      this.policy = this.policyResolution.path ? loadPolicy(this.policyResolution.path) : null;
-    } catch (error: unknown) {
-      if (process.env.LEX_DEBUG) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        logger.error(`[LEX] Policy not available: ${errorMessage}`);
-        logger.error(`[LEX] Operating without policy enforcement`);
+        this.policy = this.policyResolution.path ? loadPolicy(this.policyResolution.path) : null;
+      } catch (error: unknown) {
+        if (process.env.LEX_DEBUG) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          logger.error(`[LEX] Policy not available: ${errorMessage}`);
+          logger.error(`[LEX] Operating without policy enforcement`);
+        }
+        this.policy = null;
       }
-      this.policy = null;
     }
+  }
+
+  private legacyDispatchContext(): MCPDispatchWorkspaceContext {
+    if (!this.configResolution) {
+      throw new MCPError(
+        MCPErrorCode.INTERNAL_ERROR,
+        "Legacy MCP dispatch is missing its process configuration snapshot."
+      );
+    }
+    return {
+      trusted: false,
+      projectRoot: this.repoRoot,
+      policy: this.policy,
+      policyResolution: this.policyResolution,
+      configResolution: this.configResolution,
+    };
+  }
+
+  private trustedDispatchContext(
+    invocationContext: InvocationContextV1
+  ): MCPDispatchWorkspaceContext {
+    const projectRoot = invocationContext.projectRoot;
+    if (!isAbsolute(projectRoot)) {
+      throw new MCPError(
+        MCPErrorCode.POLICY_INVALID,
+        "Trusted workspace projectRoot must be absolute before MCP dispatch."
+      );
+    }
+    let normalizedRoot: string;
+    try {
+      normalizedRoot = canonicalizeContainedPath(projectRoot, projectRoot);
+    } catch (error) {
+      throw new MCPError(
+        MCPErrorCode.POLICY_INVALID,
+        `Trusted workspace projectRoot could not be canonicalized: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+
+    let configResolution: ConfigResolution;
+    try {
+      configResolution = resolveConfigResolution({
+        trustedBoundary: {
+          projectRoot: normalizedRoot,
+          capturedAt: this.runtimeScope?.request.bootstrap.capturedAt ?? "",
+          branch: invocationContext.sourceRevision?.branch ?? "",
+          commit: invocationContext.sourceRevision?.commitSha ?? "",
+        },
+      });
+    } catch (error) {
+      throw new MCPError(
+        MCPErrorCode.POLICY_INVALID,
+        `Trusted workspace configuration could not be resolved: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+
+    if (resolve(configResolution.workspaceRoot.path) !== normalizedRoot) {
+      throw new MCPError(
+        MCPErrorCode.POLICY_INVALID,
+        "Trusted workspace configuration resolved for a different project root."
+      );
+    }
+
+    const configuredPolicyPath =
+      configResolution.pathSources.policy === "file:.lex.config.json"
+        ? configResolution.config.paths.policy
+        : undefined;
+    const unresolvedPolicyResolution = configuredPolicyPath
+      ? resolvePolicyPath(configuredPolicyPath, { includeEnvironmentOverride: false })
+      : resolvePolicyPath(undefined, {
+          startPath: normalizedRoot,
+          workspaceRootOverride: normalizedRoot,
+          includeEnvironmentOverride: false,
+        });
+
+    if (
+      unresolvedPolicyResolution.workspaceRoot &&
+      resolve(unresolvedPolicyResolution.workspaceRoot.path) !== normalizedRoot
+    ) {
+      throw new MCPError(
+        MCPErrorCode.POLICY_INVALID,
+        "Trusted policy resolution escaped the authorized project root."
+      );
+    }
+    let policy: Policy | null = null;
+    let policyPath: string | null = null;
+    if (unresolvedPolicyResolution.path) {
+      try {
+        const snapshot = readContainedFile(normalizedRoot, unresolvedPolicyResolution.path);
+        policyPath = snapshot.canonicalPath;
+        policy = loadPolicySnapshot(snapshot.content, snapshot.canonicalPath);
+      } catch (error) {
+        if (isAXErrorException(error)) {
+          throw new MCPError(
+            error.axError.code === "POLICY_NOT_FOUND"
+              ? MCPErrorCode.POLICY_NOT_FOUND
+              : MCPErrorCode.POLICY_INVALID,
+            error.axError.message
+          );
+        }
+        if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+          throw new MCPError(
+            MCPErrorCode.POLICY_NOT_FOUND,
+            "Configured trusted workspace policy was not found."
+          );
+        }
+        throw new MCPError(
+          MCPErrorCode.POLICY_INVALID,
+          `Trusted workspace policy snapshot could not be loaded: ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
+    }
+    const policyResolution: PolicyPathResolution = {
+      ...unresolvedPolicyResolution,
+      path: policyPath,
+    };
+
+    return {
+      trusted: true,
+      projectRoot: normalizedRoot,
+      policy,
+      policyResolution,
+      configResolution,
+      ...(invocationContext.sourceRevision
+        ? { sourceRevision: invocationContext.sourceRevision }
+        : {}),
+    };
+  }
+
+  private atlasFrameForContext(moduleScope: string[], context: MCPDispatchWorkspaceContext) {
+    if (context.trusted) {
+      if (!context.policy) {
+        throw new MCPError(
+          MCPErrorCode.POLICY_NOT_FOUND,
+          "Atlas enrichment is unavailable because this workspace has no policy."
+        );
+      }
+      return generateAtlasFrameFromPolicy(moduleScope, context.policy);
+    }
+    return generateAtlasFrame(moduleScope);
+  }
+
+  private trustedIdempotencyNamespace(
+    resolution: Extract<TrustedRuntimeScopeBootstrapResultV1, { readonly resolved: true }>,
+    context: MCPDispatchWorkspaceContext
+  ): string {
+    const { authorizedScope, invocationContext } = resolution;
+    return JSON.stringify([
+      "trusted-mcp-idempotency-v1",
+      authorizedScope.tenantId,
+      authorizedScope.workspaceId,
+      authorizedScope.principalId,
+      invocationContext.binding?.bindingId ?? null,
+      invocationContext.binding?.repositoryId ?? null,
+      invocationContext.binding?.repositoryInstanceId ?? null,
+      invocationContext.repositoryEvidence.canonicalRoot,
+      context.projectRoot,
+    ]);
   }
 
   /**
@@ -492,6 +679,9 @@ export class MCPServer {
     }
 
     const { diagnostics: _diagnostics, ...toolArguments } = params.arguments;
+    const dispatchContext = authorizedRuntimeScope
+      ? this.trustedDispatchContext(authorizedRuntimeScope.invocationContext)
+      : this.legacyDispatchContext();
     let scopedStore: ScopedFrameStore | undefined;
     if (authorizedRuntimeScope && this.frameStoreBinder) {
       try {
@@ -520,11 +710,9 @@ export class MCPServer {
       response = await this.dispatchToolsCall(
         { ...params, arguments: toolArguments },
         dispatchStore,
+        dispatchContext,
         authorizedRuntimeScope
-          ? JSON.stringify([
-              authorizedRuntimeScope.authorizedScope.tenantId,
-              authorizedRuntimeScope.authorizedScope.workspaceId,
-            ])
+          ? this.trustedIdempotencyNamespace(authorizedRuntimeScope, dispatchContext)
           : "legacy-unscoped"
       );
     } finally {
@@ -543,6 +731,7 @@ export class MCPServer {
   private async dispatchToolsCall(
     params: ToolCallParams,
     frameStore: FrameStore | undefined,
+    context: MCPDispatchWorkspaceContext,
     idempotencyNamespace: string
   ): Promise<MCPResponse> {
     const { name, arguments: args } = params;
@@ -561,32 +750,33 @@ export class MCPServer {
         return await this.handleRemember(
           args,
           requireDispatchFrameStore(frameStore),
+          context,
           idempotencyNamespace
         );
 
       case "frame_validate":
-        return await this.handleValidateRemember(args);
+        return await this.handleValidateRemember(args, context);
 
       case "frame_search":
-        return await this.handleRecall(args, requireDispatchFrameStore(frameStore));
+        return await this.handleRecall(args, requireDispatchFrameStore(frameStore), context);
 
       case "frame_get":
-        return await this.handleGetFrame(args, requireDispatchFrameStore(frameStore));
+        return await this.handleGetFrame(args, requireDispatchFrameStore(frameStore), context);
 
       case "frame_list":
-        return await this.handleListFrames(args, requireDispatchFrameStore(frameStore));
+        return await this.handleListFrames(args, requireDispatchFrameStore(frameStore), context);
 
       case "policy_check":
-        return await this.handlePolicyCheck(args);
+        return await this.handlePolicyCheck(args, context);
 
       case "timeline_show":
         return await this.handleTimeline(args, requireDispatchFrameStore(frameStore));
 
       case "atlas_analyze":
-        return await this.handleCodeAtlas(args);
+        return await this.handleCodeAtlas(args, context);
 
       case "system_introspect":
-        return await this.handleIntrospect(args, requireDispatchFrameStore(frameStore));
+        return await this.handleIntrospect(args, requireDispatchFrameStore(frameStore), context);
 
       case "help":
         return await this.handleHelp(args);
@@ -619,6 +809,7 @@ export class MCPServer {
   private async handleRemember(
     args: Record<string, unknown>,
     frameStore: FrameStore,
+    context: MCPDispatchWorkspaceContext,
     idempotencyNamespace: string
   ): Promise<MCPResponse> {
     const {
@@ -678,8 +869,8 @@ export class MCPServer {
 
     // THE CRITICAL RULE: Resolve aliases and validate module IDs against policy (if available)
     let canonicalModuleScope = module_scope;
-    if (this.policy) {
-      const validationResult = await validateModuleIds(module_scope, this.policy);
+    if (context.policy) {
+      const validationResult = await validateModuleIds(module_scope, context.policy);
 
       if (!validationResult.valid && validationResult.errors) {
         // Collect invalid IDs and suggestions
@@ -688,7 +879,7 @@ export class MCPServer {
           .flatMap((e: ModuleIdError) => e.suggestions)
           .filter((s, i, arr) => arr.indexOf(s) === i); // dedupe
 
-        throw createModuleIdError(invalidIds, suggestions, Object.keys(this.policy.modules));
+        throw createModuleIdError(invalidIds, suggestions, Object.keys(context.policy.modules));
       }
 
       // Use canonical IDs for storage (never store aliases)
@@ -709,6 +900,8 @@ export class MCPServer {
     let frameBranch: string;
     if (branch) {
       frameBranch = branch;
+    } else if (context.trusted) {
+      frameBranch = context.sourceRevision?.branch ?? "unknown";
     } else if (this.repoRoot || process.env.LEX_DEFAULT_BRANCH) {
       frameBranch = getCurrentBranch();
       // Log branch detection for debugging
@@ -778,7 +971,7 @@ export class MCPServer {
     // Generate Atlas Frame for the module scope (skip if no policy available)
     let atlasOutput = "";
     try {
-      const atlasFrame = generateAtlasFrame(canonicalModuleScope);
+      const atlasFrame = this.atlasFrameForContext(canonicalModuleScope, context);
       atlasOutput = formatAtlasFrame(atlasFrame);
     } catch {
       // Atlas frame generation requires policy — skip gracefully
@@ -834,7 +1027,10 @@ export class MCPServer {
    * Performs the same validation as handleRemember but returns a structured validation result
    * without creating or storing a Frame. This enables agents to verify inputs incrementally.
    */
-  private async handleValidateRemember(args: Record<string, unknown>): Promise<MCPResponse> {
+  private async handleValidateRemember(
+    args: Record<string, unknown>,
+    context: MCPDispatchWorkspaceContext
+  ): Promise<MCPResponse> {
     const {
       reference_point,
       summary_caption,
@@ -905,9 +1101,9 @@ export class MCPServer {
     }
 
     // Validate module IDs against policy (if available and module_scope is valid)
-    if (this.policy && module_scope && Array.isArray(module_scope) && module_scope.length > 0) {
+    if (context.policy && module_scope && Array.isArray(module_scope) && module_scope.length > 0) {
       try {
-        const validationResult = await validateModuleIds(module_scope, this.policy);
+        const validationResult = await validateModuleIds(module_scope, context.policy);
 
         if (!validationResult.valid && validationResult.errors) {
           // Convert ModuleIdError to our error format
@@ -929,7 +1125,7 @@ export class MCPServer {
           message: `Module validation failed: ${errorMessage}`,
         });
       }
-    } else if (!this.policy && module_scope && Array.isArray(module_scope)) {
+    } else if (!context.policy && module_scope && Array.isArray(module_scope)) {
       // No policy loaded - add a warning
       warnings.push({
         field: "module_scope",
@@ -1022,7 +1218,8 @@ export class MCPServer {
    */
   private async handleRecall(
     args: Record<string, unknown>,
-    frameStore: FrameStore
+    frameStore: FrameStore,
+    context: MCPDispatchWorkspaceContext
   ): Promise<MCPResponse> {
     const {
       reference_point,
@@ -1153,7 +1350,7 @@ export class MCPServer {
         // Generate Atlas Frame for this Frame's modules (skip if no policy)
         let atlasOutput = "";
         try {
-          const atlasFrame = generateAtlasFrame(f.module_scope);
+          const atlasFrame = this.atlasFrameForContext(f.module_scope, context);
           atlasOutput = formatAtlasFrame(atlasFrame);
         } catch {
           /* no policy available */
@@ -1196,7 +1393,8 @@ export class MCPServer {
    */
   private async handleGetFrame(
     args: Record<string, unknown>,
-    frameStore: FrameStore
+    frameStore: FrameStore,
+    context: MCPDispatchWorkspaceContext
   ): Promise<MCPResponse> {
     const { frame_id, include_atlas = true, format = "full" } = args as unknown as GetFrameArgs;
 
@@ -1257,7 +1455,7 @@ export class MCPServer {
     // Include Atlas Frame if requested (skip if no policy)
     if (include_atlas) {
       try {
-        const atlasFrame = generateAtlasFrame(frame.module_scope);
+        const atlasFrame = this.atlasFrameForContext(frame.module_scope, context);
         const atlasOutput = formatAtlasFrame(atlasFrame);
         result += `\n${atlasOutput}`;
       } catch {
@@ -1284,7 +1482,8 @@ export class MCPServer {
    */
   private async handleListFrames(
     args: Record<string, unknown>,
-    frameStore: FrameStore
+    frameStore: FrameStore,
+    context: MCPDispatchWorkspaceContext
   ): Promise<MCPResponse> {
     const {
       branch,
@@ -1381,7 +1580,7 @@ export class MCPServer {
       .map((f: Frame, idx: number) => {
         let atlasOutput = "";
         try {
-          const atlasFrame = generateAtlasFrame(f.module_scope);
+          const atlasFrame = this.atlasFrameForContext(f.module_scope, context);
           atlasOutput = formatAtlasFrame(atlasFrame);
         } catch {
           /* no policy available */
@@ -1433,7 +1632,10 @@ export class MCPServer {
   /**
    * Handle mcp_lex_policy_check tool - validate policy file
    */
-  private async handlePolicyCheck(args: Record<string, unknown>): Promise<MCPResponse> {
+  private async handlePolicyCheck(
+    args: Record<string, unknown>,
+    context: MCPDispatchWorkspaceContext
+  ): Promise<MCPResponse> {
     const { path: checkPath, policyPath, strict = false } = args as unknown as PolicyCheckArgs;
 
     try {
@@ -1446,8 +1648,67 @@ export class MCPServer {
         }
       }
 
+      if (context.trusted) {
+        const projectRoot = context.projectRoot;
+        if (!projectRoot) {
+          throw new MCPError(
+            MCPErrorCode.POLICY_INVALID,
+            "Trusted policy dispatch is missing its authorized project root."
+          );
+        }
+        let basePath: string;
+        try {
+          basePath = canonicalizeContainedPath(
+            projectRoot,
+            checkPath ? resolve(projectRoot, checkPath) : projectRoot
+          );
+        } catch {
+          throw new MCPError(
+            MCPErrorCode.VALIDATION_INVALID_PATH,
+            "policy_check path must remain within the authorized project root."
+          );
+        }
+        if (policyPath) {
+          const requestedPolicyPath = isAbsolute(policyPath)
+            ? policyPath
+            : resolve(basePath, policyPath);
+          resolvedPolicyPath = requestedPolicyPath;
+        }
+      }
+
       // Load policy file
-      const policy: Policy = loadPolicy(resolvedPolicyPath);
+      let policy: Policy;
+      if (context.trusted) {
+        if (!resolvedPolicyPath) {
+          if (!context.policy) {
+            throw new MCPError(MCPErrorCode.POLICY_NOT_FOUND, "Trusted policy is unavailable.");
+          }
+          policy = context.policy;
+        } else {
+          if (!context.projectRoot) {
+            throw new MCPError(
+              MCPErrorCode.POLICY_INVALID,
+              "Trusted policy dispatch is missing its authorized project root."
+            );
+          }
+          try {
+            const snapshot = readContainedFile(context.projectRoot, resolvedPolicyPath);
+            resolvedPolicyPath = snapshot.canonicalPath;
+            policy = loadPolicySnapshot(snapshot.content, snapshot.canonicalPath);
+          } catch (error) {
+            if (error instanceof MCPError) throw error;
+            if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+              throw new MCPError(MCPErrorCode.POLICY_NOT_FOUND, "Policy file not found.");
+            }
+            throw new MCPError(
+              MCPErrorCode.POLICY_INVALID,
+              `Policy snapshot could not be loaded: ${error instanceof Error ? error.message : String(error)}`
+            );
+          }
+        }
+      } else {
+        policy = loadPolicy(resolvedPolicyPath);
+      }
 
       // Validate schema
       const validation = validatePolicySchema(policy);
@@ -1672,55 +1933,53 @@ export class MCPServer {
   /**
    * Handle mcp_lex_atlas_analyze tool - analyze code structure and dependencies
    */
-  private async handleCodeAtlas(args: Record<string, unknown>): Promise<MCPResponse> {
+  private async handleCodeAtlas(
+    args: Record<string, unknown>,
+    context: MCPDispatchWorkspaceContext
+  ): Promise<MCPResponse> {
     const {
       path: requestPath,
       foldRadius: _foldRadius,
       maxTokens: _maxTokens,
     } = args as unknown as CodeAtlasArgs;
 
-    // Use provided path or current directory
-    const repoPath = requestPath || this.repoRoot || process.cwd();
+    // Trusted dispatch is always anchored to the authorized invocation root.
+    let repoPath = requestPath || this.repoRoot || process.cwd();
+    if (context.trusted) {
+      if (!context.projectRoot) {
+        throw new MCPError(
+          MCPErrorCode.VALIDATION_INVALID_PATH,
+          "atlas_analyze is missing its authorized project root."
+        );
+      }
+      try {
+        repoPath = canonicalizeContainedPath(
+          context.projectRoot,
+          resolve(context.projectRoot, requestPath ?? ".")
+        );
+      } catch {
+        throw new MCPError(
+          MCPErrorCode.VALIDATION_INVALID_PATH,
+          "atlas_analyze path must remain within the authorized project root."
+        );
+      }
+    }
 
     try {
-      // Import spawnSync to run the CLI
-      const { spawnSync } = await import("child_process");
-
-      // Run the code-atlas CLI command
-      const result = spawnSync("npx", ["lex", "code-atlas", "--repo", repoPath, "--json"], {
-        encoding: "utf8",
-        stdio: ["pipe", "pipe", "pipe"],
+      const result = await codeAtlas({
+        repo: repoPath,
+        json: true,
+        emitOutput: false,
+        ...(context.trusted ? { trustedProjectRoot: repoPath } : {}),
       });
-
-      if (result.error) {
+      if (!result.success || !result.output) {
         throw new MCPError(
           MCPErrorCode.INTERNAL_ERROR,
-          `Failed to execute code-atlas: ${result.error.message}`,
+          `Code atlas generation failed: ${result.error ?? "unknown error"}`,
           { path: repoPath }
         );
       }
-
-      if (result.status !== 0) {
-        const errorMsg = result.stderr || result.stdout || "Code atlas generation failed";
-        throw new MCPError(
-          MCPErrorCode.INTERNAL_ERROR,
-          `Code atlas generation failed: ${errorMsg}`,
-          { path: repoPath }
-        );
-      }
-
-      // Parse the JSON output
-      let output;
-      try {
-        output = JSON.parse(result.stdout);
-      } catch (parseError) {
-        throw new MCPError(
-          MCPErrorCode.INTERNAL_ERROR,
-          `Failed to parse code-atlas output: ${parseError instanceof Error ? parseError.message : String(parseError)}`,
-          { path: repoPath }
-        );
-      }
-
+      const output = result.output;
       const { run, units } = output;
 
       // Format the output for MCP response
@@ -1791,7 +2050,8 @@ export class MCPServer {
    */
   private async handleIntrospect(
     args: Record<string, unknown>,
-    frameStore: FrameStore
+    frameStore: FrameStore,
+    context: MCPDispatchWorkspaceContext
   ): Promise<MCPResponse> {
     const { format = "full" } = args as unknown as IntrospectArgs;
 
@@ -1800,10 +2060,10 @@ export class MCPServer {
       const version = getPackageVersion();
 
       // Get policy information
-      const policyData: { modules: string[]; moduleCount: number } | null = this.policy
+      const policyData: { modules: string[]; moduleCount: number } | null = context.policy
         ? {
-            modules: Object.keys(this.policy.modules).sort(),
-            moduleCount: Object.keys(this.policy.modules).length,
+            modules: Object.keys(context.policy.modules).sort(),
+            moduleCount: Object.keys(context.policy.modules).length,
           }
         : null;
 
@@ -1818,7 +2078,10 @@ export class MCPServer {
       // Get current branch (if available)
       let currentBranch = "unknown";
       let branchSource = "unknown";
-      if (process.env.LEX_DEFAULT_BRANCH) {
+      if (context.trusted) {
+        currentBranch = context.sourceRevision?.branch ?? "unknown";
+        branchSource = context.sourceRevision?.branch ? "authorized-invocation" : "unknown";
+      } else if (process.env.LEX_DEFAULT_BRANCH) {
         currentBranch = getCurrentBranch();
         branchSource = "env:LEX_DEFAULT_BRANCH";
       } else {
@@ -1835,9 +2098,10 @@ export class MCPServer {
       }
 
       const workspaceResolution = {
-        path: this.configResolution.workspaceRoot.path,
-        source:
-          this.configResolution.workspaceRoot.source === "explicit"
+        path: context.configResolution.workspaceRoot.path,
+        source: context.trusted
+          ? "authorized-invocation"
+          : context.configResolution.workspaceRoot.source === "explicit"
             ? this.repoRoot
               ? "server-option"
               : process.env.LEX_WORKSPACE_ROOT
@@ -1845,12 +2109,12 @@ export class MCPServer {
                 : process.env.LEX_APP_ROOT
                   ? "env:LEX_APP_ROOT"
                   : "explicit"
-            : this.configResolution.workspaceRoot.source,
+            : context.configResolution.workspaceRoot.source,
       };
 
       const metadata = frameStore.getMetadata();
       const sqliteIdentity =
-        metadata.backend === "sqlite"
+        metadata.backend === "sqlite" && !context.trusted
           ? resolveStoreIdentity(metadata.location, this.dbPathSource, workspaceResolution.path)
           : null;
       const storeWarning = sqliteIdentity ? alternateStoreWarning(sqliteIdentity) : null;
@@ -1866,7 +2130,7 @@ export class MCPServer {
       }
       const runtimeResolution = {
         workspaceRoot: workspaceResolution,
-        configFile: this.configResolution.configFile,
+        configFile: context.configResolution.configFile,
         database: {
           backend: metadata.backend,
           path: metadata.location,
@@ -1877,9 +2141,9 @@ export class MCPServer {
           health: storeHealth,
         },
         policy: {
-          path: this.policyResolution?.path ?? null,
-          source: this.policyResolution?.source ?? "not-found",
-          loaded: this.policy !== null,
+          path: context.policyResolution?.path ?? null,
+          source: context.policyResolution?.source ?? "not-found",
+          loaded: context.policy !== null,
         },
         branch: {
           name: currentBranch,

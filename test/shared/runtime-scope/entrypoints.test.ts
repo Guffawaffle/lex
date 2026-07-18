@@ -1,5 +1,9 @@
 import assert from "node:assert/strict";
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, test } from "node:test";
+import { fileURLToPath } from "node:url";
 
 import { MCPServer } from "../../../src/memory/mcp_server/server.js";
 import {
@@ -9,6 +13,7 @@ import {
 import {
   SCOPED_FRAME_STORE_ERROR_CODES,
   type FrameStore,
+  type ScopedFrameStoreBinder,
 } from "../../../src/memory/store/index.js";
 import { run } from "../../../src/shared/cli/index.js";
 import { AXErrorException } from "../../../src/shared/errors/ax-error.js";
@@ -28,15 +33,16 @@ import {
 } from "../../../src/shared/runtime-scope/index.js";
 
 const FRAME_READ = "frame:read" as CapabilityId;
+const TEST_REPO_ROOT = fileURLToPath(new URL("../../../", import.meta.url));
 
-function fakeInvocationContext(): InvocationContextV1 {
+function fakeInvocationContext(projectRoot = TEST_REPO_ROOT): InvocationContextV1 {
   return {
     schemaVersion: 1,
-    projectRoot: "/srv/lex",
+    projectRoot,
     requestedWorkspace: { workspaceId: "workspace-lex" as never },
     repositoryEvidence: {
       schemaVersion: 1,
-      canonicalRoot: "/srv/lex",
+      canonicalRoot: projectRoot,
     },
     runtimeSurface: {
       schemaVersion: 1,
@@ -131,6 +137,43 @@ const invocationRequest = {
   runtimeId: "runtime-1" as RuntimeId,
   traceId: "trace-1" as TraceId,
 };
+
+function writeTrustedWorkspacePolicy(projectRoot: string, moduleId: string): void {
+  const policyDirectory = join(projectRoot, "policies");
+  mkdirSync(policyDirectory, { recursive: true });
+  writeFileSync(
+    join(projectRoot, ".lex.config.json"),
+    JSON.stringify({ paths: { policy: "./policies/lexmap.policy.json" } }),
+    "utf8"
+  );
+  writeFileSync(
+    join(policyDirectory, "lexmap.policy.json"),
+    JSON.stringify({
+      version: "1.0.0",
+      modules: {
+        [moduleId]: {
+          owns_paths: [`src/${moduleId}/**`],
+          allowed_callers: ["*"],
+          forbidden_callers: [],
+        },
+      },
+    }),
+    "utf8"
+  );
+}
+
+function validationArguments(moduleId: string): Record<string, unknown> {
+  return {
+    reference_point: `validate-${moduleId}`,
+    summary_caption: `Validate ${moduleId}`,
+    status_snapshot: { next_action: "continue" },
+    module_scope: [moduleId],
+  };
+}
+
+function responseText(response: { content?: unknown[] }): string {
+  return ((response.content?.[0] as { text?: string } | undefined)?.text ?? "").toString();
+}
 
 describe("trusted runtime-scope entrypoint guards", () => {
   test("CLI resolves before dispatch and emits diagnostics only when requested", async () => {
@@ -479,6 +522,403 @@ describe("trusted runtime-scope entrypoint guards", () => {
     } finally {
       await server.close();
       await backend.close();
+    }
+  });
+
+  test("MCP idempotency responses cannot bleed across repositories in one workspace", async () => {
+    const root = mkdtempSync(join(tmpdir(), "lex-mcp-idempotency-repos-"));
+    const repositoryA = join(root, "repository-a");
+    const repositoryB = join(root, "repository-b");
+    mkdirSync(repositoryA);
+    mkdirSync(repositoryB);
+    let projectRoot = repositoryA;
+    const bootstrap: TrustedRuntimeScopeBootstrapV1 = {
+      async resolve(request) {
+        return {
+          resolved: true,
+          invocationContext: fakeInvocationContext(projectRoot),
+          authorizedScope: fakeAuthorizedScope(request.requestedCapabilities),
+        };
+      },
+    };
+    const backend = new MemoryScopedFrameStoreBackend();
+    const server = new MCPServer({
+      frameStoreBinder: backend,
+      runtimeScope: { bootstrap, request: invocationRequest },
+    });
+    const create = (summary: string) =>
+      server.handleRequest({
+        method: "tools/call",
+        params: {
+          name: "frame_create",
+          arguments: {
+            request_id: "same-retry-key",
+            reference_point: "repository-partition",
+            summary_caption: summary,
+            status_snapshot: { next_action: "continue" },
+            module_scope: ["repository/scope"],
+          },
+        },
+      });
+
+    try {
+      const first = await create("repository A");
+      projectRoot = repositoryB;
+      const second = await create("repository B");
+      assert.equal(first.error, undefined);
+      assert.equal(second.error, undefined);
+      assert.notEqual(first.data?.frame_id, second.data?.frame_id);
+    } finally {
+      await server.close();
+      await backend.close();
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test("MCP resolves distinct trusted workspace policies for every alternating call", async () => {
+    const root = mkdtempSync(join(tmpdir(), "lex-mcp-policy-scope-"));
+    const workspaceA = join(root, "workspace-a");
+    const workspaceB = join(root, "workspace-b");
+    mkdirSync(workspaceA);
+    mkdirSync(workspaceB);
+    writeTrustedWorkspacePolicy(workspaceA, "workspace/a");
+    writeTrustedWorkspacePolicy(workspaceB, "workspace/b");
+    const originalPolicyPath = process.env.LEX_POLICY_PATH;
+    process.env.LEX_POLICY_PATH = join(workspaceA, "policies", "lexmap.policy.json");
+
+    let projectRoot = workspaceA;
+    let workspaceId = "workspace-a";
+    const bootstrap: TrustedRuntimeScopeBootstrapV1 = {
+      async resolve(request) {
+        return {
+          resolved: true,
+          invocationContext: fakeInvocationContext(projectRoot),
+          authorizedScope: {
+            ...fakeAuthorizedScope(request.requestedCapabilities),
+            workspaceId: workspaceId as never,
+          },
+        };
+      },
+    };
+    const server = new MCPServer({
+      repoRoot: workspaceA,
+      runtimeScope: { bootstrap, request: invocationRequest },
+    });
+    const validate = (moduleId: string) =>
+      server.handleRequest({
+        method: "tools/call",
+        params: { name: "frame_validate", arguments: validationArguments(moduleId) },
+      });
+
+    try {
+      assert.match(responseText(await validate("workspace/a")), /Validation passed/);
+      assert.match(responseText(await validate("workspace/b")), /Validation failed/);
+
+      projectRoot = workspaceB;
+      workspaceId = "workspace-b";
+      assert.match(responseText(await validate("workspace/b")), /Validation passed/);
+      assert.match(responseText(await validate("workspace/a")), /Validation failed/);
+
+      projectRoot = workspaceA;
+      workspaceId = "workspace-a";
+      assert.match(responseText(await validate("workspace/a")), /Validation passed/);
+    } finally {
+      await server.close();
+      if (originalPolicyPath === undefined) delete process.env.LEX_POLICY_PATH;
+      else process.env.LEX_POLICY_PATH = originalPolicyPath;
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test("MCP does not reuse a previous trusted policy for a no-policy workspace", async () => {
+    const root = mkdtempSync(join(tmpdir(), "lex-mcp-no-policy-scope-"));
+    const workspaceA = join(root, "workspace-a");
+    const workspaceB = join(root, "workspace-b");
+    mkdirSync(workspaceA);
+    mkdirSync(workspaceB);
+    writeTrustedWorkspacePolicy(workspaceA, "workspace/a");
+
+    let projectRoot = workspaceA;
+    const bootstrap: TrustedRuntimeScopeBootstrapV1 = {
+      async resolve(request) {
+        return {
+          resolved: true,
+          invocationContext: fakeInvocationContext(projectRoot),
+          authorizedScope: fakeAuthorizedScope(request.requestedCapabilities),
+        };
+      },
+    };
+    const server = new MCPServer({ runtimeScope: { bootstrap, request: invocationRequest } });
+    const validate = () =>
+      server.handleRequest({
+        method: "tools/call",
+        params: { name: "frame_validate", arguments: validationArguments("workspace/a") },
+      });
+
+    try {
+      assert.match(responseText(await validate()), /Validation passed/);
+      projectRoot = workspaceB;
+      const noPolicy = await validate();
+      assert.equal(noPolicy.error, undefined);
+      assert.match(responseText(noPolicy), /Policy not loaded/);
+      assert.doesNotMatch(responseText(noPolicy), /Validation failed/);
+      projectRoot = workspaceA;
+      assert.match(responseText(await validate()), /Validation passed/);
+    } finally {
+      await server.close();
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test("MCP fails closed when trusted workspace config points policy outside its root", async () => {
+    const root = mkdtempSync(join(tmpdir(), "lex-mcp-policy-escape-"));
+    const workspaceA = join(root, "workspace-a");
+    const workspaceB = join(root, "workspace-b");
+    mkdirSync(workspaceA);
+    mkdirSync(workspaceB);
+    writeTrustedWorkspacePolicy(workspaceA, "workspace/a");
+    writeFileSync(
+      join(workspaceB, ".lex.config.json"),
+      JSON.stringify({ paths: { policy: "../workspace-a/policies/lexmap.policy.json" } }),
+      "utf8"
+    );
+
+    let projectRoot = workspaceB;
+    const bootstrap: TrustedRuntimeScopeBootstrapV1 = {
+      async resolve(request) {
+        return {
+          resolved: true,
+          invocationContext: fakeInvocationContext(projectRoot),
+          authorizedScope: fakeAuthorizedScope(request.requestedCapabilities),
+        };
+      },
+    };
+    const server = new MCPServer({ runtimeScope: { bootstrap, request: invocationRequest } });
+    const validate = () =>
+      server.handleRequest({
+        method: "tools/call",
+        params: { name: "frame_validate", arguments: validationArguments("workspace/a") },
+      });
+
+    try {
+      const escaped = await validate();
+      assert.equal(escaped.error?.code, "POLICY_INVALID");
+      projectRoot = workspaceA;
+      assert.match(responseText(await validate()), /Validation passed/);
+    } finally {
+      await server.close();
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test("MCP rejects config and policy symlinks that physically escape the trusted root", async () => {
+    const root = mkdtempSync(join(tmpdir(), "lex-mcp-physical-escape-"));
+    const external = join(root, "external");
+    const configEscape = join(root, "config-escape");
+    const policyEscape = join(root, "policy-escape");
+    mkdirSync(external);
+    mkdirSync(configEscape);
+    mkdirSync(policyEscape);
+    writeFileSync(
+      join(external, "config.json"),
+      JSON.stringify({ paths: { policy: "./policy.json" } }),
+      "utf8"
+    );
+    writeFileSync(
+      join(external, "policy.json"),
+      JSON.stringify({ version: "1.0.0", modules: { "external/module": {} } }),
+      "utf8"
+    );
+    symlinkSync(join(external, "config.json"), join(configEscape, ".lex.config.json"));
+    writeFileSync(
+      join(policyEscape, ".lex.config.json"),
+      JSON.stringify({ paths: { policy: "./linked/policy.json" } }),
+      "utf8"
+    );
+    symlinkSync(external, join(policyEscape, "linked"));
+
+    let projectRoot = configEscape;
+    const bootstrap: TrustedRuntimeScopeBootstrapV1 = {
+      async resolve(request) {
+        return {
+          resolved: true,
+          invocationContext: fakeInvocationContext(projectRoot),
+          authorizedScope: fakeAuthorizedScope(request.requestedCapabilities),
+        };
+      },
+    };
+    const server = new MCPServer({ runtimeScope: { bootstrap, request: invocationRequest } });
+    const validate = () =>
+      server.handleRequest({
+        method: "tools/call",
+        params: { name: "frame_validate", arguments: validationArguments("external/module") },
+      });
+
+    try {
+      assert.equal((await validate()).error?.code, "POLICY_INVALID");
+      projectRoot = policyEscape;
+      assert.equal((await validate()).error?.code, "POLICY_INVALID");
+    } finally {
+      await server.close();
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test("MCP binds volatile config path tokens to the captured invocation time", async () => {
+    const projectRoot = mkdtempSync(join(tmpdir(), "lex-mcp-captured-tokens-"));
+    const policyDirectory = join(projectRoot, "policies");
+    mkdirSync(policyDirectory);
+    writeFileSync(
+      join(projectRoot, ".lex.config.json"),
+      JSON.stringify({
+        paths: { policy: "./policies/lexmap-{{today}}-{{now}}.json" },
+      }),
+      "utf8"
+    );
+    writeFileSync(
+      join(policyDirectory, "lexmap-2026-07-18-20260718T120000.json"),
+      JSON.stringify({ version: "1.0.0", modules: { "captured/time": {} } }),
+      "utf8"
+    );
+    const bootstrap: TrustedRuntimeScopeBootstrapV1 = {
+      async resolve(request) {
+        return {
+          resolved: true,
+          invocationContext: fakeInvocationContext(projectRoot),
+          authorizedScope: fakeAuthorizedScope(request.requestedCapabilities),
+        };
+      },
+    };
+    const server = new MCPServer({ runtimeScope: { bootstrap, request: invocationRequest } });
+
+    try {
+      const first = await server.handleRequest({
+        method: "tools/call",
+        params: { name: "frame_validate", arguments: validationArguments("captured/time") },
+      });
+      const second = await server.handleRequest({
+        method: "tools/call",
+        params: { name: "frame_validate", arguments: validationArguments("captured/time") },
+      });
+      assert.match(responseText(first), /Validation passed/);
+      assert.match(responseText(second), /Validation passed/);
+    } finally {
+      await server.close();
+      rmSync(projectRoot, { recursive: true, force: true });
+    }
+  });
+
+  test("trusted introspection does not inspect ambient SQLite candidates", async () => {
+    const root = mkdtempSync(join(tmpdir(), "lex-mcp-introspect-boundary-"));
+    const projectRoot = join(root, "project");
+    const ambientPath = join(root, ".smartergpt", "lex", "memory.db");
+    const boundPath = join(root, "trusted-bound-store.db");
+    mkdirSync(projectRoot);
+    mkdirSync(join(root, ".smartergpt", "lex"), { recursive: true });
+    writeFileSync(ambientPath, "ambient-store-probe", "utf8");
+    const memoryBackend = new MemoryScopedFrameStoreBackend();
+    const binder: ScopedFrameStoreBinder = {
+      bind(scope) {
+        const store = memoryBackend.bind(scope);
+        store.getMetadata = () => ({
+          backend: "sqlite",
+          location: boundPath,
+          canonicalLocation: boundPath,
+          identity: "trusted-bound-identity",
+          capabilities: { encryption: false, images: false },
+        });
+        return store;
+      },
+    };
+    const bootstrap: TrustedRuntimeScopeBootstrapV1 = {
+      async resolve(request) {
+        return {
+          resolved: true,
+          invocationContext: fakeInvocationContext(projectRoot),
+          authorizedScope: fakeAuthorizedScope(request.requestedCapabilities),
+        };
+      },
+    };
+    const server = new MCPServer({
+      frameStoreBinder: binder,
+      runtimeScope: { bootstrap, request: invocationRequest },
+    });
+
+    try {
+      const response = await server.handleRequest({
+        method: "tools/call",
+        params: { name: "system_introspect", arguments: { format: "compact" } },
+      });
+      assert.equal(response.error, undefined);
+      assert.doesNotMatch(responseText(response), new RegExp(ambientPath.replaceAll("/", "\\/")));
+      const database = (response.data?.ctx as { database: { candidates: unknown[] } }).database;
+      assert.deepEqual(database.candidates, []);
+      assert.deepEqual(response.data?.warnings, []);
+    } finally {
+      await server.close();
+      await memoryBackend.close();
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test("trusted atlas runs in-process without output and skips physically escaping sources", async () => {
+    const root = mkdtempSync(join(tmpdir(), "lex-mcp-atlas-boundary-"));
+    const projectRoot = join(root, "project");
+    const requestedRoot = join(projectRoot, "requested");
+    const privateRoot = join(projectRoot, "private");
+    mkdirSync(join(requestedRoot, "src"), { recursive: true });
+    mkdirSync(privateRoot);
+    writeFileSync(join(requestedRoot, "package.json"), JSON.stringify({ name: "safe-project" }));
+    writeFileSync(
+      join(requestedRoot, "src", "safe.ts"),
+      "export function safeFunction(): string { return 'safe'; }\n",
+      "utf8"
+    );
+    writeFileSync(
+      join(privateRoot, "secret.ts"),
+      "export function exfiltratedSecret(): string { return 'secret'; }\n",
+      "utf8"
+    );
+    symlinkSync(join(privateRoot, "secret.ts"), join(requestedRoot, "src", "linked.ts"));
+    const bootstrap: TrustedRuntimeScopeBootstrapV1 = {
+      async resolve(request) {
+        return {
+          resolved: true,
+          invocationContext: fakeInvocationContext(projectRoot),
+          authorizedScope: fakeAuthorizedScope(request.requestedCapabilities),
+        };
+      },
+    };
+    const server = new MCPServer({ runtimeScope: { bootstrap, request: invocationRequest } });
+    const originalPath = process.env.PATH;
+    const originalLog = console.log;
+    const originalError = console.error;
+    let consoleCalls = 0;
+    process.env.PATH = "";
+    console.log = () => {
+      consoleCalls++;
+    };
+    console.error = () => {
+      consoleCalls++;
+    };
+
+    try {
+      const response = await server.handleRequest({
+        method: "tools/call",
+        params: { name: "atlas_analyze", arguments: { path: "requested" } },
+      });
+      assert.equal(response.error, undefined);
+      assert.match(responseText(response), /safeFunction/);
+      assert.doesNotMatch(responseText(response), /exfiltratedSecret/);
+      assert.match(responseText(response), /"filesScanned": \[\s*"src\/safe\.ts"\s*\]/);
+      assert.equal(consoleCalls, 0);
+    } finally {
+      console.log = originalLog;
+      console.error = originalError;
+      if (originalPath === undefined) delete process.env.PATH;
+      else process.env.PATH = originalPath;
+      await server.close();
+      rmSync(root, { recursive: true, force: true });
     }
   });
 });

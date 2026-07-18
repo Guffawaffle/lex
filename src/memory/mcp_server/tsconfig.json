@@ -25,6 +25,7 @@
     { "path": "../../shared/module_ids" },
     { "path": "../../shared/aliases" },
     { "path": "../../shared/errors" },
+    { "path": "../../shared/cli" },
     { "path": "../../shared/runtime-scope" }
   ]
 }

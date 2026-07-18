@@ -65,13 +65,35 @@ export interface PolicyPathResolution {
 export interface PolicyPathOptions {
   startPath?: string;
   workspaceRootOverride?: string | null;
+  /** Whether LEX_POLICY_PATH may override explicit/workspace policy selection. */
+  includeEnvironmentOverride?: boolean;
+}
+
+/** Parse one already-opened policy snapshot without consulting cwd, env, or caches. */
+export function loadPolicySnapshot(policyContent: string, policyPath: string): Policy {
+  const rawPolicy = JSON.parse(policyContent);
+  const policy = rawPolicy as Policy;
+  if (!policy.modules || typeof policy.modules !== "object") {
+    throw new AXErrorException(
+      POLICY_ERROR_CODES.POLICY_INVALID,
+      'Invalid policy structure: missing or invalid "modules" field',
+      [
+        "Check that the policy snapshot has a valid JSON structure",
+        'Ensure "modules" field is an object',
+        STANDARD_NEXT_ACTIONS.CHECK_POLICY,
+      ],
+      { path: policyPath }
+    );
+  }
+  return policy;
 }
 
 export function resolvePolicyPath(
   path?: string,
   options: PolicyPathOptions = {}
 ): PolicyPathResolution {
-  const envPath = process.env[POLICY_PATH_ENV];
+  const envPath =
+    options.includeEnvironmentOverride === false ? undefined : process.env[POLICY_PATH_ENV];
 
   if (envPath) {
     return {
@@ -167,13 +189,13 @@ export function resolvePolicyPath(
  * const policy = loadPolicy();
  * ```
  */
-export function loadPolicy(path?: string): Policy {
+export function loadPolicy(path?: string, options: PolicyPathOptions = {}): Policy {
   // Return cached policy if available and no custom path specified
-  if (cachedPolicy && !path) {
+  if (cachedPolicy && !path && options.includeEnvironmentOverride !== false) {
     return cachedPolicy;
   }
 
-  const resolution = resolvePolicyPath(path);
+  const resolution = resolvePolicyPath(path, options);
 
   try {
     if (!resolution.path) {
@@ -206,24 +228,7 @@ export function loadPolicy(path?: string): Policy {
     // Read and parse policy file
     const startTime = Date.now();
     const policyContent = readFileSync(resolution.path, "utf-8");
-    const rawPolicy = JSON.parse(policyContent);
-
-    // Cast to Policy type (no transformation needed - all policies use modules format)
-    const policy = rawPolicy as Policy;
-
-    // Validate basic structure
-    if (!policy.modules || typeof policy.modules !== "object") {
-      throw new AXErrorException(
-        POLICY_ERROR_CODES.POLICY_INVALID,
-        'Invalid policy structure: missing or invalid "modules" field',
-        [
-          "Check that policy file has a valid JSON structure",
-          'Ensure "modules" field is an object',
-          STANDARD_NEXT_ACTIONS.CHECK_POLICY,
-        ],
-        { path: resolution.path }
-      );
-    }
+    const policy = loadPolicySnapshot(policyContent, resolution.path);
 
     const duration = Date.now() - startTime;
     logger.info("Policy loaded", {
