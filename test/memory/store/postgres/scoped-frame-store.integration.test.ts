@@ -19,11 +19,13 @@ import {
   type TenantId,
   type WorkspaceId,
 } from "@app/shared/runtime-scope/index.js";
+import { exerciseScopedFrameStoreConformance } from "../scoped-frame-store-conformance.js";
 
 const adminUrl = process.env.LEX_TEST_POSTGRES_ADMIN_URL;
 const runtimeUrl = process.env.LEX_TEST_POSTGRES_RUNTIME_URL;
 const integration = adminUrl && runtimeUrl ? describe : describe.skip;
 const schema = `lex_scope_${process.pid}_${randomBytes(4).toString("hex")}`;
+const shadowSchema = `${schema}_shadow`;
 let adminPool: Pool;
 let scopedAdminPool: Pool;
 let runtimePool: Pool;
@@ -32,7 +34,7 @@ let backend: PostgresScopedFrameStoreBackend;
 
 function scopedUrl(value: string): string {
   const url = new URL(value);
-  url.searchParams.set("options", `-c search_path=${schema}`);
+  url.searchParams.set("options", `-c search_path=${shadowSchema},${schema}`);
   return url.toString();
 }
 
@@ -80,11 +82,19 @@ integration("PostgreSQL scoped FrameStore live RLS", () => {
   before(async () => {
     adminPool = new Pool({ connectionString: adminUrl as string, allowExitOnIdle: true });
     await adminPool.query(`CREATE SCHEMA ${quoteIdentifier(schema)}`);
+    await adminPool.query(`
+      CREATE SCHEMA ${quoteIdentifier(shadowSchema)};
+      CREATE TABLE ${quoteIdentifier(shadowSchema)}.lex_frame_store_migrations
+        (version INTEGER PRIMARY KEY);
+      INSERT INTO ${quoteIdentifier(shadowSchema)}.lex_frame_store_migrations VALUES (999);
+      CREATE TABLE ${quoteIdentifier(shadowSchema)}.frames (marker TEXT NOT NULL);
+      INSERT INTO ${quoteIdentifier(shadowSchema)}.frames VALUES ('poison-shadow');
+    `);
     scopedAdminPool = new Pool({
       connectionString: scopedUrl(adminUrl as string),
       allowExitOnIdle: true,
     });
-    administration = new PostgresFrameStoreAdministration(scopedAdminPool);
+    administration = new PostgresFrameStoreAdministration(scopedAdminPool, { schema });
     await administration.migrate();
 
     runtimePool = new Pool({
@@ -99,12 +109,13 @@ integration("PostgreSQL scoped FrameStore live RLS", () => {
     const runtimeRole = quoteIdentifier(role);
     await adminPool.query(`
       GRANT USAGE ON SCHEMA ${quoteIdentifier(schema)} TO ${runtimeRole};
+      GRANT USAGE, CREATE ON SCHEMA ${quoteIdentifier(shadowSchema)} TO ${runtimeRole};
       GRANT SELECT ON ${quoteIdentifier(schema)}.lex_frame_store_migrations TO ${runtimeRole};
       GRANT SELECT, INSERT, UPDATE, DELETE ON ${quoteIdentifier(schema)}.frames TO ${runtimeRole};
       GRANT EXECUTE ON FUNCTION ${quoteIdentifier(schema)}.lex_runtime_scope_is_valid() TO ${runtimeRole};
       GRANT EXECUTE ON FUNCTION ${quoteIdentifier(schema)}.lex_runtime_scope_matches(uuid, uuid) TO ${runtimeRole};
     `);
-    backend = new PostgresScopedFrameStoreBackend(runtimePool);
+    backend = new PostgresScopedFrameStoreBackend(runtimePool, { schema });
   });
 
   after(async () => {
@@ -112,6 +123,7 @@ integration("PostgreSQL scoped FrameStore live RLS", () => {
     await administration?.close();
     await runtimePool?.end();
     await scopedAdminPool?.end();
+    await adminPool?.query(`DROP SCHEMA IF EXISTS ${quoteIdentifier(shadowSchema)} CASCADE`);
     await adminPool?.query(`DROP SCHEMA IF EXISTS ${quoteIdentifier(schema)} CASCADE`);
     await adminPool?.end();
   });
@@ -158,19 +170,36 @@ integration("PostgreSQL scoped FrameStore live RLS", () => {
     }
   });
 
+  test("satisfies the shared normal-operation and exact Frame round-trip contract", async () => {
+    const store = backend.bind(
+      scope(
+        "01900000-0000-7000-8000-000000000011",
+        "01900000-0000-7000-8000-000000000111",
+        "01900000-0000-7000-8000-000000000211"
+      )
+    );
+    await exerciseScopedFrameStoreConformance(store, "postgres");
+  });
+
   test("missing or malformed session scope sees no rows", async () => {
     const client = await runtimePool.connect();
     try {
       assert.equal(
-        (await client.query<{ count: string }>("SELECT COUNT(*) AS count FROM frames")).rows[0]
-          ?.count,
+        (
+          await client.query<{ count: string }>(
+            `SELECT COUNT(*) AS count FROM ${quoteIdentifier(schema)}.frames`
+          )
+        ).rows[0]?.count,
         "0"
       );
       await client.query("BEGIN");
       await client.query("SELECT set_config('lex.tenant_id', 'malformed', true)");
       assert.equal(
-        (await client.query<{ count: string }>("SELECT COUNT(*) AS count FROM frames")).rows[0]
-          ?.count,
+        (
+          await client.query<{ count: string }>(
+            `SELECT COUNT(*) AS count FROM ${quoteIdentifier(schema)}.frames`
+          )
+        ).rows[0]?.count,
         "0"
       );
       await client.query("ROLLBACK");
@@ -210,7 +239,7 @@ integration("PostgreSQL scoped FrameStore live RLS", () => {
       await beginScope();
       await assert.rejects(
         client.query(
-          `INSERT INTO frames (
+          `INSERT INTO ${quoteIdentifier(schema)}.frames (
             tenant_id, workspace_id, creator_principal_id, scope_version,
             id, "timestamp", branch, module_scope, summary_caption,
             reference_point, status_snapshot
@@ -231,7 +260,7 @@ integration("PostgreSQL scoped FrameStore live RLS", () => {
         await beginScope();
         await assert.rejects(
           client.query(
-            `UPDATE frames SET ${assignment[0]} = $4
+            `UPDATE ${quoteIdentifier(schema)}.frames SET ${assignment[0]} = $4
              WHERE tenant_id = $1::uuid AND workspace_id = $2::uuid
                AND current_setting('lex.principal_id', true) = $3
                AND id = 'shared-frame-id'`,
@@ -248,8 +277,12 @@ integration("PostgreSQL scoped FrameStore live RLS", () => {
   });
 
   test("explicit predicates preserve isolation independently from RLS", async () => {
-    await scopedAdminPool.query("ALTER TABLE frames NO FORCE ROW LEVEL SECURITY");
-    await scopedAdminPool.query("ALTER TABLE frames DISABLE ROW LEVEL SECURITY");
+    await scopedAdminPool.query(
+      `ALTER TABLE ${quoteIdentifier(schema)}.frames NO FORCE ROW LEVEL SECURITY`
+    );
+    await scopedAdminPool.query(
+      `ALTER TABLE ${quoteIdentifier(schema)}.frames DISABLE ROW LEVEL SECURITY`
+    );
     try {
       const workspaceA = backend.bind(
         scope(
@@ -274,13 +307,38 @@ integration("PostgreSQL scoped FrameStore live RLS", () => {
         "tenant A / workspace B"
       );
     } finally {
-      await scopedAdminPool.query("ALTER TABLE frames ENABLE ROW LEVEL SECURITY");
-      await scopedAdminPool.query("ALTER TABLE frames FORCE ROW LEVEL SECURITY");
+      await scopedAdminPool.query(
+        `ALTER TABLE ${quoteIdentifier(schema)}.frames ENABLE ROW LEVEL SECURITY`
+      );
+      await scopedAdminPool.query(
+        `ALTER TABLE ${quoteIdentifier(schema)}.frames FORCE ROW LEVEL SECURITY`
+      );
     }
   });
 
   test("runtime role cannot disable RLS or alter the protected policy", async () => {
-    await assert.rejects(runtimePool.query("ALTER TABLE frames DISABLE ROW LEVEL SECURITY"));
-    await assert.rejects(runtimePool.query("DROP POLICY lex_frames_runtime_select ON frames"));
+    await assert.rejects(
+      runtimePool.query(`ALTER TABLE ${quoteIdentifier(schema)}.frames DISABLE ROW LEVEL SECURITY`)
+    );
+    await assert.rejects(
+      runtimePool.query(
+        `DROP POLICY lex_frames_runtime_select ON ${quoteIdentifier(schema)}.frames`
+      )
+    );
+  });
+
+  test("ignores same-named objects in an earlier runtime-writable schema", async () => {
+    const poison = await adminPool.query<{ version: number; marker: string }>(`
+      SELECT
+        (SELECT MAX(version) FROM ${quoteIdentifier(shadowSchema)}.lex_frame_store_migrations)
+          AS version,
+        (SELECT marker FROM ${quoteIdentifier(shadowSchema)}.frames LIMIT 1) AS marker
+    `);
+    assert.deepEqual(poison.rows[0], { version: 999, marker: "poison-shadow" });
+    const canonical = await adminPool.query<{ version: number }>(
+      `SELECT MAX(version) AS version
+         FROM ${quoteIdentifier(schema)}.lex_frame_store_migrations`
+    );
+    assert.equal(canonical.rows[0]?.version, 3);
   });
 });

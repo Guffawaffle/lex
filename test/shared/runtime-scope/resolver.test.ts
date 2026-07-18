@@ -74,7 +74,7 @@ function evidence(root = "/srv/lex"): RepositoryInstanceEvidenceV1 {
 function authoritySeed(
   options: {
     revoked?: boolean;
-    expiresAt?: string;
+    expiresAt?: string | null;
     capabilities?: readonly CapabilityId[];
   } = {}
 ): InMemoryAuthoritySeedV1 {
@@ -129,7 +129,7 @@ function authoritySeed(
           scopeVersion: "scope-v1" as ScopeVersion,
           authorityDigest: "sha256:authority" as ContentDigest,
           verifiedAt: NOW,
-          expiresAt: options.expiresAt ?? GRANT_EXPIRES,
+          ...(options.expiresAt === null ? {} : { expiresAt: options.expiresAt ?? GRANT_EXPIRES }),
         },
         ...(options.revoked ? { revokedAt: NOW } : {}),
       },
@@ -353,6 +353,21 @@ describe("deterministic runtime-scope resolver", () => {
         }
       },
       { authority: authoritySeed({ capabilities: [CAPABILITY, write, diagnostics] }) }
+    );
+  });
+
+  test("bounds AuthorizedScope by the local authority-cache expiry", async () => {
+    await withResolver(
+      "effective-cache-expiry",
+      async ({ registry, authority, request }) => {
+        const result = await resolveRuntimeScope(request, {
+          authorityDirectory: authority,
+          localRegistry: registry,
+        });
+        assert.equal(result.resolved, true);
+        if (result.resolved) assert.equal(result.authorizedScope.expiresAt, CACHE_EXPIRES);
+      },
+      { authority: authoritySeed({ expiresAt: null }) }
     );
   });
 

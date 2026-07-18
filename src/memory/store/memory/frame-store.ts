@@ -307,12 +307,12 @@ export class MemoryFrameStore implements FrameStore {
       return false;
     }
 
-    const updated: Frame = {
+    const updated = FrameSchema.parse({
       ...existing,
       ...updates,
       id: existing.id,
       timestamp: existing.timestamp,
-    };
+    });
     this.frames.set(id, updated);
     return true;
   }

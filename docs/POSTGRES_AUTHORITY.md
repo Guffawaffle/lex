@@ -7,8 +7,10 @@ continues to use its own native SQLite registry and local instance IDs.
 
 ## Runtime boundary
 
-`PostgresAuthorityDirectory` accepts an explicit PostgreSQL `Pool`. It never reads a connection
-string, password, token, authentication reference, tenant, or workspace from `process.env`.
+`PostgresAuthorityDirectory` accepts an explicit PostgreSQL `Pool` and a required lower-case
+schema name. Every authority relation is schema-qualified; an earlier writable `search_path`
+entry cannot shadow canonical tables. It never reads a connection string, password, token,
+authentication reference, tenant, or workspace from `process.env`.
 Authentication references are opaque handles supplied by a trusted selection provider; only their
 SHA-256 digests are persisted.
 
@@ -29,9 +31,11 @@ fails closed and requires an explicit rebind.
 
 ## Administration boundary
 
-`PostgresAuthorityAdministration` is a separately constructed privileged object. Its migration
-method receives the read-only runtime role name explicitly, revokes all privileges, and grants only
-the required table reads. Provisioning is transactional and protected by an advisory lock.
+`PostgresAuthorityAdministration` is a separately constructed privileged object with the same
+explicit schema target. Its migration method receives the read-only runtime role name explicitly,
+revokes schema creation, grants schema usage, revokes all table privileges, and grants only the
+required schema-qualified table reads. Provisioning is transactional and protected by a
+schema-specific advisory lock.
 
 `seedTopology()` is deterministic and idempotent for an identical declaration. Immutable identity
 conflicts—such as an authentication handle mapped to another principal, a workspace moved to
@@ -47,9 +51,9 @@ identities. Calling the fixture has no runtime effect; an administrator must exp
 
 ## Trusted CLI and MCP composition
 
-`createPostgresTrustedRuntimeHost()` accepts the runtime Pool, trusted authentication/workspace
-selection provider, process snapshot, runtime/trace IDs, diagnostic emitter, and scope-bound
-FrameStore binder as explicit inputs. It returns two ready compositions:
+`createPostgresTrustedRuntimeHost()` accepts the runtime Pool, `authoritySchema`, trusted
+authentication/workspace selection provider, process snapshot, runtime/trace IDs, diagnostic
+emitter, and scope-bound FrameStore binder as explicit inputs. It returns two ready compositions:
 
 ```ts
 const host = createPostgresTrustedRuntimeHost(options);
@@ -71,11 +75,13 @@ canonical authority.
 
 ## Deployment order
 
-1. Construct `PostgresAuthorityAdministration` with the privileged administration Pool.
+1. Construct `PostgresAuthorityAdministration` with the privileged administration Pool and the
+   explicit canonical schema.
 2. Call `migrate(runtimeRole)` and review its receipt.
 3. Explicitly seed or provision canonical records; for dogfood, review the fixture before applying
    it.
-4. Construct a distinct read-only runtime Pool for `PostgresAuthorityDirectory`.
+4. Construct a distinct read-only runtime Pool and pass the same explicit schema to
+   `PostgresAuthorityDirectory`.
 5. Construct the scoped PostgreSQL FrameStore binder with a non-owner, non-`BYPASSRLS` runtime
    role.
 6. Pass both explicit runtime handles to `createPostgresTrustedRuntimeHost()`.

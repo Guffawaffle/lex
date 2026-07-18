@@ -174,9 +174,12 @@ export {
   type PostgresAuthorityDirectoryOptionsV1,
 } from "./postgres-authority.js";
 
+export { createPostgresSchemaTarget, type PostgresSchemaTargetV1 } from "./postgres-schema.js";
+
 export {
   POSTGRES_AUTHORITY_SCHEMA_VERSION,
   POSTGRES_AUTHORITY_TABLES,
+  postgresAuthorityMigrationSql,
 } from "./postgres-authority-migrations.js";
 
 export {
@@ -195,6 +198,7 @@ export {
   type PostgresAuthoritySeedReceiptV1,
   type PostgresAuthorityInspectionV1,
   type PostgresAuthorityAdministrationV1,
+  type PostgresAuthorityAdministrationOptionsV1,
 } from "./postgres-authority-admin.js";
 
 export {

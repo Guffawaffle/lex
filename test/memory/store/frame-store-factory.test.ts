@@ -8,6 +8,7 @@ import {
   SqliteFrameStore,
 } from "@app/memory/store/index.js";
 import type { Pool } from "pg";
+import type { Frame } from "../../../src/memory/frames/types.js";
 
 const originalStore = process.env.LEX_STORE;
 const originalUrl = process.env.LEX_DATABASE_URL;
@@ -48,6 +49,16 @@ test("FrameStore factory preserves explicit PostgreSQL read-only mode", async ()
   assert.ok(store instanceof PostgresFrameStore);
   assert.equal(store.accessMode, "read-only");
   await store.close();
+});
+
+test("FrameStore factory forwards an explicit PostgreSQL schema into backend identity", async () => {
+  process.env.LEX_STORE = "postgres";
+  process.env.LEX_DATABASE_URL = "postgresql://lex@127.0.0.1:5433/lex";
+  const publicStore = createFrameStore();
+  const scopedStore = createFrameStore(undefined, { schema: "lex_compat" });
+  assert.notEqual(publicStore.getMetadata().identity, scopedStore.getMetadata().identity);
+  await publicStore.close();
+  await scopedStore.close();
 });
 
 test("FrameStore factory accepts a password-free URL with a separate secret", async () => {
@@ -104,5 +115,130 @@ test("PostgresFrameStore read-only mode validates schema without migrations and 
   assert.equal(await store.getFrameCount(), 0);
   assert.ok(!queries.some((sql) => /\b(?:BEGIN|CREATE|INSERT|ALTER)\b/i.test(sql)));
   await assert.rejects(store.deleteFrame("frame-1"), /read-only/i);
+  await store.close();
+});
+
+test("PostgresFrameStore pins compatibility CRUD and durable Frame metadata to its schema", async () => {
+  const frame: Frame = {
+    id: "frame-complete",
+    timestamp: "2026-07-18T12:00:00.000Z",
+    branch: "main",
+    jira: "LEX-768",
+    module_scope: ["memory/store"],
+    summary_caption: "Complete durable frame",
+    reference_point: "compatibility schema boundary",
+    status_snapshot: { next_action: "ship", blockers: [] },
+    keywords: ["postgres"],
+    atlas_frame_id: "atlas-1",
+    feature_flags: ["lex3"],
+    permissions: ["frame:read"],
+    module_attribution: { mode: "explicit", confidence: "high", evidence: ["test"] },
+    image_ids: ["image-1"],
+    runId: "run-1",
+    planHash: "sha256:plan",
+    spend: { prompts: 2, tokens_estimated: 50 },
+    userId: "user-1",
+    executorRole: "reviewer",
+    toolCalls: ["read", "write"],
+    guardrailProfile: "strict",
+    turnCost: {
+      components: {
+        latency: 1,
+        contextReset: 2,
+        renegotiation: 3,
+        tokenBloat: 4,
+        attentionSwitch: 5,
+      },
+      weights: { lambda: 0.1, gamma: 0.2, rho: 0.3, tau: 0.1, alpha: 0.3 },
+      weightedScore: 3,
+      sessionId: "session-1",
+      timestamp: "2026-07-18T12:00:00.000Z",
+    },
+    capabilityTier: "senior",
+    taskComplexity: { tier: "senior", assignedModel: "test-model", retryCount: 0 },
+    superseded_by: "frame-next",
+    merged_from: ["frame-old"],
+    contradiction_resolution: {
+      type: "scope",
+      contradicts_frame_id: "frame-prior",
+      scope: "workspace",
+      note: "intentional",
+    },
+  };
+  const row = {
+    id: frame.id,
+    timestamp: frame.timestamp,
+    branch: frame.branch,
+    jira: frame.jira ?? null,
+    module_scope: frame.module_scope,
+    summary_caption: frame.summary_caption,
+    reference_point: frame.reference_point,
+    status_snapshot: frame.status_snapshot,
+    keywords: frame.keywords ?? null,
+    atlas_frame_id: frame.atlas_frame_id ?? null,
+    feature_flags: frame.feature_flags ?? null,
+    permissions: frame.permissions ?? null,
+    module_attribution: frame.module_attribution ?? null,
+    run_id: frame.runId ?? null,
+    plan_hash: frame.planHash ?? null,
+    spend: frame.spend ?? null,
+    user_id: frame.userId ?? null,
+    superseded_by: frame.superseded_by ?? null,
+    merged_from: frame.merged_from ?? null,
+    frame_metadata: {
+      schemaVersion: 1,
+      image_ids: frame.image_ids,
+      executorRole: frame.executorRole,
+      toolCalls: frame.toolCalls,
+      guardrailProfile: frame.guardrailProfile,
+      turnCost: frame.turnCost,
+      capabilityTier: frame.capabilityTier,
+      taskComplexity: frame.taskComplexity,
+      contradiction_resolution: frame.contradiction_resolution,
+    },
+  };
+  const queries: Array<{ sql: string; params: readonly unknown[] }> = [];
+  const record = (sql: string, params: readonly unknown[] = []) => {
+    queries.push({ sql: sql.replace(/\s+/g, " ").trim(), params });
+  };
+  const client = {
+    query: async (sql: string, params: readonly unknown[] = []) => {
+      record(sql, params);
+      if (sql.includes("SELECT MAX(version)")) {
+        return { rows: [{ version: POSTGRES_FRAME_STORE_SCHEMA_VERSION }], rowCount: 1 };
+      }
+      if (sql.includes("FOR UPDATE")) return { rows: [row], rowCount: 1 };
+      return { rows: [], rowCount: 1 };
+    },
+    release: () => undefined,
+  };
+  const pool = {
+    connect: async () => client,
+    query: async (sql: string, params: readonly unknown[] = []) => {
+      record(sql, params);
+      if (sql.includes("SELECT") && sql.includes('"lex_compat"."frames"')) {
+        return { rows: [row], rowCount: 1 };
+      }
+      return { rows: [], rowCount: 1 };
+    },
+  } as unknown as Pool;
+
+  const store = new PostgresFrameStore(pool, { schema: "lex_compat" });
+  await store.saveFrame(frame);
+  assert.deepEqual(await store.getFrameById(frame.id), frame);
+  assert.equal(await store.updateFrame(frame.id, { guardrailProfile: "updated" }), true);
+
+  const frameSql = queries.filter(({ sql }) => /\bframes\b/.test(sql));
+  assert.ok(frameSql.length > 0);
+  assert.ok(frameSql.every(({ sql }) => sql.includes('"lex_compat"."frames"')));
+  const writes = queries.filter(({ sql }) => sql.startsWith("INSERT INTO"));
+  assert.deepEqual(
+    (writes[0]?.params[19] as { guardrailProfile?: string }).guardrailProfile,
+    "strict"
+  );
+  assert.deepEqual(
+    (writes.at(-1)?.params[19] as { guardrailProfile?: string }).guardrailProfile,
+    "updated"
+  );
   await store.close();
 });

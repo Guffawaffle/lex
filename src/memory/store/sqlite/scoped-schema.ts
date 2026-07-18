@@ -139,6 +139,8 @@ const REQUIRED_OWNERSHIP_COLUMNS = Object.freeze([
   "scope_version",
 ]);
 
+const REQUIRED_DURABLE_COLUMNS = Object.freeze(["frame_metadata"]);
+
 const REQUIRED_SCOPED_INDEXES = Object.freeze([
   "idx_frames_scope_timestamp",
   "idx_frames_scope_branch",
@@ -203,6 +205,9 @@ export function inspectScopedSqliteSchema(
 
   if (tables.has("frames")) {
     const frameColumns = columns(db, "frames");
+    for (const column of REQUIRED_DURABLE_COLUMNS) {
+      if (!frameColumns.has(column)) issues.push(`missing-column:frames.${column}`);
+    }
     for (const column of REQUIRED_OWNERSHIP_COLUMNS) {
       if (!frameColumns.has(column)) issues.push(`missing-column:frames.${column}`);
     }
@@ -353,6 +358,8 @@ export function scopedFramesTableSql(tableName = "frames_scoped_v15"): string {
     superseded_by TEXT,
     merged_from TEXT,
     module_attribution TEXT,
+    frame_metadata TEXT NOT NULL DEFAULT '{"schemaVersion":1}'
+      CHECK (json_valid(frame_metadata)),
     ownership_schema_version INTEGER NOT NULL CHECK (ownership_schema_version = ${FRAME_STORE_SCOPE_CONTRACT_VERSION}),
     tenant_id TEXT NOT NULL,
     workspace_id TEXT NOT NULL,

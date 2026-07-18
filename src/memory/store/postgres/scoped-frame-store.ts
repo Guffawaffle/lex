@@ -4,6 +4,10 @@ import type { Frame, FrameSpendMetadata, FrameStatusSnapshot } from "../../frame
 import { Frame as FrameSchema } from "../../frames/types.js";
 import type { AuthorizedScopeV1, CapabilityId } from "../../../shared/runtime-scope/index.js";
 import { RUNTIME_SCOPE_CONTRACT_VERSION } from "../../../shared/runtime-scope/index.js";
+import {
+  createPostgresSchemaTarget,
+  type PostgresSchemaTargetV1,
+} from "../../../shared/runtime-scope/postgres-schema.js";
 import type {
   FrameListResult,
   FrameStoreHealth,
@@ -29,6 +33,7 @@ import {
   type ScopedFrameUpdate,
 } from "../scoped-frame-store.js";
 import { normalizeSearchTerms } from "../search-utils.js";
+import { durableFrameMetadata, parseDurableFrameMetadata } from "../durable-frame-metadata.js";
 import {
   migratePostgresFrameStore,
   planPostgresFrameStoreMigration,
@@ -67,6 +72,7 @@ interface ScopedPostgresFrameRow extends QueryResultRow {
   spend: FrameSpendMetadata | string | null;
   superseded_by: string | null;
   merged_from: string[] | null;
+  frame_metadata: Readonly<Record<string, unknown>> | string;
 }
 
 interface RuntimeBoundaryRow extends QueryResultRow {
@@ -85,20 +91,22 @@ type TransactionKind = "read" | "write";
 const FRAME_COLUMNS = `
   id, "timestamp" AS timestamp, branch, jira, module_scope, summary_caption,
   reference_point, status_snapshot, keywords, atlas_frame_id, feature_flags,
-  permissions, module_attribution, run_id, plan_hash, spend, superseded_by, merged_from
+  permissions, module_attribution, run_id, plan_hash, spend, superseded_by, merged_from,
+  frame_metadata
 `;
 
-const UPSERT_SCOPED_FRAME_SQL = `
-  INSERT INTO frames (
+function upsertScopedFrameSql(target: PostgresSchemaTargetV1): string {
+  return `
+  INSERT INTO ${target.relation("frames")} AS target_frame (
     tenant_id, workspace_id, creator_principal_id, scope_version,
     id, "timestamp", branch, jira, module_scope, summary_caption,
     reference_point, status_snapshot, keywords, atlas_frame_id, feature_flags,
     permissions, module_attribution, run_id, plan_hash, spend, user_id,
-    superseded_by, merged_from
+    superseded_by, merged_from, frame_metadata
   ) VALUES (
     $1::uuid, $2::uuid, $3::uuid, $4,
     $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17,
-    $18, $19, $20, NULL, $21, $22
+    $18, $19, $20, NULL, $21, $22, $23
   )
   ON CONFLICT (tenant_id, workspace_id, id) DO UPDATE SET
     "timestamp" = EXCLUDED."timestamp",
@@ -118,11 +126,13 @@ const UPSERT_SCOPED_FRAME_SQL = `
     spend = EXCLUDED.spend,
     user_id = NULL,
     superseded_by = EXCLUDED.superseded_by,
-    merged_from = EXCLUDED.merged_from
-  WHERE frames.tenant_id = $1::uuid
-    AND frames.workspace_id = $2::uuid
+    merged_from = EXCLUDED.merged_from,
+    frame_metadata = EXCLUDED.frame_metadata
+  WHERE target_frame.tenant_id = $1::uuid
+    AND target_frame.workspace_id = $2::uuid
     AND current_setting('lex.principal_id', true) = $3::text
 `;
+}
 
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.length > 0;
@@ -203,6 +213,7 @@ function rowToPublicFrame(row: ScopedPostgresFrameRow): Frame {
     spend: row.spend ? parseJson(row.spend) : undefined,
     superseded_by: row.superseded_by ?? undefined,
     merged_from: row.merged_from ?? undefined,
+    ...parseDurableFrameMetadata(row.frame_metadata),
   };
 }
 
@@ -236,6 +247,7 @@ function frameValues(frame: Frame): FrameValue[] {
     frame.spend ?? null,
     frame.superseded_by ?? null,
     frame.merged_from ?? null,
+    durableFrameMetadata(frame),
   ];
 }
 
@@ -285,12 +297,13 @@ function parsePostgresLocation(connectionString: string): ParsedPostgresLocation
   };
 }
 
-function metadataFor(location: string): FrameStoreMetadata {
+function metadataFor(location: string, schema: string): FrameStoreMetadata {
+  const canonicalLocation = `${location}#schema=${schema}`;
   return {
     backend: "postgres",
-    location,
-    canonicalLocation: location,
-    identity: `postgres-scoped-v2:${createHash("sha256").update(location).digest("hex").slice(0, 16)}`,
+    location: canonicalLocation,
+    canonicalLocation,
+    identity: `postgres-scoped-v3:${createHash("sha256").update(canonicalLocation).digest("hex").slice(0, 16)}`,
     capabilities: { encryption: false, images: false },
   };
 }
@@ -316,7 +329,8 @@ class ScopedTransactionRunner {
   constructor(
     private readonly pool: Pool,
     private readonly enforceRuntimeRole: boolean,
-    private readonly now: () => Date
+    private readonly now: () => Date,
+    private readonly target: PostgresSchemaTargetV1
   ) {}
 
   invalidateSchemaCheck(): void {
@@ -328,37 +342,7 @@ class ScopedTransactionRunner {
       this.initialization = (async () => {
         const client = await this.pool.connect();
         try {
-          const result = await client.query<RuntimeBoundaryRow>(`
-            SELECT
-              (SELECT MAX(version) FROM lex_frame_store_migrations) AS schema_version,
-              current_user AS role_name,
-              role.rolsuper AS role_is_superuser,
-              role.rolbypassrls AS role_bypasses_rls,
-              frames.relowner = role.oid AS role_owns_frames,
-              frames.relrowsecurity AS rls_enabled,
-              frames.relforcerowsecurity AS rls_forced
-            FROM pg_roles AS role
-            CROSS JOIN pg_class AS frames
-            WHERE role.rolname = current_user
-              AND frames.oid = 'frames'::regclass
-          `);
-          const boundary = result.rows[0];
-          if (boundary?.schema_version !== POSTGRES_FRAME_STORE_SCHEMA_VERSION) {
-            throw new Error(
-              `PostgreSQL FrameStore schema ${boundary?.schema_version ?? 0} is not the required schema ${POSTGRES_FRAME_STORE_SCHEMA_VERSION}`
-            );
-          }
-          if (!boundary.rls_enabled || !boundary.rls_forced) {
-            throw new Error("PostgreSQL FrameStore requires enabled and forced row-level security");
-          }
-          if (
-            this.enforceRuntimeRole &&
-            (boundary.role_is_superuser || boundary.role_bypasses_rls || boundary.role_owns_frames)
-          ) {
-            throw new Error(
-              "PostgreSQL FrameStore runtime role must be non-owner, non-superuser, and must not BYPASSRLS"
-            );
-          }
+          await this.assertRuntimeBoundary(client);
         } finally {
           client.release();
         }
@@ -380,6 +364,8 @@ class ScopedTransactionRunner {
     let transactionOpen = false;
     let cleanupFailure: Error | undefined;
     try {
+      this.assertActive(scope);
+      await this.assertRuntimeBoundary(client);
       await this.clearScope(client);
       await client.query("BEGIN");
       transactionOpen = true;
@@ -418,8 +404,50 @@ class ScopedTransactionRunner {
     }
   }
 
+  currentTime(): Date {
+    return this.now();
+  }
+
   private async clearScope(client: PoolClient): Promise<void> {
     await client.query("RESET lex.tenant_id; RESET lex.workspace_id; RESET lex.principal_id");
+  }
+
+  private async assertRuntimeBoundary(client: PoolClient): Promise<void> {
+    const result = await client.query<RuntimeBoundaryRow>(
+      `SELECT
+        (SELECT MAX(version) FROM ${this.target.relation("lex_frame_store_migrations")})
+          AS schema_version,
+        CURRENT_USER AS role_name,
+        role.rolsuper AS role_is_superuser,
+        role.rolbypassrls AS role_bypasses_rls,
+        frames.relowner = role.oid AS role_owns_frames,
+        frames.relrowsecurity AS rls_enabled,
+        frames.relforcerowsecurity AS rls_forced
+      FROM pg_catalog.pg_roles AS role
+      CROSS JOIN pg_catalog.pg_class AS frames
+      JOIN pg_catalog.pg_namespace AS frame_namespace ON frame_namespace.oid = frames.relnamespace
+      WHERE role.rolname = CURRENT_USER
+        AND frame_namespace.nspname = $1
+        AND frames.relname = 'frames'`,
+      [this.target.schema]
+    );
+    const boundary = result.rows[0];
+    if (boundary?.schema_version !== POSTGRES_FRAME_STORE_SCHEMA_VERSION) {
+      throw new Error(
+        `PostgreSQL FrameStore schema ${boundary?.schema_version ?? 0} is not the required schema ${POSTGRES_FRAME_STORE_SCHEMA_VERSION}`
+      );
+    }
+    if (!boundary.rls_enabled || !boundary.rls_forced) {
+      throw new Error("PostgreSQL FrameStore requires enabled and forced row-level security");
+    }
+    if (
+      this.enforceRuntimeRole &&
+      (boundary.role_is_superuser || boundary.role_bypasses_rls || boundary.role_owns_frames)
+    ) {
+      throw new Error(
+        "PostgreSQL FrameStore runtime role must be non-owner, non-superuser, and must not BYPASSRLS"
+      );
+    }
   }
 }
 
@@ -429,12 +457,16 @@ interface BackendResources {
   readonly metadata: FrameStoreMetadata;
 }
 
-function createResources(connection: string | Pool, applicationName: string): BackendResources {
+function createResources(
+  connection: string | Pool,
+  applicationName: string,
+  schema: string
+): BackendResources {
   if (typeof connection === "object") {
     return {
       pool: connection,
       ownsPool: false,
-      metadata: metadataFor("postgresql://injected-pool"),
+      metadata: metadataFor("postgresql://injected-pool", schema),
     };
   }
   const parsed = parsePostgresLocation(connection);
@@ -447,11 +479,13 @@ function createResources(connection: string | Pool, applicationName: string): Ba
       connectionTimeoutMillis: 5_000,
     }),
     ownsPool: true,
-    metadata: metadataFor(parsed.location),
+    metadata: metadataFor(parsed.location, schema),
   };
 }
 
 export interface PostgresScopedFrameStoreOptions {
+  /** Explicit canonical schema. Ambient search_path is never authority. */
+  readonly schema: string;
   readonly accessMode?: "read-only" | "read-write";
   readonly now?: () => Date;
 }
@@ -464,8 +498,13 @@ class BoundPostgresFrameStore implements ScopedFrameStore {
     private readonly runner: ScopedTransactionRunner,
     private readonly metadata: FrameStoreMetadata,
     private readonly accessMode: "read-only" | "read-write",
-    private readonly backendIsClosed: () => boolean
-  ) {}
+    private readonly backendIsClosed: () => boolean,
+    private readonly target: PostgresSchemaTargetV1
+  ) {
+    this.upsertSql = upsertScopedFrameSql(target);
+  }
+
+  private readonly upsertSql: string;
 
   getMetadata(): FrameStoreMetadata {
     this.assertActive();
@@ -474,7 +513,7 @@ class BoundPostgresFrameStore implements ScopedFrameStore {
 
   async getHealth(): Promise<FrameStoreHealth> {
     this.assertActive();
-    const checkedAt = new Date().toISOString();
+    const checkedAt = this.runner.currentTime().toISOString();
     try {
       await this.runner.ensureReady();
       return {
@@ -495,7 +534,7 @@ class BoundPostgresFrameStore implements ScopedFrameStore {
   async saveFrame(input: ScopedFrameInput): Promise<void> {
     const frame = this.parseWrite(input);
     await this.write(FRAME_STORE_CAPABILITIES.WRITE, (client) =>
-      client.query(UPSERT_SCOPED_FRAME_SQL, scopedFrameValues(this.authorizedScope, frame))
+      client.query(this.upsertSql, scopedFrameValues(this.authorizedScope, frame))
     );
   }
 
@@ -521,10 +560,7 @@ class BoundPostgresFrameStore implements ScopedFrameStore {
     try {
       await this.runner.run(this.authorizedScope, "write", async (client) => {
         for (const frame of frames) {
-          await client.query(
-            UPSERT_SCOPED_FRAME_SQL,
-            scopedFrameValues(this.authorizedScope, frame)
-          );
+          await client.query(this.upsertSql, scopedFrameValues(this.authorizedScope, frame));
         }
       });
       return frames.map(({ id }) => ({ id, success: true }));
@@ -541,7 +577,7 @@ class BoundPostgresFrameStore implements ScopedFrameStore {
   async getFrameById(id: string): Promise<Frame | null> {
     return this.read(async (client) => {
       const result = await client.query<ScopedPostgresFrameRow>(
-        `SELECT ${FRAME_COLUMNS} FROM frames WHERE ${SCOPE_PREDICATE} AND id = $4`,
+        `SELECT ${FRAME_COLUMNS} FROM ${this.target.relation("frames")} WHERE ${SCOPE_PREDICATE} AND id = $4`,
         [...scopeValues(this.authorizedScope), id]
       );
       return result.rows[0] ? rowToPublicFrame(result.rows[0]) : null;
@@ -566,7 +602,7 @@ class BoundPostgresFrameStore implements ScopedFrameStore {
       }
       if (criteria.since) clauses.push(`"timestamp" >= ${add(criteria.since.toISOString())}`);
       if (criteria.until) clauses.push(`"timestamp" <= ${add(criteria.until.toISOString())}`);
-      let sql = `SELECT ${FRAME_COLUMNS} FROM frames WHERE ${clauses.join(" AND ")}`;
+      let sql = `SELECT ${FRAME_COLUMNS} FROM ${this.target.relation("frames")} WHERE ${clauses.join(" AND ")}`;
       sql += ` ORDER BY "timestamp" DESC, id DESC`;
       if (criteria.limit !== undefined) sql += ` LIMIT ${add(criteria.limit)}`;
       const result = await client.query<ScopedPostgresFrameRow>(sql, values);
@@ -592,7 +628,7 @@ class BoundPostgresFrameStore implements ScopedFrameStore {
           clauses.push(`("timestamp", id) < (${add(cursor.timestamp)}, ${add(cursor.frame_id)})`);
         }
       }
-      let sql = `SELECT ${FRAME_COLUMNS} FROM frames WHERE ${clauses.join(" AND ")}`;
+      let sql = `SELECT ${FRAME_COLUMNS} FROM ${this.target.relation("frames")} WHERE ${clauses.join(" AND ")}`;
       sql += ` ORDER BY "timestamp" DESC, id DESC LIMIT ${add(limit + 1)}`;
       if (!options.cursor && options.offset !== undefined) sql += ` OFFSET ${add(options.offset)}`;
       const result = await client.query<ScopedPostgresFrameRow>(sql, values);
@@ -613,10 +649,10 @@ class BoundPostgresFrameStore implements ScopedFrameStore {
 
   async deleteFrame(id: string): Promise<boolean> {
     return this.write(FRAME_STORE_CAPABILITIES.DELETE, async (client) => {
-      const result = await client.query(`DELETE FROM frames WHERE ${SCOPE_PREDICATE} AND id = $4`, [
-        ...scopeValues(this.authorizedScope),
-        id,
-      ]);
+      const result = await client.query(
+        `DELETE FROM ${this.target.relation("frames")} WHERE ${SCOPE_PREDICATE} AND id = $4`,
+        [...scopeValues(this.authorizedScope), id]
+      );
       return (result.rowCount ?? 0) > 0;
     });
   }
@@ -636,7 +672,7 @@ class BoundPostgresFrameStore implements ScopedFrameStore {
   async getFrameCount(): Promise<number> {
     return this.read(async (client) => {
       const result = await client.query<{ count: string }>(
-        `SELECT COUNT(*) AS count FROM frames WHERE ${SCOPE_PREDICATE}`,
+        `SELECT COUNT(*) AS count FROM ${this.target.relation("frames")} WHERE ${SCOPE_PREDICATE}`,
         scopeValues(this.authorizedScope)
       );
       return Number(result.rows[0]?.count ?? 0);
@@ -645,10 +681,11 @@ class BoundPostgresFrameStore implements ScopedFrameStore {
 
   async getStats(detailed = false): Promise<StoreStats> {
     return this.read(async (client) => {
-      const oneWeekAgo = new Date();
-      oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-      const oneMonthAgo = new Date();
-      oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+      const now = this.runner.currentTime();
+      const oneWeekAgo = new Date(now);
+      oneWeekAgo.setUTCDate(oneWeekAgo.getUTCDate() - 7);
+      const oneMonthAgo = new Date(now);
+      oneMonthAgo.setUTCMonth(oneMonthAgo.getUTCMonth() - 1);
       const values = [
         ...scopeValues(this.authorizedScope),
         oneWeekAgo.toISOString(),
@@ -667,7 +704,7 @@ class BoundPostgresFrameStore implements ScopedFrameStore {
           COUNT(*) FILTER (WHERE "timestamp" >= $5) AS this_month,
           MIN("timestamp") AS oldest_date,
           MAX("timestamp") AS newest_date
-        FROM frames WHERE ${SCOPE_PREDICATE}`,
+        FROM ${this.target.relation("frames")} WHERE ${SCOPE_PREDICATE}`,
         values
       );
       const row = result.rows[0];
@@ -681,7 +718,7 @@ class BoundPostgresFrameStore implements ScopedFrameStore {
       if (detailed && stats.totalFrames > 0) {
         const distribution = await client.query<{ module_id: string; count: string }>(
           `SELECT module_id, COUNT(*) AS count
-           FROM frames, unnest(module_scope) AS module_id
+           FROM ${this.target.relation("frames")}, unnest(module_scope) AS module_id
            WHERE ${SCOPE_PREDICATE}
            GROUP BY module_id
            ORDER BY COUNT(*) DESC, module_id ASC
@@ -710,7 +747,7 @@ class BoundPostgresFrameStore implements ScopedFrameStore {
           COUNT(*) AS frame_count,
           COALESCE(SUM((spend ->> 'tokens_estimated')::numeric), 0) AS estimated_tokens,
           COALESCE(SUM((spend ->> 'prompts')::numeric), 0) AS prompts
-         FROM frames WHERE ${SCOPE_PREDICATE}${sinceClause}`,
+         FROM ${this.target.relation("frames")} WHERE ${SCOPE_PREDICATE}${sinceClause}`,
         values
       );
       const row = result.rows[0];
@@ -723,42 +760,32 @@ class BoundPostgresFrameStore implements ScopedFrameStore {
   }
 
   async updateFrame(id: string, input: ScopedFrameUpdate): Promise<boolean> {
-    const { userId: _callerOwnership, ...updates } = input as ScopedFrameUpdate & {
-      userId?: unknown;
-    };
-    const columns: Record<string, string> = {
-      branch: "branch",
-      jira: "jira",
-      module_scope: "module_scope",
-      summary_caption: "summary_caption",
-      reference_point: "reference_point",
-      status_snapshot: "status_snapshot",
-      keywords: "keywords",
-      atlas_frame_id: "atlas_frame_id",
-      feature_flags: "feature_flags",
-      permissions: "permissions",
-      module_attribution: "module_attribution",
-      runId: "run_id",
-      planHash: "plan_hash",
-      spend: "spend",
-      superseded_by: "superseded_by",
-      merged_from: "merged_from",
-    };
-    const assignments: string[] = [];
-    const values: unknown[] = scopeValues(this.authorizedScope);
-    for (const [key, value] of Object.entries(updates)) {
-      const column = columns[key];
-      if (!column) continue;
-      values.push(value ?? null);
-      assignments.push(`${column} = $${values.length}`);
-    }
-    if (assignments.length === 0) return (await this.getFrameById(id)) !== null;
-    values.push(id);
+    const {
+      id: _discardedId,
+      timestamp: _discardedTimestamp,
+      userId: _discardedUserId,
+      tenantId: _discardedTenantId,
+      workspaceId: _discardedWorkspaceId,
+      principalId: _discardedPrincipalId,
+      creatorPrincipalId: _discardedCreatorPrincipalId,
+      ...updates
+    } = input as ScopedFrameUpdate & Record<string, unknown>;
     return this.write(FRAME_STORE_CAPABILITIES.WRITE, async (client) => {
+      const existing = await client.query<ScopedPostgresFrameRow>(
+        `SELECT ${FRAME_COLUMNS} FROM ${this.target.relation("frames")} WHERE ${SCOPE_PREDICATE} AND id = $4 FOR UPDATE`,
+        [...scopeValues(this.authorizedScope), id]
+      );
+      const row = existing.rows[0];
+      if (!row) return false;
+      const next = FrameSchema.parse({
+        ...rowToPublicFrame(row),
+        ...updates,
+        id: row.id,
+        timestamp: row.timestamp,
+      });
       const result = await client.query(
-        `UPDATE frames SET ${assignments.join(", ")}
-         WHERE ${SCOPE_PREDICATE} AND id = $${values.length}`,
-        values
+        this.upsertSql,
+        scopedFrameValues(this.authorizedScope, next)
       );
       return (result.rowCount ?? 0) > 0;
     });
@@ -767,7 +794,7 @@ class BoundPostgresFrameStore implements ScopedFrameStore {
   async purgeSuperseded(): Promise<number> {
     return this.write(FRAME_STORE_CAPABILITIES.DELETE, async (client) => {
       const result = await client.query(
-        `DELETE FROM frames WHERE ${SCOPE_PREDICATE} AND superseded_by IS NOT NULL`,
+        `DELETE FROM ${this.target.relation("frames")} WHERE ${SCOPE_PREDICATE} AND superseded_by IS NOT NULL`,
         scopeValues(this.authorizedScope)
       );
       return result.rowCount ?? 0;
@@ -817,7 +844,7 @@ class BoundPostgresFrameStore implements ScopedFrameStore {
   private async deleteWhere(clause: string, value: unknown): Promise<number> {
     return this.write(FRAME_STORE_CAPABILITIES.DELETE, async (client) => {
       const result = await client.query(
-        `DELETE FROM frames WHERE ${SCOPE_PREDICATE} AND ${clause}`,
+        `DELETE FROM ${this.target.relation("frames")} WHERE ${SCOPE_PREDICATE} AND ${clause}`,
         [...scopeValues(this.authorizedScope), value]
       );
       return result.rowCount ?? 0;
@@ -833,12 +860,16 @@ export class PostgresScopedFrameStoreBackend implements ScopedFrameStoreBinder {
   private readonly now: () => Date;
   private closed = false;
 
-  constructor(connection: string | Pool, options: PostgresScopedFrameStoreOptions = {}) {
-    this.resources = createResources(connection, "lex-scoped-frame-store-runtime");
+  constructor(connection: string | Pool, options: PostgresScopedFrameStoreOptions) {
+    const target = createPostgresSchemaTarget(options.schema);
+    this.resources = createResources(connection, "lex-scoped-frame-store-runtime", target.schema);
     this.accessMode = options.accessMode ?? "read-write";
     this.now = options.now ?? (() => new Date());
-    this.runner = new ScopedTransactionRunner(this.resources.pool, true, this.now);
+    this.runner = new ScopedTransactionRunner(this.resources.pool, true, this.now, target);
+    this.target = target;
   }
+
+  private readonly target: PostgresSchemaTargetV1;
 
   bind(authorizedScope: AuthorizedScopeV1): ScopedFrameStore {
     if (this.closed) {
@@ -854,7 +885,8 @@ export class PostgresScopedFrameStoreBackend implements ScopedFrameStoreBinder {
       this.runner,
       this.resources.metadata,
       this.accessMode,
-      () => this.closed
+      () => this.closed,
+      this.target
     );
   }
 
@@ -872,7 +904,8 @@ class BoundPostgresFrameStoreAdmin implements FrameStoreAdmin {
     readonly authorizedScope: AuthorizedScopeV1,
     private readonly runner: ScopedTransactionRunner,
     private readonly metadata: FrameStoreMetadata,
-    private readonly backendIsClosed: () => boolean
+    private readonly backendIsClosed: () => boolean,
+    private readonly target: PostgresSchemaTargetV1
   ) {}
 
   getMetadata(): FrameStoreMetadata {
@@ -884,7 +917,7 @@ class BoundPostgresFrameStoreAdmin implements FrameStoreAdmin {
   async getHealth(): Promise<FrameStoreHealth> {
     this.assertActive();
     assertCapability(this.authorizedScope, FRAME_STORE_CAPABILITIES.ADMIN);
-    const checkedAt = new Date().toISOString();
+    const checkedAt = this.runner.currentTime().toISOString();
     try {
       await this.runner.ensureReady();
       return {
@@ -913,7 +946,7 @@ class BoundPostgresFrameStoreAdmin implements FrameStoreAdmin {
         scope_version: string;
       }>(
         `SELECT tenant_id::text, workspace_id::text, creator_principal_id::text, scope_version
-         FROM frames WHERE ${SCOPE_PREDICATE} AND id = $4`,
+         FROM ${this.target.relation("frames")} WHERE ${SCOPE_PREDICATE} AND id = $4`,
         [...scopeValues(this.authorizedScope), id]
       );
       const row = result.rows[0];
@@ -956,18 +989,22 @@ export class PostgresFrameStoreAdministration implements FrameStoreAdminBinder {
 
   constructor(
     connection: string | Pool,
-    options: Pick<PostgresScopedFrameStoreOptions, "now"> = {}
+    options: Pick<PostgresScopedFrameStoreOptions, "now" | "schema">
   ) {
-    this.resources = createResources(connection, "lex-scoped-frame-store-admin");
+    const target = createPostgresSchemaTarget(options.schema);
+    this.resources = createResources(connection, "lex-scoped-frame-store-admin", target.schema);
     this.now = options.now ?? (() => new Date());
-    this.runner = new ScopedTransactionRunner(this.resources.pool, false, this.now);
+    this.runner = new ScopedTransactionRunner(this.resources.pool, false, this.now, target);
+    this.target = target;
   }
+
+  private readonly target: PostgresSchemaTargetV1;
 
   async planMigration(): Promise<PostgresFrameStoreMigrationPlan> {
     this.assertOpen();
     const client = await this.resources.pool.connect();
     try {
-      return await planPostgresFrameStoreMigration(client);
+      return await planPostgresFrameStoreMigration(client, this.target.schema);
     } finally {
       client.release();
     }
@@ -977,7 +1014,7 @@ export class PostgresFrameStoreAdministration implements FrameStoreAdminBinder {
     this.assertOpen();
     const client = await this.resources.pool.connect();
     try {
-      await migratePostgresFrameStore(client);
+      await migratePostgresFrameStore(client, this.target.schema);
       this.runner.invalidateSchemaCheck();
     } finally {
       client.release();
@@ -993,7 +1030,8 @@ export class PostgresFrameStoreAdministration implements FrameStoreAdminBinder {
       scope,
       this.runner,
       this.resources.metadata,
-      () => this.closed
+      () => this.closed,
+      this.target
     );
   }
 

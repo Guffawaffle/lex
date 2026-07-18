@@ -23,6 +23,7 @@ import {
   type TenantId,
   type WorkspaceId,
 } from "@app/shared/runtime-scope/index.js";
+import { exerciseScopedFrameStoreConformance } from "./scoped-frame-store-conformance.js";
 
 type AssertNever<Value extends never> = Value;
 type ForbiddenSelector = "tenantId" | "workspaceId" | "principalId" | "userId";
@@ -92,6 +93,27 @@ async function rejectsWithCode(
 }
 
 describe("MemoryScopedFrameStoreBackend", () => {
+  test("satisfies the shared normal-operation and exact Frame round-trip contract", async () => {
+    const backend = new MemoryScopedFrameStoreBackend();
+    const store = backend.bind(scope("tenant-a", "workspace-a", "principal-a"));
+    await exerciseScopedFrameStoreConformance(store, "memory");
+    await backend.close();
+  });
+
+  test("serializes validated partial merges without losing unrelated concurrent fields", async () => {
+    const backend = new MemoryScopedFrameStoreBackend();
+    const store = backend.bind(scope("tenant-a", "workspace-a", "principal-a"));
+    await store.saveFrame(frame("atomic-update"));
+    await Promise.all([
+      store.updateFrame("atomic-update", { jira: "LEX-768" }),
+      store.updateFrame("atomic-update", { keywords: ["preserved"] }),
+    ]);
+    const updated = await store.getFrameById("atomic-update");
+    assert.equal(updated?.jira, "LEX-768");
+    assert.deepEqual(updated?.keywords, ["preserved"]);
+    await backend.close();
+  });
+
   test("binds an immutable snapshot without expanding attenuated capabilities", async () => {
     const mutableCapabilities = [FRAME_STORE_CAPABILITIES.READ];
     const mutableScope = scope("tenant-a", "workspace-a", "principal-a", mutableCapabilities);

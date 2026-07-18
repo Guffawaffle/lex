@@ -222,6 +222,6 @@ frameStoreContract("sqlite", "sqlite", () => new SqliteFrameStore(":memory:"));
 frameStoreContract(
   "postgres",
   "postgres",
-  () => new PostgresFrameStore(isolatedPostgresUrl),
+  () => new PostgresFrameStore(isolatedPostgresUrl, { schema: postgresSchema }),
   !isolatedPostgresUrl
 );

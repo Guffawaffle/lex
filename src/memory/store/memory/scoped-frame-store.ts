@@ -317,10 +317,20 @@ class ScopedMemoryFrameStore extends MemoryBoundView implements ScopedFrameStore
 
   async updateFrame(id: string, updates: ScopedFrameUpdate): Promise<boolean> {
     this.assertCapability(FRAME_STORE_CAPABILITIES.WRITE);
-    const { userId: _discardedUserId, ...safeUpdates } = updates as ScopedFrameUpdate & {
-      userId?: unknown;
-    };
-    return this.partition.store.updateFrame(id, safeUpdates);
+    const {
+      id: _discardedId,
+      timestamp: _discardedTimestamp,
+      userId: _discardedUserId,
+      tenantId: _discardedTenantId,
+      workspaceId: _discardedWorkspaceId,
+      principalId: _discardedPrincipalId,
+      creatorPrincipalId: _discardedCreatorPrincipalId,
+      ...safeUpdates
+    } = updates as ScopedFrameUpdate & Record<string, unknown>;
+    return this.partition.store.updateFrame(
+      id,
+      safeUpdates as Partial<Omit<Frame, "id" | "timestamp">>
+    );
   }
 
   async purgeSuperseded(): Promise<number> {

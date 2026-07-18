@@ -246,7 +246,7 @@ export function assertLex3DogfoodAcceptanceReceipt(receipt: Lex3DogfoodAcceptanc
   if (
     !/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/.test(receipt.versions.lex) ||
     receipt.versions.authoritySchema !== "1" ||
-    receipt.versions.frameStoreSchema !== "2" ||
+    receipt.versions.frameStoreSchema !== "3" ||
     receipt.versions.policy !== "lex-3-dogfood-v1"
   ) {
     throw new TypeError("Lex 3 dogfood receipt has unsupported version policy evidence.");

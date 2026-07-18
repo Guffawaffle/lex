@@ -43,6 +43,8 @@ export interface PostgresTrustedRuntimeHostOptionsV1<
 > {
   /** Read-only runtime Pool. It must not be the authority administration Pool. */
   readonly authorityPool: Pool;
+  /** Explicit trusted PostgreSQL schema containing the canonical authority. */
+  readonly authoritySchema: string;
   /** Trusted authentication/workspace selection owned by the host or secret broker. */
   readonly selection: TrustedRuntimeSelectionProviderV1;
   /** Scope-bound runtime FrameStore; never an unscoped compatibility store. */
@@ -86,7 +88,9 @@ export interface PostgresTrustedRuntimeHostV1<Binder extends TrustedCanonicalFra
 export function createPostgresTrustedRuntimeHost<Binder extends TrustedCanonicalFrameStoreBinderV1>(
   options: PostgresTrustedRuntimeHostOptionsV1<Binder>
 ): PostgresTrustedRuntimeHostV1<Binder> {
-  const authorityDirectory = new PostgresAuthorityDirectory(options.authorityPool);
+  const authorityDirectory = new PostgresAuthorityDirectory(options.authorityPool, {
+    schema: options.authoritySchema,
+  });
   const discovery = new NodeRuntimeScopeDiscoveryAdapter({
     selection: options.selection,
     ...(options.git ? { git: options.git } : {}),

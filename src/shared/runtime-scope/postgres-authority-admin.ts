@@ -16,10 +16,11 @@ import type {
 } from "./ids.js";
 import { computeAuthenticationRefDigest } from "./postgres-authority.js";
 import {
-  POSTGRES_AUTHORITY_MIGRATION_SQL,
   POSTGRES_AUTHORITY_SCHEMA_VERSION,
   POSTGRES_AUTHORITY_TABLES,
+  postgresAuthorityMigrationSql,
 } from "./postgres-authority-migrations.js";
+import { createPostgresSchemaTarget, type PostgresSchemaTargetV1 } from "./postgres-schema.js";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const ROLE_PATTERN = /^[A-Za-z_][A-Za-z0-9_$-]*$/;
@@ -141,6 +142,11 @@ export interface PostgresAuthorityAdministrationV1 {
   }): Promise<void>;
 }
 
+export interface PostgresAuthorityAdministrationOptionsV1 {
+  readonly schema: string;
+  readonly now?: () => string;
+}
+
 interface CountRow extends QueryResultRow {
   count: string;
 }
@@ -191,6 +197,22 @@ function quoteRole(role: string): string {
   if (!ROLE_PATTERN.test(role))
     throw new TypeError("runtimeRole is not a safe PostgreSQL role name.");
   return `"${role.replaceAll('"', '""')}"`;
+}
+
+function authorityRelations(target: PostgresSchemaTargetV1) {
+  return Object.freeze({
+    migrations: target.relation("lex_authority_migrations"),
+    principals: target.relation("lex_authority_principals"),
+    authenticationRefs: target.relation("lex_authority_authentication_refs"),
+    tenants: target.relation("lex_authority_tenants"),
+    tenantSlugAliases: target.relation("lex_authority_tenant_slug_aliases"),
+    workspaces: target.relation("lex_authority_workspaces"),
+    workspaceSlugAliases: target.relation("lex_authority_workspace_slug_aliases"),
+    repositories: target.relation("lex_authority_repositories"),
+    workspaceRepositories: target.relation("lex_authority_workspace_repositories"),
+    tenantMemberships: target.relation("lex_authority_tenant_memberships"),
+    workspaceGrants: target.relation("lex_authority_workspace_grants"),
+  });
 }
 
 function immutableSorted(values: readonly string[], name: string): readonly string[] {
@@ -342,11 +364,15 @@ function grantDigest(grant: AuthorityWorkspaceGrantSeedV1): ContentDigest {
 /** Explicit privileged boundary. Never pass this object to normal CLI/MCP dispatch. */
 export class PostgresAuthorityAdministration implements PostgresAuthorityAdministrationV1 {
   private readonly now: () => string;
+  private readonly schema: PostgresSchemaTargetV1;
+  private readonly relations: ReturnType<typeof authorityRelations>;
 
   constructor(
     private readonly pool: Pool,
-    options: { readonly now?: () => string } = {}
+    options: PostgresAuthorityAdministrationOptionsV1
   ) {
+    this.schema = createPostgresSchemaTarget(options.schema);
+    this.relations = authorityRelations(this.schema);
     this.now = options.now ?? (() => new Date().toISOString());
   }
 
@@ -354,10 +380,13 @@ export class PostgresAuthorityAdministration implements PostgresAuthorityAdminis
     const quotedRole = quoteRole(runtimeRole);
     const appliedAt = requireTimestamp(this.now(), "migration time");
     await inTransaction(this.pool, async (client) => {
-      await client.query("SELECT pg_advisory_xact_lock(hashtext('lex-authority-migrations'))");
-      await client.query(POSTGRES_AUTHORITY_MIGRATION_SQL);
+      await client.query("SELECT pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtext($1))", [
+        `lex-authority-migrations:${this.schema.schema}`,
+      ]);
+      await client.query(postgresAuthorityMigrationSql(this.schema));
       const future = await client.query<{ version: number }>(
-        "SELECT version FROM lex_authority_migrations WHERE version > $1 ORDER BY version LIMIT 1",
+        `SELECT version FROM ${this.relations.migrations}
+         WHERE version > $1 ORDER BY version LIMIT 1`,
         [POSTGRES_AUTHORITY_SCHEMA_VERSION]
       );
       if (future.rows.length > 0) {
@@ -366,15 +395,19 @@ export class PostgresAuthorityAdministration implements PostgresAuthorityAdminis
         );
       }
       await client.query(
-        "INSERT INTO lex_authority_migrations (version, applied_at) VALUES ($1, $2::timestamptz) ON CONFLICT (version) DO NOTHING",
+        `INSERT INTO ${this.relations.migrations} (version, applied_at)
+         VALUES ($1, $2::timestamptz) ON CONFLICT (version) DO NOTHING`,
         [POSTGRES_AUTHORITY_SCHEMA_VERSION, appliedAt]
       );
+      await client.query(`REVOKE CREATE ON SCHEMA ${this.schema.quotedSchema} FROM ${quotedRole}`);
+      await client.query(`GRANT USAGE ON SCHEMA ${this.schema.quotedSchema} TO ${quotedRole}`);
       for (const table of POSTGRES_AUTHORITY_TABLES) {
-        await client.query(`REVOKE ALL ON TABLE ${table} FROM ${quotedRole}`);
-        await client.query(`GRANT SELECT ON TABLE ${table} TO ${quotedRole}`);
+        const relation = this.schema.relation(table);
+        await client.query(`REVOKE ALL ON TABLE ${relation} FROM ${quotedRole}`);
+        await client.query(`GRANT SELECT ON TABLE ${relation} TO ${quotedRole}`);
       }
-      await client.query(`REVOKE ALL ON TABLE lex_authority_migrations FROM ${quotedRole}`);
-      await client.query(`GRANT SELECT ON TABLE lex_authority_migrations TO ${quotedRole}`);
+      await client.query(`REVOKE ALL ON TABLE ${this.relations.migrations} FROM ${quotedRole}`);
+      await client.query(`GRANT SELECT ON TABLE ${this.relations.migrations} TO ${quotedRole}`);
     });
     return Object.freeze({
       schemaVersion: POSTGRES_AUTHORITY_ADMIN_CONTRACT_VERSION,
@@ -390,29 +423,31 @@ export class PostgresAuthorityAdministration implements PostgresAuthorityAdminis
     validateTopology(topology);
     const appliedAt = requireTimestamp(this.now(), "seed time");
     await inTransaction(this.pool, async (client) => {
-      await client.query("SELECT pg_advisory_xact_lock(hashtext('lex-authority-topology'))");
+      await client.query("SELECT pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtext($1))", [
+        `lex-authority-topology:${this.schema.schema}`,
+      ]);
       for (const principal of topology.principals) {
         await client.query(
-          `INSERT INTO lex_authority_principals
+          `INSERT INTO ${this.relations.principals} AS authority_principal
             (principal_id, display_name, state, authority_version)
            VALUES ($1::uuid, $2, 'active', $3)
            ON CONFLICT (principal_id) DO UPDATE SET
              display_name = EXCLUDED.display_name,
-             state = lex_authority_principals.state,
+             state = authority_principal.state,
              authority_version = EXCLUDED.authority_version`,
           [principal.principalId, principal.displayName ?? null, principal.authorityVersion]
         );
       }
       for (const authentication of topology.authentication) {
         const applied = await client.query(
-          `INSERT INTO lex_authority_authentication_refs
+          `INSERT INTO ${this.relations.authenticationRefs} AS authentication_ref
             (authentication_ref_digest, principal_id, state, authority_version)
            VALUES ($1, $2::uuid, 'active', $3)
            ON CONFLICT (authentication_ref_digest) DO UPDATE SET
-             principal_id = lex_authority_authentication_refs.principal_id,
-             state = lex_authority_authentication_refs.state,
+             principal_id = authentication_ref.principal_id,
+             state = authentication_ref.state,
              authority_version = EXCLUDED.authority_version
-           WHERE lex_authority_authentication_refs.principal_id = EXCLUDED.principal_id`,
+           WHERE authentication_ref.principal_id = EXCLUDED.principal_id`,
           [
             computeAuthenticationRefDigest(authentication.authenticationRef),
             authentication.principalId,
@@ -424,14 +459,14 @@ export class PostgresAuthorityAdministration implements PostgresAuthorityAdminis
       for (const tenant of topology.tenants) {
         const currentTenant = await client.query<CurrentTenantSlugRow>(
           `SELECT tenant_slug
-           FROM lex_authority_tenants
+           FROM ${this.relations.tenants}
            WHERE tenant_id = $1::uuid
            FOR UPDATE`,
           [tenant.tenantId]
         );
         const canonicalSlugConflict = await client.query(
           `SELECT tenant_id
-           FROM lex_authority_tenants
+           FROM ${this.relations.tenants}
            WHERE tenant_slug = $1 AND tenant_id <> $2::uuid
            LIMIT 1`,
           [tenant.tenantSlug, tenant.tenantId]
@@ -439,20 +474,20 @@ export class PostgresAuthorityAdministration implements PostgresAuthorityAdminis
         assertNoIdentityConflict(canonicalSlugConflict, "Tenant slug");
         const currentSlugConflict = await client.query(
           `SELECT tenant_id
-           FROM lex_authority_tenant_slug_aliases
+           FROM ${this.relations.tenantSlugAliases}
            WHERE tenant_slug = $1 AND tenant_id <> $2::uuid
            LIMIT 1`,
           [tenant.tenantSlug, tenant.tenantId]
         );
         assertNoIdentityConflict(currentSlugConflict, "Tenant slug");
         await client.query(
-          `INSERT INTO lex_authority_tenants
+          `INSERT INTO ${this.relations.tenants} AS authority_tenant
             (tenant_id, tenant_slug, display_name, state, authority_version)
            VALUES ($1::uuid, $2, $3, 'active', $4)
            ON CONFLICT (tenant_id) DO UPDATE SET
              tenant_slug = EXCLUDED.tenant_slug,
              display_name = EXCLUDED.display_name,
-             state = lex_authority_tenants.state,
+             state = authority_tenant.state,
              authority_version = EXCLUDED.authority_version`,
           [tenant.tenantId, tenant.tenantSlug, tenant.displayName ?? null, tenant.authorityVersion]
         );
@@ -469,18 +504,19 @@ export class PostgresAuthorityAdministration implements PostgresAuthorityAdminis
         for (const alias of tenantAliases) {
           const aliasConflict = await client.query(
             `SELECT tenant_id
-             FROM lex_authority_tenants
+             FROM ${this.relations.tenants}
              WHERE tenant_slug = $1 AND tenant_id <> $2::uuid
              LIMIT 1`,
             [alias, tenant.tenantId]
           );
           assertNoIdentityConflict(aliasConflict, "Tenant alias");
           const applied = await client.query(
-            `INSERT INTO lex_authority_tenant_slug_aliases (tenant_slug, tenant_id)
+            `INSERT INTO ${this.relations.tenantSlugAliases} AS tenant_slug_alias
+              (tenant_slug, tenant_id)
              VALUES ($1, $2::uuid)
              ON CONFLICT (tenant_slug) DO UPDATE SET
-               tenant_id = lex_authority_tenant_slug_aliases.tenant_id
-             WHERE lex_authority_tenant_slug_aliases.tenant_id = EXCLUDED.tenant_id`,
+               tenant_id = tenant_slug_alias.tenant_id
+             WHERE tenant_slug_alias.tenant_id = EXCLUDED.tenant_id`,
             [alias, tenant.tenantId]
           );
           assertIdentityApplied(applied, "Tenant alias");
@@ -489,7 +525,7 @@ export class PostgresAuthorityAdministration implements PostgresAuthorityAdminis
       for (const workspace of topology.workspaces) {
         const currentWorkspace = await client.query<CurrentWorkspaceSlugRow>(
           `SELECT tenant_id::text, workspace_slug
-           FROM lex_authority_workspaces
+           FROM ${this.relations.workspaces}
            WHERE workspace_id = $1::uuid
            FOR UPDATE`,
           [workspace.workspaceId]
@@ -499,7 +535,7 @@ export class PostgresAuthorityAdministration implements PostgresAuthorityAdminis
         }
         const canonicalSlugConflict = await client.query(
           `SELECT workspace_id
-           FROM lex_authority_workspaces
+           FROM ${this.relations.workspaces}
            WHERE tenant_id = $1::uuid
              AND workspace_slug = $2
              AND workspace_id <> $3::uuid
@@ -509,7 +545,7 @@ export class PostgresAuthorityAdministration implements PostgresAuthorityAdminis
         assertNoIdentityConflict(canonicalSlugConflict, "Workspace slug");
         const currentSlugConflict = await client.query(
           `SELECT workspace_id
-           FROM lex_authority_workspace_slug_aliases
+           FROM ${this.relations.workspaceSlugAliases}
            WHERE tenant_id = $1::uuid
              AND workspace_slug = $2
              AND workspace_id <> $3::uuid
@@ -518,16 +554,16 @@ export class PostgresAuthorityAdministration implements PostgresAuthorityAdminis
         );
         assertNoIdentityConflict(currentSlugConflict, "Workspace slug");
         const applied = await client.query(
-          `INSERT INTO lex_authority_workspaces
+          `INSERT INTO ${this.relations.workspaces} AS authority_workspace
             (workspace_id, tenant_id, workspace_slug, display_name, state, authority_version)
            VALUES ($1::uuid, $2::uuid, $3, $4, 'active', $5)
            ON CONFLICT (workspace_id) DO UPDATE SET
-             tenant_id = lex_authority_workspaces.tenant_id,
+             tenant_id = authority_workspace.tenant_id,
              workspace_slug = EXCLUDED.workspace_slug,
              display_name = EXCLUDED.display_name,
-             state = lex_authority_workspaces.state,
+             state = authority_workspace.state,
              authority_version = EXCLUDED.authority_version
-           WHERE lex_authority_workspaces.tenant_id = EXCLUDED.tenant_id`,
+           WHERE authority_workspace.tenant_id = EXCLUDED.tenant_id`,
           [
             workspace.workspaceId,
             workspace.tenantId,
@@ -550,7 +586,7 @@ export class PostgresAuthorityAdministration implements PostgresAuthorityAdminis
         for (const alias of workspaceAliases) {
           const aliasConflict = await client.query(
             `SELECT workspace_id
-             FROM lex_authority_workspaces
+             FROM ${this.relations.workspaces}
              WHERE tenant_id = $1::uuid
                AND workspace_slug = $2
                AND workspace_id <> $3::uuid
@@ -559,12 +595,12 @@ export class PostgresAuthorityAdministration implements PostgresAuthorityAdminis
           );
           assertNoIdentityConflict(aliasConflict, "Workspace alias");
           const aliasApplied = await client.query(
-            `INSERT INTO lex_authority_workspace_slug_aliases
+            `INSERT INTO ${this.relations.workspaceSlugAliases} AS workspace_slug_alias
               (tenant_id, workspace_slug, workspace_id)
              VALUES ($1::uuid, $2, $3::uuid)
              ON CONFLICT (tenant_id, workspace_slug) DO UPDATE SET
-               workspace_id = lex_authority_workspace_slug_aliases.workspace_id
-             WHERE lex_authority_workspace_slug_aliases.workspace_id = EXCLUDED.workspace_id`,
+               workspace_id = workspace_slug_alias.workspace_id
+             WHERE workspace_slug_alias.workspace_id = EXCLUDED.workspace_id`,
             [workspace.tenantId, alias, workspace.workspaceId]
           );
           assertIdentityApplied(aliasApplied, "Workspace alias");
@@ -572,13 +608,13 @@ export class PostgresAuthorityAdministration implements PostgresAuthorityAdminis
       }
       for (const repository of topology.repositories) {
         await client.query(
-          `INSERT INTO lex_authority_repositories
+          `INSERT INTO ${this.relations.repositories} AS authority_repository
             (repository_id, repository_slug, display_name, state, authority_version)
            VALUES ($1::uuid, $2, $3, 'active', $4)
            ON CONFLICT (repository_id) DO UPDATE SET
              repository_slug = EXCLUDED.repository_slug,
              display_name = EXCLUDED.display_name,
-             state = lex_authority_repositories.state,
+             state = authority_repository.state,
              authority_version = EXCLUDED.authority_version`,
           [
             repository.repositoryId,
@@ -590,11 +626,11 @@ export class PostgresAuthorityAdministration implements PostgresAuthorityAdminis
       }
       for (const association of topology.workspaceRepositories) {
         await client.query(
-          `INSERT INTO lex_authority_workspace_repositories
+          `INSERT INTO ${this.relations.workspaceRepositories} AS workspace_repository
             (tenant_id, workspace_id, repository_id, state, authority_version)
            VALUES ($1::uuid, $2::uuid, $3::uuid, 'active', $4)
            ON CONFLICT (tenant_id, workspace_id, repository_id) DO UPDATE SET
-             state = lex_authority_workspace_repositories.state,
+             state = workspace_repository.state,
              authority_version = EXCLUDED.authority_version`,
           [
             association.tenantId,
@@ -606,38 +642,38 @@ export class PostgresAuthorityAdministration implements PostgresAuthorityAdminis
       }
       for (const membership of topology.memberships) {
         await client.query(
-          `INSERT INTO lex_authority_tenant_memberships
+          `INSERT INTO ${this.relations.tenantMemberships} AS tenant_membership
             (tenant_id, principal_id, state, authority_version, revoked_at)
            VALUES ($1::uuid, $2::uuid, 'active', $3, NULL)
            ON CONFLICT (tenant_id, principal_id) DO UPDATE SET
-             state = lex_authority_tenant_memberships.state,
+             state = tenant_membership.state,
              authority_version = EXCLUDED.authority_version,
-             revoked_at = lex_authority_tenant_memberships.revoked_at`,
+             revoked_at = tenant_membership.revoked_at`,
           [membership.tenantId, membership.principalId, membership.authorityVersion]
         );
       }
       for (const grant of topology.grants) {
         const applied = await client.query(
-          `INSERT INTO lex_authority_workspace_grants
+          `INSERT INTO ${this.relations.workspaceGrants} AS workspace_grant
             (grant_id, tenant_id, workspace_id, principal_id, capabilities,
              authority_version, grant_version, scope_version, authority_digest, expires_at,
              revoked_at)
            VALUES ($1::uuid, $2::uuid, $3::uuid, $4::uuid, $5::text[], $6, $7, $8, $9,
              $10::timestamptz, NULL)
            ON CONFLICT (grant_id) DO UPDATE SET
-             tenant_id = lex_authority_workspace_grants.tenant_id,
-             workspace_id = lex_authority_workspace_grants.workspace_id,
-             principal_id = lex_authority_workspace_grants.principal_id,
+             tenant_id = workspace_grant.tenant_id,
+             workspace_id = workspace_grant.workspace_id,
+             principal_id = workspace_grant.principal_id,
              capabilities = EXCLUDED.capabilities,
              authority_version = EXCLUDED.authority_version,
              grant_version = EXCLUDED.grant_version,
              scope_version = EXCLUDED.scope_version,
              authority_digest = EXCLUDED.authority_digest,
              expires_at = EXCLUDED.expires_at,
-             revoked_at = lex_authority_workspace_grants.revoked_at
-           WHERE lex_authority_workspace_grants.tenant_id = EXCLUDED.tenant_id
-             AND lex_authority_workspace_grants.workspace_id = EXCLUDED.workspace_id
-             AND lex_authority_workspace_grants.principal_id = EXCLUDED.principal_id`,
+             revoked_at = workspace_grant.revoked_at
+           WHERE workspace_grant.tenant_id = EXCLUDED.tenant_id
+             AND workspace_grant.workspace_id = EXCLUDED.workspace_id
+             AND workspace_grant.principal_id = EXCLUDED.principal_id`,
           [
             grant.grantId,
             grant.tenantId,
@@ -685,11 +721,13 @@ export class PostgresAuthorityAdministration implements PostgresAuthorityAdminis
   async inspect(): Promise<PostgresAuthorityInspectionV1> {
     return inTransaction(this.pool, async (client) => {
       const version = await client.query<{ version: number | null }>(
-        "SELECT MAX(version) AS version FROM lex_authority_migrations"
+        `SELECT MAX(version) AS version FROM ${this.relations.migrations}`
       );
       const counts: Record<string, number> = {};
       for (const table of POSTGRES_AUTHORITY_TABLES) {
-        const result = await client.query<CountRow>(`SELECT COUNT(*)::text AS count FROM ${table}`);
+        const result = await client.query<CountRow>(
+          `SELECT COUNT(*)::text AS count FROM ${this.schema.relation(table)}`
+        );
         counts[table] = Number(result.rows[0]?.count ?? 0);
       }
       return Object.freeze({
@@ -710,7 +748,7 @@ export class PostgresAuthorityAdministration implements PostgresAuthorityAdminis
     requireNonEmpty(request.authorityVersion, "authorityVersion");
     await inTransaction(this.pool, async (client) => {
       const result = await client.query(
-        `UPDATE lex_authority_workspace_grants
+        `UPDATE ${this.relations.workspaceGrants}
          SET revoked_at = $2::timestamptz, authority_version = $3
          WHERE grant_id = $1::uuid AND revoked_at IS NULL`,
         [request.grantId, request.revokedAt, request.authorityVersion]

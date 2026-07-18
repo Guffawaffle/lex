@@ -5,6 +5,7 @@ import { Frame as FrameSchema } from "../../frames/types.js";
 import type { FrameRow } from "../db.js";
 import { openDatabaseForMaintenance } from "../db.js";
 import { normalizeFTS5Query } from "../fts5-utils.js";
+import { durableFrameMetadata, parseDurableFrameMetadata } from "../durable-frame-metadata.js";
 import type {
   FrameListResult,
   FrameStoreHealth,
@@ -123,7 +124,7 @@ function parseScopedInput(frame: ScopedFrameInput): ReturnType<typeof FrameSchem
 }
 
 function rowToFrame(row: FrameRow): Frame {
-  return {
+  return FrameSchema.parse({
     id: row.id,
     timestamp: row.timestamp,
     branch: row.branch,
@@ -144,7 +145,8 @@ function rowToFrame(row: FrameRow): Frame {
     spend: row.spend ? (JSON.parse(row.spend) as FrameSpendMetadata) : undefined,
     superseded_by: row.superseded_by || undefined,
     merged_from: row.merged_from ? (JSON.parse(row.merged_from) as string[]) : undefined,
-  };
+    ...parseDurableFrameMetadata(row.frame_metadata),
+  });
 }
 
 const FRAME_INSERT_COLUMNS = Object.freeze([
@@ -167,6 +169,7 @@ const FRAME_INSERT_COLUMNS = Object.freeze([
   "user_id",
   "superseded_by",
   "merged_from",
+  "frame_metadata",
   "ownership_schema_version",
   "tenant_id",
   "workspace_id",
@@ -195,6 +198,7 @@ function frameValues(frame: Frame, scope: AuthorizedScopeV1): unknown[] {
     null,
     frame.superseded_by ?? null,
     frame.merged_from ? JSON.stringify(frame.merged_from) : null,
+    JSON.stringify(durableFrameMetadata(frame)),
     FRAME_STORE_SCOPE_CONTRACT_VERSION,
     scope.tenantId,
     scope.workspaceId,
@@ -223,7 +227,8 @@ const FRAME_UPSERT_SQL = `
     plan_hash = excluded.plan_hash,
     spend = excluded.spend,
     superseded_by = excluded.superseded_by,
-    merged_from = excluded.merged_from
+    merged_from = excluded.merged_from,
+    frame_metadata = excluded.frame_metadata
 `;
 
 abstract class SqliteBoundView {
@@ -424,19 +429,20 @@ class ScopedSqliteFrameStore extends SqliteBoundView implements ScopedFrameStore
       where.push("f.timestamp <= ?");
       parameters.push(safeCriteria.until.toISOString());
     }
+    if (safeCriteria.moduleScope?.length) {
+      where.push(
+        `EXISTS (SELECT 1 FROM json_each(f.module_scope) AS module
+          WHERE module.value IN (${safeCriteria.moduleScope.map(() => "?").join(", ")}))`
+      );
+      parameters.push(...safeCriteria.moduleScope);
+    }
     query += ` WHERE ${where.join(" AND ")} ORDER BY f.timestamp DESC, f.id DESC`;
     if (safeCriteria.limit !== undefined) {
       query += " LIMIT ?";
       parameters.push(safeCriteria.limit);
     }
     try {
-      let rows = this.db.prepare(query).all(...parameters) as FrameRow[];
-      if (safeCriteria.moduleScope?.length) {
-        rows = rows.filter((row) => {
-          const modules = JSON.parse(row.module_scope) as string[];
-          return safeCriteria.moduleScope?.some((moduleId) => modules.includes(moduleId));
-        });
-      }
+      const rows = this.db.prepare(query).all(...parameters) as FrameRow[];
       return rows.map(rowToFrame);
     } catch (error) {
       const sqliteError = error as { code?: string; message?: string };
@@ -605,67 +611,31 @@ class ScopedSqliteFrameStore extends SqliteBoundView implements ScopedFrameStore
   async updateFrame(id: string, updates: ScopedFrameUpdate): Promise<boolean> {
     this.assertCapability(FRAME_STORE_CAPABILITIES.WRITE);
     this.assertWritable();
-    const { userId: _discarded, ...safeUpdates } = updates as ScopedFrameUpdate & {
-      userId?: unknown;
-    };
-    const mappings: Record<string, { column: string; serialize: (value: unknown) => unknown }> = {
-      branch: { column: "branch", serialize: (value) => value },
-      jira: { column: "jira", serialize: (value) => value ?? null },
-      module_scope: { column: "module_scope", serialize: JSON.stringify },
-      summary_caption: { column: "summary_caption", serialize: (value) => value },
-      reference_point: { column: "reference_point", serialize: (value) => value },
-      status_snapshot: { column: "status_snapshot", serialize: JSON.stringify },
-      keywords: {
-        column: "keywords",
-        serialize: (value) => (value ? JSON.stringify(value) : null),
-      },
-      atlas_frame_id: { column: "atlas_frame_id", serialize: (value) => value ?? null },
-      feature_flags: {
-        column: "feature_flags",
-        serialize: (value) => (value ? JSON.stringify(value) : null),
-      },
-      permissions: {
-        column: "permissions",
-        serialize: (value) => (value ? JSON.stringify(value) : null),
-      },
-      module_attribution: {
-        column: "module_attribution",
-        serialize: (value) => (value ? JSON.stringify(value) : null),
-      },
-      runId: { column: "run_id", serialize: (value) => value ?? null },
-      planHash: { column: "plan_hash", serialize: (value) => value ?? null },
-      spend: { column: "spend", serialize: (value) => (value ? JSON.stringify(value) : null) },
-      superseded_by: { column: "superseded_by", serialize: (value) => value ?? null },
-      merged_from: {
-        column: "merged_from",
-        serialize: (value) => (value ? JSON.stringify(value) : null),
-      },
-    };
-    const set: string[] = [];
-    const parameters: unknown[] = [];
-    for (const [key, value] of Object.entries(safeUpdates)) {
-      const mapping = mappings[key];
-      if (mapping) {
-        set.push(`${mapping.column} = ?`);
-        parameters.push(mapping.serialize(value));
-      }
-    }
-    if (set.length === 0) {
-      return (
-        this.db
-          .prepare("SELECT 1 FROM frames WHERE id = ? AND tenant_id = ? AND workspace_id = ?")
-          .get(id, ...this.scopeParameters()) !== undefined
-      );
-    }
-    parameters.push(id, ...this.scopeParameters());
-    return (
-      this.db
-        .prepare(
-          `UPDATE frames SET ${set.join(", ")}
-            WHERE id = ? AND tenant_id = ? AND workspace_id = ?`
-        )
-        .run(...parameters).changes > 0
-    );
+    const {
+      id: _discardedId,
+      timestamp: _discardedTimestamp,
+      userId: _discardedUserId,
+      tenantId: _discardedTenantId,
+      workspaceId: _discardedWorkspaceId,
+      principalId: _discardedPrincipalId,
+      creatorPrincipalId: _discardedCreatorPrincipalId,
+      ...safeUpdates
+    } = updates as ScopedFrameUpdate & Record<string, unknown>;
+    const update = this.db.transaction(() => {
+      const row = this.db
+        .prepare("SELECT * FROM frames WHERE id = ? AND tenant_id = ? AND workspace_id = ?")
+        .get(id, ...this.scopeParameters()) as FrameRow | undefined;
+      if (!row) return false;
+      const next = FrameSchema.parse({
+        ...rowToFrame(row),
+        ...safeUpdates,
+        id: row.id,
+        timestamp: row.timestamp,
+      });
+      this.db.prepare(FRAME_UPSERT_SQL).run(...frameValues(next, this.authorizedScope));
+      return true;
+    });
+    return update.immediate();
   }
 
   async purgeSuperseded(): Promise<number> {

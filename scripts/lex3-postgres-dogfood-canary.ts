@@ -2,7 +2,7 @@
 
 import assert from "node:assert/strict";
 import { createHash, randomBytes } from "node:crypto";
-import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Pool, type PoolClient } from "pg";
@@ -322,7 +322,7 @@ export async function runLex3PostgresDogfoodCanary(
     {
       name: "wsl",
       platform: "linux",
-      root: "/opt/lex3-dogfood/repository",
+      root: join(registryRoot, "wsl-repository"),
       surface: detectExecutionSurface({
         platform: "linux",
         installationRef: "/usr/bin/node",
@@ -333,6 +333,7 @@ export async function runLex3PostgresDogfoodCanary(
       executionSurfaceId: "wsl-canary-surface" as ExecutionSurfaceId,
     },
   ];
+  mkdirSync(surfaces[1]!.root, { recursive: true });
 
   const runCase = async <T>(
     id: Lex3DogfoodAcceptanceCase,
@@ -400,10 +401,12 @@ export async function runLex3PostgresDogfoodCanary(
     });
     const liveScopedAdminPool = scopedAdminPool;
     step = "migrate-frame-store";
-    frameAdministration = new PostgresFrameStoreAdministration(liveScopedAdminPool);
+    frameAdministration = new PostgresFrameStoreAdministration(liveScopedAdminPool, { schema });
     await frameAdministration.migrate();
     step = "migrate-and-seed-authority";
-    const authorityAdministration = new PostgresAuthorityAdministration(liveScopedAdminPool);
+    const authorityAdministration = new PostgresAuthorityAdministration(liveScopedAdminPool, {
+      schema,
+    });
     const authorityMigration = await authorityAdministration.migrate(runtimeRole);
     assert.equal(authorityMigration.targetSchemaVersion, POSTGRES_AUTHORITY_SCHEMA_VERSION);
     const topology = createLex3DogfoodAuthorityTopology(AUTHENTICATION_REF);
@@ -419,9 +422,8 @@ export async function runLex3PostgresDogfoodCanary(
       grants: 5,
     });
 
-    step = "grant-runtime-privileges";
+    step = "grant-frame-runtime-privileges";
     await adminPool.query(`
-      GRANT USAGE ON SCHEMA ${quoteIdentifier(schema)} TO ${quoteIdentifier(runtimeRole)};
       GRANT SELECT ON ${quoteIdentifier(schema)}.lex_frame_store_migrations TO ${quoteIdentifier(runtimeRole)};
       GRANT SELECT, INSERT, UPDATE, DELETE ON ${quoteIdentifier(schema)}.frames TO ${quoteIdentifier(runtimeRole)};
       GRANT EXECUTE ON FUNCTION ${quoteIdentifier(schema)}.lex_runtime_scope_is_valid() TO ${quoteIdentifier(runtimeRole)};
@@ -472,9 +474,9 @@ export async function runLex3PostgresDogfoodCanary(
       session_role: runtimeRole,
       current_role: runtimeRole,
     });
-    frameBackend = new PostgresScopedFrameStoreBackend(liveRuntimePool);
+    frameBackend = new PostgresScopedFrameStoreBackend(liveRuntimePool, { schema });
     const liveFrameBackend = frameBackend;
-    const authorityDirectory = new PostgresAuthorityDirectory(liveRuntimePool);
+    const authorityDirectory = new PostgresAuthorityDirectory(liveRuntimePool, { schema });
     step = "resolve-principal";
     const principal = await authorityDirectory.resolvePrincipal({
       authenticationRef: AUTHENTICATION_REF,

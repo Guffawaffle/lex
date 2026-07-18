@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 
+import type { Frame } from "@app/memory/frames/types.js";
 import type { ScopedFrameStore } from "@app/memory/store/index.js";
 
 /** Backend-neutral normal-operation contract used by durable adapter suites. */
@@ -12,6 +13,120 @@ export async function exerciseScopedFrameStoreConformance(
   const superseded = `${prefix}-superseded`;
   const invalid = `${prefix}-invalid`;
   const now = "2026-07-18T12:00:00.000Z";
+
+  const complete: Frame = {
+    id: `${prefix}-complete-v7`,
+    timestamp: "2026-07-18T11:59:00.000Z",
+    branch: "feature/complete-frame-round-trip",
+    jira: "LEX-768",
+    module_scope: ["memory/store", "durability"],
+    summary_caption: "Every canonical Frame field survives durable storage",
+    reference_point: "complete Frame v7 round trip",
+    status_snapshot: {
+      next_action: "compare exact values",
+      blockers: ["none"],
+      merge_blockers: ["review"],
+      tests_failing: ["zero"],
+    },
+    keywords: ["durable", "metadata"],
+    atlas_frame_id: "atlas-complete-v7",
+    feature_flags: ["scoped-store"],
+    permissions: ["frame:read", "frame:write"],
+    module_attribution: {
+      mode: "explicit",
+      confidence: "high",
+      evidence: ["shared conformance"],
+    },
+    image_ids: ["image-a", "image-b"],
+    runId: "run-complete-v7",
+    planHash: "sha256:complete-plan",
+    spend: { prompts: 3, tokens_estimated: 987 },
+    executorRole: "implementation-agent",
+    toolCalls: ["read", "write", "test"],
+    guardrailProfile: "strict",
+    turnCost: {
+      components: {
+        latency: 12,
+        contextReset: 2,
+        renegotiation: 1,
+        tokenBloat: 4,
+        attentionSwitch: 0,
+      },
+      weights: { lambda: 0.1, gamma: 0.2, rho: 0.3, tau: 0.1, alpha: 0.3 },
+      weightedScore: 2.5,
+      sessionId: "session-complete-v7",
+      timestamp: "2026-07-18T11:59:30.000Z",
+    },
+    capabilityTier: "senior",
+    taskComplexity: {
+      tier: "senior",
+      assignedModel: "model-a",
+      actualModel: "model-b",
+      escalated: true,
+      escalationReason: "durability review",
+      retryCount: 1,
+      tierMismatch: false,
+    },
+    superseded_by: "next-complete-frame",
+    merged_from: ["prior-a", "prior-b"],
+    contradiction_resolution: {
+      type: "scope",
+      contradicts_frame_id: "prior-a",
+      scope: "memory/store",
+      note: "Both statements apply in different scopes",
+    },
+  };
+  await store.saveFrame(complete);
+  assert.deepEqual(await store.getFrameById(complete.id), complete);
+  const updatedComplete: Frame = {
+    ...complete,
+    toolCalls: ["read", "write", "test", "verify"],
+    guardrailProfile: "strict-reviewed",
+  };
+  assert.equal(
+    await store.updateFrame(complete.id, {
+      toolCalls: updatedComplete.toolCalls,
+      guardrailProfile: updatedComplete.guardrailProfile,
+      id: "caller-controlled-id",
+      timestamp: "1900-01-01T00:00:00.000Z",
+      userId: "caller-controlled-user",
+      tenantId: "caller-controlled-tenant",
+    } as never),
+    true
+  );
+  assert.deepEqual(await store.getFrameById(complete.id), updatedComplete);
+  await assert.rejects(() => store.updateFrame(complete.id, { status_snapshot: {} as never }));
+  assert.deepEqual(await store.getFrameById(complete.id), updatedComplete);
+  assert.equal(await store.deleteFrame(complete.id), true);
+
+  const moduleLimitMatch = `${prefix}-module-limit-match`;
+  const moduleLimitOther = `${prefix}-module-limit-other`;
+  await store.saveFrames([
+    {
+      id: moduleLimitOther,
+      timestamp: "2026-07-18T11:58:00.000Z",
+      branch: "feature/module-limit",
+      module_scope: ["other/module"],
+      summary_caption: "Newer frame outside the requested module",
+      reference_point: "module filtering precedes limit",
+      status_snapshot: { next_action: "remain excluded" },
+    },
+    {
+      id: moduleLimitMatch,
+      timestamp: "2026-07-18T11:57:00.000Z",
+      branch: "feature/module-limit",
+      module_scope: ["target/module"],
+      summary_caption: "Older frame inside the requested module",
+      reference_point: "module filtering precedes limit",
+      status_snapshot: { next_action: "survive limit" },
+    },
+  ]);
+  assert.deepEqual(
+    (await store.searchFrames({ moduleScope: ["target/module"], limit: 1 })).map(({ id }) => id),
+    [moduleLimitMatch]
+  );
+  assert.equal(await store.deleteFrame(moduleLimitOther), true);
+  assert.equal(await store.deleteFrame(moduleLimitMatch), true);
 
   const batch = await store.saveFrames([
     {

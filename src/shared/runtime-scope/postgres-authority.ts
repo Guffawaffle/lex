@@ -35,6 +35,8 @@ import type {
   WorkspaceId,
   WorkspaceSlug,
 } from "./ids.js";
+import { createPostgresSchemaTarget, type PostgresSchemaTargetV1 } from "./postgres-schema.js";
+import { POSTGRES_AUTHORITY_TABLES } from "./postgres-authority-migrations.js";
 
 const SHA256_PATTERN = /^sha256:[0-9a-f]{64}$/;
 
@@ -99,7 +101,24 @@ interface RuntimeRoleBoundaryRow extends QueryResultRow {
 }
 
 export interface PostgresAuthorityDirectoryOptionsV1 {
+  readonly schema: string;
   readonly now?: () => string;
+}
+
+function authorityRelations(target: PostgresSchemaTargetV1) {
+  return Object.freeze({
+    migrations: target.relation("lex_authority_migrations"),
+    principals: target.relation("lex_authority_principals"),
+    authenticationRefs: target.relation("lex_authority_authentication_refs"),
+    tenants: target.relation("lex_authority_tenants"),
+    tenantSlugAliases: target.relation("lex_authority_tenant_slug_aliases"),
+    workspaces: target.relation("lex_authority_workspaces"),
+    workspaceSlugAliases: target.relation("lex_authority_workspace_slug_aliases"),
+    repositories: target.relation("lex_authority_repositories"),
+    workspaceRepositories: target.relation("lex_authority_workspace_repositories"),
+    tenantMemberships: target.relation("lex_authority_tenant_memberships"),
+    workspaceGrants: target.relation("lex_authority_workspace_grants"),
+  });
 }
 
 function authenticationRefDigest(authenticationRef: AuthenticationRef): string {
@@ -208,43 +227,41 @@ function grantRecord(
   });
 }
 
-async function assertReadOnlyRuntimeRole(client: PoolClient): Promise<void> {
-  const result = await client.query<RuntimeRoleBoundaryRow>(`
+async function assertReadOnlyRuntimeRole(
+  client: PoolClient,
+  target: PostgresSchemaTargetV1
+): Promise<void> {
+  const result = await client.query<RuntimeRoleBoundaryRow>(
+    `
     SELECT
-      (SELECT MAX(version) FROM lex_authority_migrations) AS schema_version,
+      (SELECT MAX(version) FROM ${target.relation("lex_authority_migrations")}) AS schema_version,
       role.rolsuper AS role_is_superuser,
       role.rolbypassrls AS role_bypasses_rls,
       EXISTS (
         SELECT 1
-        FROM pg_class relation
-        WHERE relation.relname LIKE 'lex_authority_%'
+        FROM pg_catalog.pg_class relation
+        JOIN pg_catalog.pg_namespace namespace ON namespace.oid = relation.relnamespace
+        WHERE namespace.nspname = $1
+          AND relation.relname = ANY($2::text[])
           AND relation.relowner = role.oid
       ) AS role_owns_authority,
       EXISTS (
         SELECT 1
-        FROM unnest(ARRAY[
-          'lex_authority_migrations',
-          'lex_authority_principals',
-          'lex_authority_authentication_refs',
-          'lex_authority_tenants',
-          'lex_authority_tenant_slug_aliases',
-          'lex_authority_workspaces',
-          'lex_authority_workspace_slug_aliases',
-          'lex_authority_repositories',
-          'lex_authority_workspace_repositories',
-          'lex_authority_tenant_memberships',
-          'lex_authority_workspace_grants'
-        ]) AS authority_table(table_name)
-        WHERE to_regclass(authority_table.table_name) IS NOT NULL
-          AND has_table_privilege(
+        FROM pg_catalog.pg_class relation
+        JOIN pg_catalog.pg_namespace namespace ON namespace.oid = relation.relnamespace
+        WHERE namespace.nspname = $1
+          AND relation.relname = ANY($2::text[])
+          AND pg_catalog.has_table_privilege(
             current_user,
-            authority_table.table_name,
+            relation.oid,
             'INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER'
           )
       ) AS role_can_mutate_authority
-    FROM pg_roles role
+    FROM pg_catalog.pg_roles role
     WHERE role.rolname = current_user
-  `);
+  `,
+    [target.schema, ["lex_authority_migrations", ...POSTGRES_AUTHORITY_TABLES]]
+  );
   const boundary = result.rows[0];
   if (
     !boundary ||
@@ -261,7 +278,8 @@ async function assertReadOnlyRuntimeRole(client: PoolClient): Promise<void> {
 class PostgresAuthoritySnapshot implements AuthorityDirectory, RepositoryScopedAuthorityDirectory {
   constructor(
     private readonly client: PoolClient,
-    private readonly verifiedAt: string
+    private readonly verifiedAt: string,
+    private readonly relations: ReturnType<typeof authorityRelations>
   ) {}
 
   async resolvePrincipal(
@@ -274,8 +292,8 @@ class PostgresAuthoritySnapshot implements AuthorityDirectory, RepositoryScopedA
           principal.display_name,
           principal.state,
           principal.authority_version
-        FROM lex_authority_authentication_refs authentication
-        JOIN lex_authority_principals principal
+        FROM ${this.relations.authenticationRefs} authentication
+        JOIN ${this.relations.principals} principal
           ON principal.principal_id = authentication.principal_id
         WHERE authentication.authentication_ref_digest = $1
           AND authentication.state = 'active'
@@ -294,7 +312,7 @@ class PostgresAuthoritySnapshot implements AuthorityDirectory, RepositoryScopedA
         ? await this.client.query<TenantRow>(
             `
               SELECT tenant_id::text, tenant_slug, display_name, state, authority_version
-              FROM lex_authority_tenants
+              FROM ${this.relations.tenants}
               WHERE tenant_id = $1::uuid
               LIMIT 2
             `,
@@ -308,8 +326,8 @@ class PostgresAuthoritySnapshot implements AuthorityDirectory, RepositoryScopedA
                 tenant.display_name,
                 tenant.state,
                 tenant.authority_version
-              FROM lex_authority_tenants tenant
-              LEFT JOIN lex_authority_tenant_slug_aliases alias
+              FROM ${this.relations.tenants} tenant
+              LEFT JOIN ${this.relations.tenantSlugAliases} alias
                 ON alias.tenant_id = tenant.tenant_id
               WHERE tenant.tenant_slug = $1 OR alias.tenant_slug = $1
               ORDER BY tenant.tenant_id
@@ -327,7 +345,7 @@ class PostgresAuthoritySnapshot implements AuthorityDirectory, RepositoryScopedA
         `
           SELECT workspace_id::text, tenant_id::text, workspace_slug,
             display_name, state, authority_version
-          FROM lex_authority_workspaces
+          FROM ${this.relations.workspaces}
           WHERE workspace_id = $1::uuid
           LIMIT 2
         `,
@@ -347,8 +365,8 @@ class PostgresAuthoritySnapshot implements AuthorityDirectory, RepositoryScopedA
           workspace.display_name,
           workspace.state,
           workspace.authority_version
-        FROM lex_authority_workspaces workspace
-        LEFT JOIN lex_authority_workspace_slug_aliases alias
+        FROM ${this.relations.workspaces} workspace
+        LEFT JOIN ${this.relations.workspaceSlugAliases} alias
           ON alias.tenant_id = workspace.tenant_id
           AND alias.workspace_id = workspace.workspace_id
         WHERE workspace.tenant_id = $1::uuid
@@ -366,7 +384,7 @@ class PostgresAuthoritySnapshot implements AuthorityDirectory, RepositoryScopedA
     const result = await this.client.query<RepositoryRow>(
       `
         SELECT repository_id::text, repository_slug, display_name, state, authority_version
-        FROM lex_authority_repositories
+        FROM ${this.relations.repositories}
         WHERE repository_id = $1::uuid
         LIMIT 2
       `,
@@ -381,11 +399,11 @@ class PostgresAuthoritySnapshot implements AuthorityDirectory, RepositoryScopedA
       `
         SELECT EXISTS (
           SELECT 1
-          FROM lex_authority_workspace_repositories association
-          JOIN lex_authority_workspaces workspace
+          FROM ${this.relations.workspaceRepositories} association
+          JOIN ${this.relations.workspaces} workspace
             ON workspace.tenant_id = association.tenant_id
             AND workspace.workspace_id = association.workspace_id
-          JOIN lex_authority_repositories repository
+          JOIN ${this.relations.repositories} repository
             ON repository.repository_id = association.repository_id
           WHERE association.tenant_id = $1::uuid
             AND association.workspace_id = $2::uuid
@@ -406,7 +424,7 @@ class PostgresAuthoritySnapshot implements AuthorityDirectory, RepositoryScopedA
     const principal = await this.client.query<PrincipalRow>(
       `
         SELECT principal_id::text, display_name, state, authority_version
-        FROM lex_authority_principals
+        FROM ${this.relations.principals}
         WHERE principal_id = $1::uuid
         LIMIT 2
       `,
@@ -436,7 +454,7 @@ class PostgresAuthoritySnapshot implements AuthorityDirectory, RepositoryScopedA
     const memberships = await this.client.query<MembershipRow>(
       `
         SELECT state, revoked_at, authority_version
-        FROM lex_authority_tenant_memberships
+        FROM ${this.relations.tenantMemberships}
         WHERE tenant_id = $1::uuid AND principal_id = $2::uuid
         LIMIT 2
       `,
@@ -468,7 +486,7 @@ class PostgresAuthoritySnapshot implements AuthorityDirectory, RepositoryScopedA
           authority_digest,
           expires_at,
           revoked_at
-        FROM lex_authority_workspace_grants
+        FROM ${this.relations.workspaceGrants}
         WHERE tenant_id = $1::uuid
           AND workspace_id = $2::uuid
           AND principal_id = $3::uuid
@@ -522,11 +540,15 @@ export class PostgresAuthorityDirectory
   implements ConsistentAuthorityDirectory, RepositoryScopedAuthorityDirectory
 {
   private readonly now: () => string;
+  private readonly schema: PostgresSchemaTargetV1;
+  private readonly relations: ReturnType<typeof authorityRelations>;
 
   constructor(
     private readonly pool: Pool,
-    options: PostgresAuthorityDirectoryOptionsV1 = {}
+    options: PostgresAuthorityDirectoryOptionsV1
   ) {
+    this.schema = createPostgresSchemaTarget(options.schema);
+    this.relations = authorityRelations(this.schema);
     this.now = options.now ?? (() => new Date().toISOString());
   }
 
@@ -536,9 +558,9 @@ export class PostgresAuthorityDirectory
     const client = await this.pool.connect();
     try {
       await client.query("BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY");
-      await assertReadOnlyRuntimeRole(client);
+      await assertReadOnlyRuntimeRole(client, this.schema);
       const verifiedAt = timestamp(this.now(), "authority verification time");
-      const snapshot = new PostgresAuthoritySnapshot(client, verifiedAt);
+      const snapshot = new PostgresAuthoritySnapshot(client, verifiedAt, this.relations);
       const result = await operation(snapshot);
       await client.query("COMMIT");
       return result;

@@ -116,6 +116,8 @@ export type FrameStoreBackend = "sqlite" | "postgres";
 export interface FrameStoreFactoryOptions {
   /** Defaults to read-write; read-only prevents initialization and mutation. */
   accessMode?: "read-only" | "read-write";
+  /** Transitional PostgreSQL schema target. Ignored by the SQLite backend. */
+  schema?: string;
 }
 
 /** Resolve and validate the configured FrameStore backend. */

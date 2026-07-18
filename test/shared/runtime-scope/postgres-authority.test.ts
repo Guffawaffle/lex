@@ -8,10 +8,13 @@ import { MemoryScopedFrameStoreBackend } from "../../../src/memory/store/memory/
 import type { CliRunOptionsV1 } from "../../../src/shared/cli/index.js";
 import {
   LEX3_DOGFOOD_CANONICAL_IDS,
+  POSTGRES_AUTHORITY_TABLES,
   PostgresAuthorityAdministration,
   PostgresAuthorityDirectory,
+  createPostgresSchemaTarget,
   createLex3DogfoodAuthorityTopology,
   createPostgresTrustedRuntimeHost,
+  postgresAuthorityMigrationSql,
   resolveRuntimeScope,
   type AuthenticationRef,
   type AuthorityVersion,
@@ -31,6 +34,7 @@ import {
 } from "../../../src/shared/runtime-scope/index.js";
 
 const NOW = "2026-07-18T12:00:00.000Z";
+const AUTHORITY_SCHEMA = "lex_authority_test";
 const PRINCIPAL = LEX3_DOGFOOD_CANONICAL_IDS.principalId;
 const TENANT = LEX3_DOGFOOD_CANONICAL_IDS.tenants.platform;
 const WORKSPACE = LEX3_DOGFOOD_CANONICAL_IDS.workspaces.lex;
@@ -41,6 +45,10 @@ const SCOPE_VERSION = "scope-v1" as ScopeVersion;
 const AUTHORITY_DIGEST = `sha256:${"a".repeat(64)}` as ContentDigest;
 const FRAME_READ = "frame:read" as CapabilityId;
 const FRAME_WRITE = "frame:write" as CapabilityId;
+
+function authorityRelation(name: string): string {
+  return `"${AUTHORITY_SCHEMA}"."${name}"`;
+}
 
 interface QueryCall {
   readonly sql: string;
@@ -85,7 +93,7 @@ class AuthorityClient {
         },
       ]);
     }
-    if (sql.includes("FROM lex_authority_authentication_refs")) {
+    if (sql.includes(`FROM ${authorityRelation("lex_authority_authentication_refs")}`)) {
       return result([
         {
           principal_id: PRINCIPAL,
@@ -95,13 +103,15 @@ class AuthorityClient {
         },
       ]);
     }
-    if (sql.includes("FROM lex_authority_workspace_repositories association")) {
+    if (
+      sql.includes(`FROM ${authorityRelation("lex_authority_workspace_repositories")} association`)
+    ) {
       return result([{ authorized: params[2] === REPOSITORY }]);
     }
-    if (sql.includes("FROM lex_authority_tenant_memberships")) {
+    if (sql.includes(`FROM ${authorityRelation("lex_authority_tenant_memberships")}`)) {
       return result([{ state: "active", revoked_at: null, authority_version: AUTHORITY_VERSION }]);
     }
-    if (sql.includes("FROM lex_authority_workspace_grants")) {
+    if (sql.includes(`FROM ${authorityRelation("lex_authority_workspace_grants")}`)) {
       return result([
         {
           grant_id: "50000000-0000-4000-8000-000000000001",
@@ -118,7 +128,7 @@ class AuthorityClient {
         },
       ]);
     }
-    if (sql.includes("FROM lex_authority_principals")) {
+    if (sql.includes(`FROM ${authorityRelation("lex_authority_principals")}`)) {
       return result([
         {
           principal_id: PRINCIPAL,
@@ -128,7 +138,7 @@ class AuthorityClient {
         },
       ]);
     }
-    if (sql.includes("FROM lex_authority_workspaces")) {
+    if (sql.includes(`FROM ${authorityRelation("lex_authority_workspaces")}`)) {
       return result([
         {
           workspace_id: WORKSPACE,
@@ -140,7 +150,7 @@ class AuthorityClient {
         },
       ]);
     }
-    if (sql.includes("FROM lex_authority_tenants")) {
+    if (sql.includes(`FROM ${authorityRelation("lex_authority_tenants")}`)) {
       return result([
         {
           tenant_id: TENANT,
@@ -151,7 +161,7 @@ class AuthorityClient {
         },
       ]);
     }
-    if (sql.includes("FROM lex_authority_repositories")) {
+    if (sql.includes(`FROM ${authorityRelation("lex_authority_repositories")}`)) {
       return result([
         {
           repository_id: params[0] as string,
@@ -179,7 +189,11 @@ class AdministrationClient {
   async query(sqlValue: string, params: readonly unknown[] = []): Promise<QueryResult> {
     const sql = sqlValue.replace(/\s+/g, " ").trim();
     this.calls.push({ sql, params });
-    if (sql.includes("SELECT version FROM lex_authority_migrations WHERE version >")) {
+    if (
+      sql.includes(
+        `SELECT version FROM ${authorityRelation("lex_authority_migrations")} WHERE version >`
+      )
+    ) {
       return result([]);
     }
     if (sql.startsWith("SELECT") && sql.includes("<>")) return result([]);
@@ -224,7 +238,7 @@ class SlugHistoryAdministrationClient extends AdministrationClient {
     }
     if (
       this.options.conflictingTenantAlias &&
-      sql.includes("FROM lex_authority_tenant_slug_aliases") &&
+      sql.includes(`FROM ${authorityRelation("lex_authority_tenant_slug_aliases")}`) &&
       params[0] === this.options.conflictingTenantAlias
     ) {
       this.calls.push({ sql, params });
@@ -232,7 +246,7 @@ class SlugHistoryAdministrationClient extends AdministrationClient {
     }
     if (
       this.options.conflictingWorkspaceAlias &&
-      sql.includes("FROM lex_authority_workspace_slug_aliases") &&
+      sql.includes(`FROM ${authorityRelation("lex_authority_workspace_slug_aliases")}`) &&
       params[1] === this.options.conflictingWorkspaceAlias
     ) {
       this.calls.push({ sql, params });
@@ -302,9 +316,39 @@ function localRegistry(storedBinding: RepositoryInstanceBindingV1): LocalBinding
 }
 
 describe("PostgreSQL canonical authority", () => {
+  test("requires a validated explicit schema and qualifies migration objects", () => {
+    const target = createPostgresSchemaTarget(AUTHORITY_SCHEMA);
+    assert.equal(target.schema, AUTHORITY_SCHEMA);
+    assert.equal(target.quotedSchema, `"${AUTHORITY_SCHEMA}"`);
+    assert.equal(
+      target.relation("lex_authority_tenants"),
+      authorityRelation("lex_authority_tenants")
+    );
+    assert.equal(
+      target.function("lex_authority_helper"),
+      authorityRelation("lex_authority_helper")
+    );
+    for (const invalid of ["", "Public", "tenant-authority", "pg_catalog", "a".repeat(64)]) {
+      assert.throws(() => createPostgresSchemaTarget(invalid), /PostgreSQL schema/);
+    }
+
+    const migrationSql = postgresAuthorityMigrationSql(target);
+    for (const table of ["lex_authority_migrations", ...POSTGRES_AUTHORITY_TABLES]) {
+      assert.equal(migrationSql.includes(authorityRelation(table)), true, table);
+    }
+    assert.doesNotMatch(
+      migrationSql,
+      /(?:TABLE|REFERENCES|ON)\s+lex_authority_[a-z0-9_]+/,
+      "authority migration objects must never use ambient schema resolution"
+    );
+  });
+
   test("pins resolver reads to one snapshot and attenuates the authorized scope", async () => {
     const client = new AuthorityClient();
-    const authorityDirectory = new PostgresAuthorityDirectory(poolFor(client), { now: () => NOW });
+    const authorityDirectory = new PostgresAuthorityDirectory(poolFor(client), {
+      schema: AUTHORITY_SCHEMA,
+      now: () => NOW,
+    });
     const storedBinding = binding();
     const resolution = await resolveRuntimeScope(
       {
@@ -354,15 +398,18 @@ describe("PostgreSQL canonical authority", () => {
     assert.equal(client.calls.filter(({ sql }) => sql.startsWith("BEGIN")).length, 1);
     assert.equal(client.calls.filter(({ sql }) => sql === "COMMIT").length, 1);
     assert.equal(client.releaseCount, 1);
-    assert.match(
-      client.calls.find(({ sql }) => sql.includes("role_can_mutate_authority"))?.sql ?? "",
-      /'lex_authority_migrations'/
+    assert.deepEqual(
+      client.calls.find(({ sql }) => sql.includes("role_can_mutate_authority"))?.params,
+      [AUTHORITY_SCHEMA, ["lex_authority_migrations", ...POSTGRES_AUTHORITY_TABLES]]
     );
   });
 
   test("rejects repository widening, revocation, expiry, and unsafe runtime roles", async () => {
     const repositoryClient = new AuthorityClient();
-    const directory = new PostgresAuthorityDirectory(poolFor(repositoryClient), { now: () => NOW });
+    const directory = new PostgresAuthorityDirectory(poolFor(repositoryClient), {
+      schema: AUTHORITY_SCHEMA,
+      now: () => NOW,
+    });
     assert.equal(
       await directory.authorizeRepository({
         tenantId: TENANT,
@@ -388,7 +435,7 @@ describe("PostgreSQL canonical authority", () => {
 
     const revoked = new PostgresAuthorityDirectory(
       poolFor(new AuthorityClient({ grantRevoked: true })),
-      { now: () => NOW }
+      { schema: AUTHORITY_SCHEMA, now: () => NOW }
     );
     const revokedDecision = await revoked.authorizeWorkspace({
       principalId: PRINCIPAL,
@@ -400,7 +447,7 @@ describe("PostgreSQL canonical authority", () => {
 
     const expired = new PostgresAuthorityDirectory(
       poolFor(new AuthorityClient({ grantExpired: true })),
-      { now: () => NOW }
+      { schema: AUTHORITY_SCHEMA, now: () => NOW }
     );
     const expiredDecision = await expired.authorizeWorkspace({
       principalId: PRINCIPAL,
@@ -413,6 +460,7 @@ describe("PostgreSQL canonical authority", () => {
     const unsafe = new PostgresAuthorityDirectory(
       poolFor(new AuthorityClient({ unsafeRole: true })),
       {
+        schema: AUTHORITY_SCHEMA,
         now: () => NOW,
       }
     );
@@ -421,7 +469,10 @@ describe("PostgreSQL canonical authority", () => {
 
   test("seeds the explicit dogfood topology with redacted idempotent administration inputs", async () => {
     const client = new AdministrationClient();
-    const administration = new PostgresAuthorityAdministration(poolFor(client), { now: () => NOW });
+    const administration = new PostgresAuthorityAdministration(poolFor(client), {
+      schema: AUTHORITY_SCHEMA,
+      now: () => NOW,
+    });
     const migration = await administration.migrate("lex_authority_runtime");
     assert.equal(migration.targetSchemaVersion, 1);
     const topology = createLex3DogfoodAuthorityTopology(AUTH_REF);
@@ -445,7 +496,22 @@ describe("PostgreSQL canonical authority", () => {
     assert.equal(
       client.calls.some(
         ({ sql }) =>
-          sql === 'GRANT SELECT ON TABLE lex_authority_migrations TO "lex_authority_runtime"'
+          sql === `GRANT USAGE ON SCHEMA "${AUTHORITY_SCHEMA}" TO "lex_authority_runtime"`
+      ),
+      true
+    );
+    assert.equal(
+      client.calls.some(
+        ({ sql }) =>
+          sql === `REVOKE CREATE ON SCHEMA "${AUTHORITY_SCHEMA}" FROM "lex_authority_runtime"`
+      ),
+      true
+    );
+    assert.equal(
+      client.calls.some(
+        ({ sql }) =>
+          sql ===
+          `GRANT SELECT ON TABLE ${authorityRelation("lex_authority_migrations")} TO "lex_authority_runtime"`
       ),
       true
     );
@@ -456,9 +522,10 @@ describe("PostgreSQL canonical authority", () => {
     assert.equal(client.releaseCount, 2);
 
     const conflictClient = new AdministrationClient(
-      "INSERT INTO lex_authority_authentication_refs"
+      `INSERT INTO ${authorityRelation("lex_authority_authentication_refs")}`
     );
     const conflictingAdministration = new PostgresAuthorityAdministration(poolFor(conflictClient), {
+      schema: AUTHORITY_SCHEMA,
       now: () => NOW,
     });
     await assert.rejects(
@@ -489,12 +556,13 @@ describe("PostgreSQL canonical authority", () => {
       currentWorkspaceSlug: "lex-original",
     });
     await new PostgresAuthorityAdministration(poolFor(renameClient), {
+      schema: AUTHORITY_SCHEMA,
       now: () => NOW,
     }).seedTopology(renamedTopology);
     assert.equal(
       renameClient.calls.some(
         ({ sql, params }) =>
-          sql.includes("INSERT INTO lex_authority_tenant_slug_aliases") &&
+          sql.includes(`INSERT INTO ${authorityRelation("lex_authority_tenant_slug_aliases")}`) &&
           params[0] === "platform-original" &&
           params[1] === TENANT
       ),
@@ -503,7 +571,9 @@ describe("PostgreSQL canonical authority", () => {
     assert.equal(
       renameClient.calls.some(
         ({ sql, params }) =>
-          sql.includes("INSERT INTO lex_authority_workspace_slug_aliases") &&
+          sql.includes(
+            `INSERT INTO ${authorityRelation("lex_authority_workspace_slug_aliases")}`
+          ) &&
           params[1] === "lex-original" &&
           params[2] === WORKSPACE
       ),
@@ -523,6 +593,7 @@ describe("PostgreSQL canonical authority", () => {
     await assert.rejects(
       () =>
         new PostgresAuthorityAdministration(poolFor(tenantReuseClient), {
+          schema: AUTHORITY_SCHEMA,
           now: () => NOW,
         }).seedTopology(tenantReuseTopology),
       /Tenant slug conflicts with an existing immutable authority identity/
@@ -543,6 +614,7 @@ describe("PostgreSQL canonical authority", () => {
     await assert.rejects(
       () =>
         new PostgresAuthorityAdministration(poolFor(workspaceReuseClient), {
+          schema: AUTHORITY_SCHEMA,
           now: () => NOW,
         }).seedTopology(workspaceReuseTopology),
       /Workspace slug conflicts with an existing immutable authority identity/
@@ -554,6 +626,7 @@ describe("PostgreSQL canonical authority", () => {
     const binder = new MemoryScopedFrameStoreBackend();
     const host = createPostgresTrustedRuntimeHost({
       authorityPool: poolFor(client),
+      authoritySchema: AUTHORITY_SCHEMA,
       selection: {
         async select() {
           return {

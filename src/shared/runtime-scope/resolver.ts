@@ -262,7 +262,8 @@ function cacheEvidence(
 
 function authorizedScope(
   grant: AuthorizedWorkspaceGrantV1,
-  requestedCapabilities: readonly CapabilityId[]
+  requestedCapabilities: readonly CapabilityId[],
+  effectiveExpiresAt: string
 ): AuthorizedScopeV1 {
   return Object.freeze({
     schemaVersion: RUNTIME_SCOPE_CONTRACT_VERSION,
@@ -275,7 +276,7 @@ function authorizedScope(
     scopeVersion: grant.scopeVersion,
     authorityDigest: grant.authorityDigest,
     verifiedAt: grant.verifiedAt,
-    ...(grant.expiresAt ? { expiresAt: grant.expiresAt } : {}),
+    expiresAt: effectiveExpiresAt,
   });
 }
 
@@ -495,7 +496,11 @@ async function resolveRuntimeScopeInSnapshot(
   return Object.freeze({
     resolved: true,
     invocationContext: invocationContext(request, binding),
-    authorizedScope: authorizedScope(decision.grant, request.requestedCapabilities),
+    authorizedScope: authorizedScope(
+      decision.grant,
+      request.requestedCapabilities,
+      authorityEvidence.expiresAt
+    ),
   });
 }
 

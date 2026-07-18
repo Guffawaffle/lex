@@ -20,7 +20,7 @@ function receipt(): Lex3DogfoodAcceptanceReceiptV1 {
     versions: {
       lex: "3.0.0-rc",
       authoritySchema: "1",
-      frameStoreSchema: "2",
+      frameStoreSchema: "3",
       policy: "lex-3-dogfood-v1",
     },
     topology: {

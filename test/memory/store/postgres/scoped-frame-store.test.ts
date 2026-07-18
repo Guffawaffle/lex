@@ -39,6 +39,7 @@ const IDS = {
   principalA: "01900000-0000-7000-8000-000000000201",
   principalB: "01900000-0000-7000-8000-000000000202",
 } as const;
+const SCHEMA = "lex_test";
 
 function scope(
   tenantId = IDS.tenantA,
@@ -107,7 +108,33 @@ class FakePool {
     this.queries.push({ sql: normalized, values: [...values] });
     if (this.failWhen?.test(normalized)) throw new Error("injected PostgreSQL failure");
     if (normalized.includes("pg_roles AS role")) return result([this.runtimeBoundary]);
-    if (/SELECT COUNT\(\*\) AS count FROM frames/.test(normalized)) return result([{ count: "0" }]);
+    if (normalized.startsWith("SELECT id,") && normalized.includes("AND id = $4")) {
+      return result([
+        {
+          id: String(values[3]),
+          timestamp: "2026-07-18T01:30:00.000Z",
+          branch: "agent/761-postgres-rls",
+          jira: null,
+          module_scope: ["memory/store/postgres"],
+          summary_caption: `Scoped PostgreSQL Frame ${String(values[3])}`,
+          reference_point: "transaction-bound RLS",
+          status_snapshot: { next_action: "verify pool isolation" },
+          keywords: null,
+          atlas_frame_id: null,
+          feature_flags: null,
+          permissions: null,
+          module_attribution: null,
+          run_id: null,
+          plan_hash: null,
+          spend: null,
+          superseded_by: null,
+          merged_from: null,
+          frame_metadata: { schemaVersion: 1 },
+        },
+      ]);
+    }
+    if (/SELECT COUNT\(\*\) AS count FROM .*frames/.test(normalized))
+      return result([{ count: "0" }]);
     if (/COUNT\(\*\) AS total_frames/.test(normalized)) {
       return result([
         {
@@ -125,12 +152,10 @@ class FakePool {
     if (/COUNT\(\*\) AS frame_count/.test(normalized)) {
       return result([{ frame_count: "0", estimated_tokens: "0", prompts: "0" }]);
     }
-    if (
-      /^(?:DELETE|UPDATE) frames/.test(normalized) ||
-      /^(?:DELETE|UPDATE) FROM frames/.test(normalized)
-    ) {
+    if (/^(?:DELETE|UPDATE)(?: FROM)? .*\."frames"/.test(normalized)) {
       return result([], 1);
     }
+    if (normalized.startsWith(`INSERT INTO "${SCHEMA}"."frames"`)) return result([], 1);
     return result([]);
   }
 }
@@ -146,11 +171,11 @@ function result(rows: readonly Record<string, unknown>[], rowCount = rows.length
 }
 
 function dataQueries(pool: FakePool): RecordedQuery[] {
-  return pool.queries.filter(({ sql }) => /\b(?:FROM|INTO|UPDATE|DELETE FROM) frames\b/.test(sql));
+  return pool.queries.filter(({ sql }) => sql.includes(`"${SCHEMA}"."frames"`));
 }
 
 function assertExplicitScope(query: RecordedQuery): void {
-  if (query.sql.startsWith("INSERT INTO frames")) {
+  if (query.sql.startsWith(`INSERT INTO "${SCHEMA}"."frames"`)) {
     assert.match(query.sql, /tenant_id, workspace_id, creator_principal_id, scope_version/);
     assert.match(query.sql, /ON CONFLICT \(tenant_id, workspace_id, id\)/);
     assert.match(query.sql, /current_setting\('lex\.principal_id', true\) = \$3/);
@@ -163,17 +188,35 @@ function assertExplicitScope(query: RecordedQuery): void {
 }
 
 describe("PostgresScopedFrameStoreBackend", () => {
+  test("requires one explicit validated canonical schema", () => {
+    const pool = new FakePool();
+    for (const schema of ["", "Public", "pg_catalog", "tenant-name"]) {
+      assert.throws(
+        () => new PostgresScopedFrameStoreBackend(pool as unknown as Pool, { schema }),
+        /PostgreSQL schema/
+      );
+    }
+  });
+
   test("covers every normal operation with transaction-local scope and explicit predicates", async () => {
     const pool = new FakePool();
-    const backend = new PostgresScopedFrameStoreBackend(pool as unknown as Pool);
+    const backend = new PostgresScopedFrameStoreBackend(pool as unknown as Pool, {
+      schema: SCHEMA,
+    });
     const store = backend.bind(scope());
 
     await store.saveFrame(frame("one"));
     assert.equal((await store.saveFrames([frame("two"), frame("three")])).length, 2);
-    assert.equal(await store.getFrameById("one"), null);
+    assert.equal((await store.getFrameById("one"))?.id, "one");
     assert.deepEqual(await store.searchFrames({ query: "scope" }), []);
     assert.deepEqual((await store.listFrames({ limit: 2 })).frames, []);
     assert.equal(await store.updateFrame("one", { jira: "LEX-761" }), true);
+    assert.ok(
+      pool.queries.some(
+        ({ sql }) => sql.startsWith("SELECT id,") && sql.includes("AND id = $4 FOR UPDATE")
+      ),
+      "validated partial updates must lock the current row before a full upsert"
+    );
     assert.equal(await store.deleteFrame("one"), true);
     assert.equal(await store.deleteFramesBefore(new Date("2026-07-18T00:00:00.000Z")), 1);
     assert.equal(await store.deleteFramesByBranch("agent/761-postgres-rls"), 1);
@@ -211,6 +254,10 @@ describe("PostgresScopedFrameStoreBackend", () => {
       28
     );
     assert.ok(pool.queries.some(({ sql }) => sql === "SET TRANSACTION READ ONLY"));
+    assert.match(
+      pool.queries.find(({ sql }) => sql.includes("role_is_superuser"))?.sql ?? "",
+      /FROM pg_catalog\.pg_roles AS role CROSS JOIN pg_catalog\.pg_class AS frames JOIN pg_catalog\.pg_namespace/
+    );
     assert.equal(pool.releases.filter((value) => value !== undefined).length, 0);
 
     await backend.close();
@@ -218,7 +265,9 @@ describe("PostgresScopedFrameStoreBackend", () => {
 
   test("alternates scopes through one pooled client without carrying settings", async () => {
     const pool = new FakePool();
-    const backend = new PostgresScopedFrameStoreBackend(pool as unknown as Pool);
+    const backend = new PostgresScopedFrameStoreBackend(pool as unknown as Pool, {
+      schema: SCHEMA,
+    });
     const tenantA = backend.bind(scope());
     const workspaceB = backend.bind(scope(IDS.tenantA, IDS.workspaceB, IDS.principalB));
     const tenantB = backend.bind(scope(IDS.tenantB, IDS.workspaceA, IDS.principalA));
@@ -241,10 +290,12 @@ describe("PostgresScopedFrameStoreBackend", () => {
   });
 
   test("rolls back, clears scope, and releases safely after errors or cancellation", async () => {
-    for (const failure of [/SELECT COUNT\(\*\) AS count FROM frames/, /INSERT INTO frames/]) {
+    for (const failure of [/SELECT COUNT\(\*\) AS count FROM .*frames/, /INSERT INTO .*frames/]) {
       const pool = new FakePool();
       pool.failWhen = failure;
-      const backend = new PostgresScopedFrameStoreBackend(pool as unknown as Pool);
+      const backend = new PostgresScopedFrameStoreBackend(pool as unknown as Pool, {
+        schema: SCHEMA,
+      });
       const store = backend.bind(scope());
       const operation = failure.source.includes("COUNT")
         ? () => store.getFrameCount()
@@ -263,6 +314,7 @@ describe("PostgresScopedFrameStoreBackend", () => {
   test("rejects malformed, expired, and attenuated scope before checking out a client", async () => {
     const pool = new FakePool();
     const backend = new PostgresScopedFrameStoreBackend(pool as unknown as Pool, {
+      schema: SCHEMA,
       now: () => new Date("2026-07-18T03:00:00.000Z"),
     });
     assert.throws(
@@ -294,11 +346,74 @@ describe("PostgresScopedFrameStoreBackend", () => {
     assert.equal(pool.queries.length, 0);
   });
 
+  test("rechecks scope expiry after a delayed pool checkout and before transaction setup", async () => {
+    const pool = new FakePool();
+    let checkoutCount = 0;
+    let releaseCheckout!: () => void;
+    const checkoutGate = new Promise<void>((resolve) => {
+      releaseCheckout = resolve;
+    });
+    const immediateConnect = pool.connect.bind(pool);
+    pool.connect = async () => {
+      checkoutCount += 1;
+      if (checkoutCount === 2) await checkoutGate;
+      return immediateConnect();
+    };
+    let now = new Date("2026-07-18T01:00:00.000Z");
+    const backend = new PostgresScopedFrameStoreBackend(pool as unknown as Pool, {
+      schema: SCHEMA,
+      now: () => now,
+    });
+    const store = backend.bind(
+      scope(undefined, undefined, undefined, undefined, {
+        expiresAt: "2026-07-18T01:01:00.000Z",
+      })
+    );
+
+    const pending = store.getFrameCount();
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    assert.equal(checkoutCount, 2);
+    now = new Date("2026-07-18T01:02:00.000Z");
+    releaseCheckout();
+    await assert.rejects(
+      pending,
+      (error: unknown) =>
+        error instanceof ScopedFrameStoreError &&
+        error.code === SCOPED_FRAME_STORE_ERROR_CODES.SCOPE_EXPIRED
+    );
+    assert.equal(
+      pool.queries.some(({ sql }) => sql === "BEGIN"),
+      false
+    );
+    assert.equal(
+      pool.queries.some(({ sql }) => sql.includes("set_config('lex.tenant_id'")),
+      false
+    );
+    assert.equal(pool.releases.length, 2);
+  });
+
+  test("uses the injected clock for statistics windows", async () => {
+    const pool = new FakePool();
+    const backend = new PostgresScopedFrameStoreBackend(pool as unknown as Pool, {
+      schema: SCHEMA,
+      now: () => new Date("2026-07-18T12:00:00.000Z"),
+    });
+    const store = backend.bind(scope());
+    assert.equal((await store.getHealth()).checkedAt, "2026-07-18T12:00:00.000Z");
+    await store.getStats();
+    const aggregate = pool.queries.find(({ sql }) => sql.includes("COUNT(*) AS total_frames"));
+    assert.ok(aggregate);
+    assert.equal(aggregate.values[3], "2026-07-11T12:00:00.000Z");
+    assert.equal(aggregate.values[4], "2026-06-18T12:00:00.000Z");
+  });
+
   test("fails closed when the runtime role can bypass forced RLS", async () => {
     for (const unsafe of ["role_is_superuser", "role_bypasses_rls", "role_owns_frames"] as const) {
       const pool = new FakePool();
       pool.runtimeBoundary = { ...pool.runtimeBoundary, [unsafe]: true };
-      const backend = new PostgresScopedFrameStoreBackend(pool as unknown as Pool);
+      const backend = new PostgresScopedFrameStoreBackend(pool as unknown as Pool, {
+        schema: SCHEMA,
+      });
       const store = backend.bind(scope());
       await assert.rejects(() => store.getFrameCount(), /non-owner, non-superuser/);
       assert.equal(dataQueries(pool).length, 0);
@@ -309,8 +424,12 @@ describe("PostgresScopedFrameStoreBackend", () => {
 describe("PostgreSQL FrameStore administration", () => {
   test("keeps migration and admin APIs off the runtime binder", () => {
     const pool = new FakePool();
-    const runtime = new PostgresScopedFrameStoreBackend(pool as unknown as Pool);
-    const admin = new PostgresFrameStoreAdministration(pool as unknown as Pool);
+    const runtime = new PostgresScopedFrameStoreBackend(pool as unknown as Pool, {
+      schema: SCHEMA,
+    });
+    const admin = new PostgresFrameStoreAdministration(pool as unknown as Pool, {
+      schema: SCHEMA,
+    });
     assert.equal("migrate" in runtime, false);
     assert.equal("bindAdmin" in runtime, false);
     assert.equal("bind" in admin, false);
@@ -319,7 +438,10 @@ describe("PostgreSQL FrameStore administration", () => {
 
   test("requires frame:admin and keeps ownership inspection explicitly scoped", async () => {
     const pool = new FakePool();
-    const adminBackend = new PostgresFrameStoreAdministration(pool as unknown as Pool);
+    const adminBackend = new PostgresFrameStoreAdministration(pool as unknown as Pool, {
+      schema: SCHEMA,
+      now: () => new Date("2026-07-18T12:00:00.000Z"),
+    });
     assert.throws(
       () => adminBackend.bindAdmin(scope()),
       (error: unknown) =>
@@ -329,6 +451,7 @@ describe("PostgreSQL FrameStore administration", () => {
     const admin = adminBackend.bindAdmin(
       scope(IDS.tenantA, IDS.workspaceA, IDS.principalA, [FRAME_STORE_CAPABILITIES.ADMIN])
     );
+    assert.equal((await admin.getHealth()).checkedAt, "2026-07-18T12:00:00.000Z");
     assert.equal(await admin.getFrameOwnership("unknown"), null);
     const query = dataQueries(pool).at(-1);
     assert.ok(query);
@@ -341,20 +464,20 @@ describe("PostgreSQL FrameStore administration", () => {
       query: async (sql: string) => {
         const normalized = sql.replace(/\s+/g, " ").trim();
         queries.push({ sql: normalized, values: [] });
-        if (normalized.includes("to_regclass('lex_frame_store_migrations')"))
-          return result([{ exists: "lex_frame_store_migrations" }]);
-        if (normalized.includes("MAX(version)")) return result([{ version: 1 }]);
         if (normalized.includes("COUNT(*)")) {
           return result([{ count: "7", quarantine_exists: null }]);
         }
+        if (normalized.includes("to_regclass($1)"))
+          return result([{ exists: "lex_frame_store_migrations" }]);
+        if (normalized.includes("MAX(version)")) return result([{ version: 1 }]);
         return result([]);
       },
     } as unknown as PoolClient;
-    const plan = await planPostgresFrameStoreMigration(client);
+    const plan = await planPostgresFrameStoreMigration(client, SCHEMA);
     assert.deepEqual(plan, {
       currentVersion: 1,
-      targetVersion: 2,
-      pendingVersions: [2],
+      targetVersion: 3,
+      pendingVersions: [2, 3],
       unownedFrameCount: 7,
       quarantineTableConflict: false,
     });
@@ -374,7 +497,7 @@ describe("PostgreSQL FrameStore administration", () => {
         return result([]);
       },
     } as unknown as PoolClient;
-    await migratePostgresFrameStore(client);
+    await migratePostgresFrameStore(client, SCHEMA);
     assert.equal(queries[0]?.sql, "BEGIN");
     assert.equal(queries.at(-1)?.sql, "COMMIT");
     const migrationSql = queries.map(({ sql }) => sql).join("\n");
@@ -391,25 +514,25 @@ describe("PostgreSQL FrameStore administration", () => {
     assert.match(migrationSql, /CREATE POLICY lex_frames_runtime_insert/);
     assert.match(migrationSql, /creator_principal_id::text = current_setting/);
     assert.match(migrationSql, /CREATE TRIGGER frames_ownership_immutable/);
-    assert.match(migrationSql, /REVOKE ALL ON TABLE frames FROM PUBLIC/);
+    assert.match(migrationSql, /REVOKE ALL ON TABLE "lex_test"\."frames" FROM PUBLIC/);
   });
 
   test("dry-run reports a conflicting pre-existing quarantine table", async () => {
     const client = {
       query: async (sql: string) => {
         const normalized = sql.replace(/\s+/g, " ").trim();
-        if (normalized.includes("to_regclass('lex_frame_store_migrations')")) {
-          return result([{ exists: "lex_frame_store_migrations" }]);
-        }
-        if (normalized.includes("MAX(version)")) return result([{ version: 1 }]);
         if (normalized.includes("COUNT(*)")) {
           return result([{ count: "7", quarantine_exists: "lex_frame_store_unowned_frames_v1" }]);
         }
+        if (normalized.includes("to_regclass($1)")) {
+          return result([{ exists: "lex_frame_store_migrations" }]);
+        }
+        if (normalized.includes("MAX(version)")) return result([{ version: 1 }]);
         return result([]);
       },
     } as unknown as PoolClient;
 
-    const plan = await planPostgresFrameStoreMigration(client);
+    const plan = await planPostgresFrameStoreMigration(client, SCHEMA);
     assert.equal(plan.quarantineTableConflict, true);
   });
 
@@ -426,7 +549,10 @@ describe("PostgreSQL FrameStore administration", () => {
         return result([]);
       },
     } as unknown as PoolClient;
-    await assert.rejects(() => migratePostgresFrameStore(client), /injected migration failure/);
+    await assert.rejects(
+      () => migratePostgresFrameStore(client, SCHEMA),
+      /injected migration failure/
+    );
     assert.equal(queries[0], "BEGIN");
     assert.equal(queries.at(-1), "ROLLBACK");
     assert.equal(queries.includes("COMMIT"), false);

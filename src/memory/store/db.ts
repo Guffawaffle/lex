@@ -75,6 +75,7 @@ export interface FrameRow {
   // Deduplication metadata (v5)
   superseded_by: string | null;
   merged_from: string | null; // JSON stringified array
+  frame_metadata?: string | null; // Scoped stores require this versioned JSON payload
 }
 
 /**

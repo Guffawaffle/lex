@@ -19,7 +19,7 @@ These values are independent and must not be substituted for one another:
 | Scoped ownership contract | `FRAME_STORE_SCOPE_CONTRACT_VERSION = 1` | Scope binding, capability, and ownership semantics |
 | Legacy/unowned SQLite | `DATABASE_SCHEMA_VERSION = 14` | Last physical schema accepted by the unscoped adapter |
 | Scope-owned SQLite | `SCOPED_SQLITE_SCHEMA_VERSION = 15` | Per-workspace physical schema with immutable ownership |
-| Scope-owned PostgreSQL | `POSTGRES_FRAME_STORE_SCHEMA_VERSION = 2` | Shared physical schema with forced RLS |
+| Scope-owned PostgreSQL | `POSTGRES_FRAME_STORE_SCHEMA_VERSION = 3` | Explicit qualified schema with forced RLS |
 
 Physical migration versions are monotonic backend histories. A recorded version is not sufficient
 on its own: adapters also validate required tables, columns, indexes, and ownership invariants.
@@ -48,7 +48,8 @@ Frame records have no normative `parent_id` or created/active/archived lifecycle
 Frames are not blanket-immutable:
 
 - `saveFrame` is idempotent by `id` and may upsert the record;
-- `updateFrame` applies targeted changes while preserving `id` and `timestamp`;
+- `updateFrame` atomically applies targeted changes and preserves `id`, `timestamp`, and
+  unspecified fields under concurrent updates;
 - `deleteFrame` and capability-gated bulk deletion remove records;
 - `purgeSuperseded` removes records marked with `superseded_by`;
 - SQLite/PostgreSQL ownership columns are never caller-controlled Frame fields.
@@ -78,7 +79,7 @@ Administrative inspection, migration, repair, and lifecycle operations remain ab
 
 `MemoryScopedFrameStoreBackend` is the reference implementation.
 `SqliteScopedFrameStoreBackend` binds one SQLite v15 file permanently to one tenant/workspace.
-`PostgresScopedFrameStoreBackend` applies the same contract to PostgreSQL v2 with explicit scope
+`PostgresScopedFrameStoreBackend` applies the same contract to PostgreSQL v3 with explicit scope
 predicates and forced RLS. All run the shared normal-operation conformance suite.
 
 ## SQLite ownership migration
@@ -101,6 +102,9 @@ ownership. Ambiguous, stale, partial, conflicting, malformed, or newer stores fa
 - `getFrameById` returns `null` when the ID is not visible in the bound scope.
 - Search and list return empty results rather than leaking a different scope.
 - Batch validation is all-or-nothing.
+- Scoped updates validate the resulting complete Frame. Read/validate/replace implementations
+  serialize that merge with an immediate transaction or row lock so concurrent partial updates
+  cannot erase unrelated fields.
 - Cursor pagination and operation results are deterministic for the same store state.
 - `close` is idempotent.
 - Read-only/bootstrap paths never initialize, migrate, repair, or mutate a store.
