@@ -1,12 +1,17 @@
 # Trusted Runtime Scope Contract
 
-Lex exposes its Phase 1 identity and authority vocabulary from:
+Lex exposes its versioned identity, authority, local-registry, and resolver surface from:
 
 ```ts
 import {
   RUNTIME_SCOPE_CONTRACT_VERSION,
+  RUNTIME_SCOPE_IMPLEMENTATION_VERSION,
   RUNTIME_SCOPE_CONFORMANCE_FIXTURES,
   WORKSPACE_AUTHORITY_ERROR_CODES,
+  SqliteLocalBindingRegistry,
+  detectExecutionSurface,
+  resolveLocalRegistryLocation,
+  resolveRuntimeScope,
   type AuthorityDirectory,
   type LocalBindingRegistry,
   type ResolvedRuntimeConfig,
@@ -17,7 +22,7 @@ import {
 } from "@smartergpt/lex/runtime-scope";
 ```
 
-Phase 1 is a public contract, not a resolver or database implementation. Existing CLI, MCP, Frame, and store behavior is unchanged.
+Phase 1 froze the public contract. Phase 2 adds opt-in deterministic resolver and local-registry services. Existing CLI, MCP, Frame, and FrameStore behavior is unchanged; no existing entrypoint invokes these services yet.
 
 ## Boundary
 
@@ -96,12 +101,53 @@ Normal agent-facing output should not contain raw tenant/workspace topology, pri
 
 Implementations should adapt the fixtures to their test harness without changing their expected semantics. The fixtures perform no file or database access.
 
+Lex also runs every exported fixture through its concrete Phase 2 resolver and SQLite registry in the implementation conformance suite.
+
+## Phase 2 implementation
+
+### Trusted capture and execution surfaces
+
+`detectExecutionSurface`, `resolveLocalRegistryLocation`, and `resolveRuntimeScope` operate only on explicit inputs. They do not read `process.env`, `process.cwd()`, `process.platform`, OS release files, or mutable global caches. A trusted entrypoint must capture allowed ambient values once in a `BootstrapInputSnapshotV1` and pass the immutable snapshot inward.
+
+Registry selection follows the native process, including when WSL launches a Windows process:
+
+| Native surface | Default local registry |
+| --- | --- |
+| Windows | `%LOCALAPPDATA%\\Lex\\registry.db` |
+| WSL or Linux with XDG state | `$XDG_STATE_HOME/lex/registry.db` |
+| WSL or Linux fallback | `~/.local/state/lex/registry.db` |
+| macOS | `~/Library/Application Support/Lex/registry.db` |
+
+These variables and home paths are captured by the entrypoint and supplied as values; core resolution never reads them directly. Registry locations must be absolute and native to the execution surface: WSL registries cannot use Windows-mounted paths, and Windows registries cannot use WSL UNC paths. Each WSL distribution therefore has its own registry through its own native user-state path. Launch provenance such as Windows-via-WSL interop remains observable evidence but is not part of a Windows installation's persistent registry identity.
+
+### Local SQLite registry
+
+`SqliteLocalBindingRegistry` uses a separate, application-identified, versioned SQLite file. It never opens or migrates a Frame database. Initialization is an explicit administrative operation and refuses to adopt an unrelated or newer-schema database. Ordinary `open()` is read-only by default and never creates or migrates a registry.
+
+Registration, inspection, verification, rebinding, and revocation are explicit lifecycle methods with auditable receipts. Normal resolution only looks up and verifies bindings. Rebinding preserves the binding and local repository-instance identities, requires stable provider, Git common-directory, or filesystem evidence in addition to any checked-in declaration, and cannot use a declaration by itself as proof.
+
+A registry is bound to its captured execution-surface evidence. Copying it to another native surface fails closed even when the file contains plausible canonical IDs.
+
+### Deterministic resolver
+
+`resolveRuntimeScope` resolves one immutable `InvocationContextV1` and `AuthorizedScopeV1` from a request plus injected `AuthorityDirectory` and `LocalBindingRegistry` implementations. The resolver:
+
+1. validates captured runtime and registry identity;
+2. resolves and authorizes the principal before inspecting local topology;
+3. enforces finite cached-authority expiry;
+4. validates any optional repository declaration against canonical authority;
+5. verifies matching local repository evidence and rejects ambiguity; and
+6. attenuates `AuthorizedScope.capabilities` to the explicitly requested subset, including an empty set when no capabilities were requested; and
+7. returns only the compact result or stable error vocabulary.
+
+Authority and registry exceptions fail closed. Normal results contain no diagnostic envelope, local topology inventory, or authority trace. Diagnostics remain a separate, explicitly requested, capability-gated concern.
+
+`InMemoryAuthorityDirectory` is a deterministic test and embedding implementation of the authority contract. It is not shared PostgreSQL authority and does not establish a production trust boundary.
+
 ## Deferred implementation
 
-The following are intentionally absent from Phase 1:
+The following remain intentionally absent after Phase 2:
 
-- local SQLite registry schema and services;
-- deterministic resolver implementation;
 - CLI/MCP bootstrap integration;
 - Frame ownership columns or migration;
 - PostgreSQL RLS;
@@ -109,4 +155,4 @@ The following are intentionally absent from Phase 1:
 - offline authority pairing;
 - a cross-repository helper package.
 
-See [ADR-0011](./adr/0011-trusted-runtime-scope-and-authority.md) and epic [#749](https://github.com/Guffawaffle/lex/issues/749).
+See [ADR-0011](./adr/0011-trusted-runtime-scope-and-authority.md), epic [#749](https://github.com/Guffawaffle/lex/issues/749), and Phase 2 issue [#755](https://github.com/Guffawaffle/lex/issues/755).

@@ -15,6 +15,7 @@
  * - src/memory/mcp_server/auth/state-storage.ts (OAuth state)
  * - src/memory/mcp_server/routes/*.ts (MCP route handlers)
  * - src/shared/cli/db.ts (CLI database utilities)
+ * - src/shared/runtime-scope/registry-queries.ts (local binding registry)
  *
  * @see .github/copilot-instructions.md for SQL safety rules
  */
@@ -38,6 +39,7 @@ const ALLOWED_PATTERNS = [
   "memory/mcp_server/auth/state-storage.ts",
   "memory/mcp_server/routes/",
   "shared/cli/db.ts",
+  "shared/runtime-scope/registry-queries.ts",
 ];
 
 describe("SQL Safety", () => {
@@ -107,10 +109,10 @@ describe("SQL Safety", () => {
     let grepOutput: string;
     try {
       // Look for .prepare(`...${...}...`) pattern - dynamic SQL
-      grepOutput = execSync(
-        'grep -rn "\\.prepare(\\`[^\\`]*\\${" src/memory/store/ --include="*.ts" || true',
-        { cwd: repoRoot, encoding: "utf8" }
-      );
+      grepOutput = execSync('grep -rn "\\.prepare(\\`[^\\`]*\\${" src/ --include="*.ts" || true', {
+        cwd: repoRoot,
+        encoding: "utf8",
+      });
     } catch {
       return; // grep error, skip
     }

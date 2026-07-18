@@ -37,7 +37,9 @@ Lex exposes a contract surface that any runner or tool can target. This document
 - Paths, Git state, manifests, flags, and environment values may select evidence but cannot grant access.
 - Diagnostics are versioned, redacted observability and never change resolution.
 
-**Conformance:** The package exports deterministic Windows/WSL, clone, worktree, fork, binding, selector, cached-authority, and diagnostic fixtures. Phase 1 adds no resolver or store behavior.
+**Implementation:** Phase 2 adds opt-in, pure execution-surface and registry-location resolution, a separate versioned SQLite local registry, a deterministic fail-closed runtime-scope resolver, and an in-memory authority implementation for tests and embedding. Registry initialization and binding lifecycle changes are explicit administrative operations; normal resolution is read-only. Existing CLI, MCP, Frame, and FrameStore behavior remains unchanged.
+
+**Conformance:** The package exports deterministic Windows/WSL, clone, worktree, fork, binding, selector, cached-authority, and diagnostic fixtures. Lex runs all exported fixtures against the concrete Phase 2 resolver and registry without changing their expected semantics.
 
 See [Trusted Runtime Scope Contract](./RUNTIME_SCOPE_CONTRACT.md) and [ADR-0011](./adr/0011-trusted-runtime-scope-and-authority.md).
 

@@ -262,6 +262,7 @@ These modules are **allowed** to use `db.prepare()`:
 | `src/memory/mcp_server/auth/state-storage.ts` | OAuth state storage |
 | `src/memory/mcp_server/routes/*.ts` | MCP route handlers (minimal SQL only) |
 | `src/shared/cli/db.ts` | CLI database utilities |
+| `src/shared/runtime-scope/registry-queries.ts` | Surface-local binding registry schema and lifecycle queries |
 
 ### How to Fix: Move SQL to Curated Module
 
@@ -608,5 +609,4 @@ If you're still having issues:
 
 - [TypeScript Project References](https://www.typescriptlang.org/docs/handbook/project-references.html)
 - [Package.json Subpath Exports](https://nodejs.org/api/packages.html#subpath-exports)
-
 
