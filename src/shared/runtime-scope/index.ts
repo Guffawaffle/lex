@@ -125,6 +125,56 @@ export {
 } from "./conformance.js";
 
 export {
+  RUNTIME_SCOPE_IMPLEMENTATION_VERSION,
+  nativePlatformFromNode,
+  detectExecutionSurface,
+  resolveLocalRegistryLocation,
+  type BootstrapInputSnapshotV1,
+  type ExecutionSurfaceDetectionInputV1,
+  type RegistryLocationSource,
+  type RegistryLocationInputV1,
+  type ResolvedRegistryLocationV1,
+  type BootstrapInputSnapshot,
+  type ResolvedRegistryLocation,
+} from "./surface.js";
+
+export {
+  LOCAL_REGISTRY_SCHEMA_VERSION,
+  LOCAL_REGISTRY_APPLICATION_ID,
+  LocalRegistryError,
+  SqliteLocalBindingRegistry,
+  computeRepositoryEvidenceDigest,
+  type LocalRegistryAccessMode,
+  type LocalRegistryErrorCode,
+  type LocalRegistryIdFactoryV1,
+  type InitializeLocalRegistryOptionsV1,
+  type OpenLocalRegistryOptionsV1,
+  type InspectBindingsRequestV1,
+  type RebindBindingRequestV1,
+  type BindingLifecycleAction,
+  type BindingLifecycleReceiptV1,
+  type BindingLifecycleReceipt,
+} from "./registry.js";
+
+export {
+  InMemoryAuthorityDirectory,
+  type InMemoryAuthenticationBindingV1,
+  type InMemoryAuthorityGrantV1,
+  type InMemoryAuthoritySeedV1,
+} from "./in-memory-authority.js";
+
+export {
+  resolveRuntimeScope,
+  runtimeScopeFailureFromRegistryError,
+  type RuntimeScopeResolutionRequestV1,
+  type RuntimeScopeResolverDependenciesV1,
+  type RuntimeScopeResolutionErrorV1,
+  type RuntimeScopeResolutionResultV1,
+  type RuntimeScopeResolutionRequest,
+  type RuntimeScopeResolutionResult,
+} from "./resolver.js";
+
+export {
   WORKSPACE_AUTHORITY_ERROR_CODES,
   type WorkspaceAuthorityErrorCode,
 } from "../errors/error-codes.js";

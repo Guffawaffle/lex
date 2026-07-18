@@ -145,18 +145,38 @@ EOF
 cat > test-runtime-scope.mts << 'EOF'
 import {
   RUNTIME_SCOPE_CONTRACT_VERSION,
+  RUNTIME_SCOPE_IMPLEMENTATION_VERSION,
   RUNTIME_SCOPE_CONFORMANCE_FIXTURES,
+  SqliteLocalBindingRegistry,
   WORKSPACE_AUTHORITY_ERROR_CODES,
+  detectExecutionSurface,
+  resolveLocalRegistryLocation,
+  resolveRuntimeScope,
 } from '@smartergpt/lex/runtime-scope';
 
-console.log('✅ Runtime scope subpath (@smartergpt/lex/runtime-scope): Contracts imported successfully');
+const surface = detectExecutionSurface({
+  platform: 'linux',
+  installationRef: 'consumer-smoke',
+  wslDistribution: 'Consumer-Smoke-WSL',
+});
+const location = resolveLocalRegistryLocation({
+  executionSurface: surface,
+  homeDirectory: '/home/consumer',
+});
+
+console.log('✅ Runtime scope subpath (@smartergpt/lex/runtime-scope): Contracts and implementation imported successfully');
 
 if (
   RUNTIME_SCOPE_CONTRACT_VERSION !== 1 ||
+  RUNTIME_SCOPE_IMPLEMENTATION_VERSION !== 1 ||
   RUNTIME_SCOPE_CONFORMANCE_FIXTURES.length < 12 ||
-  WORKSPACE_AUTHORITY_ERROR_CODES.WORKSPACE_UNBOUND !== 'LEX_WORKSPACE_UNBOUND'
+  WORKSPACE_AUTHORITY_ERROR_CODES.WORKSPACE_UNBOUND !== 'LEX_WORKSPACE_UNBOUND' ||
+  surface.kind !== 'wsl' ||
+  location.registryPath !== '/home/consumer/.local/state/lex/registry.db' ||
+  typeof SqliteLocalBindingRegistry !== 'function' ||
+  typeof resolveRuntimeScope !== 'function'
 ) {
-  console.error('❌ Runtime scope contract exports are incomplete');
+  console.error('❌ Runtime scope exports or deterministic surface resolution are incomplete');
   process.exit(1);
 }
 EOF

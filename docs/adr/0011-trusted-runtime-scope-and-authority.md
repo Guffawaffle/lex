@@ -5,6 +5,7 @@
 - Authors: Guff, Sol, Lex
 - Tracking epic: #749
 - Phase 1 issue: #753
+- Phase 2 issue: #755
 
 ## Context
 
@@ -101,7 +102,7 @@ Full diagnostic fields are capability-gated and redacted. Normal agent-facing re
 
 An episodic Frame has one owning tenant/workspace scope. Same-tenant cross-workspace use is an explicit immutable projection requiring source-share and target-accept authority. Cross-tenant or public reuse requires publication of a new immutable content-addressed artifact and explicit workspace acceptance.
 
-These storage and sharing behaviors are architectural constraints but are not implemented by Phase 1.
+These storage and sharing behaviors are architectural constraints but are not implemented by Phase 1 or Phase 2.
 
 ### 9. Legacy ownership is assigned only through deterministic evidence
 
@@ -114,6 +115,8 @@ Ambiguous records remain in admin-only migration staging and cannot enter normal
 Phase 1 publishes the TypeScript contract through `@smartergpt/lex/runtime-scope`. It includes opaque ID types, authority and binding interfaces, immutable runtime envelopes, diagnostic envelopes, stable errors, and data-only conformance fixtures.
 
 The fixtures describe Windows/WSL identity separation, multiple WSL distributions, registry selection, clones, worktrees, moved roots, forks, manifest edits and absence, environment selectors, registry copies, expired grants, conflicting evidence, and diagnostic non-interference. They do not open databases or alter runtime behavior.
+
+Phase 2 implements pure execution-surface and registry-location resolution, a separate versioned SQLite local registry, explicit binding lifecycle operations, and a deterministic fail-closed resolver over injected authority and registry interfaces. All exported fixtures execute against the implementation in tests. The implementation remains opt-in and does not change CLI, MCP, Frame, or FrameStore behavior.
 
 ## Consequences
 
@@ -138,7 +141,6 @@ The fixtures describe Windows/WSL identity separation, multiple WSL distribution
 - UUID generation version.
 - Exact public binding command spelling.
 - Offline authority snapshots and cross-surface pairing.
-- Local registry physical schema and resolver implementation (Phase 2).
 - CLI/MCP integration and diagnostics implementation (Phase 3).
 - Scoped FrameStore behavior and physical ownership migration (Phase 4 and later).
 - PostgreSQL RLS, same-tenant projections, and catalog publication.
@@ -150,3 +152,4 @@ The fixtures describe Windows/WSL identity separation, multiple WSL distribution
 - #736 owns authoritative Frame/FrameStore reconciliation.
 - #750 owns explicit SQLite structural repair.
 - #734 owns the narrower Markdown-derived KnowledgeFrame vertical slice.
+- #755 owns deterministic runtime-scope resolution and the local registry implementation.
