@@ -16,7 +16,8 @@ SHA-256 digests are persisted.
 
 Every resolver or workspace-administration decision uses one `REPEATABLE READ READ ONLY`
 transaction. The runtime role is rejected if it is a superuser, has `BYPASSRLS`, owns an authority
-table, or can mutate any identity, alias, membership, repository-association, or grant table.
+table, can mutate any identity, alias, membership, repository-association, or grant table, or has
+effective `CREATE` privilege on the protected authority schema.
 Runtime methods expose no provisioning or revocation operation.
 The runtime role receives read-only access to the schema-version ledger because the directory
 checks that version before every authority snapshot; it receives no migration write privilege.
@@ -34,8 +35,11 @@ fails closed and requires an explicit rebind.
 `PostgresAuthorityAdministration` is a separately constructed privileged object with the same
 explicit schema target. Its migration method receives the read-only runtime role name explicitly,
 revokes schema creation, grants schema usage, revokes all table privileges, and grants only the
-required schema-qualified table reads. Provisioning is transactional and protected by a
-schema-specific advisory lock.
+required schema-qualified table reads. Before creating or accepting any canonical relation, it
+checks the role's effective schema privilege and rolls back if `CREATE` remains through `PUBLIC`
+or a group role. Deployments must use a dedicated
+protected schema and revoke inherited `CREATE` grants; a direct role revoke alone is insufficient.
+Provisioning is transactional and protected by a schema-specific advisory lock.
 
 `seedTopology()` is deterministic and idempotent for an identical declaration. Immutable identity
 conflicts—such as an authentication handle mapped to another principal, a workspace moved to

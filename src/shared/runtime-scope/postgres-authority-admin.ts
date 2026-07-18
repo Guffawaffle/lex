@@ -383,6 +383,18 @@ export class PostgresAuthorityAdministration implements PostgresAuthorityAdminis
       await client.query("SELECT pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtext($1))", [
         `lex-authority-migrations:${this.schema.schema}`,
       ]);
+      await client.query(`REVOKE CREATE ON SCHEMA ${this.schema.quotedSchema} FROM ${quotedRole}`);
+      await client.query(`GRANT USAGE ON SCHEMA ${this.schema.quotedSchema} TO ${quotedRole}`);
+      const schemaPrivilege = await client.query<{ role_can_create_in_schema: boolean }>(
+        `SELECT pg_catalog.has_schema_privilege($1, $2, 'CREATE')
+           AS role_can_create_in_schema`,
+        [runtimeRole, this.schema.schema]
+      );
+      if (schemaPrivilege.rows[0]?.role_can_create_in_schema !== false) {
+        throw new Error(
+          "PostgreSQL canonical authority runtime role retains effective schema CREATE privilege. Use a dedicated protected schema and revoke CREATE inherited through PUBLIC or group roles."
+        );
+      }
       await client.query(postgresAuthorityMigrationSql(this.schema));
       const future = await client.query<{ version: number }>(
         `SELECT version FROM ${this.relations.migrations}
@@ -399,8 +411,6 @@ export class PostgresAuthorityAdministration implements PostgresAuthorityAdminis
          VALUES ($1, $2::timestamptz) ON CONFLICT (version) DO NOTHING`,
         [POSTGRES_AUTHORITY_SCHEMA_VERSION, appliedAt]
       );
-      await client.query(`REVOKE CREATE ON SCHEMA ${this.schema.quotedSchema} FROM ${quotedRole}`);
-      await client.query(`GRANT USAGE ON SCHEMA ${this.schema.quotedSchema} TO ${quotedRole}`);
       for (const table of POSTGRES_AUTHORITY_TABLES) {
         const relation = this.schema.relation(table);
         await client.query(`REVOKE ALL ON TABLE ${relation} FROM ${quotedRole}`);

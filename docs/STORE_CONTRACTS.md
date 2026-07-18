@@ -48,6 +48,12 @@ SQLite via `SqliteFrameStore` remains the default OSS implementation. PostgreSQL
 Lex 3.0 trusted hosts do not select a backend from ambient environment variables: trusted
 composition supplies the authorized `ScopedFrameStoreBinder` after scope resolution.
 
+Trusted MCP attachment input is intentionally unavailable until Lex has a scope-bound attachment
+service. Its trusted `tools/list` and help surfaces omit `images`, scoped SQLite reports
+`images: false`, and trusted calls reject both `images` and caller-supplied `image_ids` before a
+Frame can be stored. The unscoped SQLite compatibility path retains its existing attachment
+behavior.
+
 ### Access Modes
 
 Both production implementations support explicit `read-write` and `read-only` access modes.

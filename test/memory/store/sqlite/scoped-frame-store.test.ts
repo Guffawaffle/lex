@@ -2,12 +2,13 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { chmodSync, existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { test } from "node:test";
 
 import Database from "better-sqlite3-multiple-ciphers";
 
 import type { Frame } from "@app/memory/frames/types.js";
+import { MCPServer, type MCPRuntimeScopeGuardV1 } from "@app/memory/mcp_server/server.js";
 import { createDatabase } from "@app/memory/store/db.js";
 import {
   FRAME_STORE_CAPABILITIES,
@@ -32,9 +33,15 @@ import {
   type AuthorizedScopeV1,
   type CapabilityId,
   type ContentDigest,
+  type ExecutionSurfaceId,
+  type InvocationContextV1,
   type PrincipalId,
+  type RegistryInstanceId,
+  type RuntimeId,
   type ScopeVersion,
   type TenantId,
+  type TraceId,
+  type TrustedRuntimeScopeBootstrapV1,
   type WorkspaceId,
 } from "@app/shared/runtime-scope/index.js";
 import { exerciseScopedFrameStoreConformance } from "../scoped-frame-store-conformance.js";
@@ -160,6 +167,57 @@ function migrate(path: string, target: SqliteScopeTargetV1): SqliteScopeMigratio
   return manifest;
 }
 
+function trustedMcpScope(target: SqliteScopeTargetV1): MCPRuntimeScopeGuardV1 {
+  const projectRoot = resolve(".");
+  const bootstrap: TrustedRuntimeScopeBootstrapV1 = {
+    async resolve(request) {
+      const invocationContext: InvocationContextV1 = {
+        schemaVersion: RUNTIME_SCOPE_CONTRACT_VERSION,
+        projectRoot,
+        requestedWorkspace: { workspaceId: target.workspaceId },
+        repositoryEvidence: {
+          schemaVersion: 1,
+          canonicalRoot: projectRoot,
+        },
+        runtimeSurface: {
+          schemaVersion: 1,
+          executionSurfaceId: "sqlite-test-surface" as ExecutionSurfaceId,
+          registryInstanceId: "sqlite-test-registry" as RegistryInstanceId,
+          runtimeId: request.runtimeId,
+        },
+      };
+      return {
+        resolved: true,
+        invocationContext,
+        authorizedScope: scope(target, request.requestedCapabilities),
+      };
+    },
+  };
+  return {
+    bootstrap,
+    request: {
+      schemaVersion: 1,
+      bootstrap: {
+        schemaVersion: 1,
+        cwd: projectRoot,
+        argv: ["node", "lex"],
+        allowedEnvironment: {},
+        platform: "linux",
+        executionSurface: {
+          schemaVersion: 1,
+          nativePlatform: "linux",
+          kind: "linux-native",
+          installationRef: "/usr/bin/node",
+          evidenceDigest: "sha256:sqlite-test-surface" as ContentDigest,
+        },
+        capturedAt: "2026-07-18T00:00:00.000Z",
+      },
+      runtimeId: "sqlite-test-runtime" as RuntimeId,
+      traceId: "sqlite-test-trace" as TraceId,
+    },
+  };
+}
+
 test("legacy ownership migration is explicit, deterministic, backed up, and idempotent", () =>
   withTempStore("scope-migration", (root, dbPath) => {
     createLegacyStore(dbPath, [legacyFrame()]);
@@ -240,6 +298,63 @@ test("the SQLite adapter passes the shared scoped normal-operation contract", ()
     const store = backend.bind(scope(TARGET_A));
     await exerciseScopedFrameStoreConformance(store, "sqlite");
     await backend.close();
+  }));
+
+test("trusted scoped SQLite MCP disables attachments without creating dangling frame references", () =>
+  withTempStore("scope-mcp-images", async (_root, dbPath) => {
+    createLegacyStore(dbPath);
+    migrate(dbPath, TARGET_A);
+    const backend = new SqliteScopedFrameStoreBackend(dbPath);
+    const store = backend.bind(scope(TARGET_A));
+    assert.equal(store.getMetadata().capabilities.images, false);
+
+    const server = new MCPServer({
+      frameStoreBinder: backend,
+      runtimeScope: trustedMcpScope(TARGET_A),
+    });
+    try {
+      const listed = await server.handleRequest({ method: "tools/list" });
+      for (const name of ["frame_create", "frame_validate"]) {
+        const tool = (listed.tools as Array<Record<string, unknown>>).find(
+          (candidate) => candidate.name === name
+        ) as { inputSchema: { properties: Record<string, unknown> } };
+        assert.equal("images" in tool.inputSchema.properties, false);
+      }
+
+      const help = await server.handleRequest({
+        method: "tools/call",
+        params: { name: "help", arguments: { tool: "frame_create", examples: false } },
+      });
+      assert.equal((help.data?.optionalFields as string[]).includes("images"), false);
+
+      for (const name of ["frame_create", "frame_validate"]) {
+        for (const attachmentInput of [
+          { images: [{ data: "aGVsbG8=", mime_type: "image/png" }] },
+          { image_ids: ["caller-controlled-image"] },
+        ]) {
+          const response = await server.handleRequest({
+            method: "tools/call",
+            params: {
+              name,
+              arguments: {
+                reference_point: "trusted-sqlite-images",
+                summary_caption: "Attachments require a scope-bound service",
+                status_snapshot: { next_action: "retain explicit unsupported behavior" },
+                module_scope: ["memory/store"],
+                ...attachmentInput,
+              },
+            },
+          });
+          assert.equal(response.error?.code, "VALIDATION_INVALID_IMAGE");
+        }
+      }
+
+      assert.equal(await store.getFrameCount(), 0);
+    } finally {
+      await store.close();
+      await server.close();
+      await backend.close();
+    }
   }));
 
 test("two workspace files can persist identical IDs without collision or observation", () =>

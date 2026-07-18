@@ -98,6 +98,7 @@ interface RuntimeRoleBoundaryRow extends QueryResultRow {
   role_bypasses_rls: boolean;
   role_owns_authority: boolean;
   role_can_mutate_authority: boolean;
+  role_can_create_in_schema: boolean;
 }
 
 export interface PostgresAuthorityDirectoryOptionsV1 {
@@ -256,7 +257,9 @@ async function assertReadOnlyRuntimeRole(
             relation.oid,
             'INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER'
           )
-      ) AS role_can_mutate_authority
+      ) AS role_can_mutate_authority,
+      pg_catalog.has_schema_privilege(CURRENT_USER, $1, 'CREATE')
+        AS role_can_create_in_schema
     FROM pg_catalog.pg_roles role
     WHERE role.rolname = current_user
   `,
@@ -269,9 +272,12 @@ async function assertReadOnlyRuntimeRole(
     boundary.role_is_superuser ||
     boundary.role_bypasses_rls ||
     boundary.role_owns_authority ||
-    boundary.role_can_mutate_authority
+    boundary.role_can_mutate_authority ||
+    boundary.role_can_create_in_schema
   ) {
-    throw new Error("PostgreSQL canonical authority requires a read-only non-owner runtime role.");
+    throw new Error(
+      "PostgreSQL canonical authority requires a read-only non-owner runtime role without effective schema CREATE privilege."
+    );
   }
 }
 

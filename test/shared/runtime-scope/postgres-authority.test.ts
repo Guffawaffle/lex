@@ -63,17 +63,20 @@ class AuthorityClient {
   readonly calls: QueryCall[] = [];
   releaseCount = 0;
   readonly unsafeRole: boolean;
+  readonly schemaCreate: boolean;
   readonly grantRevoked: boolean;
   readonly grantExpired: boolean;
 
   constructor(
     options: {
       readonly unsafeRole?: boolean;
+      readonly schemaCreate?: boolean;
       readonly grantRevoked?: boolean;
       readonly grantExpired?: boolean;
     } = {}
   ) {
     this.unsafeRole = options.unsafeRole ?? false;
+    this.schemaCreate = options.schemaCreate ?? false;
     this.grantRevoked = options.grantRevoked ?? false;
     this.grantExpired = options.grantExpired ?? false;
   }
@@ -90,6 +93,7 @@ class AuthorityClient {
           role_bypasses_rls: false,
           role_owns_authority: false,
           role_can_mutate_authority: false,
+          role_can_create_in_schema: this.schemaCreate,
         },
       ]);
     }
@@ -184,7 +188,10 @@ class AdministrationClient {
   readonly calls: QueryCall[] = [];
   releaseCount = 0;
 
-  constructor(private readonly conflictSql?: string) {}
+  constructor(
+    private readonly conflictSql?: string,
+    private readonly schemaCreate = false
+  ) {}
 
   async query(sqlValue: string, params: readonly unknown[] = []): Promise<QueryResult> {
     const sql = sqlValue.replace(/\s+/g, " ").trim();
@@ -195,6 +202,9 @@ class AdministrationClient {
       )
     ) {
       return result([]);
+    }
+    if (sql.includes("has_schema_privilege")) {
+      return result([{ role_can_create_in_schema: this.schemaCreate }]);
     }
     if (sql.startsWith("SELECT") && sql.includes("<>")) return result([]);
     if (this.conflictSql && sql.includes(this.conflictSql)) return result([], 0);
@@ -465,6 +475,18 @@ describe("PostgreSQL canonical authority", () => {
       }
     );
     await assert.rejects(() => unsafe.getTenant({ tenantId: TENANT }), /read-only non-owner/);
+
+    const schemaCreator = new PostgresAuthorityDirectory(
+      poolFor(new AuthorityClient({ schemaCreate: true })),
+      {
+        schema: AUTHORITY_SCHEMA,
+        now: () => NOW,
+      }
+    );
+    await assert.rejects(
+      () => schemaCreator.getTenant({ tenantId: TENANT }),
+      /effective schema CREATE/
+    );
   });
 
   test("seeds the explicit dogfood topology with redacted idempotent administration inputs", async () => {
@@ -515,11 +537,36 @@ describe("PostgreSQL canonical authority", () => {
       ),
       true
     );
+    assert.ok(
+      client.calls.findIndex(({ sql }) => sql.includes("has_schema_privilege")) <
+        client.calls.findIndex(({ sql }) => sql.includes("CREATE TABLE IF NOT EXISTS"))
+    );
     assert.equal(
       client.calls.flatMap(({ params }) => params).some((value) => value === AUTH_REF),
       false
     );
     assert.equal(client.releaseCount, 2);
+
+    const inheritedCreateClient = new AdministrationClient(undefined, true);
+    const inheritedCreateAdministration = new PostgresAuthorityAdministration(
+      poolFor(inheritedCreateClient),
+      {
+        schema: AUTHORITY_SCHEMA,
+        now: () => NOW,
+      }
+    );
+    await assert.rejects(
+      () => inheritedCreateAdministration.migrate("lex_authority_runtime"),
+      /retains effective schema CREATE privilege/
+    );
+    assert.deepEqual(
+      inheritedCreateClient.calls.find(({ sql }) => sql.includes("has_schema_privilege"))?.params,
+      ["lex_authority_runtime", AUTHORITY_SCHEMA]
+    );
+    assert.equal(
+      inheritedCreateClient.calls.some(({ sql }) => sql === "ROLLBACK"),
+      true
+    );
 
     const conflictClient = new AdministrationClient(
       `INSERT INTO ${authorityRelation("lex_authority_authentication_refs")}`

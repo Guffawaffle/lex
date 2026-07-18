@@ -10,3 +10,5 @@ validated PostgreSQL schema, including the transitional adapter, and preserve ev
 through a versioned metadata payload.
 Migrate schema v1 rows into an admin-only unowned quarantine instead of guessing ownership, and
 expose a non-mutating migration plan before schema v3 is applied.
+Reject runtime roles with effective `CREATE` on the protected FrameStore schema, including
+privileges inherited through `PUBLIC` or group roles.

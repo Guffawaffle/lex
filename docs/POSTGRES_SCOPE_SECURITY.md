@@ -18,6 +18,7 @@ Before serving data it verifies that the connected role:
 - is not a superuser;
 - does not have `BYPASSRLS`;
 - does not own `frames`; and
+- has no effective `CREATE` privilege on the protected FrameStore schema; and
 - is using schema version 3 with RLS enabled and forced.
 
 `PostgresFrameStoreAdministration` is the distinct privileged boundary. It exposes migration
@@ -37,6 +38,9 @@ grant shape, executed by the schema owner after migration, is:
 ALTER ROLE lex_runtime
   NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
 
+REVOKE CREATE ON SCHEMA lex_store FROM PUBLIC;
+-- Also revoke CREATE from every group role inherited by lex_runtime.
+REVOKE CREATE ON SCHEMA lex_store FROM lex_runtime;
 GRANT USAGE ON SCHEMA lex_store TO lex_runtime;
 GRANT SELECT ON lex_store.lex_frame_store_migrations TO lex_runtime;
 GRANT SELECT, INSERT, UPDATE, DELETE ON lex_store.frames TO lex_runtime;
@@ -44,9 +48,11 @@ GRANT EXECUTE ON FUNCTION lex_store.lex_runtime_scope_is_valid() TO lex_runtime;
 GRANT EXECUTE ON FUNCTION lex_store.lex_runtime_scope_matches(uuid, uuid) TO lex_runtime;
 ```
 
-The schema owner/migration role is not a runtime role. Lex fails closed if an owner, superuser, or
-`BYPASSRLS` role is supplied to `PostgresScopedFrameStoreBackend` even though PostgreSQL itself
-could let that role escape policy enforcement.
+The schema owner/migration role is not a runtime role. Lex fails closed if an owner, superuser,
+`BYPASSRLS`, or effective schema-creator role is supplied to
+`PostgresScopedFrameStoreBackend` even though PostgreSQL itself could let that role escape policy
+enforcement. Use a dedicated protected schema; a direct revoke from the login role does not remove
+privileges inherited through `PUBLIC` or group membership.
 
 ## Transaction and pool invariant
 

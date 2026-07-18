@@ -82,6 +82,11 @@ Administrative inspection, migration, repair, and lifecycle operations remain ab
 `PostgresScopedFrameStoreBackend` applies the same contract to PostgreSQL v3 with explicit scope
 predicates and forced RLS. All run the shared normal-operation conformance suite.
 
+Trusted MCP does not currently expose attachment creation through scoped stores. Until a
+scope-bound attachment service exists, trusted tool schemas and help omit `images`, direct
+`images` and `image_ids` inputs fail validation, and scoped SQLite advertises `images: false`.
+Legacy unscoped SQLite attachment behavior is unchanged.
+
 ## SQLite ownership migration
 
 SQLite v14 is the last unowned legacy state. The v15 adapter never opens it for normal scoped

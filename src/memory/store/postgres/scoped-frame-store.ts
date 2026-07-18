@@ -81,6 +81,7 @@ interface RuntimeBoundaryRow extends QueryResultRow {
   role_is_superuser: boolean;
   role_bypasses_rls: boolean;
   role_owns_frames: boolean;
+  role_can_create_in_schema: boolean;
   rls_enabled: boolean;
   rls_forced: boolean;
 }
@@ -421,6 +422,8 @@ class ScopedTransactionRunner {
         role.rolsuper AS role_is_superuser,
         role.rolbypassrls AS role_bypasses_rls,
         frames.relowner = role.oid AS role_owns_frames,
+        pg_catalog.has_schema_privilege(CURRENT_USER, $1, 'CREATE')
+          AS role_can_create_in_schema,
         frames.relrowsecurity AS rls_enabled,
         frames.relforcerowsecurity AS rls_forced
       FROM pg_catalog.pg_roles AS role
@@ -442,10 +445,13 @@ class ScopedTransactionRunner {
     }
     if (
       this.enforceRuntimeRole &&
-      (boundary.role_is_superuser || boundary.role_bypasses_rls || boundary.role_owns_frames)
+      (boundary.role_is_superuser ||
+        boundary.role_bypasses_rls ||
+        boundary.role_owns_frames ||
+        boundary.role_can_create_in_schema)
     ) {
       throw new Error(
-        "PostgreSQL FrameStore runtime role must be non-owner, non-superuser, and must not BYPASSRLS"
+        "PostgreSQL FrameStore runtime role must be non-owner, non-superuser, must not BYPASSRLS, and must not have effective schema CREATE privilege"
       );
     }
   }

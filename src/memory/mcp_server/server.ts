@@ -13,7 +13,7 @@ import type { FrameStore, FrameSearchCriteria } from "../store/frame-store.js";
 import { ImageManager } from "../store/images.js";
 // @ts-ignore - importing from compiled dist directories
 import type { Frame } from "../frames/types.js";
-import { MCP_TOOLS } from "./tools.js";
+import { MCP_TOOLS, type MCPTool } from "./tools.js";
 import { MCPError, MCPErrorCode, MCP_ERROR_METADATA, createModuleIdError } from "./errors.js";
 import { IdempotencyCache } from "./idempotency.js";
 // @ts-ignore - importing from compiled dist directories
@@ -238,6 +238,24 @@ function requireDispatchFrameStore(store: FrameStore | undefined): FrameStore {
     );
   }
   return store;
+}
+
+function trustedToolProperties(tool: MCPTool): Record<string, unknown> {
+  const properties = { ...tool.inputSchema.properties };
+  if (tool.name === "frame_create" || tool.name === "frame_validate") {
+    delete properties.images;
+  }
+  return properties;
+}
+
+function hasTrustedAttachmentInput(
+  canonicalName: string,
+  args: Readonly<Record<string, unknown>>
+): boolean {
+  return (
+    (canonicalName === "frame_create" || canonicalName === "frame_validate") &&
+    (Object.hasOwn(args, "images") || Object.hasOwn(args, "image_ids"))
+  );
 }
 
 /**
@@ -584,7 +602,7 @@ export class MCPServer {
           inputSchema: {
             ...tool.inputSchema,
             properties: {
-              ...tool.inputSchema.properties,
+              ...trustedToolProperties(tool),
               diagnostics: {
                 type: "string",
                 enum: ["summary", "full"],
@@ -737,6 +755,17 @@ export class MCPServer {
     const { name, arguments: args } = params;
     const canonicalName = canonicalMcpToolName(name);
 
+    if (context.trusted && hasTrustedAttachmentInput(canonicalName, args)) {
+      return {
+        error: {
+          code: MCPErrorCode.VALIDATION_INVALID_IMAGE,
+          message:
+            "Trusted scoped MCP does not support image attachments until a scope-bound attachment service is configured.",
+          context: { trusted: true, imagesSupported: false },
+        },
+      };
+    }
+
     // Log deprecation warnings for old tool names (AX-014)
     if (name in MCP_TOOL_ALIASES) {
       logger.warn(
@@ -779,7 +808,7 @@ export class MCPServer {
         return await this.handleIntrospect(args, requireDispatchFrameStore(frameStore), context);
 
       case "help":
-        return await this.handleHelp(args);
+        return await this.handleHelp(args, context.trusted);
 
       case "hints_get":
         return await this.handleGetHints(args);
@@ -2326,7 +2355,7 @@ export class MCPServer {
    * - Common workflow patterns
    * - Naming convention guidance (AX-014)
    */
-  private async handleHelp(args: Record<string, unknown>): Promise<MCPResponse> {
+  private async handleHelp(args: Record<string, unknown>, trusted = false): Promise<MCPResponse> {
     const {
       tool,
       examples = true,
@@ -2796,12 +2825,16 @@ export class MCPServer {
           availableTools: Object.keys(toolHelp),
         });
       }
+      const optionalFields =
+        trusted && (tool === "frame_create" || tool === "frame_validate")
+          ? helpData.optionalFields.filter((field) => field !== "images")
+          : helpData.optionalFields;
 
       const response: Record<string, unknown> = {
         tool,
         description: helpData.description,
         requiredFields: helpData.requiredFields,
-        optionalFields: helpData.optionalFields,
+        optionalFields,
         relatedTools: helpData.relatedTools,
         workflows: helpData.workflows.map((w) => ({
           name: w,
@@ -2840,9 +2873,7 @@ export class MCPServer {
           : "  (none)",
         "",
         "## Optional Fields",
-        helpData.optionalFields.length > 0
-          ? helpData.optionalFields.map((f) => `  - ${f}`).join("\n")
-          : "  (none)",
+        optionalFields.length > 0 ? optionalFields.map((f) => `  - ${f}`).join("\n") : "  (none)",
         "",
         "## Related Tools",
         helpData.relatedTools.map((t) => `  - ${t}`).join("\n"),

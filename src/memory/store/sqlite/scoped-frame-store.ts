@@ -294,7 +294,7 @@ abstract class SqliteBoundView {
       location: this.databasePath,
       canonicalLocation,
       identity: createStoreIdentity(canonicalLocation).replace("sqlite-v1:", "sqlite-scoped-v1:"),
-      capabilities: { encryption: true, images: true },
+      capabilities: { encryption: true, images: false },
     };
   }
 

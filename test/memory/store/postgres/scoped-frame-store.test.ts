@@ -90,6 +90,7 @@ class FakePool {
     role_is_superuser: false,
     role_bypasses_rls: false,
     role_owns_frames: false,
+    role_can_create_in_schema: false,
     rls_enabled: true,
     rls_forced: true,
   };
@@ -407,8 +408,13 @@ describe("PostgresScopedFrameStoreBackend", () => {
     assert.equal(aggregate.values[4], "2026-06-18T12:00:00.000Z");
   });
 
-  test("fails closed when the runtime role can bypass forced RLS", async () => {
-    for (const unsafe of ["role_is_superuser", "role_bypasses_rls", "role_owns_frames"] as const) {
+  test("fails closed when the runtime role can bypass protected schema or RLS boundaries", async () => {
+    for (const unsafe of [
+      "role_is_superuser",
+      "role_bypasses_rls",
+      "role_owns_frames",
+      "role_can_create_in_schema",
+    ] as const) {
       const pool = new FakePool();
       pool.runtimeBoundary = { ...pool.runtimeBoundary, [unsafe]: true };
       const backend = new PostgresScopedFrameStoreBackend(pool as unknown as Pool, {
