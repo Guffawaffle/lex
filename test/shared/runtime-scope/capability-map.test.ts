@@ -60,6 +60,22 @@ describe("trusted operation capability drift gates", () => {
     assert.deepEqual(capabilitiesForCliInvocation(["node", "lex", "dedupe", "--dry-run"]), [
       RUNTIME_OPERATION_CAPABILITIES.FRAME_READ,
     ]);
+    assert.deepEqual(
+      capabilitiesForCliInvocation(["node", "lex", "db", "scope", "migrate", "--write"]),
+      [RUNTIME_OPERATION_CAPABILITIES.FRAME_ADMIN]
+    );
+    assert.equal(
+      trustedCliOperationFromArgv([
+        "node",
+        "lex",
+        "db",
+        "scope",
+        "inventory",
+        "--",
+        "future-command",
+      ]),
+      "db:scope:inventory"
+    );
     assert.throws(
       () => trustedCliOperationFromArgv(["node", "lex", "future-command"]),
       UnknownTrustedOperationError

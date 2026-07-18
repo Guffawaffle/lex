@@ -26,6 +26,10 @@ export type TrustedCliOperation =
   | "db:vacuum"
   | "db:backup"
   | "db:repair"
+  | "db:scope:inventory"
+  | "db:scope:manifest"
+  | "db:scope:migrate"
+  | "db:scope:recover"
   | "db:encrypt"
   | "db:stats"
   | "policy:check"
@@ -65,6 +69,10 @@ const CLI_CAPABILITIES: Readonly<Record<TrustedCliOperation, readonly Capability
     "db:vacuum": Object.freeze([RUNTIME_OPERATION_CAPABILITIES.FRAME_ADMIN]),
     "db:backup": Object.freeze([RUNTIME_OPERATION_CAPABILITIES.FRAME_ADMIN]),
     "db:repair": Object.freeze([RUNTIME_OPERATION_CAPABILITIES.FRAME_ADMIN]),
+    "db:scope:inventory": Object.freeze([RUNTIME_OPERATION_CAPABILITIES.FRAME_ADMIN]),
+    "db:scope:manifest": Object.freeze([RUNTIME_OPERATION_CAPABILITIES.FRAME_ADMIN]),
+    "db:scope:migrate": Object.freeze([RUNTIME_OPERATION_CAPABILITIES.FRAME_ADMIN]),
+    "db:scope:recover": Object.freeze([RUNTIME_OPERATION_CAPABILITIES.FRAME_ADMIN]),
     "db:encrypt": Object.freeze([RUNTIME_OPERATION_CAPABILITIES.FRAME_ADMIN]),
     "db:stats": Object.freeze([RUNTIME_OPERATION_CAPABILITIES.FRAME_READ]),
     "policy:check": Object.freeze([]),
@@ -130,7 +138,9 @@ function commandTokens(argv: readonly string[]): readonly string[] {
     }
     if (argument.startsWith("-")) continue;
     result.push(argument);
-    if (result.length === 2 || !CLI_GROUPS.has(result[0])) break;
+    if (!CLI_GROUPS.has(result[0])) break;
+    if (result.length === 2 && !(result[0] === "db" && result[1] === "scope")) break;
+    if (result.length === 3) break;
   }
   return Object.freeze(result);
 }
@@ -143,7 +153,7 @@ export function trustedCliOperationFromArgv(argv: readonly string[]): TrustedCli
   if (runtimeArguments.includes("--version") || runtimeArguments.includes("-V")) return "version";
   const tokens = commandTokens(argv);
   if (tokens.length === 0) return "help";
-  const operation = CLI_GROUPS.has(tokens[0] ?? "") ? tokens.slice(0, 2).join(":") : tokens[0];
+  const operation = CLI_GROUPS.has(tokens[0] ?? "") ? tokens.join(":") : tokens[0];
   if (!operation || !(operation in CLI_CAPABILITIES)) {
     throw new UnknownTrustedOperationError("cli", operation ?? "");
   }
