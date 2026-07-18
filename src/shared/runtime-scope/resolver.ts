@@ -4,6 +4,8 @@ import {
 } from "../errors/error-codes.js";
 import {
   AUTHORITY_DIRECTORY_CONTRACT_VERSION,
+  isConsistentAuthorityDirectory,
+  isRepositoryScopedAuthorityDirectory,
   type AuthorityDirectory,
   type AuthorizedWorkspaceGrantV1,
   type WorkspaceAuthorizationDenialReason,
@@ -302,7 +304,7 @@ function invocationContext(
  * This function never reads process.env, cwd, platform globals, or databases
  * other than through its AuthorityDirectory and LocalBindingRegistry inputs.
  */
-export async function resolveRuntimeScope(
+async function resolveRuntimeScopeInSnapshot(
   request: RuntimeScopeResolutionRequestV1,
   dependencies: RuntimeScopeResolverDependenciesV1
 ): Promise<RuntimeScopeResolutionResultV1> {
@@ -382,6 +384,16 @@ export async function resolveRuntimeScope(
     ) {
       return failure(WORKSPACE_AUTHORITY_ERROR_CODES.REPOSITORY_BINDING_MISMATCH);
     }
+    if (
+      isRepositoryScopedAuthorityDirectory(dependencies.authorityDirectory) &&
+      !(await dependencies.authorityDirectory.authorizeRepository({
+        tenantId: decision.grant.tenantId,
+        workspaceId: decision.grant.workspaceId,
+        repositoryId: declaredRepository.repositoryId,
+      }))
+    ) {
+      return failure(WORKSPACE_AUTHORITY_ERROR_CODES.REPOSITORY_BINDING_MISMATCH);
+    }
   }
 
   let candidates;
@@ -431,6 +443,17 @@ export async function resolveRuntimeScope(
       statuses.push("mismatch");
       continue;
     }
+    if (
+      isRepositoryScopedAuthorityDirectory(dependencies.authorityDirectory) &&
+      !(await dependencies.authorityDirectory.authorizeRepository({
+        tenantId: decision.grant.tenantId,
+        workspaceId: decision.grant.workspaceId,
+        repositoryId: repository.repositoryId,
+      }))
+    ) {
+      statuses.push("mismatch");
+      continue;
+    }
     let verification;
     try {
       verification = await dependencies.localRegistry.verifyBinding({
@@ -474,6 +497,25 @@ export async function resolveRuntimeScope(
     invocationContext: invocationContext(request, binding),
     authorizedScope: authorizedScope(decision.grant, request.requestedCapabilities),
   });
+}
+
+export async function resolveRuntimeScope(
+  request: RuntimeScopeResolutionRequestV1,
+  dependencies: RuntimeScopeResolverDependenciesV1
+): Promise<RuntimeScopeResolutionResultV1> {
+  if (!isConsistentAuthorityDirectory(dependencies.authorityDirectory)) {
+    return resolveRuntimeScopeInSnapshot(request, dependencies);
+  }
+  try {
+    return await dependencies.authorityDirectory.withConsistentSnapshot((authorityDirectory) =>
+      resolveRuntimeScopeInSnapshot(request, {
+        ...dependencies,
+        authorityDirectory,
+      })
+    );
+  } catch {
+    return failure(WORKSPACE_AUTHORITY_ERROR_CODES.WORKSPACE_SELECTOR_UNAUTHORIZED);
+  }
 }
 
 export type RuntimeScopeResolutionRequest = RuntimeScopeResolutionRequestV1;

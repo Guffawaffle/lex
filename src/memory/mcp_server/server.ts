@@ -55,6 +55,7 @@ import {
 import { compactFrame, compactFrameList } from "../renderer/compact.js";
 import {
   DIAGNOSTIC_CONTRACT_VERSION,
+  CANONICAL_MCP_TOOLS,
   MCP_TOOL_ALIASES,
   authorizeTrustedRuntimeEntrypoint,
   capabilitiesForMcpTool,
@@ -426,7 +427,7 @@ export class MCPServer {
           message: `Unknown tool: ${params.name}`,
           context: {
             requestedTool: params.name,
-            availableTools: MCP_TOOLS.map(({ name }) => name),
+            availableTools: [...CANONICAL_MCP_TOOLS],
           },
         },
       };
@@ -605,22 +606,7 @@ export class MCPServer {
       default:
         throw new MCPError(MCPErrorCode.INTERNAL_UNKNOWN_TOOL, `Unknown tool: ${name}`, {
           requestedTool: name,
-          availableTools: [
-            "frame_create",
-            "frame_validate",
-            "frame_search",
-            "frame_get",
-            "frame_list",
-            "policy_check",
-            "timeline_show",
-            "atlas_analyze",
-            "system_introspect",
-            "help",
-            "hints_get",
-            "db_stats",
-            "turncost_calculate",
-            "contradictions_scan",
-          ],
+          availableTools: [...CANONICAL_MCP_TOOLS],
         });
     }
   }

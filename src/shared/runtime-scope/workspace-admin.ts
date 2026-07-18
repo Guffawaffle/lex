@@ -1,7 +1,12 @@
 import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 
-import type { AuthorityDirectory, AuthorizedWorkspaceGrantV1 } from "./authority.js";
+import {
+  isConsistentAuthorityDirectory,
+  isRepositoryScopedAuthorityDirectory,
+  type AuthorityDirectory,
+  type AuthorizedWorkspaceGrantV1,
+} from "./authority.js";
 import {
   LOCAL_BINDING_CONTRACT_VERSION,
   type BindingReceiptV1,
@@ -146,10 +151,7 @@ export class WorkspaceBindingAdminService implements WorkspaceBindingAdminServic
 
   async bind(request: WorkspaceBindRequestV1): Promise<BindingReceiptV1> {
     assertInvocation(request);
-    const { discovery, principalId, grant } = await this.authorized(
-      request,
-      RUNTIME_OPERATION_CAPABILITIES.WORKSPACE_BIND
-    );
+    const discovery = await this.discover(request);
     const repositoryId = request.repositoryId ?? discovery.repositoryDeclaration?.repositoryId;
     if (!repositoryId) {
       throw new LocalRegistryError(
@@ -157,22 +159,45 @@ export class WorkspaceBindingAdminService implements WorkspaceBindingAdminServic
         "Binding requires --repository-id when lex.repository.json is absent."
       );
     }
-    const repository = await this.dependencies.authorityDirectory.getRepository({ repositoryId });
-    if (!repository || repository.state !== "active") {
-      throw new LocalRegistryError(
-        "REGISTRY_INVALID_INPUT",
-        "Canonical authority did not recognize an active repository."
-      );
-    }
-    if (
-      discovery.repositoryDeclaration &&
-      discovery.repositoryDeclaration.repositoryId !== repository.repositoryId
-    ) {
-      throw new LocalRegistryError(
-        "REGISTRY_CONFLICT",
-        "The requested repository conflicts with lex.repository.json."
-      );
-    }
+    const { principalId, grant, repository } = await this.withAuthoritySnapshot(
+      async (authorityDirectory) => {
+        const authorized = await this.authorizeDiscovery(
+          discovery,
+          RUNTIME_OPERATION_CAPABILITIES.WORKSPACE_BIND,
+          authorityDirectory
+        );
+        const repository = await authorityDirectory.getRepository({ repositoryId });
+        if (!repository || repository.state !== "active") {
+          throw new LocalRegistryError(
+            "REGISTRY_INVALID_INPUT",
+            "Canonical authority did not recognize an active repository."
+          );
+        }
+        if (
+          discovery.repositoryDeclaration &&
+          discovery.repositoryDeclaration.repositoryId !== repository.repositoryId
+        ) {
+          throw new LocalRegistryError(
+            "REGISTRY_CONFLICT",
+            "The requested repository conflicts with lex.repository.json."
+          );
+        }
+        if (
+          isRepositoryScopedAuthorityDirectory(authorityDirectory) &&
+          !(await authorityDirectory.authorizeRepository({
+            tenantId: authorized.grant.tenantId,
+            workspaceId: authorized.grant.workspaceId,
+            repositoryId: repository.repositoryId,
+          }))
+        ) {
+          throw new LocalRegistryError(
+            "REGISTRY_INVALID_INPUT",
+            "Canonical authority did not associate the repository with this workspace."
+          );
+        }
+        return { ...authorized, repository };
+      }
+    );
     const at = this.now();
     const registry = this.openAdministrative(request.bootstrap);
     try {
@@ -223,24 +248,55 @@ export class WorkspaceBindingAdminService implements WorkspaceBindingAdminServic
     assertInvocation(request);
     requireNonEmpty(request.bindingId, "bindingId");
     requireNonEmpty(request.reason, "reason");
-    const { discovery, principalId, grant } = await this.authorized(
-      request,
-      RUNTIME_OPERATION_CAPABILITIES.WORKSPACE_REBIND
-    );
+    const discovery = await this.discover(request);
     const at = this.now();
     const registry = this.openAdministrative(request.bootstrap);
     try {
       const [binding] = await registry.inspectBindings({ bindingId: request.bindingId });
-      if (
-        !binding ||
-        binding.tenantId !== grant.tenantId ||
-        binding.workspaceId !== grant.workspaceId
-      ) {
-        throw new LocalRegistryError(
-          "REGISTRY_INVALID_INPUT",
-          "The binding is not owned by the authorized workspace."
-        );
+      if (!binding) {
+        throw new LocalRegistryError("REGISTRY_INVALID_INPUT", "The binding was not found.");
       }
+      const { principalId, grant } = await this.withAuthoritySnapshot(
+        async (authorityDirectory) => {
+          const authorized = await this.authorizeDiscovery(
+            discovery,
+            RUNTIME_OPERATION_CAPABILITIES.WORKSPACE_REBIND,
+            authorityDirectory
+          );
+          if (
+            binding.tenantId !== authorized.grant.tenantId ||
+            binding.workspaceId !== authorized.grant.workspaceId
+          ) {
+            throw new LocalRegistryError(
+              "REGISTRY_INVALID_INPUT",
+              "The binding is not owned by the authorized workspace."
+            );
+          }
+          const repository = await authorityDirectory.getRepository({
+            repositoryId: binding.repositoryId,
+          });
+          if (!repository || repository.state !== "active") {
+            throw new LocalRegistryError(
+              "REGISTRY_INVALID_INPUT",
+              "Canonical authority did not recognize an active repository."
+            );
+          }
+          if (
+            isRepositoryScopedAuthorityDirectory(authorityDirectory) &&
+            !(await authorityDirectory.authorizeRepository({
+              tenantId: authorized.grant.tenantId,
+              workspaceId: authorized.grant.workspaceId,
+              repositoryId: binding.repositoryId,
+            }))
+          ) {
+            throw new LocalRegistryError(
+              "REGISTRY_INVALID_INPUT",
+              "Canonical authority did not associate the repository with this workspace."
+            );
+          }
+          return authorized;
+        }
+      );
       return await registry.rebindBinding({
         bindingId: request.bindingId,
         ...(discovery.repositoryDeclaration
@@ -326,11 +382,29 @@ export class WorkspaceBindingAdminService implements WorkspaceBindingAdminServic
     readonly principalId: PrincipalId;
     readonly grant: AuthorizedWorkspaceGrantV1;
   }> {
-    const discovery = await this.dependencies.discovery.discover({
+    const discovery = await this.discover(request);
+    const authorized = await this.withAuthoritySnapshot((authorityDirectory) =>
+      this.authorizeDiscovery(discovery, capability, authorityDirectory)
+    );
+    return { discovery, ...authorized };
+  }
+
+  private discover(request: WorkspaceAdminInvocationV1): Promise<RuntimeScopeDiscoveryV1> {
+    return this.dependencies.discovery.discover({
       entrypoint: request.entrypoint,
       bootstrap: request.bootstrap,
     });
-    const principal = await this.dependencies.authorityDirectory.resolvePrincipal({
+  }
+
+  private async authorizeDiscovery(
+    discovery: RuntimeScopeDiscoveryV1,
+    capability: (typeof RUNTIME_OPERATION_CAPABILITIES)[keyof typeof RUNTIME_OPERATION_CAPABILITIES],
+    authorityDirectory: AuthorityDirectory
+  ): Promise<{
+    readonly principalId: PrincipalId;
+    readonly grant: AuthorizedWorkspaceGrantV1;
+  }> {
+    const principal = await authorityDirectory.resolvePrincipal({
       authenticationRef: discovery.authenticationRef,
     });
     if (!principal || principal.state !== "active") {
@@ -339,7 +413,7 @@ export class WorkspaceBindingAdminService implements WorkspaceBindingAdminServic
         "Canonical authority did not recognize an active principal."
       );
     }
-    const decision = await this.dependencies.authorityDirectory.authorizeWorkspace({
+    const decision = await authorityDirectory.authorizeWorkspace({
       principalId: principal.principalId,
       workspace: discovery.requestedWorkspace,
       requestedCapabilities: [capability],
@@ -350,7 +424,15 @@ export class WorkspaceBindingAdminService implements WorkspaceBindingAdminServic
         `Canonical authority denied ${capability}.`
       );
     }
-    return { discovery, principalId: principal.principalId, grant: decision.grant };
+    return { principalId: principal.principalId, grant: decision.grant };
+  }
+
+  private withAuthoritySnapshot<Result>(
+    operation: (authorityDirectory: AuthorityDirectory) => Promise<Result>
+  ): Promise<Result> {
+    return isConsistentAuthorityDirectory(this.dependencies.authorityDirectory)
+      ? this.dependencies.authorityDirectory.withConsistentSnapshot(operation)
+      : operation(this.dependencies.authorityDirectory);
   }
 
   private openReadOnly(bootstrap: BootstrapInputSnapshotV1): SqliteLocalBindingRegistry {

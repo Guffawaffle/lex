@@ -82,6 +82,12 @@ export interface WorkspaceAuthorizationRequestV1 {
   readonly requestedCapabilities: readonly CapabilityId[];
 }
 
+export interface RepositoryAuthorizationRequestV1 {
+  readonly tenantId: TenantId;
+  readonly workspaceId: WorkspaceId;
+  readonly repositoryId: RepositoryId;
+}
+
 export interface AuthorizedWorkspaceGrantV1 {
   readonly schemaVersion: typeof AUTHORITY_DIRECTORY_CONTRACT_VERSION;
   readonly grantId: AuthorityGrantId;
@@ -130,6 +136,39 @@ export interface AuthorityDirectory {
   authorizeWorkspace(
     request: WorkspaceAuthorizationRequestV1
   ): Promise<WorkspaceAuthorizationDecisionV1>;
+}
+
+/**
+ * Shared authorities can additionally constrain which canonical repositories
+ * may provide provenance for one workspace. Kept as an explicit extension so
+ * local/test embedders cannot accidentally pretend that a path is authority.
+ */
+export interface RepositoryScopedAuthorityDirectory extends AuthorityDirectory {
+  authorizeRepository(request: RepositoryAuthorizationRequestV1): Promise<boolean>;
+}
+
+/**
+ * A durable authority can pin every lookup made by one resolver invocation to
+ * one immutable database snapshot. In-memory directories are already immutable.
+ */
+export interface ConsistentAuthorityDirectory extends AuthorityDirectory {
+  withConsistentSnapshot<Result>(
+    operation: (directory: AuthorityDirectory) => Promise<Result>
+  ): Promise<Result>;
+}
+
+export function isRepositoryScopedAuthorityDirectory(
+  directory: AuthorityDirectory
+): directory is RepositoryScopedAuthorityDirectory {
+  return "authorizeRepository" in directory && typeof directory.authorizeRepository === "function";
+}
+
+export function isConsistentAuthorityDirectory(
+  directory: AuthorityDirectory
+): directory is ConsistentAuthorityDirectory {
+  return (
+    "withConsistentSnapshot" in directory && typeof directory.withConsistentSnapshot === "function"
+  );
 }
 
 type LocalTopologyMethodName =

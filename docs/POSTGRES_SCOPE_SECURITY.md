@@ -24,6 +24,11 @@ Before serving data it verifies that the connected role:
 planning, migration execution, and capability-gated ownership inspection. Do not pass it, its
 connection, or its credentials to CLI/MCP normal dispatch.
 
+Canonical principal, tenant, workspace, membership, grant, and repository authorization lives in a
+separate PostgreSQL directory. Its runtime role is also read-only and non-owner; it must not be
+confused with either FrameStore administration or surface-local SQLite bindings. See
+[PostgreSQL Canonical Authority](./POSTGRES_AUTHORITY.md).
+
 The migration intentionally does not create login roles or fetch credentials. A database
 administrator provisions roles through the deployment's secret/identity system. A representative
 grant shape, executed by the schema owner after migration, is:
