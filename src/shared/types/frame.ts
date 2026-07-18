@@ -175,6 +175,7 @@ export function validateFrameMetadata(frame: unknown): frame is Frame {
       return false;
   }
   // Validate v3 fields (optional, backward compatible)
+  if (f.userId !== undefined && typeof f.userId !== "string") return false;
   if (f.executorRole !== undefined && typeof f.executorRole !== "string") return false;
   if (f.toolCalls !== undefined) {
     if (!Array.isArray(f.toolCalls)) return false;
@@ -182,6 +183,32 @@ export function validateFrameMetadata(frame: unknown): frame is Frame {
   }
   if (f.guardrailProfile !== undefined && typeof f.guardrailProfile !== "string") return false;
   // Validate v4 fields (optional, backward compatible)
+  if (f.turnCost !== undefined) {
+    if (typeof f.turnCost !== "object" || f.turnCost === null) return false;
+    const turnCost = f.turnCost as Record<string, unknown>;
+    if (typeof turnCost.components !== "object" || turnCost.components === null) return false;
+    const components = turnCost.components as Record<string, unknown>;
+    for (const field of [
+      "latency",
+      "contextReset",
+      "renegotiation",
+      "tokenBloat",
+      "attentionSwitch",
+    ]) {
+      if (typeof components[field] !== "number") return false;
+    }
+    if (turnCost.weights !== undefined) {
+      if (typeof turnCost.weights !== "object" || turnCost.weights === null) return false;
+      const weights = turnCost.weights as Record<string, unknown>;
+      for (const field of ["lambda", "gamma", "rho", "tau", "alpha"]) {
+        if (typeof weights[field] !== "number") return false;
+      }
+    }
+    if (turnCost.weightedScore !== undefined && typeof turnCost.weightedScore !== "number")
+      return false;
+    if (turnCost.sessionId !== undefined && typeof turnCost.sessionId !== "string") return false;
+    if (turnCost.timestamp !== undefined && typeof turnCost.timestamp !== "string") return false;
+  }
   if (f.capabilityTier !== undefined) {
     if (typeof f.capabilityTier !== "string") return false;
     if (!["senior", "mid", "junior"].includes(f.capabilityTier)) return false;

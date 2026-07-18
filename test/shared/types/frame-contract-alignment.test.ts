@@ -95,4 +95,18 @@ describe("Frame v7 contract alignment", () => {
       warnings: [],
     });
   });
+
+  test("manual metadata validation checks v3 identity and v4 turn-cost values", () => {
+    assert.equal(validateFrameMetadata({ ...completeFrame, userId: 42 }), false);
+    assert.equal(
+      validateFrameMetadata({
+        ...completeFrame,
+        turnCost: {
+          ...completeFrame.turnCost,
+          components: { ...completeFrame.turnCost.components, latency: "slow" },
+        },
+      }),
+      false
+    );
+  });
 });
