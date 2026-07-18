@@ -262,15 +262,41 @@ const frameVersionSources = [
   "src/memory/frames/types.ts",
 ];
 const frameVersions = new Map();
+const frameSourceContents = new Map();
 
 for (const sourcePath of frameVersionSources) {
   const source = readFile(sourcePath);
+  frameSourceContents.set(sourcePath, source);
   const match = source?.match(/export const FRAME_SCHEMA_VERSION = (\d+);/);
   if (!match) {
     error(`${sourcePath} does not export a numeric FRAME_SCHEMA_VERSION`);
   } else {
     frameVersions.set(sourcePath, Number(match[1]));
   }
+}
+
+const frameContractFields = [
+  "module_attribution",
+  "image_ids",
+  "superseded_by",
+  "merged_from",
+  "contradiction_resolution",
+];
+for (const field of frameContractFields) {
+  for (const [sourcePath, source] of frameSourceContents) {
+    if (source?.includes(field)) pass(`${sourcePath} exposes Frame field ${field}`);
+    else error(`${sourcePath} is missing current Frame field ${field}`);
+  }
+}
+
+const frameAlignmentTest = readFile("test/shared/types/frame-contract-alignment.test.ts");
+if (
+  frameAlignmentTest?.includes("Object.keys(FrameSchema.shape)") &&
+  frameAlignmentTest.includes("validateFramePayload(completeFrame)")
+) {
+  pass("Frame contract alignment has executable shape and validation coverage");
+} else {
+  error("Frame contract alignment test must compare schema fields and validation surfaces");
 }
 
 const distinctFrameVersions = new Set(frameVersions.values());
@@ -286,6 +312,7 @@ if (frameVersions.size === frameVersionSources.length && distinctFrameVersions.s
 
 const frameVersion = [...distinctFrameVersions][0];
 const contractSurface = readFile("docs/CONTRACT_SURFACE.md");
+const frameSourceGuide = readFile("src/shared/types/FRAME.md");
 const storeContract = readFile("src/memory/store/CONTRACT.md");
 const storeContractGuide = readFile("docs/STORE_CONTRACTS.md");
 const storeInterface = readFile("src/memory/store/frame-store.ts");
@@ -296,6 +323,7 @@ if (frameVersion !== undefined) {
     ["README.md", readme, `Frame Schema v${frameVersion}`],
     ["docs/CONTRACT_SURFACE.md", contractSurface, `FRAME_SCHEMA_VERSION = ${frameVersion}`],
     ["src/memory/store/CONTRACT.md", storeContract, `FRAME_SCHEMA_VERSION = ${frameVersion}`],
+    ["src/shared/types/FRAME.md", frameSourceGuide, `FRAME_SCHEMA_VERSION = ${frameVersion}`],
   ]) {
     if (content?.includes(expected)) pass(`${path} identifies Frame schema v${frameVersion}`);
     else error(`${path} must identify the implemented Frame schema as v${frameVersion}`);

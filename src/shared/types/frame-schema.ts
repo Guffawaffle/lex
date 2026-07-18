@@ -28,6 +28,9 @@ export const TaskComplexitySchema = z.object({
   /** Model/executor assigned to the task */
   assignedModel: z.string().optional(),
 
+  /** Model/executor that actually handled the task */
+  actualModel: z.string().optional(),
+
   /** Whether task was escalated */
   escalated: z.boolean().optional(),
 
@@ -36,6 +39,9 @@ export const TaskComplexitySchema = z.object({
 
   /** Number of retry attempts */
   retryCount: z.number().int().nonnegative().optional(),
+
+  /** Whether the actual capability tier differed from the assigned tier */
+  tierMismatch: z.boolean().optional(),
 });
 
 export type TaskComplexity = z.infer<typeof TaskComplexitySchema>;
@@ -55,6 +61,17 @@ export const ModuleAttributionSchema = z.object({
   confidence: z.enum(["high", "medium", "low"]),
   evidence: z.array(z.string()),
 });
+
+export type ModuleAttribution = z.infer<typeof ModuleAttributionSchema>;
+
+export const ContradictionResolutionSchema = z.object({
+  type: z.enum(["supersede", "scope", "keep-both", "cancel"]),
+  contradicts_frame_id: z.string(),
+  scope: z.string().optional(),
+  note: z.string().optional(),
+});
+
+export type ContradictionResolution = z.infer<typeof ContradictionResolutionSchema>;
 
 /**
  * TurnCostComponent schema - Turn Cost components
@@ -215,6 +232,19 @@ export const FrameSchema = z.object({
 
   /** Task complexity metadata (governance) */
   taskComplexity: TaskComplexitySchema.optional(),
+
+  // === v5 fields (Deduplication) ===
+
+  /** Frame ID that supersedes this one */
+  superseded_by: z.string().optional(),
+
+  /** Frame IDs consolidated into this one */
+  merged_from: z.array(z.string()).optional(),
+
+  // === v6 fields (Contradiction Resolution) ===
+
+  /** Structured resolution for a detected contradiction */
+  contradiction_resolution: ContradictionResolutionSchema.optional(),
 });
 
 export type Frame = z.infer<typeof FrameSchema>;

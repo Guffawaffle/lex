@@ -113,6 +113,7 @@ export const Frame = z.object({
   feature_flags: z.array(z.string()).optional(),
   permissions: z.array(z.string()).optional(),
   module_attribution: ModuleAttribution.optional(),
+  image_ids: z.array(z.string()).optional(),
   // Merge-weave metadata (v2)
   runId: z.string().optional(),
   planHash: z.string().optional(),

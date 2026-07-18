@@ -74,6 +74,7 @@ const KNOWN_FRAME_FIELDS = new Set([
   "atlas_frame_id",
   "feature_flags",
   "permissions",
+  "module_attribution",
   "image_ids",
   "runId",
   "planHash",
@@ -86,6 +87,10 @@ const KNOWN_FRAME_FIELDS = new Set([
   "turnCost",
   "capabilityTier",
   "taskComplexity",
+  // v5/v6 fields
+  "superseded_by",
+  "merged_from",
+  "contradiction_resolution",
 ]);
 
 /**
@@ -141,6 +146,15 @@ const KNOWN_TASK_COMPLEXITY_FIELDS = new Set([
   "escalationReason",
   "retryCount",
   "tierMismatch",
+]);
+
+const KNOWN_MODULE_ATTRIBUTION_FIELDS = new Set(["mode", "confidence", "evidence"]);
+
+const KNOWN_CONTRADICTION_RESOLUTION_FIELDS = new Set([
+  "type",
+  "contradicts_frame_id",
+  "scope",
+  "note",
 ]);
 
 /**
@@ -443,6 +457,26 @@ export function validateFramePayload(data: unknown): FrameValidationResult {
     );
   }
 
+  if (record.module_attribution && typeof record.module_attribution === "object") {
+    warnings.push(
+      ...detectUnknownFields(
+        record.module_attribution,
+        KNOWN_MODULE_ATTRIBUTION_FIELDS,
+        "module_attribution"
+      )
+    );
+  }
+
+  if (record.contradiction_resolution && typeof record.contradiction_resolution === "object") {
+    warnings.push(
+      ...detectUnknownFields(
+        record.contradiction_resolution,
+        KNOWN_CONTRADICTION_RESOLUTION_FIELDS,
+        "contradiction_resolution"
+      )
+    );
+  }
+
   // Size validation for string fields
   const stringFields = [
     { key: "id", value: record.id },
@@ -471,6 +505,7 @@ export function validateFramePayload(data: unknown): FrameValidationResult {
     { key: "permissions", value: record.permissions },
     { key: "image_ids", value: record.image_ids },
     { key: "toolCalls", value: record.toolCalls },
+    { key: "merged_from", value: record.merged_from },
   ];
 
   for (const { key, value } of arrayFields) {
@@ -487,6 +522,8 @@ export function validateFramePayload(data: unknown): FrameValidationResult {
     { key: "spend", value: record.spend },
     { key: "turnCost", value: record.turnCost },
     { key: "taskComplexity", value: record.taskComplexity },
+    { key: "module_attribution", value: record.module_attribution },
+    { key: "contradiction_resolution", value: record.contradiction_resolution },
   ];
 
   for (const { key, value } of nestedObjects) {

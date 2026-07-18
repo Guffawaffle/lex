@@ -37,9 +37,23 @@ const packageJson = JSON.parse(await readFile(join(packageRoot, "package.json"),
 const declaredSubpaths = Object.keys(packageJson.exports ?? {});
 const contractedSubpaths = PUBLIC_EXPORT_CONTRACT.map(({ subpath }) => subpath);
 
-if (JSON.stringify(declaredSubpaths) !== JSON.stringify(contractedSubpaths)) {
+const duplicateContractedSubpaths = contractedSubpaths.filter(
+  (subpath, index) => contractedSubpaths.indexOf(subpath) !== index
+);
+if (duplicateContractedSubpaths.length > 0) {
   throw new Error(
-    `Public export contract differs from package.json\ncontract: ${contractedSubpaths.join(", ")}\npackage: ${declaredSubpaths.join(", ")}`
+    `Public export contract contains duplicate subpaths: ${[...new Set(duplicateContractedSubpaths)].join(", ")}`
+  );
+}
+
+const declaredSubpathSet = new Set(declaredSubpaths);
+const contractedSubpathSet = new Set(contractedSubpaths);
+const missingSubpaths = contractedSubpaths.filter((subpath) => !declaredSubpathSet.has(subpath));
+const unexpectedSubpaths = declaredSubpaths.filter((subpath) => !contractedSubpathSet.has(subpath));
+
+if (missingSubpaths.length > 0 || unexpectedSubpaths.length > 0) {
+  throw new Error(
+    `Public export contract differs from package.json\nmissing: ${missingSubpaths.join(", ") || "none"}\nunexpected: ${unexpectedSubpaths.join(", ") || "none"}`
   );
 }
 

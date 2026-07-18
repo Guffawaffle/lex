@@ -93,7 +93,9 @@ See [Trusted Runtime Scope Contract](./RUNTIME_SCOPE_CONTRACT.md) and [ADR-0011]
 **Sources:** `src/shared/types/frame.ts` defines the public TypeScript metadata contract,
 `src/shared/types/frame-schema.ts` provides the public Zod helpers, and
 `src/memory/frames/types.ts` is the persistence runtime validator. Their exported record-version
-constants must agree.
+constants and record fields must agree. `test/shared/types/frame-contract-alignment.test.ts`
+exercises the full field set across all validation surfaces so version-only agreement cannot hide
+shape drift.
 
 **Invariants:**
 - `id` is an opaque string. Lex does not require UUID or ULID syntax; a store enforces uniqueness

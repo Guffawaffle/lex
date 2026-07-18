@@ -30,6 +30,14 @@ npm init --yes >/dev/null
 npm pkg set type=module private=true >/dev/null
 npm install "$REPO_ROOT/$TARBALL" --no-audit --no-fund
 
+echo "==> Executing the installed CLI artifact"
+EXPECTED_VERSION=$(node -p 'require("./node_modules/@smartergpt/lex/package.json").version')
+CLI_VERSION=$(./node_modules/.bin/lex --version)
+if [[ "$CLI_VERSION" != "$EXPECTED_VERSION" ]]; then
+  echo "❌ Installed CLI version mismatch: expected $EXPECTED_VERSION, got $CLI_VERSION"
+  exit 1
+fi
+
 cp "$REPO_ROOT/scripts/public-api-contract.mjs" .
 cp "$REPO_ROOT/scripts/verify-public-api.mjs" .
 
@@ -65,4 +73,5 @@ echo "==> ✅ Packed consumer smoke test passed"
 echo "    declared runtime export paths imported"
 echo "    declaration entry points type-checked"
 echo "    undeclared internal paths remained blocked"
+echo "    installed CLI executed and reported the packed version"
 echo "    consumer example emitted RECEIPT_OK"
