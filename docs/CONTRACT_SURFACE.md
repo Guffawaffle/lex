@@ -37,7 +37,7 @@ Lex exposes a contract surface that any runner or tool can target. This document
 - Paths, Git state, manifests, flags, and environment values may select evidence but cannot grant access.
 - Diagnostics are versioned, redacted observability and never change resolution.
 
-**Implementation:** Phase 2 adds opt-in, pure execution-surface and registry-location resolution, a separate versioned SQLite local registry, a deterministic fail-closed runtime-scope resolver, and an in-memory authority implementation for tests and embedding. Registry initialization and binding lifecycle changes are explicit administrative operations; normal resolution is read-only. Existing CLI, MCP, Frame, and FrameStore behavior remains unchanged.
+**Implementation:** Phase 2 adds pure execution-surface and registry-location resolution, a separate versioned SQLite local registry, a deterministic fail-closed runtime-scope resolver, and an in-memory authority implementation for tests and embedding. The Phase 3 foundation adds one immutable, opt-in CLI/MCP bootstrap guard with capability attenuation and redacted diagnostics. Registry initialization and binding lifecycle changes remain explicit administrative operations; normal resolution is read-only. Scope-bound FrameStore behavior is a separate contract phase.
 
 **Conformance:** The package exports deterministic Windows/WSL, clone, worktree, fork, binding, selector, cached-authority, and diagnostic fixtures. Lex runs all exported fixtures against the concrete Phase 2 resolver and registry without changing their expected semantics.
 

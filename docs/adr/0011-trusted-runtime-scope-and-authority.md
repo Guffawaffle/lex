@@ -141,7 +141,7 @@ Phase 2 implements pure execution-surface and registry-location resolution, a se
 - UUID generation version.
 - Exact public binding command spelling.
 - Offline authority snapshots and cross-surface pairing.
-- CLI/MCP integration and diagnostics implementation (Phase 3).
+- Production repository-evidence discovery, administrative binding commands, and mandatory bootstrap activation after the shared CLI/MCP Phase 3 guard.
 - Scoped FrameStore behavior and physical ownership migration (Phase 4 and later).
 - PostgreSQL RLS, same-tenant projections, and catalog publication.
 - A shared runtime helper package; contracts must survive implementation in Lex and AXF first.

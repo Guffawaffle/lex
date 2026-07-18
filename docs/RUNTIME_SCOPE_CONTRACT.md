@@ -9,6 +9,9 @@ import {
   RUNTIME_SCOPE_CONFORMANCE_FIXTURES,
   WORKSPACE_AUTHORITY_ERROR_CODES,
   SqliteLocalBindingRegistry,
+  captureTrustedBootstrapInput,
+  createTrustedRuntimeScopeBootstrap,
+  authorizeTrustedRuntimeEntrypoint,
   detectExecutionSurface,
   resolveLocalRegistryLocation,
   resolveRuntimeScope,
@@ -22,7 +25,7 @@ import {
 } from "@smartergpt/lex/runtime-scope";
 ```
 
-Phase 1 froze the public contract. Phase 2 adds opt-in deterministic resolver and local-registry services. Existing CLI, MCP, Frame, and FrameStore behavior is unchanged; no existing entrypoint invokes these services yet.
+Phase 1 froze the public contract. Phase 2 added the deterministic resolver and local-registry services. Phase 3 begins the opt-in entrypoint integration through one shared guard; existing callers retain compatibility until they supply a trusted discovery and authority adapter.
 
 ## Boundary
 
@@ -144,15 +147,36 @@ Authority and registry exceptions fail closed. Normal results contain no diagnos
 
 `InMemoryAuthorityDirectory` is a deterministic test and embedding implementation of the authority contract. It is not shared PostgreSQL authority and does not establish a production trust boundary.
 
+## Phase 3 trusted bootstrap foundation
+
+`captureTrustedBootstrapInput` freezes `argv`, `cwd`, native platform/surface evidence, and a small compatibility-environment allow-list exactly once. The allow-list contains only home/state and caller-root discovery inputs. Database credentials and registry-path overrides are discarded, and retained environment values remain discovery inputs rather than authority.
+
+`createTrustedRuntimeScopeBootstrap` accepts injected canonical authority and repository discovery adapters. For every CLI or MCP invocation it:
+
+1. clones and freezes the captured input and discovery evidence;
+2. selects the native surface-local registry from standard state directories;
+3. opens that existing registry read-only and always closes the handle;
+4. calls the deterministic resolver with only the explicitly requested capabilities; and
+5. returns an immutable compact result, or an opt-in diagnostic envelope.
+
+`authorizeTrustedRuntimeEntrypoint` is the common integration seam used by `run()` and `MCPServer`. CLI authorization completes before Commander dispatch. MCP authorization completes before tool dispatch, and a denial therefore cannot invoke even a mutating in-memory test store. The successful MCP result stays lexical to that dispatch seam so later scoped-store work does not require shared mutable request state.
+
+Normal calls add no scope metadata to agent output. CLI diagnostics use `--diagnostic` for summary detail and `--diagnostic --diagnostic-level=full` for full detail; MCP tools accept `diagnostics: "summary" | "full"`. Full authority, binding, and selection detail requires an independent `runtime:diagnose` authorization decision, uses opaque hashed references, and never changes the operation capability set or its resolution result. Authentication references and project roots are always omitted.
+
+`authorityMode: "local-offline"` is explicit and still requires an injected authority implementation plus finite cached-authority evidence. It does not pair execution surfaces or turn copied local state into shared authority.
+
 ## Deferred implementation
 
-The following remain intentionally absent after Phase 2:
+The following remain intentionally absent from the Phase 3 foundation:
 
-- CLI/MCP bootstrap integration;
+- the production/default repository declaration and native evidence discovery adapter;
+- CLI commands for explicit bind, inspect, rebind, revoke, and recovery lifecycle operations;
+- mandatory bootstrap activation for existing compatibility entrypoints;
+- passing the lexically resolved scope into a scope-bound FrameStore;
 - Frame ownership columns or migration;
 - PostgreSQL RLS;
 - projections and catalog publication;
 - offline authority pairing;
 - a cross-repository helper package.
 
-See [ADR-0011](./adr/0011-trusted-runtime-scope-and-authority.md), epic [#749](https://github.com/Guffawaffle/lex/issues/749), and Phase 2 issue [#755](https://github.com/Guffawaffle/lex/issues/755).
+See [ADR-0011](./adr/0011-trusted-runtime-scope-and-authority.md), epic [#749](https://github.com/Guffawaffle/lex/issues/749), Phase 2 issue [#755](https://github.com/Guffawaffle/lex/issues/755), and Phase 3 issue [#758](https://github.com/Guffawaffle/lex/issues/758).

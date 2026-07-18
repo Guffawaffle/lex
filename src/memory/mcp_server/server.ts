@@ -45,6 +45,15 @@ import {
 } from "../renderer/timeline.js";
 // @ts-ignore - importing from compiled dist directories
 import { compactFrame, compactFrameList } from "../renderer/compact.js";
+import {
+  DIAGNOSTIC_CONTRACT_VERSION,
+  authorizeTrustedRuntimeEntrypoint,
+  type CapabilityId,
+  type DiagnosticEnvelopeV1,
+  type DiagnosticRequestV1,
+  type TrustedRuntimeScopeBootstrapResultV1,
+  type TrustedRuntimeScopeEntrypointGuardV1,
+} from "../../shared/runtime-scope/index.js";
 
 const logger = getLogger("memory:mcp_server:server");
 
@@ -179,6 +188,12 @@ export interface MCPServerOptions {
   dbPath?: string;
   /** Repository root path for policy resolution. */
   repoRoot?: string;
+  /** Optional fail-closed trusted scope guard shared with the CLI entrypoint. */
+  runtimeScope?: MCPRuntimeScopeGuardV1;
+}
+
+export interface MCPRuntimeScopeGuardV1 extends TrustedRuntimeScopeEntrypointGuardV1 {
+  readonly requestedCapabilitiesForTool: (toolName: string) => readonly CapabilityId[];
 }
 
 /**
@@ -193,6 +208,7 @@ export class MCPServer {
   private dbPathSource: string;
   private configResolution: ConfigResolution;
   private idempotencyCache: IdempotencyCache; // Idempotency cache for mutation tools
+  private readonly runtimeScope: MCPRuntimeScopeGuardV1 | undefined;
 
   /**
    * Create a new MCPServer instance.
@@ -216,6 +232,7 @@ export class MCPServer {
     }
 
     this.repoRoot = options.repoRoot || null;
+    this.runtimeScope = options.runtimeScope;
     this.configResolution = resolveConfigResolution({
       startPath: process.cwd(),
       explicitRoot: this.repoRoot,
@@ -350,8 +367,25 @@ export class MCPServer {
    * Returns tools sorted by name for deterministic ordering
    */
   private handleToolsList(): MCPResponse {
+    const tools = this.runtimeScope
+      ? MCP_TOOLS.map((tool) => ({
+          ...tool,
+          inputSchema: {
+            ...tool.inputSchema,
+            properties: {
+              ...tool.inputSchema.properties,
+              diagnostics: {
+                type: "string",
+                enum: ["summary", "full"],
+                description:
+                  "Opt-in redacted runtime-scope diagnostics. Full detail requires runtime:diagnose authority.",
+              },
+            },
+          },
+        }))
+      : [...MCP_TOOLS];
     return {
-      tools: [...MCP_TOOLS].sort((a, b) => a.name.localeCompare(b.name)),
+      tools: tools.sort((a, b) => a.name.localeCompare(b.name)),
     };
   }
 
@@ -359,6 +393,75 @@ export class MCPServer {
    * Handle tools/call request
    */
   private async handleToolsCall(params: ToolCallParams): Promise<MCPResponse> {
+    let diagnostics: DiagnosticEnvelopeV1 | undefined;
+    let authorizedRuntimeScope:
+      Extract<TrustedRuntimeScopeBootstrapResultV1, { readonly resolved: true }> | undefined;
+    const requestedLevel = params.arguments.diagnostics;
+    if (requestedLevel !== undefined && requestedLevel !== "summary" && requestedLevel !== "full") {
+      return {
+        error: {
+          code: MCPErrorCode.VALIDATION_INVALID_FORMAT,
+          message: "diagnostics must be either 'summary' or 'full'.",
+        },
+      };
+    }
+    if ((requestedLevel === "summary" || requestedLevel === "full") && !this.runtimeScope) {
+      return {
+        error: {
+          code: "LEX_WORKSPACE_UNBOUND",
+          message: "Runtime-scope diagnostics require a configured trusted bootstrap.",
+        },
+      };
+    }
+    if (this.runtimeScope) {
+      const diagnosticRequest: DiagnosticRequestV1 | undefined =
+        requestedLevel === "summary" || requestedLevel === "full"
+          ? Object.freeze({
+              schemaVersion: DIAGNOSTIC_CONTRACT_VERSION,
+              level: requestedLevel,
+            })
+          : undefined;
+      const resolution = await authorizeTrustedRuntimeEntrypoint(
+        this.runtimeScope,
+        "mcp",
+        this.runtimeScope.requestedCapabilitiesForTool(params.name),
+        diagnosticRequest
+      );
+      diagnostics = resolution.diagnostics;
+      if (!resolution.resolved) {
+        return {
+          error: {
+            code: resolution.error.code,
+            message: resolution.error.message,
+            ...(diagnostics ? { context: { diagnostics } } : {}),
+          },
+        };
+      }
+      authorizedRuntimeScope = resolution;
+    }
+
+    const { diagnostics: _diagnostics, ...toolArguments } = params.arguments;
+    const response = await this.dispatchToolsCall(
+      { ...params, arguments: toolArguments },
+      authorizedRuntimeScope
+    );
+    if (!diagnostics) return response;
+    return {
+      ...response,
+      data: {
+        ...response.data,
+        diagnostics,
+      },
+    };
+  }
+
+  private async dispatchToolsCall(
+    params: ToolCallParams,
+    _authorizedRuntimeScope?: Extract<
+      TrustedRuntimeScopeBootstrapResultV1,
+      { readonly resolved: true }
+    >
+  ): Promise<MCPResponse> {
     const { name, arguments: args } = params;
 
     // Log deprecation warnings for old tool names (AX-014)
