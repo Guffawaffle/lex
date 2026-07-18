@@ -447,6 +447,7 @@ closeDb(db);
 | `@smartergpt/lex/cli-output` | CLI JSON utilities | [CLI Output](./docs/CLI_OUTPUT.md) |
 | `@smartergpt/lex/store` | Direct database operations | [Store Contracts](./docs/STORE_CONTRACTS.md) |
 | `@smartergpt/lex/types` | All shared types | [API Usage](./docs/API_USAGE.md) |
+| `@smartergpt/lex/runtime-scope` | Identity, authority, binding, diagnostics, and conformance contracts | [Runtime Scope](./docs/RUNTIME_SCOPE_CONTRACT.md) |
 | `@smartergpt/lex/errors` | AXError schema and utilities (v2.0+) | [AX Contract](./docs/specs/AX-CONTRACT.md) |
 | `@smartergpt/lex/policy` | Policy loading & validation | [API Usage](./docs/API_USAGE.md) |
 | `@smartergpt/lex/atlas` | Atlas Frame generation | [Architecture](./docs/ARCHITECTURE.md) |

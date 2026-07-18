@@ -22,6 +22,10 @@
       "types": "./dist/shared/types/index.d.ts",
       "import": "./dist/shared/types/index.js"
     },
+    "./runtime-scope": {
+      "types": "./dist/shared/runtime-scope/index.d.ts",
+      "import": "./dist/shared/runtime-scope/index.js"
+    },
     "./errors": {
       "types": "./dist/shared/errors/index.d.ts",
       "import": "./dist/shared/errors/index.js"

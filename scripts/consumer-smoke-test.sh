@@ -42,7 +42,7 @@ npm install tsx --no-audit --no-fund > /dev/null 2>&1
 VALIDATED_PATHS=()
 
 cat > test-main.mts << 'EOF'
-import { getDb, saveFrame, searchFrames } from '@smartergpt/lex';
+import { getDb, saveFrame, searchFrames, RUNTIME_SCOPE_CONTRACT_VERSION } from '@smartergpt/lex';
 
 console.log('✅ Main entry (@smartergpt/lex): Core functions imported successfully');
 console.log('   getDb type:', typeof getDb);
@@ -52,7 +52,8 @@ console.log('   searchFrames type:', typeof searchFrames);
 if (
   typeof getDb !== 'function' ||
   typeof saveFrame !== 'function' ||
-  typeof searchFrames !== 'function'
+  typeof searchFrames !== 'function' ||
+  RUNTIME_SCOPE_CONTRACT_VERSION !== 1
 ) {
   console.error('❌ One or more core functions are not functions');
   process.exit(1);
@@ -141,6 +142,25 @@ if (typeof validateFramePayload !== 'function') {
 }
 EOF
 
+cat > test-runtime-scope.mts << 'EOF'
+import {
+  RUNTIME_SCOPE_CONTRACT_VERSION,
+  RUNTIME_SCOPE_CONFORMANCE_FIXTURES,
+  WORKSPACE_AUTHORITY_ERROR_CODES,
+} from '@smartergpt/lex/runtime-scope';
+
+console.log('✅ Runtime scope subpath (@smartergpt/lex/runtime-scope): Contracts imported successfully');
+
+if (
+  RUNTIME_SCOPE_CONTRACT_VERSION !== 1 ||
+  RUNTIME_SCOPE_CONFORMANCE_FIXTURES.length < 12 ||
+  WORKSPACE_AUTHORITY_ERROR_CODES.WORKSPACE_UNBOUND !== 'LEX_WORKSPACE_UNBOUND'
+) {
+  console.error('❌ Runtime scope contract exports are incomplete');
+  process.exit(1);
+}
+EOF
+
 cat > test-negative.mts << 'EOF'
 try {
   // @ts-expect-error - Testing that non-exported paths cannot be imported.
@@ -219,7 +239,16 @@ else
 fi
 echo ""
 
-echo "--- Test 8: Negative test (non-exported path) ---"
+echo "--- Test 8: Runtime scope subpath (@smartergpt/lex/runtime-scope) ---"
+if npx tsx test-runtime-scope.mts; then
+  VALIDATED_PATHS+=("@smartergpt/lex/runtime-scope")
+else
+  echo "❌ Test failed"
+  exit 1
+fi
+echo ""
+
+echo "--- Test 9: Negative test (non-exported path) ---"
 if npx tsx test-negative.mts; then
   VALIDATED_PATHS+=("Non-exported paths (boundary enforcement)")
 else
@@ -228,7 +257,7 @@ else
 fi
 echo ""
 
-echo "--- Test 9: Consumer example (examples/consumer) ---"
+echo "--- Test 10: Consumer example (examples/consumer) ---"
 cp -r "$REPO_ROOT/examples/consumer" ./consumer-example
 cd consumer-example
 

@@ -12,8 +12,8 @@
     { "path": "./shared/policy" },
     { "path": "./shared/atlas" },
     { "path": "./shared/module_ids" },
-    { "path": "./shared/aliases" }
+    { "path": "./shared/aliases" },
+    { "path": "./shared/runtime-scope" }
   ],
   "include": ["index.ts"]
 }
-
