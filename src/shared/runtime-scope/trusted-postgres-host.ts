@@ -1,6 +1,5 @@
 import type { Pool } from "pg";
 
-import type { ScopedFrameStoreBinder } from "../../memory/store/scoped-frame-store.js";
 import type { DiagnosticEnvelopeV1 } from "./diagnostics.js";
 import type { AuthorizedScopeV1 } from "./runtime.js";
 import {
@@ -23,8 +22,20 @@ import {
   type WorkspaceBindingAdminServiceV1,
 } from "./workspace-admin.js";
 
-export interface TrustedCanonicalFrameStoreBinderV1 extends ScopedFrameStoreBinder {
-  bind(scope: AuthorizedScopeV1): ReturnType<ScopedFrameStoreBinder["bind"]>;
+/** Minimal cross-project contract required at the trusted composition boundary. */
+export interface TrustedCanonicalScopedStoreV1 {
+  readonly authorizedScope: AuthorizedScopeV1;
+  close(): Promise<void>;
+}
+
+/**
+ * Generic here avoids a runtime-scope -> memory-store project cycle. Concrete
+ * CLI and MCP composition still requires their full ScopedFrameStoreBinder.
+ */
+export interface TrustedCanonicalFrameStoreBinderV1<
+  BoundStore extends TrustedCanonicalScopedStoreV1 = TrustedCanonicalScopedStoreV1,
+> {
+  bind(scope: AuthorizedScopeV1): BoundStore;
 }
 
 export interface PostgresTrustedRuntimeHostOptionsV1<

@@ -205,6 +205,7 @@ export {
 export {
   createPostgresTrustedRuntimeHost,
   type TrustedCanonicalFrameStoreBinderV1,
+  type TrustedCanonicalScopedStoreV1,
   type PostgresTrustedRuntimeHostOptionsV1,
   type PostgresTrustedRuntimeHostV1,
 } from "./trusted-postgres-host.js";
