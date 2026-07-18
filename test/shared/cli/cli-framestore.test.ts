@@ -9,11 +9,24 @@
  */
 
 import "../../../test/helpers/setup.js";
-import { test, describe, beforeEach } from "node:test";
+import { after, before, test, describe, beforeEach } from "node:test";
 import assert from "node:assert";
 import { MemoryFrameStore } from "@app/memory/store/memory/index.js";
 import { createFrameStore } from "@app/memory/store/index.js";
 import type { Frame } from "@app/memory/frames/types.js";
+
+const originalStoreBackend = process.env.LEX_STORE;
+
+before(() => {
+  // This suite exercises explicit SQLite and in-memory dependency injection.
+  // Ambient developer configuration must not redirect it to PostgreSQL.
+  process.env.LEX_STORE = "sqlite";
+});
+
+after(() => {
+  if (originalStoreBackend === undefined) delete process.env.LEX_STORE;
+  else process.env.LEX_STORE = originalStoreBackend;
+});
 
 // Sample test frames
 const testFrame1: Frame = {

@@ -37,6 +37,10 @@ if (!process.env.LEX_LOG_LEVEL) {
   process.env.LEX_LOG_LEVEL = "silent";
 }
 
+// Tests must never inherit a developer's configured shared-store backend.
+// PostgreSQL suites opt in through their dedicated test connection settings.
+process.env.LEX_STORE = "sqlite";
+
 if (!process.env.NODE_ENV) {
   process.env.NODE_ENV = "test";
 }
