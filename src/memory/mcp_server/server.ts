@@ -1,5 +1,13 @@
 import { getLogger } from "@smartergpt/lex/logger";
-import { createFrameStore, SqliteFrameStore } from "../store/index.js";
+import {
+  createFrameStore,
+  scopedFrameStoreAsLegacyView,
+  SCOPED_FRAME_STORE_ERROR_CODES,
+  ScopedFrameStoreError,
+  SqliteFrameStore,
+  type ScopedFrameStore,
+  type ScopedFrameStoreBinder,
+} from "../store/index.js";
 import type { FrameStore, FrameSearchCriteria } from "../store/frame-store.js";
 // @ts-ignore - importing from compiled dist directories
 import { ImageManager } from "../store/images.js";
@@ -47,10 +55,13 @@ import {
 import { compactFrame, compactFrameList } from "../renderer/compact.js";
 import {
   DIAGNOSTIC_CONTRACT_VERSION,
+  MCP_TOOL_ALIASES,
   authorizeTrustedRuntimeEntrypoint,
-  type CapabilityId,
+  capabilitiesForMcpTool,
+  canonicalMcpToolName,
   type DiagnosticEnvelopeV1,
   type DiagnosticRequestV1,
+  type CapabilityId,
   type TrustedRuntimeScopeBootstrapResultV1,
   type TrustedRuntimeScopeEntrypointGuardV1,
 } from "../../shared/runtime-scope/index.js";
@@ -190,25 +201,36 @@ export interface MCPServerOptions {
   repoRoot?: string;
   /** Optional fail-closed trusted scope guard shared with the CLI entrypoint. */
   runtimeScope?: MCPRuntimeScopeGuardV1;
+  /** Bind the authorized scope into a request-local store before tool dispatch. */
+  frameStoreBinder?: ScopedFrameStoreBinder;
 }
 
-export interface MCPRuntimeScopeGuardV1 extends TrustedRuntimeScopeEntrypointGuardV1 {
-  readonly requestedCapabilitiesForTool: (toolName: string) => readonly CapabilityId[];
+export interface MCPRuntimeScopeGuardV1 extends TrustedRuntimeScopeEntrypointGuardV1 {}
+
+function requireDispatchFrameStore(store: FrameStore | undefined): FrameStore {
+  if (!store) {
+    throw new ScopedFrameStoreError(
+      SCOPED_FRAME_STORE_ERROR_CODES.INVALID_SCOPE,
+      "No scope-bound FrameStore is available for this tool call."
+    );
+  }
+  return store;
 }
 
 /**
  * MCP Server - handles protocol requests
  */
 export class MCPServer {
-  private frameStore: FrameStore;
+  private frameStore: FrameStore | undefined;
   private imageManager: ImageManager | null;
   private policy: Policy | null; // Cached policy for validation (null if not available)
   private repoRoot: string | null; // Repository root path
   private policyResolution: PolicyPathResolution | null;
-  private dbPathSource: string;
+  private dbPathSource = "scope-bound";
   private configResolution: ConfigResolution;
   private idempotencyCache: IdempotencyCache; // Idempotency cache for mutation tools
   private readonly runtimeScope: MCPRuntimeScopeGuardV1 | undefined;
+  private readonly frameStoreBinder: ScopedFrameStoreBinder | undefined;
 
   /**
    * Create a new MCPServer instance.
@@ -233,6 +255,7 @@ export class MCPServer {
 
     this.repoRoot = options.repoRoot || null;
     this.runtimeScope = options.runtimeScope;
+    this.frameStoreBinder = options.frameStoreBinder;
     this.configResolution = resolveConfigResolution({
       startPath: process.cwd(),
       explicitRoot: this.repoRoot,
@@ -250,7 +273,7 @@ export class MCPServer {
           : resolve(this.configResolution.config.paths.database) === resolve(options.dbPath)
             ? this.configResolution.pathSources.database
             : "constructor.dbPath";
-    } else {
+    } else if (!this.runtimeScope) {
       this.frameStore = createFrameStore(this.configResolution.config.paths.database);
       this.dbPathSource =
         this.frameStore.getMetadata().backend === "postgres"
@@ -393,6 +416,29 @@ export class MCPServer {
    * Handle tools/call request
    */
   private async handleToolsCall(params: ToolCallParams): Promise<MCPResponse> {
+    let requestedCapabilities: readonly CapabilityId[];
+    try {
+      requestedCapabilities = capabilitiesForMcpTool(params.name);
+    } catch {
+      return {
+        error: {
+          code: MCPErrorCode.INTERNAL_UNKNOWN_TOOL,
+          message: `Unknown tool: ${params.name}`,
+        },
+      };
+    }
+    if (
+      requestedCapabilities.some((capability) => capability.startsWith("frame:")) &&
+      this.runtimeScope &&
+      !this.frameStoreBinder
+    ) {
+      return {
+        error: {
+          code: SCOPED_FRAME_STORE_ERROR_CODES.INVALID_SCOPE,
+          message: "Trusted runtime scope is configured without a scope-bound FrameStore.",
+        },
+      };
+    }
     let diagnostics: DiagnosticEnvelopeV1 | undefined;
     let authorizedRuntimeScope:
       Extract<TrustedRuntimeScopeBootstrapResultV1, { readonly resolved: true }> | undefined;
@@ -424,7 +470,7 @@ export class MCPServer {
       const resolution = await authorizeTrustedRuntimeEntrypoint(
         this.runtimeScope,
         "mcp",
-        this.runtimeScope.requestedCapabilitiesForTool(params.name),
+        requestedCapabilities,
         diagnosticRequest
       );
       diagnostics = resolution.diagnostics;
@@ -441,10 +487,44 @@ export class MCPServer {
     }
 
     const { diagnostics: _diagnostics, ...toolArguments } = params.arguments;
-    const response = await this.dispatchToolsCall(
-      { ...params, arguments: toolArguments },
-      authorizedRuntimeScope
-    );
+    let scopedStore: ScopedFrameStore | undefined;
+    if (authorizedRuntimeScope && this.frameStoreBinder) {
+      try {
+        scopedStore = this.frameStoreBinder.bind(authorizedRuntimeScope.authorizedScope);
+      } catch (error) {
+        if (error instanceof ScopedFrameStoreError) {
+          return { error: { code: error.code, message: error.message } };
+        }
+        throw error;
+      }
+    }
+    const dispatchStore = scopedStore ? scopedFrameStoreAsLegacyView(scopedStore) : this.frameStore;
+    if (
+      !dispatchStore &&
+      requestedCapabilities.some((capability) => capability.startsWith("frame:"))
+    ) {
+      return {
+        error: {
+          code: SCOPED_FRAME_STORE_ERROR_CODES.INVALID_SCOPE,
+          message: "No scope-bound FrameStore is available for this tool call.",
+        },
+      };
+    }
+    let response: MCPResponse;
+    try {
+      response = await this.dispatchToolsCall(
+        { ...params, arguments: toolArguments },
+        dispatchStore,
+        authorizedRuntimeScope
+          ? JSON.stringify([
+              authorizedRuntimeScope.authorizedScope.tenantId,
+              authorizedRuntimeScope.authorizedScope.workspaceId,
+            ])
+          : "legacy-unscoped"
+      );
+    } finally {
+      await scopedStore?.close();
+    }
     if (!diagnostics) return response;
     return {
       ...response,
@@ -457,108 +537,66 @@ export class MCPServer {
 
   private async dispatchToolsCall(
     params: ToolCallParams,
-    _authorizedRuntimeScope?: Extract<
-      TrustedRuntimeScopeBootstrapResultV1,
-      { readonly resolved: true }
-    >
+    frameStore: FrameStore | undefined,
+    idempotencyNamespace: string
   ): Promise<MCPResponse> {
     const { name, arguments: args } = params;
+    const canonicalName = canonicalMcpToolName(name);
 
     // Log deprecation warnings for old tool names (AX-014)
-    const deprecatedNames: Record<string, string> = {
-      remember: "frame_create",
-      lex_remember: "frame_create",
-      validate_remember: "frame_validate",
-      lex_validate_remember: "frame_validate",
-      recall: "frame_search",
-      lex_recall: "frame_search",
-      get_frame: "frame_get",
-      lex_get_frame: "frame_get",
-      list_frames: "frame_list",
-      lex_list_frames: "frame_list",
-      // Note: lex_policy_check is the v2.0.x prefixed version (deprecated)
-      // but policy_check itself is the canonical name (already compliant)
-      lex_policy_check: "policy_check",
-      timeline: "timeline_show",
-      lex_timeline: "timeline_show",
-      code_atlas: "atlas_analyze",
-      lex_code_atlas: "atlas_analyze",
-      introspect: "system_introspect",
-      lex_introspect: "system_introspect",
-      get_hints: "hints_get",
-      lex_help: "help",
-    };
-
-    if (deprecatedNames[name]) {
+    if (name in MCP_TOOL_ALIASES) {
       logger.warn(
-        `[MCP] Tool "${name}" is deprecated. Use "${deprecatedNames[name]}" instead. ` +
+        `[MCP] Tool "${name}" is deprecated. Use "${MCP_TOOL_ALIASES[name as keyof typeof MCP_TOOL_ALIASES]}" instead. ` +
           `See ADR-0009 for migration guide.`
       );
     }
 
-    switch (name) {
-      // Standardized names (AX-014: resource_action pattern)
+    switch (canonicalName) {
       case "frame_create":
-      // Legacy aliases (deprecated)
-      case "remember":
-      case "lex_remember":
-        return await this.handleRemember(args);
+        return await this.handleRemember(
+          args,
+          requireDispatchFrameStore(frameStore),
+          idempotencyNamespace
+        );
 
       case "frame_validate":
-      case "validate_remember":
-      case "lex_validate_remember":
         return await this.handleValidateRemember(args);
 
       case "frame_search":
-      case "recall":
-      case "lex_recall":
-        return await this.handleRecall(args);
+        return await this.handleRecall(args, requireDispatchFrameStore(frameStore));
 
       case "frame_get":
-      case "get_frame":
-      case "lex_get_frame":
-        return await this.handleGetFrame(args);
+        return await this.handleGetFrame(args, requireDispatchFrameStore(frameStore));
 
       case "frame_list":
-      case "list_frames":
-      case "lex_list_frames":
-        return await this.handleListFrames(args);
+        return await this.handleListFrames(args, requireDispatchFrameStore(frameStore));
 
       case "policy_check":
-      case "lex_policy_check":
         return await this.handlePolicyCheck(args);
 
       case "timeline_show":
-      case "timeline":
-      case "lex_timeline":
-        return await this.handleTimeline(args);
+        return await this.handleTimeline(args, requireDispatchFrameStore(frameStore));
 
       case "atlas_analyze":
-      case "code_atlas":
-      case "lex_code_atlas":
         return await this.handleCodeAtlas(args);
 
       case "system_introspect":
-      case "introspect":
-      case "lex_introspect":
-        return await this.handleIntrospect(args);
+        return await this.handleIntrospect(args, requireDispatchFrameStore(frameStore));
 
       case "help":
-      case "lex_help":
         return await this.handleHelp(args);
 
       case "hints_get":
-      case "get_hints":
         return await this.handleGetHints(args);
 
       case "db_stats":
-        return await this.handleDbStats(args);
+        return await this.handleDbStats(args, requireDispatchFrameStore(frameStore));
 
       case "turncost_calculate":
-        return await this.handleTurncostCalculate(args);
+        return await this.handleTurncostCalculate(args, requireDispatchFrameStore(frameStore));
 
       case "contradictions_scan":
-        return await this.handleContradictionsScan(args);
+        return await this.handleContradictionsScan(args, requireDispatchFrameStore(frameStore));
 
       default:
         throw new MCPError(MCPErrorCode.INTERNAL_UNKNOWN_TOOL, `Unknown tool: ${name}`, {
@@ -588,7 +626,11 @@ export class MCPServer {
    *
    * Validates module IDs against policy with alias resolution before creating Frame (THE CRITICAL RULE)
    */
-  private async handleRemember(args: Record<string, unknown>): Promise<MCPResponse> {
+  private async handleRemember(
+    args: Record<string, unknown>,
+    frameStore: FrameStore,
+    idempotencyNamespace: string
+  ): Promise<MCPResponse> {
     const {
       reference_point,
       summary_caption,
@@ -603,8 +645,11 @@ export class MCPServer {
     } = args as unknown as RememberArgs;
 
     // Check idempotency cache if request_id is provided
-    if (request_id) {
-      const cachedResponse = this.idempotencyCache.getCached(request_id);
+    const scopedRequestId = request_id
+      ? JSON.stringify([idempotencyNamespace, request_id])
+      : undefined;
+    if (scopedRequestId) {
+      const cachedResponse = this.idempotencyCache.getCached(scopedRequestId);
       if (cachedResponse) {
         logger.info(`[remember] Returning cached response for request_id: ${request_id}`);
         return cachedResponse;
@@ -700,18 +745,18 @@ export class MCPServer {
 
     // Process image attachments if provided
     const imageIds: string[] = [];
-    const imageManager = this.imageManager;
+    const imageManager = frameStore === this.frameStore ? this.imageManager : null;
     if (images && Array.isArray(images) && images.length > 0) {
       if (!imageManager) {
         throw new MCPError(
           MCPErrorCode.STORAGE_IMAGE_FAILED,
-          `Image storage is not available because it is unsupported by the ${this.frameStore.getMetadata().backend} backend`,
-          { frameId, backend: this.frameStore.getMetadata().backend }
+          `Image storage is not available because it is unsupported by the ${frameStore.getMetadata().backend} backend`,
+          { frameId, backend: frameStore.getMetadata().backend }
         );
       }
     }
 
-    await this.frameStore.saveFrame(frame);
+    await frameStore.saveFrame(frame);
 
     if (images && Array.isArray(images) && images.length > 0) {
       if (!imageManager) {
@@ -725,7 +770,7 @@ export class MCPServer {
           imageIds.push(imageId);
         } catch (error: unknown) {
           // If image storage fails, clean up the Frame and rethrow
-          await this.frameStore.deleteFrame(frameId);
+          await frameStore.deleteFrame(frameId);
           const errorMessage = error instanceof Error ? error.message : String(error);
           throw new MCPError(
             MCPErrorCode.STORAGE_IMAGE_FAILED,
@@ -737,7 +782,7 @@ export class MCPServer {
 
       // Update frame with image IDs
       frame.image_ids = imageIds;
-      await this.frameStore.saveFrame(frame);
+      await frameStore.saveFrame(frame);
     }
 
     // Generate Atlas Frame for the module scope (skip if no policy available)
@@ -786,8 +831,8 @@ export class MCPServer {
     };
 
     // Cache the response if request_id was provided
-    if (request_id) {
-      this.idempotencyCache.setCached(request_id, response);
+    if (scopedRequestId) {
+      this.idempotencyCache.setCached(scopedRequestId, response);
     }
 
     return response;
@@ -985,7 +1030,10 @@ export class MCPServer {
   /**
    * Handle mcp_lex_frame_recall tool - search Frames with Atlas Frame
    */
-  private async handleRecall(args: Record<string, unknown>): Promise<MCPResponse> {
+  private async handleRecall(
+    args: Record<string, unknown>,
+    frameStore: FrameStore
+  ): Promise<MCPResponse> {
     const {
       reference_point,
       jira,
@@ -1021,18 +1069,18 @@ export class MCPServer {
         // Use FTS5 full-text search for reference_point
         criteria.query = reference_point;
         criteria.mode = mode;
-        frames = await this.frameStore.searchFrames(criteria);
+        frames = await frameStore.searchFrames(criteria);
         matchStrategy = mode === "any" ? "fts:or" : "fts";
       } else if (jira) {
         // For jira/branch filtering, we need to search all and filter
         // The FrameStore interface doesn't have specific jira/branch methods
         // We'll use listFrames and filter in JavaScript
-        const result = await this.frameStore.listFrames({ limit: MAX_FILTER_FETCH_LIMIT });
+        const result = await frameStore.listFrames({ limit: MAX_FILTER_FETCH_LIMIT });
         frames = result.frames.filter((f) => f.jira === jira).slice(0, limit);
         matchStrategy = "filter:jira";
       } else if (branch) {
         // For branch filtering, search all and filter
-        const result = await this.frameStore.listFrames({ limit: MAX_FILTER_FETCH_LIMIT });
+        const result = await frameStore.listFrames({ limit: MAX_FILTER_FETCH_LIMIT });
         frames = result.frames.filter((f) => f.branch === branch).slice(0, limit);
         matchStrategy = "filter:branch";
       } else {
@@ -1054,7 +1102,7 @@ export class MCPServer {
 
     // Calculate search timing and get total frame count (AX #578)
     const searchTimeMs = Date.now() - searchStart;
-    const totalFrames = await this.getFrameCount();
+    const totalFrames = await this.getFrameCount(frameStore);
 
     // Build search metadata (AX #578)
     const meta = {
@@ -1156,7 +1204,10 @@ export class MCPServer {
   /**
    * Handle get_frame tool - retrieve a specific frame by ID
    */
-  private async handleGetFrame(args: Record<string, unknown>): Promise<MCPResponse> {
+  private async handleGetFrame(
+    args: Record<string, unknown>,
+    frameStore: FrameStore
+  ): Promise<MCPResponse> {
     const { frame_id, include_atlas = true, format = "full" } = args as unknown as GetFrameArgs;
 
     // Validate required field
@@ -1169,7 +1220,7 @@ export class MCPServer {
     }
 
     // Retrieve the frame by ID
-    const frame = await this.frameStore.getFrameById(frame_id);
+    const frame = await frameStore.getFrameById(frame_id);
 
     if (!frame) {
       throw new MCPError(MCPErrorCode.STORAGE_FRAME_NOT_FOUND, `Frame not found: ${frame_id}`, {
@@ -1241,7 +1292,10 @@ export class MCPServer {
   /**
    * Handle mcp_lex_frame_list tool - list recent Frames
    */
-  private async handleListFrames(args: Record<string, unknown>): Promise<MCPResponse> {
+  private async handleListFrames(
+    args: Record<string, unknown>,
+    frameStore: FrameStore
+  ): Promise<MCPResponse> {
     const {
       branch,
       module,
@@ -1259,7 +1313,7 @@ export class MCPServer {
     const needsFiltering = branch || module || since;
     const fetchLimit = needsFiltering ? MAX_FILTER_FETCH_LIMIT : limit;
 
-    const result = await this.frameStore.listFrames({
+    const result = await frameStore.listFrames({
       limit: fetchLimit,
       cursor: cursor,
     });
@@ -1473,7 +1527,10 @@ export class MCPServer {
   /**
    * Handle mcp_lex_frame_timeline tool - show timeline of Frame evolution
    */
-  private async handleTimeline(args: Record<string, unknown>): Promise<MCPResponse> {
+  private async handleTimeline(
+    args: Record<string, unknown>,
+    frameStore: FrameStore
+  ): Promise<MCPResponse> {
     const { ticketOrBranch, since, until, format = "text" } = args as unknown as TimelineArgs;
 
     // Validate required parameter
@@ -1487,7 +1544,7 @@ export class MCPServer {
 
     try {
       // Get all frames and filter by Jira ticket or branch
-      const listResult = await this.frameStore.listFrames();
+      const listResult = await frameStore.listFrames();
 
       let frames: Frame[] = [];
       let title: string;
@@ -1742,7 +1799,10 @@ export class MCPServer {
   /**
    * Handle introspect tool - discover current Lex state
    */
-  private async handleIntrospect(args: Record<string, unknown>): Promise<MCPResponse> {
+  private async handleIntrospect(
+    args: Record<string, unknown>,
+    frameStore: FrameStore
+  ): Promise<MCPResponse> {
     const { format = "full" } = args as unknown as IntrospectArgs;
 
     try {
@@ -1758,11 +1818,11 @@ export class MCPServer {
         : null;
 
       // Get state information through a backend-neutral health probe.
-      const storeHealth = await this.frameStore.getHealth();
+      const storeHealth = await frameStore.getHealth();
       const result = storeHealth.healthy
-        ? await this.frameStore.listFrames({ limit: 1 })
+        ? await frameStore.listFrames({ limit: 1 })
         : { frames: [] };
-      const frameCount = storeHealth.healthy ? await this.getFrameCount() : 0;
+      const frameCount = storeHealth.healthy ? await this.getFrameCount(frameStore) : 0;
       const latestFrame = result.frames.length > 0 ? result.frames[0].timestamp : null;
 
       // Get current branch (if available)
@@ -1798,7 +1858,7 @@ export class MCPServer {
             : this.configResolution.workspaceRoot.source,
       };
 
-      const metadata = this.frameStore.getMetadata();
+      const metadata = frameStore.getMetadata();
       const sqliteIdentity =
         metadata.backend === "sqlite"
           ? resolveStoreIdentity(metadata.location, this.dbPathSource, workspaceResolution.path)
@@ -2641,9 +2701,9 @@ export class MCPServer {
    * Get total frame count from database.
    * Uses FrameStore.getFrameCount() interface method.
    */
-  private async getFrameCount(): Promise<number> {
+  private async getFrameCount(frameStore: FrameStore): Promise<number> {
     try {
-      return await this.frameStore.getFrameCount();
+      return await frameStore.getFrameCount();
     } catch {
       return 0;
     }
@@ -2703,15 +2763,18 @@ export class MCPServer {
   /**
    * Handle db_stats tool - get database statistics
    */
-  private async handleDbStats(args: Record<string, unknown>): Promise<MCPResponse> {
+  private async handleDbStats(
+    args: Record<string, unknown>,
+    frameStore: FrameStore
+  ): Promise<MCPResponse> {
     const { detailed = false } = args as { detailed?: boolean };
 
     // Get store statistics through the FrameStore interface (no raw db access)
-    const storeStats = await this.frameStore.getStats(detailed);
+    const storeStats = await frameStore.getStats(detailed);
 
     const result: Record<string, unknown> = {
-      store: this.frameStore.getMetadata(),
-      health: await this.frameStore.getHealth(),
+      store: frameStore.getMetadata(),
+      health: await frameStore.getHealth(),
       frames: {
         total: storeStats.totalFrames,
         thisWeek: storeStats.thisWeek,
@@ -2724,9 +2787,9 @@ export class MCPServer {
     };
 
     // Add database file info when backed by SQLite
-    if (this.frameStore instanceof SqliteFrameStore) {
+    if (frameStore instanceof SqliteFrameStore) {
       const { existsSync, statSync } = await import("fs");
-      const dbPath = (this.frameStore as SqliteFrameStore).db.name;
+      const dbPath = frameStore.db.name;
       if (existsSync(dbPath)) {
         const fileStats = statSync(dbPath);
         const sizeBytes = fileStats.size;
@@ -2749,7 +2812,10 @@ export class MCPServer {
   /**
    * Handle turncost_calculate tool - calculate turn cost metrics
    */
-  private async handleTurncostCalculate(args: Record<string, unknown>): Promise<MCPResponse> {
+  private async handleTurncostCalculate(
+    args: Record<string, unknown>,
+    frameStore: FrameStore
+  ): Promise<MCPResponse> {
     const { period = "24h" } = args as { period?: string };
 
     // Parse period to ISO timestamp
@@ -2792,7 +2858,7 @@ export class MCPServer {
     }
 
     // Use the FrameStore interface for turn cost metrics (no raw db access)
-    const metrics = await this.frameStore.getTurnCostMetrics(sinceTimestamp);
+    const metrics = await frameStore.getTurnCostMetrics(sinceTimestamp);
 
     const result = {
       period,
@@ -2817,11 +2883,14 @@ export class MCPServer {
   /**
    * Handle contradictions_scan tool - scan for frame contradictions
    */
-  private async handleContradictionsScan(args: Record<string, unknown>): Promise<MCPResponse> {
+  private async handleContradictionsScan(
+    args: Record<string, unknown>,
+    frameStore: FrameStore
+  ): Promise<MCPResponse> {
     const { module, limit = 10000 } = args as { module?: string; limit?: number };
 
     // Get frames from store
-    const result = await this.frameStore.listFrames({ limit });
+    const result = await frameStore.listFrames({ limit });
     const frames = result.frames;
 
     if (frames.length === 0) {
@@ -2882,6 +2951,6 @@ export class MCPServer {
    * Properly closes the FrameStore on shutdown.
    */
   async close(): Promise<void> {
-    await this.frameStore.close();
+    await this.frameStore?.close();
   }
 }

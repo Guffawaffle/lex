@@ -143,6 +143,37 @@ export interface TrustedRuntimeScopeEntrypointGuardV1 {
   readonly request: TrustedRuntimeScopeInvocationRequestV1;
 }
 
+export interface TrustedRuntimeScopeEntrypointGuardOptionsV1 extends TrustedRuntimeScopeBootstrapDependenciesV1 {
+  readonly process: TrustedProcessCaptureV1;
+  readonly runtimeId: RuntimeId;
+  readonly traceId: TraceId;
+}
+
+/**
+ * Canonical host wiring shared by CLI and MCP. Hosts inject authority and
+ * selection once; neither entrypoint reconstructs ambient authority state.
+ */
+export function createTrustedRuntimeScopeEntrypointGuard(
+  options: TrustedRuntimeScopeEntrypointGuardOptionsV1
+): TrustedRuntimeScopeEntrypointGuardV1 {
+  const bootstrap = captureTrustedBootstrapInput(options.process);
+  const runtimeId = requireNonEmpty(options.runtimeId, "runtimeId") as RuntimeId;
+  const traceId = requireNonEmpty(options.traceId, "traceId") as TraceId;
+  return Object.freeze({
+    bootstrap: createTrustedRuntimeScopeBootstrap({
+      authorityDirectory: options.authorityDirectory,
+      discovery: options.discovery,
+      ...(options.registryFactory ? { registryFactory: options.registryFactory } : {}),
+    }),
+    request: Object.freeze({
+      schemaVersion: TRUSTED_RUNTIME_BOOTSTRAP_VERSION,
+      bootstrap,
+      runtimeId,
+      traceId,
+    }),
+  });
+}
+
 export function authorizeTrustedRuntimeEntrypoint(
   guard: TrustedRuntimeScopeEntrypointGuardV1,
   entrypoint: TrustedRuntimeEntrypoint,

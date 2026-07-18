@@ -2,7 +2,14 @@ import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 
 import { MCPServer } from "../../../src/memory/mcp_server/server.js";
-import { MemoryFrameStore } from "../../../src/memory/store/memory/index.js";
+import {
+  MemoryFrameStore,
+  MemoryScopedFrameStoreBackend,
+} from "../../../src/memory/store/memory/index.js";
+import {
+  SCOPED_FRAME_STORE_ERROR_CODES,
+  type FrameStore,
+} from "../../../src/memory/store/index.js";
 import { run } from "../../../src/shared/cli/index.js";
 import { AXErrorException } from "../../../src/shared/errors/ax-error.js";
 import {
@@ -21,7 +28,6 @@ import {
 } from "../../../src/shared/runtime-scope/index.js";
 
 const FRAME_READ = "frame:read" as CapabilityId;
-const FRAME_WRITE = "frame:write" as CapabilityId;
 
 function fakeInvocationContext(): InvocationContextV1 {
   return {
@@ -136,7 +142,6 @@ describe("trusted runtime-scope entrypoint guards", () => {
       runtimeScope: {
         bootstrap: successfulBootstrap(seen),
         request: invocationRequest,
-        requestedCapabilities: [FRAME_READ],
         onResolved: () => {
           resolved = true;
         },
@@ -149,7 +154,7 @@ describe("trusted runtime-scope entrypoint guards", () => {
     assert.equal(resolved, true);
     assert.equal(seen.length, 1);
     assert.equal(seen[0]?.entrypoint, "cli");
-    assert.deepEqual(seen[0]?.requestedCapabilities, [FRAME_READ]);
+    assert.deepEqual(seen[0]?.requestedCapabilities, []);
     assert.equal(seen[0]?.diagnosticRequest?.level, "summary");
     assert.equal(emitted.length, 1);
   });
@@ -162,7 +167,6 @@ describe("trusted runtime-scope entrypoint guards", () => {
           runtimeScope: {
             bootstrap: deniedBootstrap(seen),
             request: invocationRequest,
-            requestedCapabilities: [FRAME_READ],
             emitDiagnostics: () => {},
           },
         }),
@@ -181,7 +185,6 @@ describe("trusted runtime-scope entrypoint guards", () => {
           runtimeScope: {
             bootstrap: deniedBootstrap(seen),
             request: invocationRequest,
-            requestedCapabilities: [FRAME_READ],
             emitDiagnostics: () => {},
           },
         }),
@@ -194,13 +197,13 @@ describe("trusted runtime-scope entrypoint guards", () => {
 
   test("MCP resolves per tool call and attaches opt-in diagnostics", async () => {
     const seen: TrustedRuntimeScopeBootstrapRequestV1[] = [];
+    const backend = new MemoryScopedFrameStoreBackend();
     const server = new MCPServer({
       frameStore: new MemoryFrameStore(),
+      frameStoreBinder: backend,
       runtimeScope: {
         bootstrap: successfulBootstrap(seen),
         request: invocationRequest,
-        requestedCapabilitiesForTool: (name) =>
-          name === "frame_create" ? [FRAME_WRITE] : [FRAME_READ],
       },
     });
     try {
@@ -226,6 +229,7 @@ describe("trusted runtime-scope entrypoint guards", () => {
       assert.ok(listed.every((tool) => "diagnostics" in tool.inputSchema.properties));
     } finally {
       await server.close();
+      await backend.close();
     }
   });
 
@@ -236,7 +240,6 @@ describe("trusted runtime-scope entrypoint guards", () => {
       runtimeScope: {
         bootstrap: successfulBootstrap(seen),
         request: invocationRequest,
-        requestedCapabilitiesForTool: () => [FRAME_WRITE],
       },
     });
     try {
@@ -266,12 +269,13 @@ describe("trusted runtime-scope entrypoint guards", () => {
   test("MCP denial blocks a mutating tool before the store is called", async () => {
     const seen: TrustedRuntimeScopeBootstrapRequestV1[] = [];
     const store = new MemoryFrameStore();
+    const backend = new MemoryScopedFrameStoreBackend();
     const server = new MCPServer({
       frameStore: store,
+      frameStoreBinder: backend,
       runtimeScope: {
         bootstrap: deniedBootstrap(seen),
         request: invocationRequest,
-        requestedCapabilitiesForTool: () => [FRAME_WRITE],
       },
     });
     try {
@@ -293,6 +297,188 @@ describe("trusted runtime-scope entrypoint guards", () => {
       assert.equal(seen.length, 1);
     } finally {
       await server.close();
+      await backend.close();
+    }
+  });
+
+  test("CLI refuses Frame dispatch when trusted scope has no binder", async () => {
+    const seen: TrustedRuntimeScopeBootstrapRequestV1[] = [];
+    await assert.rejects(
+      () =>
+        run(["node", "lex", "recall", "scope-required"], {
+          runtimeScope: {
+            bootstrap: successfulBootstrap(seen),
+            request: invocationRequest,
+            emitDiagnostics: () => {},
+          },
+        }),
+      (error: unknown) =>
+        error instanceof AXErrorException &&
+        error.axError.code === SCOPED_FRAME_STORE_ERROR_CODES.INVALID_SCOPE
+    );
+    assert.equal(seen.length, 0);
+  });
+
+  test("CLI does not route legacy physical database administration through a normal binder", async () => {
+    const seen: TrustedRuntimeScopeBootstrapRequestV1[] = [];
+    const backend = new MemoryScopedFrameStoreBackend();
+    await assert.rejects(
+      () =>
+        run(["node", "lex", "db", "stats"], {
+          runtimeScope: {
+            bootstrap: successfulBootstrap(seen),
+            request: invocationRequest,
+            frameStoreBinder: backend,
+            emitDiagnostics: () => {},
+          },
+        }),
+      (error: unknown) =>
+        error instanceof AXErrorException &&
+        error.axError.code === SCOPED_FRAME_STORE_ERROR_CODES.INVALID_SCOPE
+    );
+    assert.equal(seen.length, 0);
+    await backend.close();
+  });
+
+  test("MCP refuses Frame dispatch when trusted scope has no binder", async () => {
+    const seen: TrustedRuntimeScopeBootstrapRequestV1[] = [];
+    const store = new MemoryFrameStore();
+    const server = new MCPServer({
+      frameStore: store,
+      runtimeScope: {
+        bootstrap: successfulBootstrap(seen),
+        request: invocationRequest,
+      },
+    });
+    try {
+      const response = await server.handleRequest({
+        method: "tools/call",
+        params: { name: "frame_list", arguments: {} },
+      });
+      assert.equal(response.error?.code, SCOPED_FRAME_STORE_ERROR_CODES.INVALID_SCOPE);
+      assert.equal(seen.length, 0);
+      assert.equal(store.size(), 0);
+    } finally {
+      await server.close();
+    }
+  });
+
+  test("MCP trusted-scope misconfiguration never eagerly opens the legacy store", async () => {
+    const seen: TrustedRuntimeScopeBootstrapRequestV1[] = [];
+    const server = new MCPServer({
+      runtimeScope: {
+        bootstrap: successfulBootstrap(seen),
+        request: invocationRequest,
+      },
+    });
+    try {
+      assert.equal((server as unknown as { frameStore?: FrameStore }).frameStore, undefined);
+      const response = await server.handleRequest({
+        method: "tools/call",
+        params: {
+          name: "frame_validate",
+          arguments: {
+            reference_point: "validation-needs-no-store",
+            summary_caption: "No legacy initialization",
+            status_snapshot: { next_action: "retain fail-closed startup" },
+            module_scope: ["runtime-scope"],
+          },
+        },
+      });
+      assert.equal(response.error, undefined);
+      assert.deepEqual(
+        seen.map(({ requestedCapabilities }) => requestedCapabilities),
+        [[]]
+      );
+    } finally {
+      await server.close();
+    }
+  });
+
+  test("MCP binds the resolved scope lexically without eagerly opening a legacy store", async () => {
+    const seen: TrustedRuntimeScopeBootstrapRequestV1[] = [];
+    const backend = new MemoryScopedFrameStoreBackend();
+    const server = new MCPServer({
+      frameStoreBinder: backend,
+      runtimeScope: {
+        bootstrap: successfulBootstrap(seen),
+        request: invocationRequest,
+      },
+    });
+    try {
+      const created = await server.handleRequest({
+        method: "tools/call",
+        params: {
+          name: "frame_create",
+          arguments: {
+            reference_point: "lexical-scope-handoff",
+            summary_caption: "Bound after authorization",
+            status_snapshot: { next_action: "verify isolated recall" },
+            module_scope: ["memory/store"],
+          },
+        },
+      });
+      assert.equal(created.error, undefined);
+
+      const listed = await server.handleRequest({
+        method: "tools/call",
+        params: { name: "frame_list", arguments: { limit: 10, format: "compact" } },
+      });
+      assert.equal(listed.error, undefined);
+      assert.equal((listed.data?.frames as unknown[] | undefined)?.length, 1);
+      assert.deepEqual(
+        seen.map(({ requestedCapabilities }) => requestedCapabilities),
+        [["frame:read", "frame:write"], ["frame:read"]]
+      );
+    } finally {
+      await server.close();
+      await backend.close();
+    }
+  });
+
+  test("MCP idempotency responses cannot bleed across authorized workspaces", async () => {
+    let workspace = "workspace-a";
+    const bootstrap: TrustedRuntimeScopeBootstrapV1 = {
+      async resolve(request) {
+        return {
+          resolved: true,
+          invocationContext: fakeInvocationContext(),
+          authorizedScope: {
+            ...fakeAuthorizedScope(request.requestedCapabilities),
+            workspaceId: workspace as never,
+          },
+        };
+      },
+    };
+    const backend = new MemoryScopedFrameStoreBackend();
+    const server = new MCPServer({
+      frameStoreBinder: backend,
+      runtimeScope: { bootstrap, request: invocationRequest },
+    });
+    const call = () =>
+      server.handleRequest({
+        method: "tools/call",
+        params: {
+          name: "frame_create",
+          arguments: {
+            request_id: "same-agent-retry-key",
+            reference_point: "idempotency-scope",
+            summary_caption: `Created in ${workspace}`,
+            status_snapshot: { next_action: "verify scope partition" },
+            module_scope: ["memory/store"],
+          },
+        },
+      });
+    try {
+      const first = await call();
+      workspace = "workspace-b";
+      const second = await call();
+      assert.equal(first.error, undefined);
+      assert.equal(second.error, undefined);
+      assert.notEqual(first.data?.frame_id, second.data?.frame_id);
+    } finally {
+      await server.close();
+      await backend.close();
     }
   });
 });

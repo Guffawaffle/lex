@@ -588,9 +588,12 @@ export async function buildSessionContext(
   return fitToBudget(context, options.json ? "json" : "text");
 }
 
-export async function context(options: ContextOptions = {}): Promise<void> {
+export async function context(
+  options: ContextOptions = {},
+  injectedStore?: FrameStore
+): Promise<void> {
   try {
-    const result = await buildSessionContext(options);
+    const result = await buildSessionContext(options, injectedStore);
     if (options.json) json(result);
     else raw(renderSessionContextText(result));
   } catch (error) {

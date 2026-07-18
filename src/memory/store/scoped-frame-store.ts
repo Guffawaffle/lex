@@ -8,6 +8,7 @@
 
 import type { Frame } from "../frames/types.js";
 import type {
+  FrameStore,
   FrameListOptions,
   FrameListResult,
   FrameSearchCriteria,
@@ -134,4 +135,31 @@ export interface FrameStoreAdmin {
 /** Separate binding boundary for explicitly authorized administration. */
 export interface FrameStoreAdminBinder {
   bindAdmin(authorizedScope: AuthorizedScopeV1): FrameStoreAdmin;
+}
+
+/**
+ * Transitional lexical adapter for existing command/tool handlers. It does
+ * not add selectors or retain scope globally; every method remains enforced
+ * by the already-bound ScopedFrameStore view.
+ */
+export function scopedFrameStoreAsLegacyView(store: ScopedFrameStore): FrameStore {
+  return Object.freeze({
+    getMetadata: () => store.getMetadata(),
+    getHealth: () => store.getHealth(),
+    saveFrame: (frame: Frame) => store.saveFrame(frame),
+    saveFrames: (frames: Frame[]) => store.saveFrames(frames),
+    getFrameById: (id: string) => store.getFrameById(id),
+    searchFrames: (criteria: FrameSearchCriteria) => store.searchFrames(criteria),
+    listFrames: (options?: FrameListOptions) => store.listFrames(options),
+    deleteFrame: (id: string) => store.deleteFrame(id),
+    deleteFramesBefore: (date: Date) => store.deleteFramesBefore(date),
+    deleteFramesByBranch: (branch: string) => store.deleteFramesByBranch(branch),
+    deleteFramesByModule: (moduleId: string) => store.deleteFramesByModule(moduleId),
+    getFrameCount: () => store.getFrameCount(),
+    getStats: (detailed?: boolean) => store.getStats(detailed),
+    getTurnCostMetrics: (since?: string) => store.getTurnCostMetrics(since),
+    updateFrame: (id: string, updates: Partial<Frame>) => store.updateFrame(id, updates),
+    purgeSuperseded: () => store.purgeSuperseded(),
+    close: () => store.close(),
+  });
 }
