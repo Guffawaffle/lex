@@ -84,8 +84,13 @@ jobs:
       - name: Run all tests
         run: npm run test:all
 
+      - name: Validate packed package and clean consumer
+        run: |
+          npm run guard:pack
+          npm run test:smoke
+
       - name: Create tarball
-        run: npm pack
+        run: npm pack --ignore-scripts
 
       - name: Upload artifact
         uses: actions/upload-artifact@v6
