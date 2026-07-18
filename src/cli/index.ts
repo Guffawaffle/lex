@@ -9,6 +9,7 @@ export type {
   CreateProgramOptionsV1,
   CliRuntimeScopeGuardV1,
   CliRunOptionsV1,
+  WorkspaceAdminCliV1,
 } from "../shared/cli/index.js";
 export type { RememberOptions } from "../shared/cli/remember.js";
 export type { RecallOptions } from "../shared/cli/recall.js";

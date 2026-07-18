@@ -35,6 +35,7 @@ export {
   FRAME_STORE_CAPABILITIES,
   SCOPED_FRAME_STORE_ERROR_CODES,
   ScopedFrameStoreError,
+  scopedFrameStoreAsLegacyView,
 } from "./scoped-frame-store.js";
 export type {
   FrameStoreCapability,

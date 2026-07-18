@@ -181,6 +181,7 @@ export {
   captureTrustedBootstrapInput,
   registryLocationFromBootstrap,
   createTrustedRuntimeScopeBootstrap,
+  createTrustedRuntimeScopeEntrypointGuard,
   authorizeTrustedRuntimeEntrypoint,
   type TrustedRuntimeEntrypoint,
   type RuntimeAuthorityMode,
@@ -195,9 +196,49 @@ export {
   type TrustedRuntimeScopeBootstrapV1,
   type TrustedRuntimeScopeInvocationRequestV1,
   type TrustedRuntimeScopeEntrypointGuardV1,
+  type TrustedRuntimeScopeEntrypointGuardOptionsV1,
 } from "./bootstrap.js";
 
 export {
   WORKSPACE_AUTHORITY_ERROR_CODES,
   type WorkspaceAuthorityErrorCode,
 } from "../errors/error-codes.js";
+
+export {
+  RUNTIME_OPERATION_CAPABILITIES,
+  MCP_TOOL_ALIASES,
+  TRUSTED_CLI_OPERATIONS,
+  TRUSTED_CLI_CONTROL_OPERATIONS,
+  CANONICAL_MCP_TOOLS,
+  UnknownTrustedOperationError,
+  trustedCliOperationFromArgv,
+  capabilitiesForCliOperation,
+  capabilitiesForCliInvocation,
+  canonicalMcpToolName,
+  capabilitiesForMcpTool,
+  type CanonicalMcpTool,
+  type TrustedCliOperation,
+} from "./capabilities.js";
+
+export {
+  REPOSITORY_DECLARATION_FILE,
+  NodeNativeGitEvidenceProvider,
+  NodeRuntimeScopeDiscoveryAdapter,
+  type TrustedRuntimeSelectionV1,
+  type TrustedRuntimeSelectionProviderV1,
+  type NativeGitEvidenceV1,
+  type NativeGitEvidenceProviderV1,
+  type NodeRuntimeScopeDiscoveryOptionsV1,
+} from "./discovery.js";
+
+export {
+  WORKSPACE_ADMIN_CONTRACT_VERSION,
+  WorkspaceBindingAdminService,
+  type WorkspaceAdminInvocationV1,
+  type WorkspaceBindRequestV1,
+  type WorkspaceBindingReferenceRequestV1,
+  type WorkspaceBindingInspectionV1,
+  type WorkspaceRegistryRecoveryV1,
+  type WorkspaceBindingAdminServiceV1,
+  type WorkspaceBindingAdminDependenciesV1,
+} from "./workspace-admin.js";
