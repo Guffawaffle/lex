@@ -14,10 +14,10 @@
  *   2 - Script error
  */
 
-import { execSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { readdirSync, readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const rootDir = join(__dirname, "..");
@@ -30,7 +30,40 @@ function getPackageVersion() {
 
 function getGitTags() {
   try {
-    const output = execSync('git tag -l "v*"', {
+    const output = execFileSync("git", ["tag", "-l", "v*"], {
+      cwd: rootDir,
+      encoding: "utf8",
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+    return output.trim().split("\n").filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+export function releaseIntentFiles(paths) {
+  return paths
+    .filter(
+      (path) =>
+        path.startsWith(".changeset/") && path.endsWith(".md") && path !== ".changeset/README.md"
+    )
+    .sort();
+}
+
+export function findStaleReleaseIntentFiles(currentPaths, taggedPaths) {
+  const tagged = new Set(releaseIntentFiles(taggedPaths));
+  return releaseIntentFiles(currentPaths).filter((path) => tagged.has(path));
+}
+
+function getCurrentChangesetPaths() {
+  return readdirSync(join(rootDir, ".changeset"), { withFileTypes: true }).map(
+    (entry) => `.changeset/${entry.name}`
+  );
+}
+
+function getTaggedChangesetPaths(tag) {
+  try {
+    const output = execFileSync("git", ["ls-tree", "-r", "--name-only", tag, "--", ".changeset"], {
       cwd: rootDir,
       encoding: "utf8",
       stdio: ["pipe", "pipe", "pipe"],
@@ -50,7 +83,28 @@ function main() {
   console.log(`🏷️  Expected tag: ${expectedTag}`);
 
   if (tags.includes(expectedTag)) {
-    console.log(`✅ Tag ${expectedTag} exists. No drift detected.`);
+    const currentChangesets = getCurrentChangesetPaths();
+    const taggedChangesets = getTaggedChangesetPaths(expectedTag);
+    const staleChangesets = findStaleReleaseIntentFiles(currentChangesets, taggedChangesets);
+
+    if (staleChangesets.length > 0) {
+      console.log(`\n❌ STALE RELEASE INTENT: ${expectedTag} exists, but these`);
+      console.log("changesets were already present in that release tag:");
+      staleChangesets.forEach((path) => console.log(`  - ${path}`));
+      console.log(
+        "\nRemove them only after verifying their changes are already represented " +
+          "in the tagged changelog. Changesets added after the tag remain valid."
+      );
+      process.exit(1);
+    }
+
+    const newChangesets = releaseIntentFiles(currentChangesets).filter(
+      (path) => !taggedChangesets.includes(path)
+    );
+    console.log(`✅ Tag ${expectedTag} exists. No release drift detected.`);
+    if (newChangesets.length > 0) {
+      console.log(`✅ ${newChangesets.length} post-${expectedTag} changeset(s) remain queued.`);
+    }
     process.exit(0);
   } else {
     console.log(`\n❌ DRIFT DETECTED: Tag ${expectedTag} does not exist.`);
@@ -73,9 +127,11 @@ function main() {
   }
 }
 
-try {
-  main();
-} catch (err) {
-  console.error("❌ Script error:", err.message);
-  process.exit(2);
+if (process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url) {
+  try {
+    main();
+  } catch (err) {
+    console.error("❌ Script error:", err.message);
+    process.exit(2);
+  }
 }
