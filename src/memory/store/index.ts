@@ -88,11 +88,19 @@ export type {
 
 // PostgreSQL FrameStore - opt-in shared backend for cross-platform storage
 export {
+  PostgresFrameStoreAdministration,
   PostgresFrameStore,
+  PostgresScopedFrameStoreBackend,
   migratePostgresFrameStore,
+  planPostgresFrameStoreMigration,
   POSTGRES_FRAME_STORE_SCHEMA_VERSION,
 } from "./postgres/index.js";
-export type { PostgresFrameStoreAccessMode, PostgresFrameStoreOptions } from "./postgres/index.js";
+export type {
+  PostgresFrameStoreAccessMode,
+  PostgresFrameStoreMigrationPlan,
+  PostgresFrameStoreOptions,
+  PostgresScopedFrameStoreOptions,
+} from "./postgres/index.js";
 
 // Memory-based store implementations for testing
 export { MemoryFrameStore, MemoryScopedFrameStoreBackend } from "./memory/index.js";

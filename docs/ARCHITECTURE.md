@@ -320,9 +320,10 @@ npm install lex-scanner-go
 - File locking challenges on NFS
 - No row-level security
 
-**Alternative considered:** PostgreSQL
-- **Rejected for 0.4.0** because it requires separate server process
-- **Planned for 0.7.0** as optional backend for multi-user deployments
+**Shared-store alternative:** PostgreSQL
+- Opt-in because it requires a separate server process
+- Lex 3.0 uses explicit scoped queries plus forced RLS for tenant/workspace isolation
+- Runtime and migration/admin roles are structurally separate
 
 ### Database Schema Evolution
 
