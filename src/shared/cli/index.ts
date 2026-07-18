@@ -44,6 +44,16 @@ import { introspect, type IntrospectOptions } from "./introspect.js";
 import { context, type ContextOptions } from "./context.js";
 import { hints, type HintsOptions } from "./hints.js";
 import * as output from "./output.js";
+import { AXErrorException } from "../errors/ax-error.js";
+import {
+  DIAGNOSTIC_CONTRACT_VERSION,
+  authorizeTrustedRuntimeEntrypoint,
+  type CapabilityId,
+  type DiagnosticEnvelopeV1,
+  type DiagnosticRequestV1,
+  type TrustedRuntimeScopeBootstrapResultV1,
+  type TrustedRuntimeScopeEntrypointGuardV1,
+} from "../runtime-scope/index.js";
 import { readFileSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
@@ -66,7 +76,11 @@ function getVersion(): string {
 /**
  * Create and configure the CLI program
  */
-export function createProgram(): Command {
+export interface CreateProgramOptionsV1 {
+  readonly runtimeScopeDiagnostics?: boolean;
+}
+
+export function createProgram(options: CreateProgramOptionsV1 = {}): Command {
   const program = new Command();
 
   program
@@ -75,6 +89,16 @@ export function createProgram(): Command {
     .version(getVersion())
     .option("--json", "Output results in JSON format")
     .option("--verbose", "Enable diagnostic logging (Pino logs)");
+  if (options.runtimeScopeDiagnostics) {
+    program
+      .option("--diagnostic", "Include a redacted runtime-scope diagnostic summary")
+      .option(
+        "--diagnostic-level <level>",
+        "Runtime-scope diagnostic detail: summary or full (requires --diagnostic)",
+        /^(summary|full)$/,
+        undefined
+      );
+  }
 
   // lex init command
   program
@@ -675,8 +699,86 @@ function parseList(value: string): string[] | undefined {
 /**
  * Run the CLI program
  */
-export async function run(argv: string[] = process.argv): Promise<void> {
-  const program = createProgram();
+export interface CliRuntimeScopeGuardV1 extends TrustedRuntimeScopeEntrypointGuardV1 {
+  readonly requestedCapabilities: readonly CapabilityId[];
+  readonly onResolved?: (
+    result: Extract<TrustedRuntimeScopeBootstrapResultV1, { readonly resolved: true }>
+  ) => void | Promise<void>;
+  readonly emitDiagnostics: (diagnostics: DiagnosticEnvelopeV1) => void | Promise<void>;
+}
+
+export interface CliRunOptionsV1 {
+  readonly runtimeScope?: CliRuntimeScopeGuardV1;
+}
+
+function diagnosticRequestFromArgv(argv: readonly string[]): DiagnosticRequestV1 | undefined {
+  const boundary = argv.indexOf("--");
+  const runtimeArguments = boundary === -1 ? argv : argv.slice(0, boundary);
+  if (!runtimeArguments.includes("--diagnostic")) return undefined;
+  const equalsArgument = runtimeArguments.find((argument) =>
+    argument.startsWith("--diagnostic-level=")
+  );
+  if (equalsArgument) {
+    const level = equalsArgument.slice("--diagnostic-level=".length);
+    if (level !== "summary" && level !== "full") return undefined;
+    return Object.freeze({ schemaVersion: DIAGNOSTIC_CONTRACT_VERSION, level });
+  }
+  const index = runtimeArguments.indexOf("--diagnostic-level");
+  const candidate = index === -1 ? undefined : runtimeArguments[index + 1];
+  const level = candidate === "full" || candidate === "summary" ? candidate : "summary";
+  return Object.freeze({ schemaVersion: DIAGNOSTIC_CONTRACT_VERSION, level });
+}
+
+/**
+ * Run one CLI invocation. When a trusted runtime-scope guard is supplied, it
+ * resolves before Commander dispatches any command and exposes scope only to
+ * the injected callback that Phase 4 will use to bind the store.
+ */
+export async function run(
+  argv: string[] = process.argv,
+  options: CliRunOptionsV1 = {}
+): Promise<void> {
+  const boundary = argv.indexOf("--");
+  const runtimeArguments = boundary === -1 ? argv : argv.slice(0, boundary);
+  const hasDiagnosticLevel = runtimeArguments.some(
+    (argument) => argument === "--diagnostic-level" || argument.startsWith("--diagnostic-level=")
+  );
+  if (hasDiagnosticLevel && !runtimeArguments.includes("--diagnostic")) {
+    throw new AXErrorException(
+      "VALIDATION_INVALID_TYPE",
+      "--diagnostic-level requires --diagnostic.",
+      ["Add --diagnostic or remove --diagnostic-level."]
+    );
+  }
+  const diagnosticRequest = diagnosticRequestFromArgv(argv);
+  if (diagnosticRequest && !options.runtimeScope) {
+    throw new AXErrorException(
+      "LEX_WORKSPACE_UNBOUND",
+      "Runtime-scope diagnostics require a configured trusted bootstrap.",
+      ["Configure trusted workspace bootstrap before requesting --diagnostic."]
+    );
+  }
+  if (options.runtimeScope) {
+    const result = await authorizeTrustedRuntimeEntrypoint(
+      options.runtimeScope,
+      "cli",
+      options.runtimeScope.requestedCapabilities,
+      diagnosticRequest
+    );
+    if (result.diagnostics) {
+      await options.runtimeScope.emitDiagnostics(result.diagnostics);
+    }
+    if (!result.resolved) {
+      throw new AXErrorException(
+        result.error.code,
+        result.error.message,
+        ["Inspect the local workspace binding or perform an explicit administrative bind."],
+        result.diagnostics ? { diagnostics: result.diagnostics } : undefined
+      );
+    }
+    await options.runtimeScope.onResolved?.(result);
+  }
+  const program = createProgram({ runtimeScopeDiagnostics: options.runtimeScope !== undefined });
   await program.parseAsync(argv);
 }
 

@@ -175,6 +175,29 @@ export {
 } from "./resolver.js";
 
 export {
+  TRUSTED_RUNTIME_BOOTSTRAP_VERSION,
+  RUNTIME_DIAGNOSTIC_CAPABILITY,
+  RUNTIME_SCOPE_COMPATIBILITY_ENVIRONMENT,
+  captureTrustedBootstrapInput,
+  registryLocationFromBootstrap,
+  createTrustedRuntimeScopeBootstrap,
+  authorizeTrustedRuntimeEntrypoint,
+  type TrustedRuntimeEntrypoint,
+  type RuntimeAuthorityMode,
+  type TrustedProcessCaptureV1,
+  type RuntimeScopeDiscoveryV1,
+  type RuntimeScopeDiscoveryAdapterV1,
+  type RuntimeScopeRegistryHandleV1,
+  type RuntimeScopeRegistryFactoryV1,
+  type TrustedRuntimeScopeBootstrapDependenciesV1,
+  type TrustedRuntimeScopeBootstrapRequestV1,
+  type TrustedRuntimeScopeBootstrapResultV1,
+  type TrustedRuntimeScopeBootstrapV1,
+  type TrustedRuntimeScopeInvocationRequestV1,
+  type TrustedRuntimeScopeEntrypointGuardV1,
+} from "./bootstrap.js";
+
+export {
   WORKSPACE_AUTHORITY_ERROR_CODES,
   type WorkspaceAuthorityErrorCode,
 } from "../errors/error-codes.js";
