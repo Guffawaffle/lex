@@ -298,6 +298,25 @@ describe("SQLite local binding registry", () => {
         ).status,
         "authority-revoked"
       );
+      const staleVersion = await registry.verifyBinding({
+        binding,
+        declaration,
+        evidence: evidence("/srv/lex"),
+        authorityEvidence: authority({ authorityVersion: "authority-v2" as AuthorityVersion }),
+        verifiedAt: NOW,
+      });
+      assert.equal(staleVersion.status, "mismatch");
+      assert.deepEqual(staleVersion.reasons, ["authority-cache-stale"]);
+
+      const staleDigest = await registry.verifyBinding({
+        binding,
+        declaration,
+        evidence: evidence("/srv/lex"),
+        authorityEvidence: authority({ authorityDigest: "sha256:new" as ContentDigest }),
+        verifiedAt: NOW,
+      });
+      assert.equal(staleDigest.status, "mismatch");
+      assert.deepEqual(staleDigest.reasons, ["authority-cache-stale"]);
     });
   });
 

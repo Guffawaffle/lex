@@ -851,6 +851,15 @@ export class SqliteLocalBindingRegistry implements LocalBindingRegistry {
       status = "authority-revoked";
       reasons = Object.freeze(["authority-grant-revoked"]);
     } else if (
+      request.binding.cachedAuthority &&
+      (request.binding.cachedAuthority.authorityVersion !==
+        request.authorityEvidence.authorityVersion ||
+        request.binding.cachedAuthority.authorityDigest !==
+          request.authorityEvidence.authorityDigest)
+    ) {
+      status = "mismatch";
+      reasons = Object.freeze(["authority-cache-stale"]);
+    } else if (
       request.binding.registryInstanceId !== this.registryInstanceId ||
       request.binding.executionSurfaceId !== this.executionSurfaceId
     ) {

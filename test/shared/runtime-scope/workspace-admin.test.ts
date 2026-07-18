@@ -12,6 +12,7 @@ import {
   captureTrustedBootstrapInput,
   registryLocationFromBootstrap,
   type AuthenticationRef,
+  type AuthorityDirectory,
   type AuthorityGrantId,
   type AuthorityVersion,
   type CapabilityId,
@@ -35,6 +36,29 @@ const TENANT_ID = "tenant-platform" as TenantId;
 const WORKSPACE_ID = "workspace-lex" as WorkspaceId;
 const WORKSPACE_AXF_ID = "workspace-axf" as WorkspaceId;
 const REPOSITORY_ID = "repository-lex" as RepositoryId;
+
+class SnapshotOnlyAuthority implements AuthorityDirectory {
+  snapshots = 0;
+
+  constructor(private readonly directory: AuthorityDirectory) {}
+
+  resolvePrincipal: AuthorityDirectory["resolvePrincipal"] = () => this.outsideSnapshot();
+  getTenant: AuthorityDirectory["getTenant"] = () => this.outsideSnapshot();
+  getWorkspace: AuthorityDirectory["getWorkspace"] = () => this.outsideSnapshot();
+  getRepository: AuthorityDirectory["getRepository"] = () => this.outsideSnapshot();
+  authorizeWorkspace: AuthorityDirectory["authorizeWorkspace"] = () => this.outsideSnapshot();
+
+  withConsistentSnapshot<Result>(
+    operation: (directory: AuthorityDirectory) => Promise<Result>
+  ): Promise<Result> {
+    this.snapshots += 1;
+    return operation(this.directory);
+  }
+
+  private outsideSnapshot<Result>(): Promise<Result> {
+    return Promise.reject(new Error("Authority lookup escaped its consistent snapshot."));
+  }
+}
 
 function authority(capabilities: readonly CapabilityId[]): InMemoryAuthorityDirectory {
   const seed: InMemoryAuthoritySeedV1 = {
@@ -171,8 +195,9 @@ describe("workspace binding administration", () => {
       capturedAt: NOW,
     });
     let nextId = 0;
+    const consistentAuthority = new SnapshotOnlyAuthority(authority(ADMIN_CAPABILITIES));
     const service = new WorkspaceBindingAdminService({
-      authorityDirectory: authority(ADMIN_CAPABILITIES),
+      authorityDirectory: consistentAuthority,
       discovery: discovery(projectRoot),
       now: () => NOW,
       newId: () => `local-id-${(nextId += 1)}`,
@@ -197,7 +222,9 @@ describe("workspace binding administration", () => {
           error instanceof LocalRegistryError && error.code === "REGISTRY_CONFLICT"
       );
 
+      const snapshotsBeforeBind = consistentAuthority.snapshots;
       const registered = await service.bind(invocation);
+      assert.equal(consistentAuthority.snapshots, snapshotsBeforeBind + 1);
       const firstInspection = await service.inspect(invocation);
       assert.equal(firstInspection.bindings.length, 1);
       assert.equal(firstInspection.bindings[0]?.state, "active");
@@ -214,12 +241,14 @@ describe("workspace binding administration", () => {
       assert.equal(isolatedInspection.bindings[0]?.workspaceId, WORKSPACE_ID);
       assert.equal(isolatedInspection.receipts.length, 1);
 
+      const snapshotsBeforeRebind = consistentAuthority.snapshots;
       const rebound = await service.rebind({
         ...invocation,
         bindingId: registered.bindingId,
         reason: "verified move",
       });
       assert.equal(rebound.action, "rebind");
+      assert.equal(consistentAuthority.snapshots, snapshotsBeforeRebind + 1);
 
       await service.revoke({
         ...invocation,

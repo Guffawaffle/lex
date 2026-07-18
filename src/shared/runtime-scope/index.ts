@@ -35,10 +35,15 @@ export {
   type RepositorySelectorV1,
   type PrincipalResolutionRequestV1,
   type WorkspaceAuthorizationRequestV1,
+  type RepositoryAuthorizationRequestV1,
   type AuthorizedWorkspaceGrantV1,
   type WorkspaceAuthorizationDenialReason,
   type WorkspaceAuthorizationDecisionV1,
   type AuthorityDirectory,
+  type RepositoryScopedAuthorityDirectory,
+  type ConsistentAuthorityDirectory,
+  isRepositoryScopedAuthorityDirectory,
+  isConsistentAuthorityDirectory,
   type PrincipalIdentity,
   type TenantRecord,
   type WorkspaceRecord,
@@ -162,6 +167,47 @@ export {
   type InMemoryAuthorityGrantV1,
   type InMemoryAuthoritySeedV1,
 } from "./in-memory-authority.js";
+
+export {
+  PostgresAuthorityDirectory,
+  computeAuthenticationRefDigest,
+  type PostgresAuthorityDirectoryOptionsV1,
+} from "./postgres-authority.js";
+
+export {
+  POSTGRES_AUTHORITY_SCHEMA_VERSION,
+  POSTGRES_AUTHORITY_TABLES,
+} from "./postgres-authority-migrations.js";
+
+export {
+  POSTGRES_AUTHORITY_ADMIN_CONTRACT_VERSION,
+  PostgresAuthorityAdministration,
+  type AuthorityPrincipalSeedV1,
+  type AuthorityAuthenticationSeedV1,
+  type AuthorityTenantSeedV1,
+  type AuthorityWorkspaceSeedV1,
+  type AuthorityRepositorySeedV1,
+  type AuthorityWorkspaceRepositorySeedV1,
+  type AuthorityTenantMembershipSeedV1,
+  type AuthorityWorkspaceGrantSeedV1,
+  type PostgresAuthorityTopologyV1,
+  type PostgresAuthorityMigrationReceiptV1,
+  type PostgresAuthoritySeedReceiptV1,
+  type PostgresAuthorityInspectionV1,
+  type PostgresAuthorityAdministrationV1,
+} from "./postgres-authority-admin.js";
+
+export {
+  createLex3DogfoodAuthorityTopology,
+  LEX3_DOGFOOD_CANONICAL_IDS,
+} from "./dogfood-topology.js";
+
+export {
+  createPostgresTrustedRuntimeHost,
+  type TrustedCanonicalFrameStoreBinderV1,
+  type PostgresTrustedRuntimeHostOptionsV1,
+  type PostgresTrustedRuntimeHostV1,
+} from "./trusted-postgres-host.js";
 
 export {
   resolveRuntimeScope,

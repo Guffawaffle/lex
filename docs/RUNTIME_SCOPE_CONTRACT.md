@@ -147,6 +147,13 @@ Authority and registry exceptions fail closed. Normal results contain no diagnos
 
 `InMemoryAuthorityDirectory` is a deterministic test and embedding implementation of the authority contract. It is not shared PostgreSQL authority and does not establish a production trust boundary.
 
+`PostgresAuthorityDirectory` is the shared production implementation. It resolves opaque
+authentication handles through persisted digests, pins all lookups for one resolution to a
+repeatable-read transaction, verifies explicit workspace/repository associations, and rejects a
+runtime role that can mutate canonical authority. `PostgresAuthorityAdministration` is the separate
+privileged migration, provisioning, inspection, and revocation seam. See
+[PostgreSQL Canonical Authority](./POSTGRES_AUTHORITY.md).
+
 ## Phase 3 trusted bootstrap and entrypoint wiring
 
 `captureTrustedBootstrapInput` freezes `argv`, `cwd`, native platform/surface evidence, and a small compatibility-environment allow-list exactly once. The allow-list contains only home/state and caller-root discovery inputs. Database credentials and registry-path overrides are discarded, and retained environment values remain discovery inputs rather than authority.
@@ -178,6 +185,12 @@ The IDs and slugs in this file remain declaration/selection hints. Editing or co
 `WorkspaceBindingAdminService` owns the explicit `lex workspace recover|bind|inspect|rebind|revoke` lifecycle. Recovery creates only an absent, empty surface-local registry and refuses in-place repair or replacement. Every mutation is independently authorized with a named workspace-administration capability and produces or preserves registry receipts. Normal bootstrap never calls this service.
 
 `createTrustedRuntimeScopeEntrypointGuard` constructs the one canonical guard used by both `run()` and `MCPServer`. CLI authorization completes before Commander dispatch. MCP authorization completes before tool dispatch, and a denial therefore cannot invoke even a mutating in-memory test store. Command and tool capability maps are exhaustive against the real Commander tree, advertised MCP tools, and supported aliases; unknown operations reject rather than inheriting a default grant. Explicit dry-run commands attenuate write/delete capabilities.
+
+`createPostgresTrustedRuntimeHost` completes the production composition without ambient authority.
+It receives the runtime Pool, trusted selection/secret-provider seam, process capture, IDs,
+diagnostic emitter, and scoped store binder explicitly, then returns structurally ready `cli` and
+`mcp` host options backed by the same guard and binder. The CLI composition alone receives the
+explicit local binding administration service.
 
 When an operation requests any `frame:*` capability, the host must pair the guard with a `ScopedFrameStoreBinder`. The resolved `AuthorizedScope` is bound and passed lexically into that one command/tool dispatch, then the view is closed. Missing or failed binding returns `LEX_FRAME_STORE_INVALID_SCOPE`; it never falls back to a legacy unscoped store. A canonical guarded MCP host also defers physical store construction until after authorization.
 

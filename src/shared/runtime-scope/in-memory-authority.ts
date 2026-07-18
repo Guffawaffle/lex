@@ -206,6 +206,12 @@ export class InMemoryAuthorityDirectory implements AuthorityDirectory {
       });
     }
 
-    return Object.freeze({ authorized: true, grant: capable.grant });
+    return Object.freeze({
+      authorized: true,
+      grant: Object.freeze({
+        ...capable.grant,
+        capabilities: Object.freeze([...new Set(request.requestedCapabilities)]),
+      }),
+    });
   }
 }
