@@ -7,6 +7,8 @@
  */
 import fs from "fs";
 
+const packageJson = JSON.parse(fs.readFileSync("package.json", "utf8"));
+
 // Validate pack.json exists and is readable
 let packData;
 try {
@@ -36,6 +38,29 @@ if (!packData[0].files || !Array.isArray(packData[0].files)) {
 
 const files = packData[0].files.map((x) => x?.path).filter((p) => p != null);
 const allowed = ["README.md", "README.mcp.md", "LICENSE", "package.json", "CHANGELOG.md"];
+
+function exportTargets(entry) {
+  if (typeof entry === "string") return [entry];
+  if (entry && typeof entry === "object") return Object.values(entry).flatMap(exportTargets);
+  return [];
+}
+
+const requiredArtifacts = [
+  ...Object.values(packageJson.exports ?? {}).flatMap(exportTargets),
+  ...Object.values(packageJson.bin ?? {}),
+].map((target) => target.replace(/^\.\//, ""));
+
+const missingArtifacts = requiredArtifacts.filter((target) => !files.includes(target));
+if (missingArtifacts.length) {
+  console.error("❌ Public export or binary artifacts missing from tarball:", missingArtifacts);
+  process.exit(1);
+}
+
+const buildMetadata = files.filter((path) => path.endsWith(".tsbuildinfo"));
+if (buildMetadata.length) {
+  console.error("❌ TypeScript build metadata must not be published:", buildMetadata);
+  process.exit(1);
+}
 
 // Check for unexpected files
 const bad = files.filter((p) => {
@@ -80,3 +105,4 @@ console.log("  canon/ package-default files:", files.filter((p) => /^canon\//.te
 console.log("  examples/ files:", files.filter((p) => /^examples\//.test(p)).length);
 console.log("  src/policy/ files:", files.filter((p) => /^src\/policy\//.test(p)).length);
 console.log("  metadata files:", files.filter((p) => allowed.includes(p)).length);
+console.log("  required export/bin artifacts:", new Set(requiredArtifacts).size);

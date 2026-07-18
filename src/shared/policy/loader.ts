@@ -7,8 +7,7 @@
 
 import { readFileSync, existsSync } from "fs";
 import { resolve, join } from "path";
-// @ts-ignore - importing from compiled dist directory
-import type { Policy } from "../../types/policy.js";
+import type { Policy } from "../types/policy.js";
 import { getNDJSONLogger } from "../logger/index.js";
 import { AXErrorException } from "../errors/ax-error.js";
 import { POLICY_ERROR_CODES, STANDARD_NEXT_ACTIONS } from "../errors/error-codes.js";

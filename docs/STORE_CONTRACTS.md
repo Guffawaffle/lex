@@ -2,7 +2,9 @@
 
 ## Overview
 
-Lex 1.0.0 introduces persistence contracts that abstract database operations behind interfaces.
+Lex exposes persistence contracts that abstract database operations behind interfaces. The
+current normative details, including version domains and Frame record semantics, live in
+[`src/memory/store/CONTRACT.md`](../src/memory/store/CONTRACT.md).
 
 ## FrameStore
 
@@ -14,7 +16,16 @@ Lex 1.0.0 introduces persistence contracts that abstract database operations beh
 - `getFrameById(id)` — Retrieve by ID
 - `searchFrames(criteria)` — Full-text search
 - `listFrames(options)` — Paginated listing
+- `updateFrame(id, updates)` — Targeted mutation that preserves `id` and `timestamp`
+- `deleteFrame(id)` / bulk deletion — Remove visible records when authorized
 - `close()` — Release resources
+
+### Record Identity and Mutability
+
+Frame `id` values are opaque strings; UUID/ULID formats are conventions rather than validation
+requirements. `saveFrame` is an idempotent upsert. Targeted updates, deletion, and
+`superseded_by`/`merged_from` consolidation are implemented behavior, so Frames are not described
+as blanket-immutable. Frame payloads have no normative `parent_id` or lifecycle-state field.
 
 ### Search Semantics
 
@@ -31,9 +42,10 @@ Lex 1.0.0 introduces persistence contracts that abstract database operations beh
 ### Backend Selection
 
 SQLite via `SqliteFrameStore` remains the default OSS implementation. PostgreSQL via
-`PostgresFrameStore` is an explicit opt-in for shared cross-host storage. New CLI and MCP code
-should call `createFrameStore()`, which selects the backend from `LEX_STORE=sqlite|postgres` and
-defaults to SQLite.
+`PostgresFrameStore` is an explicit opt-in for shared cross-host storage. The transitional 2.x
+`createFrameStore()` factory selects those unscoped adapters from `LEX_STORE=sqlite|postgres`.
+Lex 3.0 trusted hosts do not select a backend from ambient environment variables: trusted
+composition supplies the authorized `ScopedFrameStoreBinder` after scope resolution.
 
 ### Access Modes
 

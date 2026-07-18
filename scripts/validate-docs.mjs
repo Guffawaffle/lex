@@ -255,6 +255,137 @@ for (const envVar of envVars) {
   }
 }
 
+section("Frame Contract Alignment");
+const frameVersionSources = [
+  "src/shared/types/frame.ts",
+  "src/shared/types/frame-schema.ts",
+  "src/memory/frames/types.ts",
+];
+const frameVersions = new Map();
+const frameSourceContents = new Map();
+
+for (const sourcePath of frameVersionSources) {
+  const source = readFile(sourcePath);
+  frameSourceContents.set(sourcePath, source);
+  const match = source?.match(/export const FRAME_SCHEMA_VERSION = (\d+);/);
+  if (!match) {
+    error(`${sourcePath} does not export a numeric FRAME_SCHEMA_VERSION`);
+  } else {
+    frameVersions.set(sourcePath, Number(match[1]));
+  }
+}
+
+const frameContractFields = [
+  "module_attribution",
+  "image_ids",
+  "superseded_by",
+  "merged_from",
+  "contradiction_resolution",
+];
+for (const field of frameContractFields) {
+  for (const [sourcePath, source] of frameSourceContents) {
+    if (source?.includes(field)) pass(`${sourcePath} exposes Frame field ${field}`);
+    else error(`${sourcePath} is missing current Frame field ${field}`);
+  }
+}
+
+const frameAlignmentTest = readFile("test/shared/types/frame-contract-alignment.test.ts");
+if (
+  frameAlignmentTest?.includes("Object.keys(FrameSchema.shape)") &&
+  frameAlignmentTest.includes("validateFramePayload(completeFrame)")
+) {
+  pass("Frame contract alignment has executable shape and validation coverage");
+} else {
+  error("Frame contract alignment test must compare schema fields and validation surfaces");
+}
+
+const distinctFrameVersions = new Set(frameVersions.values());
+if (frameVersions.size === frameVersionSources.length && distinctFrameVersions.size === 1) {
+  pass(`Frame runtime/type validators agree on schema v${[...distinctFrameVersions][0]}`);
+} else if (distinctFrameVersions.size > 1) {
+  error(
+    `Frame schema version drift: ${[...frameVersions.entries()]
+      .map(([path, version]) => `${path}=${version}`)
+      .join(", ")}`
+  );
+}
+
+const frameVersion = [...distinctFrameVersions][0];
+const contractSurface = readFile("docs/CONTRACT_SURFACE.md");
+const frameSourceGuide = readFile("src/shared/types/FRAME.md");
+const storeContract = readFile("src/memory/store/CONTRACT.md");
+const storeContractGuide = readFile("docs/STORE_CONTRACTS.md");
+const storeInterface = readFile("src/memory/store/frame-store.ts");
+const persistenceFrame = readFile("src/memory/frames/types.ts");
+
+if (frameVersion !== undefined) {
+  for (const [path, content, expected] of [
+    ["README.md", readme, `Frame Schema v${frameVersion}`],
+    ["docs/CONTRACT_SURFACE.md", contractSurface, `FRAME_SCHEMA_VERSION = ${frameVersion}`],
+    ["src/memory/store/CONTRACT.md", storeContract, `FRAME_SCHEMA_VERSION = ${frameVersion}`],
+    ["src/shared/types/FRAME.md", frameSourceGuide, `FRAME_SCHEMA_VERSION = ${frameVersion}`],
+  ]) {
+    if (content?.includes(expected)) pass(`${path} identifies Frame schema v${frameVersion}`);
+    else error(`${path} must identify the implemented Frame schema as v${frameVersion}`);
+  }
+}
+
+const staleNormativeClaims = [
+  "Frames are immutable once written",
+  "Every Frame has a unique `id` (UUID v4)",
+  "Frames have a `schemaVersion` field (currently `v3`)",
+  "Frames may reference other Frames via `parent_id`",
+  "**Type:** ULID",
+  "| `id` | ULID |",
+  "created → active → archived",
+];
+
+for (const [path, content] of [
+  ["docs/CONTRACT_SURFACE.md", contractSurface],
+  ["src/memory/store/CONTRACT.md", storeContract],
+  ["docs/STORE_CONTRACTS.md", storeContractGuide],
+]) {
+  for (const claim of staleNormativeClaims) {
+    if (content?.includes(claim)) error(`${path} repeats stale normative Frame claim: ${claim}`);
+  }
+}
+
+if (
+  storeContractGuide?.includes("trusted hosts do not select a backend from ambient environment")
+) {
+  pass("Store guide keeps ambient environment out of Lex 3.0 trusted composition");
+} else {
+  error(
+    "Store guide must distinguish trusted composition from the environment-selected 2.x factory"
+  );
+}
+
+for (const required of [
+  "opaque string",
+  "saveFrame` is idempotent",
+  "updateFrame",
+  "superseded_by",
+  "no normative `parent_id`",
+]) {
+  if (storeContract?.includes(required)) pass(`FrameStore contract documents ${required}`);
+  else error(`FrameStore contract must document ${required}`);
+}
+
+if (storeInterface?.includes("updateFrame(")) pass("FrameStore source exposes targeted updates");
+else error("FrameStore source no longer exposes the documented updateFrame operation");
+
+if (persistenceFrame?.includes("superseded_by: z.string().optional()")) {
+  pass("Persistence Frame schema exposes supersession metadata");
+} else {
+  error("Persistence Frame schema no longer exposes documented superseded_by metadata");
+}
+
+for (const historicalPath of ["docs/1.0.0-vertical-slice.md", "docs/specs/FRAME-SCHEMA-V3.md"]) {
+  const historical = readFile(historicalPath);
+  if (historical?.includes("**Status:** Historical")) pass(`${historicalPath} is non-normative`);
+  else error(`${historicalPath} must be marked Historical before retaining superseded contracts`);
+}
+
 // Summary
 section("Summary");
 console.log(`${GREEN}Passed:${RESET} ${passCount}`);

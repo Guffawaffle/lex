@@ -21,6 +21,13 @@ export interface ModuleAttribution {
   evidence: string[];
 }
 
+export interface ContradictionResolution {
+  type: "supersede" | "scope" | "keep-both" | "cancel";
+  contradicts_frame_id: string;
+  scope?: string;
+  note?: string;
+}
+
 export interface TurnCostComponent {
   latency: number;
   contextReset: number;
@@ -90,6 +97,8 @@ export interface Frame {
   // Deduplication metadata (v5)
   superseded_by?: string; // Frame ID that supersedes this one
   merged_from?: string[]; // Frame IDs that were merged into this one
+  // Contradiction metadata (v6)
+  contradiction_resolution?: ContradictionResolution;
 }
 
 /**
@@ -151,6 +160,10 @@ export function validateFrameMetadata(frame: unknown): frame is Frame {
     if (!Array.isArray(attribution.evidence)) return false;
     if (!attribution.evidence.every((item: unknown) => typeof item === "string")) return false;
   }
+  if (f.image_ids !== undefined) {
+    if (!Array.isArray(f.image_ids)) return false;
+    if (!f.image_ids.every((image: unknown) => typeof image === "string")) return false;
+  }
   // Validate v2 fields (optional, backward compatible)
   if (f.runId !== undefined && typeof f.runId !== "string") return false;
   if (f.planHash !== undefined && typeof f.planHash !== "string") return false;
@@ -162,6 +175,7 @@ export function validateFrameMetadata(frame: unknown): frame is Frame {
       return false;
   }
   // Validate v3 fields (optional, backward compatible)
+  if (f.userId !== undefined && typeof f.userId !== "string") return false;
   if (f.executorRole !== undefined && typeof f.executorRole !== "string") return false;
   if (f.toolCalls !== undefined) {
     if (!Array.isArray(f.toolCalls)) return false;
@@ -169,6 +183,32 @@ export function validateFrameMetadata(frame: unknown): frame is Frame {
   }
   if (f.guardrailProfile !== undefined && typeof f.guardrailProfile !== "string") return false;
   // Validate v4 fields (optional, backward compatible)
+  if (f.turnCost !== undefined) {
+    if (typeof f.turnCost !== "object" || f.turnCost === null) return false;
+    const turnCost = f.turnCost as Record<string, unknown>;
+    if (typeof turnCost.components !== "object" || turnCost.components === null) return false;
+    const components = turnCost.components as Record<string, unknown>;
+    for (const field of [
+      "latency",
+      "contextReset",
+      "renegotiation",
+      "tokenBloat",
+      "attentionSwitch",
+    ]) {
+      if (typeof components[field] !== "number") return false;
+    }
+    if (turnCost.weights !== undefined) {
+      if (typeof turnCost.weights !== "object" || turnCost.weights === null) return false;
+      const weights = turnCost.weights as Record<string, unknown>;
+      for (const field of ["lambda", "gamma", "rho", "tau", "alpha"]) {
+        if (typeof weights[field] !== "number") return false;
+      }
+    }
+    if (turnCost.weightedScore !== undefined && typeof turnCost.weightedScore !== "number")
+      return false;
+    if (turnCost.sessionId !== undefined && typeof turnCost.sessionId !== "string") return false;
+    if (turnCost.timestamp !== undefined && typeof turnCost.timestamp !== "string") return false;
+  }
   if (f.capabilityTier !== undefined) {
     if (typeof f.capabilityTier !== "string") return false;
     if (!["senior", "mid", "junior"].includes(f.capabilityTier)) return false;
@@ -184,6 +224,21 @@ export function validateFrameMetadata(frame: unknown): frame is Frame {
     if (tc.escalationReason !== undefined && typeof tc.escalationReason !== "string") return false;
     if (tc.retryCount !== undefined && typeof tc.retryCount !== "number") return false;
     if (tc.tierMismatch !== undefined && typeof tc.tierMismatch !== "boolean") return false;
+  }
+  if (f.superseded_by !== undefined && typeof f.superseded_by !== "string") return false;
+  if (f.merged_from !== undefined) {
+    if (!Array.isArray(f.merged_from)) return false;
+    if (!f.merged_from.every((id: unknown) => typeof id === "string")) return false;
+  }
+  if (f.contradiction_resolution !== undefined) {
+    if (typeof f.contradiction_resolution !== "object" || f.contradiction_resolution === null)
+      return false;
+    const resolution = f.contradiction_resolution as Record<string, unknown>;
+    if (!["supersede", "scope", "keep-both", "cancel"].includes(String(resolution.type)))
+      return false;
+    if (typeof resolution.contradicts_frame_id !== "string") return false;
+    if (resolution.scope !== undefined && typeof resolution.scope !== "string") return false;
+    if (resolution.note !== undefined && typeof resolution.note !== "string") return false;
   }
   return true;
 }

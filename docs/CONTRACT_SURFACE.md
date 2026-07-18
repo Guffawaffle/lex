@@ -86,15 +86,31 @@ See [Trusted Runtime Scope Contract](./RUNTIME_SCOPE_CONTRACT.md) and [ADR-0011]
 
 **What:** The atomic unit of AI memory.
 
-**Schema:** `schemas/frame.schema.json`
+**Public API:** `@smartergpt/lex/types`
+
+**Current Record Schema Version:** `FRAME_SCHEMA_VERSION = 7`
+
+**Sources:** `src/shared/types/frame.ts` defines the public TypeScript metadata contract,
+`src/shared/types/frame-schema.ts` provides the public Zod helpers, and
+`src/memory/frames/types.ts` is the persistence runtime validator. Their exported record-version
+constants and record fields must agree. `test/shared/types/frame-contract-alignment.test.ts`
+exercises the full field set across all validation surfaces so version-only agreement cannot hide
+shape drift.
 
 **Invariants:**
-- Frames are immutable once written
-- Every Frame has a unique `id` (UUID v4)
-- Frames have a `schemaVersion` field (currently `v3`)
-- Frames may reference other Frames via `parent_id`
+- `id` is an opaque string. Lex does not require UUID or ULID syntax; a store enforces uniqueness
+  within its bound workspace.
+- Record schema version is package metadata, not a `schemaVersion` field on each Frame.
+- `saveFrame` is an idempotent upsert by `id`. `updateFrame` supports targeted changes while
+  preserving `id` and `timestamp`.
+- Supersession and consolidation use `superseded_by` and `merged_from`. There is no normative
+  `parent_id` relation or created/active/archived lifecycle field.
+- Scope-bound stores derive tenant/workspace ownership and creator attribution from
+  `AuthorizedScope`; callers do not place authority metadata in Frame payloads.
 
-**Guarantee:** A valid Frame today will be a valid Frame tomorrow. Schema evolution is additive only within a major version.
+**Guarantee:** Existing valid episodic Frames remain readable. Optional record metadata evolves
+additively within a compatible package line; changing required fields or accepted semantics is a
+breaking package change.
 
 ---
 

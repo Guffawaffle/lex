@@ -1,10 +1,14 @@
-# Frame Schema v3 Specification
+# Historical Frame Schema v3 Specification
 
-> **Status:** Stable for AX v0.1 compliance
+> **Status:** Historical — superseded by Frame Schema v7
 > **Version:** 3
-> **Source of Truth:** `src/shared/types/frame.ts`
+> **Current Contract:** [`docs/CONTRACT_SURFACE.md`](../CONTRACT_SURFACE.md)
 
-This document defines the Frame schema for Lex 2.0.0, the memory unit that runners (like LexRunner) emit to capture work sessions.
+This document records the fields introduced through Frame v3. It is not the current public
+contract and its examples must not be used to infer present ID, mutability, or version semantics.
+Current releases expose `FRAME_SCHEMA_VERSION = 7` from `@smartergpt/lex/types`.
+
+This document described the Frame schema used by Lex 2.0.0 and early LexRunner integrations.
 
 ---
 
@@ -270,14 +274,14 @@ Use the validator from `src/shared/types/frame.ts`:
 import { validateFrameMetadata, FRAME_SCHEMA_VERSION } from '@lex/shared/types/frame';
 
 const isValid = validateFrameMetadata(frame);
-const version = FRAME_SCHEMA_VERSION; // 3
+const version = FRAME_SCHEMA_VERSION; // 7 in current releases
 ```
 
 ---
 
 ## Versioning Commitment
 
-- **v3 is stable** for Lex 2.0.0 and LexRunner 1.0.0
+- **v3 was stable** for Lex 2.0.0 and LexRunner 1.0.0
 - Fields may be **added** in minor versions (backward compatible)
 - Required fields will **not change** without major version bump
 - Deprecated fields will be documented for at least one major version
