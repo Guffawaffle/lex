@@ -38,6 +38,7 @@ export type CapabilityId = OpaqueValue<"CapabilityId">;
 export type ContentDigest = OpaqueValue<"ContentDigest">;
 export type AuthorityVersion = OpaqueValue<"AuthorityVersion">;
 export type ScopeVersion = OpaqueValue<"ScopeVersion">;
+export type AuthenticationRef = OpaqueValue<"AuthenticationRef">;
 export type SecretHandleRef = OpaqueValue<"SecretHandleRef">;
 
 type AssertFalse<Value extends false> = Value;
@@ -46,4 +47,7 @@ type _TenantAndWorkspaceIdsRemainDistinct = AssertFalse<
 >;
 type _RepositoryAndInstanceIdsRemainDistinct = AssertFalse<
   RepositoryId extends RepositoryInstanceId ? true : false
+>;
+type _AuthenticationAndSecretHandlesRemainDistinct = AssertFalse<
+  AuthenticationRef extends SecretHandleRef ? true : false
 >;

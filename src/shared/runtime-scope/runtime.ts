@@ -22,7 +22,10 @@ export const RUNTIME_SCOPE_CONTRACT_VERSION = 1 as const;
 
 export type ConfigurationSourceKind =
   | "cli"
+  | "mcp-launch"
+  | "sdk-explicit"
   | "project-manifest"
+  | "user-config"
   | "local-registry"
   | "authority-directory"
   | "compatibility-environment"
@@ -64,7 +67,7 @@ export interface InvocationContextV1 {
   readonly schemaVersion: typeof RUNTIME_SCOPE_CONTRACT_VERSION;
   readonly projectRoot: string;
   readonly requestedWorkspace: WorkspaceSelectorV1;
-  readonly repositoryDeclaration: RepositoryDeclarationV1;
+  readonly repositoryDeclaration?: RepositoryDeclarationV1;
   readonly repositoryEvidence: RepositoryInstanceEvidenceV1;
   readonly binding?: RepositoryInstanceBindingV1;
   readonly runtimeSurface: RuntimeSurfaceIdentityV1;
@@ -91,6 +94,11 @@ type AuthorityFieldName =
 type AssertNever<Value extends never> = Value;
 type _ResolvedConfigContainsNoAuthority = AssertNever<
   Extract<keyof ResolvedRuntimeConfigV1, AuthorityFieldName>
+>;
+type IsOptional<Value, Key extends keyof Value> = {} extends Pick<Value, Key> ? true : false;
+type AssertTrue<Value extends true> = Value;
+type _InvocationDeclarationIsOptional = AssertTrue<
+  IsOptional<InvocationContextV1, "repositoryDeclaration">
 >;
 
 export type ResolvedRuntimeConfig = ResolvedRuntimeConfigV1;

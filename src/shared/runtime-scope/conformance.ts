@@ -24,6 +24,7 @@ export type RuntimeScopeConformanceFixtureId =
   | "edited-manifest-no-authority"
   | "environment-selector-no-authority"
   | "fork-declaration-mismatch"
+  | "missing-repository-declaration"
   | "moved-checkout-explicit-rebind"
   | "multiple-wsl-registries"
   | "same-checkout-cross-surface"
@@ -255,6 +256,24 @@ export const RUNTIME_SCOPE_CONFORMANCE_FIXTURES = [
       canonicalIdentity: "not-created",
       localIdentity: "not-created",
       bindingMutation: "none",
+      diagnosticChangesOutcome: false,
+    },
+  },
+  {
+    schemaVersion: 1,
+    id: "missing-repository-declaration",
+    requirement: "A repository without a checked-in declaration remains representable and unbound.",
+    surfaces: [ubuntuSurface],
+    given: [
+      "The repository has no Lex identity declaration and no previously verified local binding.",
+    ],
+    when: "Normal bootstrap attempts to resolve the repository without explicit registration.",
+    expected: {
+      result: "fail-closed",
+      errorCode: WORKSPACE_AUTHORITY_ERROR_CODES.WORKSPACE_UNBOUND,
+      canonicalIdentity: "not-created",
+      localIdentity: "not-created",
+      bindingMutation: "explicit-only",
       diagnosticChangesOutcome: false,
     },
   },

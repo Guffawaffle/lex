@@ -30,11 +30,15 @@ Lex defines separate canonical identities for tenants, principals, workspaces, a
 
 Canonical IDs are opaque immutable UUIDs. Human selectors use scoped slugs; display names are cosmetic. Public contracts never expose or depend on a UUID generation version.
 
+Workspace authorization accepts one coherent workspace selector. A canonical workspace ID resolves its owning tenant; a workspace slug is qualified by a tenant selector. Canonical repository lookup is ID-only because no globally unique repository-slug namespace is ratified. Repository slugs remain declaration and display hints.
+
 ### 2. Canonical authority and local binding state are different abstractions
 
 `AuthorityDirectory` resolves shared canonical identities and evaluates principal membership, workspace grants, capabilities, revocations, and authority versions.
 
 `LocalBindingRegistry` records how one native execution environment realizes and verifies repositories and workspaces. It stores local paths, local instance IDs, binding evidence, receipts, verification times, and visibly cached canonical evidence.
+
+Every locally cached authority record has a finite expiry and must be reverified. Canonical grants may omit their own expiry; that does not permit an indefinite local cache.
 
 The local registry does not grant workspace access, add tenant membership, or authorize principals. Correct UUIDs in a copied or edited registry cannot create server authority.
 
@@ -54,6 +58,8 @@ Lex will not share a mutable SQLite registry through `/mnt/*`, `\\wsl$`, or anot
 
 A checked-in Lex manifest may declare stable repository identity and optional preferred workspace hints. It cannot grant tenant membership or permanently assign the repository to one workspace.
 
+The absence of a repository declaration is a normal, representable state. Provider, Git, registry, and authority evidence may support an explicit administrative registration, but normal bootstrap fails closed and never synthesizes a declaration or binding.
+
 Normal bootstrap verifies the declaration against surface-local registry bindings, provider/Git evidence, and canonical authority. Forks, copied manifests, moved roots, clones, worktrees, missing bindings, and ambiguous evidence become explicit states.
 
 Binding creation, rebinding, inspection, and revocation are administrative operations. Normal recall, remember, CLI startup, and MCP startup never create or repair bindings opportunistically.
@@ -67,6 +73,8 @@ Binding creation, rebinding, inspection, and revocation are administrative opera
 `AuthorizedScope` records the single active tenant/workspace grant for an invocation. It is minted by trusted authority and stamps scope into later store operations.
 
 Only a trusted entrypoint may capture ambient CLI, environment, path, and platform inputs. Core modules receive immutable values and do not reread `process.env`, `cwd`, or mutable global caches.
+
+Authentication enters this boundary only as an opaque reference to entrypoint-owned state. The reference is never a credential and is excluded from diagnostics. Configuration provenance distinguishes already-known CLI, MCP-launch, explicit SDK/constructor, project-manifest, user-config, local-registry, authority-directory, compatibility-environment, and default sources.
 
 ### 6. Resolution fails closed with stable errors
 
@@ -105,7 +113,7 @@ Ambiguous records remain in admin-only migration staging and cannot enter normal
 
 Phase 1 publishes the TypeScript contract through `@smartergpt/lex/runtime-scope`. It includes opaque ID types, authority and binding interfaces, immutable runtime envelopes, diagnostic envelopes, stable errors, and data-only conformance fixtures.
 
-The fixtures describe Windows/WSL identity separation, multiple WSL distributions, registry selection, clones, worktrees, moved roots, forks, manifest edits, environment selectors, registry copies, expired grants, conflicting evidence, and diagnostic non-interference. They do not open databases or alter runtime behavior.
+The fixtures describe Windows/WSL identity separation, multiple WSL distributions, registry selection, clones, worktrees, moved roots, forks, manifest edits and absence, environment selectors, registry copies, expired grants, conflicting evidence, and diagnostic non-interference. They do not open databases or alter runtime behavior.
 
 ## Consequences
 

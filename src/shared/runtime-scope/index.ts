@@ -19,6 +19,7 @@ export type {
   ContentDigest,
   AuthorityVersion,
   ScopeVersion,
+  AuthenticationRef,
   SecretHandleRef,
 } from "./ids.js";
 

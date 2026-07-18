@@ -31,6 +31,8 @@ LocalBindingRegistry
 
 `LocalBindingRegistry` deliberately cannot add tenant memberships, grant workspace access, or authorize principals. Cached authority records carry source, version, digest, verification, expiry, and revocation evidence; they are not locally minted grants.
 
+Every local cached-authority record has an expiry. A canonical grant may omit its own expiry, but a local cache must apply a finite cache lifetime and reverify against authority before that lifetime ends.
+
 ## Contract families
 
 | Family | Version constant | Purpose |
@@ -47,11 +49,18 @@ Serialized v1 interfaces carry `schemaVersion: 1`. Opaque IDs are represented ph
 
 - An invocation has one active tenant and workspace.
 - A requested workspace is a selector, not authority.
+- Workspace authorization accepts one coherent selector. A workspace ID resolves its owning tenant; a human workspace slug is qualified by a tenant selector.
 - A project root locates evidence and never grants access.
 - Repository identity is canonical provenance; repository instances are local checkouts/worktrees.
+- Canonical repository lookup is ID-only. A repository slug is an untrusted declaration and display hint, not a globally unique authority key.
+- A checked-in repository declaration is optional. Its absence is a representable unbound state that requires explicit registration; normal bootstrap never synthesizes a declaration.
 - Windows, each WSL distribution, and other native environments use separate local registries.
 - The native process determines the registry even when another shell launches it.
 - Shared PostgreSQL authority independently verifies local selector/evidence input.
+
+Principal resolution accepts only an opaque authentication-state handle owned by the trusted entrypoint. The handle must never contain a token, API key, or session credential and must never appear in diagnostics.
+
+Configuration provenance distinguishes CLI, MCP launch, explicit SDK/constructor, project manifest, user configuration, local registry, authority directory, compatibility environment, and default sources.
 
 ## Stable resolver errors
 
@@ -80,6 +89,7 @@ Normal agent-facing output should not contain raw tenant/workspace topology, pri
 - Windows processes launched through WSL interoperability;
 - multiple WSL distributions and separate registry files;
 - copied registries, environment selectors, and edited manifests failing to create authority;
+- repositories without checked-in declarations remaining unbound until explicit registration;
 - forks, clones, worktrees, and deliberate moved-root rebinding;
 - expired cached authority and conflicting evidence;
 - diagnostic observability without behavior changes.

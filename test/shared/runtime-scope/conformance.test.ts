@@ -81,6 +81,10 @@ describe("runtime-scope conformance fixtures", () => {
       fixture("cached-grant-expired").expected.errorCode,
       WORKSPACE_AUTHORITY_ERROR_CODES.AUTHORITY_CACHE_EXPIRED
     );
+    assert.equal(
+      fixture("missing-repository-declaration").expected.errorCode,
+      WORKSPACE_AUTHORITY_ERROR_CODES.WORKSPACE_UNBOUND
+    );
 
     for (const id of [
       "environment-selector-no-authority",
@@ -93,6 +97,15 @@ describe("runtime-scope conformance fixtures", () => {
       assert.equal(candidate.expected.result, "fail-closed");
       assert.equal(candidate.expected.bindingMutation, "none");
     }
+  });
+
+  test("a missing declaration is represented without synthesizing identity", () => {
+    const candidate = fixture("missing-repository-declaration");
+
+    assert.equal(candidate.expected.result, "fail-closed");
+    assert.equal(candidate.expected.canonicalIdentity, "not-created");
+    assert.equal(candidate.expected.localIdentity, "not-created");
+    assert.equal(candidate.expected.bindingMutation, "explicit-only");
   });
 
   test("clone, worktree, and moved-root cases preserve canonical identity", () => {

@@ -64,7 +64,7 @@ export interface ProviderRepositoryEvidenceV1 {
 export interface RepositoryInstanceEvidenceV1 {
   readonly schemaVersion: typeof LOCAL_BINDING_CONTRACT_VERSION;
   readonly canonicalRoot: string;
-  readonly manifestDigest: ContentDigest;
+  readonly manifestDigest?: ContentDigest;
   readonly gitCommonDirectoryDigest?: ContentDigest;
   readonly filesystemEvidenceDigest?: ContentDigest;
   readonly provider?: ProviderRepositoryEvidenceV1;
@@ -77,7 +77,8 @@ export interface CachedAuthorityEvidenceV1 {
   readonly authorityVersion: AuthorityVersion;
   readonly authorityDigest: ContentDigest;
   readonly verifiedAt: string;
-  readonly expiresAt?: string;
+  /** Local authority caches always expire, even when the canonical grant does not. */
+  readonly expiresAt: string;
   readonly revokedAt?: string;
 }
 
@@ -103,7 +104,7 @@ export interface RepositoryInstanceBindingV1 {
 
 export interface FindRepositoryInstancesRequestV1 {
   readonly projectRoot: string;
-  readonly repositoryDeclaration: RepositoryDeclarationV1;
+  readonly repositoryDeclaration?: RepositoryDeclarationV1;
   readonly requestedWorkspace?: WorkspaceSelectorV1;
   readonly evidence: RepositoryInstanceEvidenceV1;
 }
@@ -135,7 +136,7 @@ export interface BindingReceiptV1 {
 
 export interface VerifyBindingRequestV1 {
   readonly binding: RepositoryInstanceBindingV1;
-  readonly declaration: RepositoryDeclarationV1;
+  readonly declaration?: RepositoryDeclarationV1;
   readonly evidence: RepositoryInstanceEvidenceV1;
   readonly authorityEvidence: CachedAuthorityEvidenceV1;
   readonly verifiedAt: string;
@@ -188,6 +189,21 @@ type _LocalRegistryCannotMintAuthority = AssertNever<
 >;
 type _LocalRegistrationContainsNoGrant = AssertNever<
   Extract<keyof RegisterBindingRequestV1, "authorizedGrant" | "capabilities">
+>;
+type IsOptional<Value, Key extends keyof Value> = {} extends Pick<Value, Key> ? true : false;
+type AssertTrue<Value extends true> = Value;
+type AssertFalse<Value extends false> = Value;
+type _CachedAuthorityExpiryIsRequired = AssertFalse<
+  IsOptional<CachedAuthorityEvidenceV1, "expiresAt">
+>;
+type _ManifestEvidenceIsOptional = AssertTrue<
+  IsOptional<RepositoryInstanceEvidenceV1, "manifestDigest">
+>;
+type _DiscoveryDeclarationIsOptional = AssertTrue<
+  IsOptional<FindRepositoryInstancesRequestV1, "repositoryDeclaration">
+>;
+type _VerificationDeclarationIsOptional = AssertTrue<
+  IsOptional<VerifyBindingRequestV1, "declaration">
 >;
 
 export type RuntimeSurfaceIdentity = RuntimeSurfaceIdentityV1;

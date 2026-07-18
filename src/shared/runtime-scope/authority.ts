@@ -1,4 +1,5 @@
 import type {
+  AuthenticationRef,
   AuthorityGrantId,
   AuthorityVersion,
   CapabilityId,
@@ -63,16 +64,20 @@ export type WorkspaceSelectorV1 =
       readonly workspaceSlug: WorkspaceSlug;
     };
 
-export type RepositorySelectorV1 =
-  { readonly repositoryId: RepositoryId } | { readonly repositorySlug: RepositorySlug };
+/** Canonical repository lookup is ID-only; human slugs are untrusted display hints. */
+export type RepositorySelectorV1 = { readonly repositoryId: RepositoryId };
 
 export interface PrincipalResolutionRequestV1 {
-  readonly authenticationRef: string;
+  /**
+   * Opaque handle to authentication state owned by the trusted entrypoint.
+   * This value is never a credential and must not appear in diagnostics.
+   */
+  readonly authenticationRef: AuthenticationRef;
 }
 
 export interface WorkspaceAuthorizationRequestV1 {
   readonly principalId: PrincipalId;
-  readonly tenant: TenantSelectorV1;
+  /** One coherent selector; authority resolves its canonical owning tenant. */
   readonly workspace: WorkspaceSelectorV1;
   readonly requestedCapabilities: readonly CapabilityId[];
 }
@@ -132,6 +137,12 @@ type LocalTopologyMethodName =
 type AssertNever<Value extends never> = Value;
 type _AuthorityDirectoryCannotMutateLocalTopology = AssertNever<
   Extract<keyof AuthorityDirectory, LocalTopologyMethodName>
+>;
+type _WorkspaceAuthorizationHasNoDuplicateTenantSelector = AssertNever<
+  Extract<keyof WorkspaceAuthorizationRequestV1, "tenant">
+>;
+type _RepositoryLookupHasNoBareSlug = AssertNever<
+  Extract<keyof RepositorySelectorV1, "repositorySlug">
 >;
 
 export type PrincipalIdentity = PrincipalIdentityV1;
