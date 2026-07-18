@@ -424,6 +424,10 @@ export class MCPServer {
         error: {
           code: MCPErrorCode.INTERNAL_UNKNOWN_TOOL,
           message: `Unknown tool: ${params.name}`,
+          context: {
+            requestedTool: params.name,
+            availableTools: MCP_TOOLS.map(({ name }) => name),
+          },
         },
       };
     }
