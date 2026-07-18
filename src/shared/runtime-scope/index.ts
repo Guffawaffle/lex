@@ -35,10 +35,15 @@ export {
   type RepositorySelectorV1,
   type PrincipalResolutionRequestV1,
   type WorkspaceAuthorizationRequestV1,
+  type RepositoryAuthorizationRequestV1,
   type AuthorizedWorkspaceGrantV1,
   type WorkspaceAuthorizationDenialReason,
   type WorkspaceAuthorizationDecisionV1,
   type AuthorityDirectory,
+  type RepositoryScopedAuthorityDirectory,
+  type ConsistentAuthorityDirectory,
+  isRepositoryScopedAuthorityDirectory,
+  isConsistentAuthorityDirectory,
   type PrincipalIdentity,
   type TenantRecord,
   type WorkspaceRecord,
@@ -164,6 +169,52 @@ export {
 } from "./in-memory-authority.js";
 
 export {
+  PostgresAuthorityDirectory,
+  computeAuthenticationRefDigest,
+  type PostgresAuthorityDirectoryOptionsV1,
+} from "./postgres-authority.js";
+
+export { createPostgresSchemaTarget, type PostgresSchemaTargetV1 } from "./postgres-schema.js";
+
+export {
+  POSTGRES_AUTHORITY_SCHEMA_VERSION,
+  POSTGRES_AUTHORITY_TABLES,
+  postgresAuthorityMigrationSql,
+} from "./postgres-authority-migrations.js";
+
+export {
+  POSTGRES_AUTHORITY_ADMIN_CONTRACT_VERSION,
+  PostgresAuthorityAdministration,
+  type AuthorityPrincipalSeedV1,
+  type AuthorityAuthenticationSeedV1,
+  type AuthorityTenantSeedV1,
+  type AuthorityWorkspaceSeedV1,
+  type AuthorityRepositorySeedV1,
+  type AuthorityWorkspaceRepositorySeedV1,
+  type AuthorityTenantMembershipSeedV1,
+  type AuthorityWorkspaceGrantSeedV1,
+  type PostgresAuthorityTopologyV1,
+  type PostgresAuthorityMigrationReceiptV1,
+  type PostgresAuthoritySeedReceiptV1,
+  type PostgresAuthorityInspectionV1,
+  type PostgresAuthorityAdministrationV1,
+  type PostgresAuthorityAdministrationOptionsV1,
+} from "./postgres-authority-admin.js";
+
+export {
+  createLex3DogfoodAuthorityTopology,
+  LEX3_DOGFOOD_CANONICAL_IDS,
+} from "./dogfood-topology.js";
+
+export {
+  createPostgresTrustedRuntimeHost,
+  type TrustedCanonicalFrameStoreBinderV1,
+  type TrustedCanonicalScopedStoreV1,
+  type PostgresTrustedRuntimeHostOptionsV1,
+  type PostgresTrustedRuntimeHostV1,
+} from "./trusted-postgres-host.js";
+
+export {
   resolveRuntimeScope,
   runtimeScopeFailureFromRegistryError,
   type RuntimeScopeResolutionRequestV1,
@@ -175,6 +226,70 @@ export {
 } from "./resolver.js";
 
 export {
+  TRUSTED_RUNTIME_BOOTSTRAP_VERSION,
+  RUNTIME_DIAGNOSTIC_CAPABILITY,
+  RUNTIME_SCOPE_COMPATIBILITY_ENVIRONMENT,
+  captureTrustedBootstrapInput,
+  registryLocationFromBootstrap,
+  createTrustedRuntimeScopeBootstrap,
+  createTrustedRuntimeScopeEntrypointGuard,
+  authorizeTrustedRuntimeEntrypoint,
+  type TrustedRuntimeEntrypoint,
+  type RuntimeAuthorityMode,
+  type TrustedProcessCaptureV1,
+  type RuntimeScopeDiscoveryV1,
+  type RuntimeScopeDiscoveryAdapterV1,
+  type RuntimeScopeRegistryHandleV1,
+  type RuntimeScopeRegistryFactoryV1,
+  type TrustedRuntimeScopeBootstrapDependenciesV1,
+  type TrustedRuntimeScopeBootstrapRequestV1,
+  type TrustedRuntimeScopeBootstrapResultV1,
+  type TrustedRuntimeScopeBootstrapV1,
+  type TrustedRuntimeScopeInvocationRequestV1,
+  type TrustedRuntimeScopeEntrypointGuardV1,
+  type TrustedRuntimeScopeEntrypointGuardOptionsV1,
+} from "./bootstrap.js";
+
+export {
   WORKSPACE_AUTHORITY_ERROR_CODES,
   type WorkspaceAuthorityErrorCode,
 } from "../errors/error-codes.js";
+
+export {
+  RUNTIME_OPERATION_CAPABILITIES,
+  MCP_TOOL_ALIASES,
+  TRUSTED_CLI_OPERATIONS,
+  TRUSTED_CLI_CONTROL_OPERATIONS,
+  CANONICAL_MCP_TOOLS,
+  UnknownTrustedOperationError,
+  trustedCliOperationFromArgv,
+  capabilitiesForCliOperation,
+  capabilitiesForCliInvocation,
+  canonicalMcpToolName,
+  capabilitiesForMcpTool,
+  type CanonicalMcpTool,
+  type TrustedCliOperation,
+} from "./capabilities.js";
+
+export {
+  REPOSITORY_DECLARATION_FILE,
+  NodeNativeGitEvidenceProvider,
+  NodeRuntimeScopeDiscoveryAdapter,
+  type TrustedRuntimeSelectionV1,
+  type TrustedRuntimeSelectionProviderV1,
+  type NativeGitEvidenceV1,
+  type NativeGitEvidenceProviderV1,
+  type NodeRuntimeScopeDiscoveryOptionsV1,
+} from "./discovery.js";
+
+export {
+  WORKSPACE_ADMIN_CONTRACT_VERSION,
+  WorkspaceBindingAdminService,
+  type WorkspaceAdminInvocationV1,
+  type WorkspaceBindRequestV1,
+  type WorkspaceBindingReferenceRequestV1,
+  type WorkspaceBindingInspectionV1,
+  type WorkspaceRegistryRecoveryV1,
+  type WorkspaceBindingAdminServiceV1,
+  type WorkspaceBindingAdminDependenciesV1,
+} from "./workspace-admin.js";

@@ -302,9 +302,9 @@ export interface FrameStore {
   /**
    * Update specific fields of an existing Frame.
    * Only the provided fields are updated; all other fields remain unchanged.
-   * Unlike saveFrame() (which does a full INSERT OR REPLACE), updateFrame()
-   * performs a targeted UPDATE, making it safe for adding metadata to existing Frames
-   * (e.g., marking a Frame as superseded or adding merged_from IDs).
+   * Unlike saveFrame() (which replaces the complete value), updateFrame() has
+   * atomic targeted-merge semantics: concurrent partial updates must not erase
+   * unrelated fields.
    *
    * @param id - The ID of the Frame to update.
    * @param updates - Partial Frame fields to update. 'id' and 'timestamp' cannot be changed.

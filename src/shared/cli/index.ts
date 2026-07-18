@@ -17,11 +17,19 @@ import {
   dbVacuum,
   dbBackup,
   dbRepair,
+  dbScopeInventory,
+  dbScopeManifest,
+  dbScopeMigrate,
+  dbScopeRecover,
   dbEncrypt,
   dbStats,
   type DbVacuumOptions,
   type DbBackupOptions,
   type DbRepairOptions,
+  type DbScopeInventoryOptions,
+  type DbScopeManifestOptions,
+  type DbScopeMigrateOptions,
+  type DbScopeRecoverOptions,
   type DbEncryptOptions,
   type DbStatsOptions,
 } from "./db.js";
@@ -43,7 +51,25 @@ import { waveComplete, type WaveCompleteOptions } from "./wave.js";
 import { introspect, type IntrospectOptions } from "./introspect.js";
 import { context, type ContextOptions } from "./context.js";
 import { hints, type HintsOptions } from "./hints.js";
+import { addWorkspaceAdminCommands, type WorkspaceAdminCliV1 } from "./workspace.js";
+import {
+  scopedFrameStoreAsLegacyView,
+  type FrameStore,
+  type ScopedFrameStore,
+  type ScopedFrameStoreBinder,
+} from "../../memory/store/index.js";
 import * as output from "./output.js";
+import { AXErrorException } from "../errors/ax-error.js";
+import {
+  DIAGNOSTIC_CONTRACT_VERSION,
+  authorizeTrustedRuntimeEntrypoint,
+  capabilitiesForCliInvocation,
+  trustedCliOperationFromArgv,
+  type DiagnosticEnvelopeV1,
+  type DiagnosticRequestV1,
+  type TrustedRuntimeScopeBootstrapResultV1,
+  type TrustedRuntimeScopeEntrypointGuardV1,
+} from "../runtime-scope/index.js";
 import { readFileSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
@@ -66,7 +92,14 @@ function getVersion(): string {
 /**
  * Create and configure the CLI program
  */
-export function createProgram(): Command {
+export interface CreateProgramOptionsV1 {
+  readonly runtimeScopeDiagnostics?: boolean;
+  /** Request-local authorized store; never retained after this invocation. */
+  readonly frameStore?: FrameStore;
+  readonly workspaceAdmin?: WorkspaceAdminCliV1;
+}
+
+export function createProgram(programOptions: CreateProgramOptionsV1 = {}): Command {
   const program = new Command();
 
   program
@@ -75,6 +108,16 @@ export function createProgram(): Command {
     .version(getVersion())
     .option("--json", "Output results in JSON format")
     .option("--verbose", "Enable diagnostic logging (Pino logs)");
+  if (programOptions.runtimeScopeDiagnostics) {
+    program
+      .option("--diagnostic", "Include a redacted runtime-scope diagnostic summary")
+      .option(
+        "--diagnostic-level <level>",
+        "Runtime-scope diagnostic detail: summary or full (requires --diagnostic)",
+        /^(summary|full)$/,
+        undefined
+      );
+  }
 
   // lex init command
   program
@@ -149,7 +192,7 @@ export function createProgram(): Command {
         noPolicy: cmdOptions.skipPolicy || false,
         dryRun: cmdOptions.dryRun || false,
       };
-      await remember(options);
+      await remember(options, programOptions.frameStore);
     });
 
   // lex recall command
@@ -215,7 +258,7 @@ export function createProgram(): Command {
         process.exit(1);
       }
 
-      await recall(searchQuery, options);
+      await recall(searchQuery, options, programOptions.frameStore);
     });
 
   // lex context command
@@ -236,7 +279,7 @@ export function createProgram(): Command {
         maxTokens: cmdOptions.maxTokens,
         json: globalOptions.json || false,
       };
-      await context(options);
+      await context(options, programOptions.frameStore);
     });
 
   // lex check command
@@ -270,7 +313,7 @@ export function createProgram(): Command {
         output: cmdOptions.output,
         json: globalOptions.json || false,
       };
-      await timeline(ticketOrBranch, options);
+      await timeline(ticketOrBranch, options, programOptions.frameStore);
     });
 
   // lex frames command group
@@ -298,7 +341,7 @@ export function createProgram(): Command {
         format: cmdOptions.format,
         json: globalOptions.json || false,
       };
-      await exportFrames(options);
+      await exportFrames(options, programOptions.frameStore);
     });
 
   // lex frames import command
@@ -320,7 +363,7 @@ export function createProgram(): Command {
         merge: cmdOptions.merge || false,
         json: globalOptions.json || false,
       };
-      await importFrames(options);
+      await importFrames(options, programOptions.frameStore);
     });
 
   // lex db command group
@@ -366,6 +409,77 @@ export function createProgram(): Command {
         json: globalOptions.json || false,
       };
       await dbRepair(options);
+    });
+
+  // lex db scope: explicit SQLite v14 -> v15 ownership staging
+  const dbScopeCommand = dbCommand
+    .command("scope")
+    .description("Stage and apply explicit SQLite tenant/workspace ownership");
+
+  dbScopeCommand
+    .command("inventory")
+    .description("Inspect SQLite ownership state without mutation")
+    .option("--database <path>", "SQLite database file (default: configured Lex store)")
+    .action(async (cmdOptions) => {
+      const options: DbScopeInventoryOptions = {
+        database: cmdOptions.database,
+        json: program.opts().json || false,
+      };
+      await dbScopeInventory(options);
+    });
+
+  dbScopeCommand
+    .command("manifest")
+    .description("Create a deterministic explicit source-to-scope manifest")
+    .requiredOption("--tenant-id <uuid>", "Canonical tenant UUID")
+    .requiredOption("--workspace-id <uuid>", "Canonical workspace UUID")
+    .requiredOption("--creator-principal-id <uuid>", "Canonical migration principal UUID")
+    .requiredOption("--scope-version <version>", "Authority scope version")
+    .option("--database <path>", "SQLite database file (default: configured Lex store)")
+    .option("--output <path>", "Create the manifest file exclusively (0600)")
+    .action(async (cmdOptions) => {
+      const options: DbScopeManifestOptions = {
+        tenantId: cmdOptions.tenantId,
+        workspaceId: cmdOptions.workspaceId,
+        creatorPrincipalId: cmdOptions.creatorPrincipalId,
+        scopeVersion: cmdOptions.scopeVersion,
+        database: cmdOptions.database,
+        output: cmdOptions.output,
+        json: program.opts().json || false,
+      };
+      await dbScopeManifest(options);
+    });
+
+  dbScopeCommand
+    .command("migrate")
+    .description("Validate a manifest; mutate only when --write is explicit")
+    .requiredOption("--manifest <path>", "Reviewed SQLite scope migration manifest")
+    .option("--database <path>", "SQLite database file (default: configured Lex store)")
+    .option("--write", "Back up, transactionally migrate, and verify")
+    .action(async (cmdOptions) => {
+      const options: DbScopeMigrateOptions = {
+        manifest: cmdOptions.manifest,
+        database: cmdOptions.database,
+        write: cmdOptions.write || false,
+        json: program.opts().json || false,
+      };
+      await dbScopeMigrate(options);
+    });
+
+  dbScopeCommand
+    .command("recover")
+    .description("Verify a migration backup; restore only when --write is explicit")
+    .requiredOption("--backup <path>", "Local recovery snapshot created by migration")
+    .option("--database <path>", "SQLite database file (default: configured Lex store)")
+    .option("--write", "Atomically restore and verify the legacy source")
+    .action(async (cmdOptions) => {
+      const options: DbScopeRecoverOptions = {
+        backup: cmdOptions.backup,
+        database: cmdOptions.database,
+        write: cmdOptions.write || false,
+        json: program.opts().json || false,
+      };
+      await dbScopeRecover(options);
     });
 
   // lex db encrypt
@@ -550,7 +664,7 @@ export function createProgram(): Command {
         json: globalOptions.json || false,
         period: cmdOptions.period,
       };
-      await turncost(options);
+      await turncost(options, programOptions.frameStore);
     });
 
   // lex dedupe command
@@ -570,7 +684,7 @@ export function createProgram(): Command {
         showCandidates: cmdOptions.showCandidates || false,
         json: globalOptions.json || false,
       };
-      await dedupe(options);
+      await dedupe(options, programOptions.frameStore);
     });
 
   // lex check contradictions command
@@ -584,7 +698,7 @@ export function createProgram(): Command {
         module: cmdOptions.module,
         json: globalOptions.json || false,
       };
-      await checkContradictions(options);
+      await checkContradictions(options, programOptions.frameStore);
     });
 
   // lex epic command group
@@ -620,7 +734,7 @@ export function createProgram(): Command {
         epicLabels: cmdOptions.epicLabels,
         json: globalOptions.json || false,
       };
-      await waveComplete(options);
+      await waveComplete(options, programOptions.frameStore);
     });
 
   // lex introspect command
@@ -639,7 +753,7 @@ export function createProgram(): Command {
         json: globalOptions.json || false,
         format: cmdOptions.format,
       };
-      await introspect(options);
+      await introspect(options, programOptions.frameStore);
     });
 
   // lex hints command
@@ -655,6 +769,8 @@ export function createProgram(): Command {
       };
       await hints(hintIds || [], options);
     });
+
+  addWorkspaceAdminCommands(program, programOptions.workspaceAdmin);
 
   return program;
 }
@@ -675,9 +791,135 @@ function parseList(value: string): string[] | undefined {
 /**
  * Run the CLI program
  */
-export async function run(argv: string[] = process.argv): Promise<void> {
-  const program = createProgram();
-  await program.parseAsync(argv);
+export interface CliRuntimeScopeGuardV1 extends TrustedRuntimeScopeEntrypointGuardV1 {
+  readonly frameStoreBinder?: ScopedFrameStoreBinder;
+  readonly onResolved?: (
+    result: Extract<TrustedRuntimeScopeBootstrapResultV1, { readonly resolved: true }>
+  ) => void | Promise<void>;
+  readonly emitDiagnostics: (diagnostics: DiagnosticEnvelopeV1) => void | Promise<void>;
+}
+
+export interface CliRunOptionsV1 {
+  readonly runtimeScope?: CliRuntimeScopeGuardV1;
+  readonly workspaceAdmin?: WorkspaceAdminCliV1;
+}
+
+export type { WorkspaceAdminCliV1 } from "./workspace.js";
+
+function diagnosticRequestFromArgv(argv: readonly string[]): DiagnosticRequestV1 | undefined {
+  const boundary = argv.indexOf("--");
+  const runtimeArguments = boundary === -1 ? argv : argv.slice(0, boundary);
+  if (!runtimeArguments.includes("--diagnostic")) return undefined;
+  const equalsArgument = runtimeArguments.find((argument) =>
+    argument.startsWith("--diagnostic-level=")
+  );
+  if (equalsArgument) {
+    const level = equalsArgument.slice("--diagnostic-level=".length);
+    if (level !== "summary" && level !== "full") return undefined;
+    return Object.freeze({ schemaVersion: DIAGNOSTIC_CONTRACT_VERSION, level });
+  }
+  const index = runtimeArguments.indexOf("--diagnostic-level");
+  const candidate = index === -1 ? undefined : runtimeArguments[index + 1];
+  const level = candidate === "full" || candidate === "summary" ? candidate : "summary";
+  return Object.freeze({ schemaVersion: DIAGNOSTIC_CONTRACT_VERSION, level });
+}
+
+/**
+ * Run one CLI invocation. When a trusted runtime-scope guard is supplied, it
+ * resolves before Commander dispatches any command and exposes scope only to
+ * the injected callback that Phase 4 will use to bind the store.
+ */
+export async function run(
+  argv: string[] = process.argv,
+  options: CliRunOptionsV1 = {}
+): Promise<void> {
+  let scopedStore: ScopedFrameStore | undefined;
+  const boundary = argv.indexOf("--");
+  const runtimeArguments = boundary === -1 ? argv : argv.slice(0, boundary);
+  const hasDiagnosticLevel = runtimeArguments.some(
+    (argument) => argument === "--diagnostic-level" || argument.startsWith("--diagnostic-level=")
+  );
+  if (hasDiagnosticLevel && !runtimeArguments.includes("--diagnostic")) {
+    throw new AXErrorException(
+      "VALIDATION_INVALID_TYPE",
+      "--diagnostic-level requires --diagnostic.",
+      ["Add --diagnostic or remove --diagnostic-level."]
+    );
+  }
+  const diagnosticRequest = diagnosticRequestFromArgv(argv);
+  if (diagnosticRequest && !options.runtimeScope) {
+    throw new AXErrorException(
+      "LEX_WORKSPACE_UNBOUND",
+      "Runtime-scope diagnostics require a configured trusted bootstrap.",
+      ["Configure trusted workspace bootstrap before requesting --diagnostic."]
+    );
+  }
+  const operation =
+    options.runtimeScope || options.workspaceAdmin ? trustedCliOperationFromArgv(argv) : undefined;
+  const workspaceAdministration = operation?.startsWith("workspace:") ?? false;
+  if (workspaceAdministration && !options.workspaceAdmin) {
+    throw new AXErrorException(
+      "LEX_WORKSPACE_UNBOUND",
+      "Trusted workspace administration is not configured for this Lex host.",
+      ["Configure an AuthorityDirectory and explicit workspace administration service."]
+    );
+  }
+  if (options.runtimeScope && operation && !workspaceAdministration) {
+    const requestedCapabilities = capabilitiesForCliInvocation(argv);
+    if (operation.startsWith("db:")) {
+      throw new AXErrorException(
+        "LEX_FRAME_STORE_INVALID_SCOPE",
+        "Legacy database maintenance is not available through the normal scope-bound store.",
+        ["Use a separately authorized physical FrameStore administration adapter."]
+      );
+    }
+    if (
+      requestedCapabilities.some((capability) => capability.startsWith("frame:")) &&
+      !options.runtimeScope.frameStoreBinder
+    ) {
+      throw new AXErrorException(
+        "LEX_FRAME_STORE_INVALID_SCOPE",
+        "Trusted runtime scope is configured without a scope-bound FrameStore.",
+        ["Configure a ScopedFrameStoreBinder before dispatching Frame operations."]
+      );
+    }
+    const result = await authorizeTrustedRuntimeEntrypoint(
+      options.runtimeScope,
+      "cli",
+      requestedCapabilities,
+      diagnosticRequest
+    );
+    if (result.diagnostics) {
+      await options.runtimeScope.emitDiagnostics(result.diagnostics);
+    }
+    if (!result.resolved) {
+      throw new AXErrorException(
+        result.error.code,
+        result.error.message,
+        ["Inspect the local workspace binding or perform an explicit administrative bind."],
+        result.diagnostics ? { diagnostics: result.diagnostics } : undefined
+      );
+    }
+    if (options.runtimeScope.frameStoreBinder) {
+      scopedStore = options.runtimeScope.frameStoreBinder.bind(result.authorizedScope);
+    }
+    try {
+      await options.runtimeScope.onResolved?.(result);
+    } catch (error) {
+      await scopedStore?.close();
+      throw error;
+    }
+  }
+  const program = createProgram({
+    runtimeScopeDiagnostics: options.runtimeScope !== undefined,
+    ...(scopedStore ? { frameStore: scopedFrameStoreAsLegacyView(scopedStore) } : {}),
+    ...(options.workspaceAdmin ? { workspaceAdmin: options.workspaceAdmin } : {}),
+  });
+  try {
+    await program.parseAsync(argv);
+  } finally {
+    await scopedStore?.close();
+  }
 }
 
 // Direct execution detection - guide users to correct entry point

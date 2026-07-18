@@ -2,7 +2,9 @@
 
 ## Overview
 
-Lex 1.0.0 introduces persistence contracts that abstract database operations behind interfaces.
+Lex exposes persistence contracts that abstract database operations behind interfaces. The
+current normative details, including version domains and Frame record semantics, live in
+[`src/memory/store/CONTRACT.md`](../src/memory/store/CONTRACT.md).
 
 ## FrameStore
 
@@ -14,7 +16,17 @@ Lex 1.0.0 introduces persistence contracts that abstract database operations beh
 - `getFrameById(id)` — Retrieve by ID
 - `searchFrames(criteria)` — Full-text search
 - `listFrames(options)` — Paginated listing
+- `updateFrame(id, updates)` — Atomic partial merge that preserves `id`, `timestamp`, and unrelated
+  fields under concurrent updates
+- `deleteFrame(id)` / bulk deletion — Remove visible records when authorized
 - `close()` — Release resources
+
+### Record Identity and Mutability
+
+Frame `id` values are opaque strings; UUID/ULID formats are conventions rather than validation
+requirements. `saveFrame` is an idempotent upsert. Targeted updates, deletion, and
+`superseded_by`/`merged_from` consolidation are implemented behavior, so Frames are not described
+as blanket-immutable. Frame payloads have no normative `parent_id` or lifecycle-state field.
 
 ### Search Semantics
 
@@ -31,9 +43,16 @@ Lex 1.0.0 introduces persistence contracts that abstract database operations beh
 ### Backend Selection
 
 SQLite via `SqliteFrameStore` remains the default OSS implementation. PostgreSQL via
-`PostgresFrameStore` is an explicit opt-in for shared cross-host storage. New CLI and MCP code
-should call `createFrameStore()`, which selects the backend from `LEX_STORE=sqlite|postgres` and
-defaults to SQLite.
+`PostgresFrameStore` is an explicit opt-in for shared cross-host storage. The transitional 2.x
+`createFrameStore()` factory selects those unscoped adapters from `LEX_STORE=sqlite|postgres`.
+Lex 3.0 trusted hosts do not select a backend from ambient environment variables: trusted
+composition supplies the authorized `ScopedFrameStoreBinder` after scope resolution.
+
+Trusted MCP attachment input is intentionally unavailable until Lex has a scope-bound attachment
+service. Its trusted `tools/list` and help surfaces omit `images`, scoped SQLite reports
+`images: false`, and trusted calls reject both `images` and caller-supplied `image_ids` before a
+Frame can be stored. The unscoped SQLite compatibility path retains its existing attachment
+behavior.
 
 ### Access Modes
 
@@ -82,15 +101,35 @@ repairing them implicitly.
 
 ### PostgreSQL Access Modes
 
+Lex 3.0 normal PostgreSQL consumers use `PostgresScopedFrameStoreBackend`, not the transitional
+unscoped factory. The runtime adapter requires an explicit connection/pool, verifies a non-owner
+and non-`BYPASSRLS` role, binds an `AuthorizedScope`, and runs every operation in a transaction
+with transaction-local tenant/workspace/principal context. Explicit predicates and forced RLS
+both fail closed. Migration and ownership inspection are available only through the separately
+constructed `PostgresFrameStoreAdministration` boundary. See
+[PostgreSQL Scope Security](./POSTGRES_SCOPE_SECURITY.md) for role grants, pool-reset behavior,
+legacy-row quarantine, and integration verification.
+
+All Lex 3 scope-bound adapters validate the complete Frame produced by a partial update. Adapters
+that read and replace serialize that merge with an immediate transaction or row lock so concurrent
+partial updates cannot erase unrelated fields.
+
+The following behavior describes the transitional unscoped 2.x adapter. It must not be wired to
+Lex 3.0 trusted CLI/MCP dispatch, and it cannot serve a database after schema v3 enables forced
+RLS without an authorized scope:
+
 `new PostgresFrameStore(url)` keeps the default `read-write` behavior and may apply PostgreSQL
-schema migrations before serving operations. `new PostgresFrameStore(url, {
-accessMode: "read-only" })` checks that the existing schema is exactly the supported version and
-never starts a migration transaction. Missing, older, or newer schemas fail with a diagnostic
-instead of being changed.
+schema migrations before serving operations. The compatibility target defaults to `public`; an
+alternate lower-case schema must be supplied explicitly as `{ schema: "lex_store" }`. Every
+operation and migration is bound to that validated target instead of ambient `search_path`.
+`new PostgresFrameStore(url, { accessMode: "read-only", schema: "lex_store" })` checks that the
+existing target schema is exactly the supported version and never starts a migration transaction.
+Missing, older, or newer schemas fail with a diagnostic instead of being changed.
+The transitional `createFrameStore()` factory forwards the same explicit `schema` option when
+PostgreSQL is selected.
 
 PostgreSQL read-only mode is an application-level no-write contract rather than a replacement for
-database permissions. Deployments that require defense in depth should also use a PostgreSQL role
-whose grants prohibit schema and data mutation.
+database permissions.
 
 ## CodeAtlasStore (@experimental)
 

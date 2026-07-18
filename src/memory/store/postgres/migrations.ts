@@ -1,12 +1,37 @@
 import type { PoolClient } from "pg";
 
-export const POSTGRES_FRAME_STORE_SCHEMA_VERSION = 1;
+import {
+  createPostgresSchemaTarget,
+  type PostgresSchemaTargetV1,
+} from "../../../shared/runtime-scope/postgres-schema.js";
 
-const MIGRATIONS: ReadonlyArray<{ version: number; sql: string }> = [
-  {
-    version: 1,
-    sql: `
-      CREATE TABLE IF NOT EXISTS frames (
+export const POSTGRES_FRAME_STORE_SCHEMA_VERSION = 3;
+
+export interface PostgresFrameStoreMigrationPlan {
+  readonly currentVersion: number;
+  readonly targetVersion: typeof POSTGRES_FRAME_STORE_SCHEMA_VERSION;
+  readonly pendingVersions: readonly number[];
+  /** V1 rows have no trustworthy owner and are quarantined instead of guessed. */
+  readonly unownedFrameCount: number;
+  /** A pending v2 migration must create its own empty quarantine table. */
+  readonly quarantineTableConflict: boolean;
+}
+
+function postgresFrameStoreMigrations(
+  target: PostgresSchemaTargetV1
+): ReadonlyArray<{ version: number; sql: string }> {
+  const frames = target.relation("frames");
+  const migrations = target.relation("lex_frame_store_migrations");
+  const quarantine = target.relation("lex_frame_store_unowned_frames_v1");
+  const updateSearchVector = target.function("lex_update_frame_search_vector");
+  const runtimeScopeIsValid = target.function("lex_runtime_scope_is_valid");
+  const runtimeScopeMatches = target.function("lex_runtime_scope_matches");
+  const preventOwnershipChange = target.function("lex_prevent_frame_ownership_change");
+  return [
+    {
+      version: 1,
+      sql: `
+      CREATE TABLE IF NOT EXISTS ${frames} (
         id TEXT PRIMARY KEY,
         "timestamp" TEXT NOT NULL,
         branch TEXT NOT NULL,
@@ -30,17 +55,17 @@ const MIGRATIONS: ReadonlyArray<{ version: number; sql: string }> = [
       );
 
       CREATE INDEX IF NOT EXISTS idx_frames_timestamp
-        ON frames ("timestamp" DESC, id DESC);
-      CREATE INDEX IF NOT EXISTS idx_frames_branch ON frames (branch);
-      CREATE INDEX IF NOT EXISTS idx_frames_jira ON frames (jira);
-      CREATE INDEX IF NOT EXISTS idx_frames_atlas_frame_id ON frames (atlas_frame_id);
-      CREATE INDEX IF NOT EXISTS idx_frames_user_id ON frames (user_id);
+        ON ${frames} ("timestamp" DESC, id DESC);
+      CREATE INDEX IF NOT EXISTS idx_frames_branch ON ${frames} (branch);
+      CREATE INDEX IF NOT EXISTS idx_frames_jira ON ${frames} (jira);
+      CREATE INDEX IF NOT EXISTS idx_frames_atlas_frame_id ON ${frames} (atlas_frame_id);
+      CREATE INDEX IF NOT EXISTS idx_frames_user_id ON ${frames} (user_id);
       CREATE INDEX IF NOT EXISTS idx_frames_module_scope
-        ON frames USING GIN (module_scope);
+        ON ${frames} USING GIN (module_scope);
       CREATE INDEX IF NOT EXISTS idx_frames_search_vector
-        ON frames USING GIN (search_vector);
+        ON ${frames} USING GIN (search_vector);
 
-      CREATE OR REPLACE FUNCTION lex_update_frame_search_vector()
+      CREATE OR REPLACE FUNCTION ${updateSearchVector}()
       RETURNS TRIGGER
       LANGUAGE plpgsql
       AS $$
@@ -59,15 +84,15 @@ const MIGRATIONS: ReadonlyArray<{ version: number; sql: string }> = [
       END;
       $$;
 
-      DROP TRIGGER IF EXISTS frames_search_vector_update ON frames;
+      DROP TRIGGER IF EXISTS frames_search_vector_update ON ${frames};
       CREATE TRIGGER frames_search_vector_update
         BEFORE INSERT OR UPDATE OF reference_point, summary_caption, keywords,
           status_snapshot, module_scope, jira, branch
-        ON frames
+        ON ${frames}
         FOR EACH ROW
-        EXECUTE FUNCTION lex_update_frame_search_vector();
+        EXECUTE FUNCTION ${updateSearchVector}();
 
-      UPDATE frames
+      UPDATE ${frames}
       SET search_vector = to_tsvector(
         'simple',
         coalesce(reference_point, '') || ' ' ||
@@ -79,23 +104,232 @@ const MIGRATIONS: ReadonlyArray<{ version: number; sql: string }> = [
         coalesce(branch, '')
       );
     `,
-  },
-];
+    },
+    {
+      version: 2,
+      sql: `
+      CREATE TABLE ${quarantine}
+        (LIKE ${frames} INCLUDING ALL);
+
+      INSERT INTO ${quarantine}
+      SELECT * FROM ${frames};
+
+      DELETE FROM ${frames};
+
+      ALTER TABLE ${frames}
+        ADD COLUMN tenant_id UUID,
+        ADD COLUMN workspace_id UUID,
+        ADD COLUMN creator_principal_id UUID,
+        ADD COLUMN scope_version TEXT;
+
+      ALTER TABLE ${frames} DROP CONSTRAINT IF EXISTS frames_pkey;
+      ALTER TABLE ${frames}
+        ALTER COLUMN tenant_id SET NOT NULL,
+        ALTER COLUMN workspace_id SET NOT NULL,
+        ALTER COLUMN creator_principal_id SET NOT NULL,
+        ALTER COLUMN scope_version SET NOT NULL,
+        ADD CONSTRAINT frames_pkey PRIMARY KEY (tenant_id, workspace_id, id),
+        ADD CONSTRAINT frames_scope_version_nonempty CHECK (length(scope_version) > 0);
+
+      DROP INDEX IF EXISTS ${target.relation("idx_frames_timestamp")};
+      DROP INDEX IF EXISTS ${target.relation("idx_frames_branch")};
+      DROP INDEX IF EXISTS ${target.relation("idx_frames_jira")};
+      DROP INDEX IF EXISTS ${target.relation("idx_frames_atlas_frame_id")};
+      DROP INDEX IF EXISTS ${target.relation("idx_frames_user_id")};
+      DROP INDEX IF EXISTS ${target.relation("idx_frames_module_scope")};
+      DROP INDEX IF EXISTS ${target.relation("idx_frames_search_vector")};
+
+      CREATE INDEX idx_frames_scope_timestamp
+        ON ${frames} (tenant_id, workspace_id, "timestamp" DESC, id DESC);
+      CREATE INDEX idx_frames_scope_branch
+        ON ${frames} (tenant_id, workspace_id, branch);
+      CREATE INDEX idx_frames_scope_jira
+        ON ${frames} (tenant_id, workspace_id, jira);
+      CREATE INDEX idx_frames_scope_atlas_frame_id
+        ON ${frames} (tenant_id, workspace_id, atlas_frame_id);
+      CREATE INDEX idx_frames_scope_creator
+        ON ${frames} (tenant_id, workspace_id, creator_principal_id);
+      CREATE INDEX idx_frames_scope_module
+        ON ${frames} USING GIN (module_scope);
+      CREATE INDEX idx_frames_scope_search
+        ON ${frames} USING GIN (search_vector);
+
+      CREATE OR REPLACE FUNCTION ${runtimeScopeIsValid}()
+      RETURNS BOOLEAN
+      LANGUAGE sql
+      STABLE
+      PARALLEL SAFE
+      AS $$
+        SELECT
+          current_setting('lex.tenant_id', true)
+            ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+          AND current_setting('lex.workspace_id', true)
+            ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+          AND current_setting('lex.principal_id', true)
+            ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+      $$;
+
+      CREATE OR REPLACE FUNCTION ${runtimeScopeMatches}(
+        row_tenant_id UUID,
+        row_workspace_id UUID
+      )
+      RETURNS BOOLEAN
+      LANGUAGE sql
+      STABLE
+      PARALLEL SAFE
+      AS $$
+        SELECT
+          current_setting('lex.tenant_id', true)
+            ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+          AND current_setting('lex.workspace_id', true)
+            ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+          AND current_setting('lex.principal_id', true)
+            ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+          AND row_tenant_id::text = current_setting('lex.tenant_id', true)
+          AND row_workspace_id::text = current_setting('lex.workspace_id', true)
+      $$;
+
+      CREATE OR REPLACE FUNCTION ${preventOwnershipChange}()
+      RETURNS TRIGGER
+      LANGUAGE plpgsql
+      AS $$
+      BEGIN
+        IF NEW.tenant_id IS DISTINCT FROM OLD.tenant_id
+          OR NEW.workspace_id IS DISTINCT FROM OLD.workspace_id
+          OR NEW.creator_principal_id IS DISTINCT FROM OLD.creator_principal_id
+          OR NEW.scope_version IS DISTINCT FROM OLD.scope_version
+        THEN
+          RAISE EXCEPTION 'Frame ownership columns are immutable'
+            USING ERRCODE = '42501';
+        END IF;
+        RETURN NEW;
+      END;
+      $$;
+
+      DROP TRIGGER IF EXISTS frames_ownership_immutable ON ${frames};
+      CREATE TRIGGER frames_ownership_immutable
+        BEFORE UPDATE OF tenant_id, workspace_id, creator_principal_id, scope_version
+        ON ${frames}
+        FOR EACH ROW
+        EXECUTE FUNCTION ${preventOwnershipChange}();
+
+      ALTER TABLE ${frames} ENABLE ROW LEVEL SECURITY;
+      ALTER TABLE ${frames} FORCE ROW LEVEL SECURITY;
+      DROP POLICY IF EXISTS lex_frames_runtime_scope ON ${frames};
+      DROP POLICY IF EXISTS lex_frames_runtime_select ON ${frames};
+      DROP POLICY IF EXISTS lex_frames_runtime_insert ON ${frames};
+      DROP POLICY IF EXISTS lex_frames_runtime_update ON ${frames};
+      DROP POLICY IF EXISTS lex_frames_runtime_delete ON ${frames};
+      CREATE POLICY lex_frames_runtime_select ON ${frames}
+        FOR SELECT
+        USING (${runtimeScopeMatches}(tenant_id, workspace_id));
+      CREATE POLICY lex_frames_runtime_insert ON ${frames}
+        FOR INSERT
+        WITH CHECK (
+          ${runtimeScopeMatches}(tenant_id, workspace_id)
+          AND creator_principal_id::text = current_setting('lex.principal_id', true)
+        );
+      CREATE POLICY lex_frames_runtime_update ON ${frames}
+        FOR UPDATE
+        USING (${runtimeScopeMatches}(tenant_id, workspace_id))
+        WITH CHECK (${runtimeScopeMatches}(tenant_id, workspace_id));
+      CREATE POLICY lex_frames_runtime_delete ON ${frames}
+        FOR DELETE
+        USING (${runtimeScopeMatches}(tenant_id, workspace_id));
+
+      REVOKE ALL ON TABLE ${frames} FROM PUBLIC;
+      REVOKE ALL ON TABLE ${quarantine} FROM PUBLIC;
+      REVOKE ALL ON TABLE ${migrations} FROM PUBLIC;
+      REVOKE ALL ON FUNCTION ${runtimeScopeIsValid}() FROM PUBLIC;
+      REVOKE ALL ON FUNCTION ${runtimeScopeMatches}(UUID, UUID) FROM PUBLIC;
+      REVOKE ALL ON FUNCTION ${preventOwnershipChange}() FROM PUBLIC;
+    `,
+    },
+    {
+      version: 3,
+      sql: `
+      ALTER TABLE ${frames}
+        ADD COLUMN frame_metadata JSONB NOT NULL DEFAULT '{"schemaVersion":1}'::jsonb,
+        ADD CONSTRAINT frames_metadata_object
+          CHECK (jsonb_typeof(frame_metadata) = 'object'),
+        ADD CONSTRAINT frames_metadata_version
+          CHECK (frame_metadata ->> 'schemaVersion' = '1');
+    `,
+    },
+  ];
+}
+
+async function currentSchemaVersion(
+  client: PoolClient,
+  target: PostgresSchemaTargetV1
+): Promise<number> {
+  const table = await client.query<{ exists: string | null }>(
+    "SELECT to_regclass($1)::text AS exists",
+    [target.relation("lex_frame_store_migrations")]
+  );
+  if (!table.rows[0]?.exists) return 0;
+  const result = await client.query<{ version: number | null }>(
+    `SELECT MAX(version) AS version FROM ${target.relation("lex_frame_store_migrations")}`
+  );
+  return result.rows[0]?.version ?? 0;
+}
+
+/** Inspect pending work without mutating schema or claiming ownership of legacy rows. */
+export async function planPostgresFrameStoreMigration(
+  client: PoolClient,
+  schema: string
+): Promise<PostgresFrameStoreMigrationPlan> {
+  const target = createPostgresSchemaTarget(schema);
+  const migrations = postgresFrameStoreMigrations(target);
+  const currentVersion = await currentSchemaVersion(client, target);
+  if (currentVersion > POSTGRES_FRAME_STORE_SCHEMA_VERSION) {
+    throw new Error(
+      `PostgreSQL FrameStore schema ${currentVersion} is newer than supported schema ${POSTGRES_FRAME_STORE_SCHEMA_VERSION}`
+    );
+  }
+  let unownedFrameCount = 0;
+  let quarantineTableConflict = false;
+  if (currentVersion === 1) {
+    const result = await client.query<{ count: string; quarantine_exists: string | null }>(
+      `
+      SELECT
+        (SELECT COUNT(*)::text FROM ${target.relation("frames")}) AS count,
+        to_regclass($1)::text AS quarantine_exists
+    `,
+      [target.relation("lex_frame_store_unowned_frames_v1")]
+    );
+    unownedFrameCount = Number(result.rows[0]?.count ?? 0);
+    quarantineTableConflict = result.rows[0]?.quarantine_exists !== null;
+  }
+  return Object.freeze({
+    currentVersion,
+    targetVersion: POSTGRES_FRAME_STORE_SCHEMA_VERSION,
+    pendingVersions: Object.freeze(
+      migrations.filter(({ version }) => version > currentVersion).map(({ version }) => version)
+    ),
+    unownedFrameCount,
+    quarantineTableConflict,
+  });
+}
 
 /** Apply pending PostgreSQL FrameStore migrations under a transaction-scoped lock. */
-export async function migratePostgresFrameStore(client: PoolClient): Promise<void> {
+export async function migratePostgresFrameStore(client: PoolClient, schema: string): Promise<void> {
+  const target = createPostgresSchemaTarget(schema);
+  const migrations = postgresFrameStoreMigrations(target);
   await client.query("BEGIN");
   try {
-    await client.query("SELECT pg_advisory_xact_lock(hashtext('lex-frame-store-migrations'))");
+    await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [
+      `lex-frame-store-migrations:${target.schema}`,
+    ]);
     await client.query(`
-      CREATE TABLE IF NOT EXISTS lex_frame_store_migrations (
+      CREATE TABLE IF NOT EXISTS ${target.relation("lex_frame_store_migrations")} (
         version INTEGER PRIMARY KEY,
         applied_at TIMESTAMPTZ NOT NULL DEFAULT now()
       )
     `);
 
     const result = await client.query<{ version: number | null }>(
-      "SELECT MAX(version) AS version FROM lex_frame_store_migrations"
+      `SELECT MAX(version) AS version FROM ${target.relation("lex_frame_store_migrations")}`
     );
     const currentVersion = result.rows[0]?.version ?? 0;
 
@@ -105,12 +339,13 @@ export async function migratePostgresFrameStore(client: PoolClient): Promise<voi
       );
     }
 
-    for (const migration of MIGRATIONS) {
+    for (const migration of migrations) {
       if (migration.version <= currentVersion) continue;
       await client.query(migration.sql);
-      await client.query("INSERT INTO lex_frame_store_migrations (version) VALUES ($1)", [
-        migration.version,
-      ]);
+      await client.query(
+        `INSERT INTO ${target.relation("lex_frame_store_migrations")} (version) VALUES ($1)`,
+        [migration.version]
+      );
     }
 
     await client.query("COMMIT");

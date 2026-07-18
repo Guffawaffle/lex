@@ -139,10 +139,9 @@ Phase 2 implements pure execution-surface and registry-location resolution, a se
 ## Deferred decisions
 
 - UUID generation version.
-- Exact public binding command spelling.
 - Offline authority snapshots and cross-surface pairing.
-- CLI/MCP integration and diagnostics implementation (Phase 3).
-- Scoped FrameStore behavior and physical ownership migration (Phase 4 and later).
+- Mandatory compatibility-executable activation once a production authority/selection provider exists.
+- Physical scoped FrameStore ownership migration (Phase 4 and later).
 - PostgreSQL RLS, same-tenant projections, and catalog publication.
 - A shared runtime helper package; contracts must survive implementation in Lex and AXF first.
 

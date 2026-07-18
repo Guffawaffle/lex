@@ -37,7 +37,7 @@ Lex exposes a contract surface that any runner or tool can target. This document
 - Paths, Git state, manifests, flags, and environment values may select evidence but cannot grant access.
 - Diagnostics are versioned, redacted observability and never change resolution.
 
-**Implementation:** Phase 2 adds opt-in, pure execution-surface and registry-location resolution, a separate versioned SQLite local registry, a deterministic fail-closed runtime-scope resolver, and an in-memory authority implementation for tests and embedding. Registry initialization and binding lifecycle changes are explicit administrative operations; normal resolution is read-only. Existing CLI, MCP, Frame, and FrameStore behavior remains unchanged.
+**Implementation:** Phase 2 adds pure execution-surface and registry-location resolution, a separate versioned SQLite local registry, a deterministic fail-closed runtime-scope resolver, and an in-memory authority implementation for tests and embedding. Phase 3 adds native repository evidence discovery, an explicit capability-gated binding lifecycle, exhaustive CLI/MCP capability decisions, redacted diagnostics, and lexical handoff into a scope-bound FrameStore. The scope-bound contract has in-memory reference semantics plus a per-workspace SQLite v15 adapter; legacy v14 ownership is assigned only by the explicit, manifest-backed `lex db scope` administrative flow. Normal resolution stays read-only and never falls back to an unscoped store after authorization.
 
 **Conformance:** The package exports deterministic Windows/WSL, clone, worktree, fork, binding, selector, cached-authority, and diagnostic fixtures. Lex runs all exported fixtures against the concrete Phase 2 resolver and registry without changing their expected semantics.
 
@@ -86,15 +86,31 @@ See [Trusted Runtime Scope Contract](./RUNTIME_SCOPE_CONTRACT.md) and [ADR-0011]
 
 **What:** The atomic unit of AI memory.
 
-**Schema:** `schemas/frame.schema.json`
+**Public API:** `@smartergpt/lex/types`
+
+**Current Record Schema Version:** `FRAME_SCHEMA_VERSION = 7`
+
+**Sources:** `src/shared/types/frame.ts` defines the public TypeScript metadata contract,
+`src/shared/types/frame-schema.ts` provides the public Zod helpers, and
+`src/memory/frames/types.ts` is the persistence runtime validator. Their exported record-version
+constants and record fields must agree. `test/shared/types/frame-contract-alignment.test.ts`
+exercises the full field set across all validation surfaces so version-only agreement cannot hide
+shape drift.
 
 **Invariants:**
-- Frames are immutable once written
-- Every Frame has a unique `id` (UUID v4)
-- Frames have a `schemaVersion` field (currently `v3`)
-- Frames may reference other Frames via `parent_id`
+- `id` is an opaque string. Lex does not require UUID or ULID syntax; a store enforces uniqueness
+  within its bound workspace.
+- Record schema version is package metadata, not a `schemaVersion` field on each Frame.
+- `saveFrame` is an idempotent upsert by `id`. `updateFrame` supports targeted changes while
+  preserving `id` and `timestamp`.
+- Supersession and consolidation use `superseded_by` and `merged_from`. There is no normative
+  `parent_id` relation or created/active/archived lifecycle field.
+- Scope-bound stores derive tenant/workspace ownership and creator attribution from
+  `AuthorizedScope`; callers do not place authority metadata in Frame payloads.
 
-**Guarantee:** A valid Frame today will be a valid Frame tomorrow. Schema evolution is additive only within a major version.
+**Guarantee:** Existing valid episodic Frames remain readable. Optional record metadata evolves
+additively within a compatible package line; changing required fields or accepted semantics is a
+breaking package change.
 
 ---
 

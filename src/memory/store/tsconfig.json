@@ -13,6 +13,7 @@
   "references": [
     { "path": "../../shared/logger" },
     { "path": "../../shared/config" },
+    { "path": "../../shared/runtime-scope" },
     { "path": "../../atlas/schemas" },
     { "path": "../receipts" },
     { "path": "../validation" }

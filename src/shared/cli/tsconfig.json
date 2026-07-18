@@ -23,6 +23,7 @@
     { "path": "../config" },
     { "path": "../instructions" },
     { "path": "../errors" },
+    { "path": "../runtime-scope" },
     { "path": "../../atlas" },
     { "path": "../../memory/store" },
     { "path": "../../memory/renderer" },

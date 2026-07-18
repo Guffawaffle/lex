@@ -30,22 +30,81 @@ export type {
   FrameStoreMetadata,
   FrameStoreHealth,
 } from "./frame-store.js";
+export {
+  FRAME_STORE_SCOPE_CONTRACT_VERSION,
+  FRAME_STORE_CAPABILITIES,
+  SCOPED_FRAME_STORE_ERROR_CODES,
+  ScopedFrameStoreError,
+  scopedFrameStoreAsLegacyView,
+} from "./scoped-frame-store.js";
+export type {
+  FrameStoreCapability,
+  FrameOwnershipV1,
+  ScopedFrameInput,
+  ScopedFrameUpdate,
+  ScopedFrameSearchCriteria,
+  ScopedFrameListOptions,
+  ScopedFrameStore,
+  ScopedFrameStoreBinder,
+  FrameStoreAdmin,
+  FrameStoreAdminBinder,
+  ScopedFrameStoreErrorCode,
+} from "./scoped-frame-store.js";
 export type { CodeAtlasStore } from "./code-atlas-store.js";
 
 // SqliteFrameStore - production-ready FrameStore implementation
-export { SqliteFrameStore } from "./sqlite/index.js";
-export type { SqliteFrameStoreAccessMode, SqliteFrameStoreOptions } from "./sqlite/index.js";
+export {
+  SqliteFrameStore,
+  SqliteScopedFrameStoreBackend,
+  SCOPED_SQLITE_SCHEMA_VERSION,
+  LEGACY_SQLITE_SCHEMA_VERSION,
+  SCOPED_SQLITE_ERROR_CODES,
+  ScopedSqliteError,
+  inspectScopedSqliteSchema,
+  requireHealthyScopedSqliteSchema,
+  SQLITE_SCOPE_MIGRATION_MANIFEST_VERSION,
+  SQLITE_SCOPE_MIGRATION_RECEIPT_VERSION,
+  inventorySqliteScope,
+  createSqliteScopeMigrationManifest,
+  validateSqliteScopeMigrationManifest,
+  migrateSqliteStoreToScopedV15,
+  recoverSqliteScopeMigration,
+} from "./sqlite/index.js";
+export type {
+  SqliteFrameStoreAccessMode,
+  SqliteFrameStoreOptions,
+  SqliteScopedFrameStoreOptions,
+  ScopedSqliteErrorCode,
+  ScopedSqliteSchemaState,
+  ScopedSqliteSchemaInspection,
+  SqliteStoreScopeBindingV1,
+  SqliteScopeTargetV1,
+  SqliteScopeInventoryV1,
+  SqliteScopeMigrationManifestV1,
+  SqliteScopeMigrationReceiptV1,
+  SqliteScopeMigrationResult,
+  SqliteScopeRecoveryReceiptV1,
+} from "./sqlite/index.js";
 
 // PostgreSQL FrameStore - opt-in shared backend for cross-platform storage
 export {
+  PostgresFrameStoreAdministration,
   PostgresFrameStore,
+  PostgresScopedFrameStoreBackend,
   migratePostgresFrameStore,
+  planPostgresFrameStoreMigration,
   POSTGRES_FRAME_STORE_SCHEMA_VERSION,
 } from "./postgres/index.js";
-export type { PostgresFrameStoreAccessMode, PostgresFrameStoreOptions } from "./postgres/index.js";
+export type {
+  PostgresFrameStoreAccessMode,
+  PostgresFrameStoreMigrationPlan,
+  PostgresFrameStoreOptions,
+  PostgresScopedFrameStoreOptions,
+} from "./postgres/index.js";
 
 // Memory-based store implementations for testing
-export { MemoryFrameStore } from "./memory/index.js";
+export { MemoryFrameStore, MemoryScopedFrameStoreBackend } from "./memory/index.js";
+export type { MemoryScopedFrameStoreOptions } from "./memory/index.js";
 
 // Import FrameStore interface and SqliteFrameStore for factory function
 import type { FrameStore } from "./frame-store.js";
@@ -57,6 +116,8 @@ export type FrameStoreBackend = "sqlite" | "postgres";
 export interface FrameStoreFactoryOptions {
   /** Defaults to read-write; read-only prevents initialization and mutation. */
   accessMode?: "read-only" | "read-write";
+  /** Transitional PostgreSQL schema target. Ignored by the SQLite backend. */
+  schema?: string;
 }
 
 /** Resolve and validate the configured FrameStore backend. */

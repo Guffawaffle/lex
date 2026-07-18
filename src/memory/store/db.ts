@@ -75,6 +75,7 @@ export interface FrameRow {
   // Deduplication metadata (v5)
   superseded_by: string | null;
   merged_from: string | null; // JSON stringified array
+  frame_metadata?: string | null; // Scoped stores require this versioned JSON payload
 }
 
 /**
@@ -397,13 +398,30 @@ function normalizeDetachedSnapshotJournalMode(snapshot: Buffer): Buffer {
   return snapshot;
 }
 
+/** Open one already-captured SQLite snapshot without mutating its source bytes. */
+export function openDatabaseSnapshotReadOnly(snapshot: Buffer): Database.Database {
+  let db: Database.Database | undefined;
+  try {
+    db = new Database(normalizeDetachedSnapshotJournalMode(Buffer.from(snapshot)));
+    db.pragma("query_only = ON");
+    return db;
+  } catch (error) {
+    if (db) db.close();
+    const message = error instanceof Error ? error.message : String(error);
+    throw new ReadOnlyDatabaseError(
+      "STORE_UNAVAILABLE",
+      `The selected Lex store snapshot could not be opened read-only: ${message}`
+    );
+  }
+}
+
 /**
  * Open an existing database through a connection that cannot write.
  *
  * This path deliberately does not create directories, initialize schema, apply
  * migrations, or set file-backed pragmas such as journal_mode.
  */
-function openDetachedDatabaseReadOnly(dbPath: string): Database.Database {
+export function openDetachedDatabaseReadOnly(dbPath: string): Database.Database {
   if (dbPath.startsWith("file:")) {
     throw new ReadOnlyDatabaseError(
       "STORE_UNAVAILABLE",
@@ -437,25 +455,9 @@ function openDetachedDatabaseReadOnly(dbPath: string): Database.Database {
     );
   }
 
-  let db: Database.Database | undefined;
-  try {
-    // better-sqlite3's file-level readonly mode still creates WAL/SHM sidecars for
-    // WAL databases. Deserialize a filesystem-read snapshot instead, then make
-    // the detached connection query-only before any caller receives it.
-    db = new Database(normalizeDetachedSnapshotJournalMode(snapshot));
-    db.pragma("query_only = ON");
-
-    return db;
-  } catch (error) {
-    if (db) db.close();
-    if (error instanceof ReadOnlyDatabaseError) throw error;
-
-    const message = error instanceof Error ? error.message : String(error);
-    throw new ReadOnlyDatabaseError(
-      "STORE_UNAVAILABLE",
-      `The selected Lex store could not be opened read-only: ${message}`
-    );
-  }
+  // better-sqlite3's file-level readonly mode still creates WAL/SHM sidecars.
+  // Deserialize the stable filesystem snapshot into a query-only connection.
+  return openDatabaseSnapshotReadOnly(snapshot);
 }
 
 /** Inspect a detached snapshot without creating, migrating, or repairing the source store. */

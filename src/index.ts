@@ -2,30 +2,9 @@
  * Lex - Policy-aware work continuity with receipts
  *
  * Main entry point for the unified Lex package.
- * This is the Lex 1.0.0 public contract surface.
- *
- * ## Subpath Exports (1.0.0 Contract)
- *
- * | Import Path | Purpose |
- * |-------------|---------|
- * | `@smartergpt/lex` | Core types + store API (this file) |
- * | `@smartergpt/lex/types` | All shared types (Frame, Policy, AtlasFrame, etc.) |
- * | `@smartergpt/lex/runtime-scope` | Trusted identity, authority, binding, and diagnostic contracts |
- * | `@smartergpt/lex/store` | Direct database operations |
- * | `@smartergpt/lex/memory` | Frame payload validation helpers |
- * | `@smartergpt/lex/policy` | Policy loading and validation |
- * | `@smartergpt/lex/atlas` | Atlas Frame generation |
- * | `@smartergpt/lex/module-ids` | Module ID validation |
- * | `@smartergpt/lex/aliases` | Module alias resolution |
- * | `@smartergpt/lex/cli-output` | CLI JSON output utilities |
- * | `@smartergpt/lex/schemas/*` | JSON schemas (versioned) |
- *
- * ## Experimental (not part of 1.0.0 contract)
- *
- * The following are internal or experimental and may change:
- * - `@smartergpt/lex/prompts` - Template system (API stabilizing)
- * - `@smartergpt/lex/logger` - NDJSON logging (internal)
- * - rules/LexSona - Not exported (experimental)
+ * The exact public package-path inventory is maintained in docs/PUBLIC_API.md
+ * and enforced against package.json, built artifacts, and packed consumers by
+ * scripts/verify-public-api.mjs. Undeclared source and dist paths are internal.
  */
 
 // =============================================================================

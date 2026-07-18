@@ -13,6 +13,11 @@ import type {
 } from "../frame-store.js";
 import type { Frame, FrameStatusSnapshot, FrameSpendMetadata } from "../../frames/types.js";
 import { Frame as FrameSchema } from "../../frames/types.js";
+import {
+  createPostgresSchemaTarget,
+  type PostgresSchemaTargetV1,
+} from "../../../shared/runtime-scope/postgres-schema.js";
+import { durableFrameMetadata, parseDurableFrameMetadata } from "../durable-frame-metadata.js";
 import { normalizeSearchTerms } from "../search-utils.js";
 import { migratePostgresFrameStore, POSTGRES_FRAME_STORE_SCHEMA_VERSION } from "./migrations.js";
 
@@ -26,6 +31,8 @@ export type PostgresFrameStoreAccessMode = "read-only" | "read-write";
 export interface PostgresFrameStoreOptions {
   /** Defaults to read-write; read-only validates schema without running migrations. */
   accessMode?: PostgresFrameStoreAccessMode;
+  /** Explicit PostgreSQL schema target. Defaults to public for 2.x compatibility. */
+  schema?: string;
 }
 
 interface PostgresFrameRow extends QueryResultRow {
@@ -48,6 +55,7 @@ interface PostgresFrameRow extends QueryResultRow {
   user_id: string | null;
   superseded_by: string | null;
   merged_from: string[] | null;
+  frame_metadata: Readonly<Record<string, unknown>> | string;
 }
 
 type FrameValue = string | string[] | object | null;
@@ -56,18 +64,19 @@ const FRAME_COLUMNS = `
   id, "timestamp" AS timestamp, branch, jira, module_scope, summary_caption,
   reference_point, status_snapshot, keywords, atlas_frame_id, feature_flags,
   permissions, module_attribution, run_id, plan_hash, spend, user_id,
-  superseded_by, merged_from
+  superseded_by, merged_from, frame_metadata
 `;
 
-const UPSERT_FRAME_SQL = `
-  INSERT INTO frames (
+function upsertFrameSql(target: PostgresSchemaTargetV1): string {
+  return `
+  INSERT INTO ${target.relation("frames")} (
     id, "timestamp", branch, jira, module_scope, summary_caption,
     reference_point, status_snapshot, keywords, atlas_frame_id, feature_flags,
     permissions, module_attribution, run_id, plan_hash, spend, user_id,
-    superseded_by, merged_from
+    superseded_by, merged_from, frame_metadata
   ) VALUES (
     $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14,
-    $15, $16, $17, $18, $19
+    $15, $16, $17, $18, $19, $20
   )
   ON CONFLICT (id) DO UPDATE SET
     "timestamp" = EXCLUDED."timestamp",
@@ -87,8 +96,10 @@ const UPSERT_FRAME_SQL = `
     spend = EXCLUDED.spend,
     user_id = EXCLUDED.user_id,
     superseded_by = EXCLUDED.superseded_by,
-    merged_from = EXCLUDED.merged_from
+    merged_from = EXCLUDED.merged_from,
+    frame_metadata = EXCLUDED.frame_metadata
 `;
+}
 
 function encodeCursor(timestamp: string, frameId: string): string {
   return Buffer.from(JSON.stringify({ timestamp, frame_id: frameId })).toString("base64");
@@ -110,7 +121,7 @@ function parseJson<T>(value: T | string): T {
 }
 
 function rowToFrame(row: PostgresFrameRow): Frame {
-  return {
+  return FrameSchema.parse({
     id: row.id,
     timestamp: row.timestamp,
     branch: row.branch,
@@ -130,7 +141,8 @@ function rowToFrame(row: PostgresFrameRow): Frame {
     userId: row.user_id ?? undefined,
     superseded_by: row.superseded_by ?? undefined,
     merged_from: row.merged_from ?? undefined,
-  };
+    ...parseDurableFrameMetadata(row.frame_metadata),
+  });
 }
 
 function frameValues(frame: Frame): FrameValue[] {
@@ -154,6 +166,7 @@ function frameValues(frame: Frame): FrameValue[] {
     frame.userId ?? null,
     frame.superseded_by ?? null,
     frame.merged_from ?? null,
+    durableFrameMetadata(frame),
   ];
 }
 
@@ -200,11 +213,15 @@ export class PostgresFrameStore implements FrameStore {
   private readonly ownsPool: boolean;
   private readonly metadata: FrameStoreMetadata;
   private readonly _accessMode: PostgresFrameStoreAccessMode;
+  private readonly target: PostgresSchemaTargetV1;
+  private readonly upsertSql: string;
   private initialization: Promise<void> | null = null;
   private isClosed = false;
 
   constructor(connectionStringOrPool?: string | Pool, options: PostgresFrameStoreOptions = {}) {
     this._accessMode = options.accessMode ?? "read-write";
+    this.target = createPostgresSchemaTarget(options.schema ?? "public");
+    this.upsertSql = upsertFrameSql(this.target);
     if (typeof connectionStringOrPool === "object") {
       this.pool = connectionStringOrPool;
       this.ownsPool = false;
@@ -213,7 +230,7 @@ export class PostgresFrameStore implements FrameStore {
         backend: "postgres",
         location,
         canonicalLocation: location,
-        identity: postgresIdentity(location),
+        identity: postgresIdentity(`${location}|schema=${this.target.schema}`),
         capabilities: { encryption: false, images: false },
       };
       return;
@@ -244,7 +261,7 @@ export class PostgresFrameStore implements FrameStore {
       backend: "postgres",
       location,
       canonicalLocation: location,
-      identity: postgresIdentity(location),
+      identity: postgresIdentity(`${location}|schema=${this.target.schema}`),
       capabilities: { encryption: false, images: false },
     };
   }
@@ -268,7 +285,7 @@ export class PostgresFrameStore implements FrameStore {
         database: string;
       }>(`
         SELECT
-          (SELECT MAX(version) FROM lex_frame_store_migrations) AS schema_version,
+          (SELECT MAX(version) FROM ${this.target.relation("lex_frame_store_migrations")}) AS schema_version,
           current_setting('server_version') AS server_version,
           current_database() AS database
       `);
@@ -302,7 +319,7 @@ export class PostgresFrameStore implements FrameStore {
 
   private async verifySchema(client: PoolClient): Promise<void> {
     const result = await client.query<{ version: number | null }>(
-      "SELECT MAX(version) AS version FROM lex_frame_store_migrations"
+      `SELECT MAX(version) AS version FROM ${this.target.relation("lex_frame_store_migrations")}`
     );
     const currentVersion = result.rows[0]?.version ?? 0;
     if (currentVersion !== POSTGRES_FRAME_STORE_SCHEMA_VERSION) {
@@ -320,7 +337,7 @@ export class PostgresFrameStore implements FrameStore {
           const client = await this.pool.connect();
           try {
             if (this._accessMode === "read-only") await this.verifySchema(client);
-            else await migratePostgresFrameStore(client);
+            else await migratePostgresFrameStore(client, this.target.schema);
           } finally {
             client.release();
           }
@@ -337,7 +354,8 @@ export class PostgresFrameStore implements FrameStore {
   async saveFrame(frame: Frame): Promise<void> {
     this.assertWritable();
     await this.ensureReady();
-    await this.pool.query(UPSERT_FRAME_SQL, frameValues(frame));
+    const parsed = FrameSchema.parse(frame);
+    await this.pool.query(this.upsertSql, frameValues(parsed));
   }
 
   async saveFrames(frames: Frame[]): Promise<SaveResult[]> {
@@ -362,7 +380,7 @@ export class PostgresFrameStore implements FrameStore {
     try {
       client = await this.pool.connect();
       await client.query("BEGIN");
-      for (const frame of frames) await client.query(UPSERT_FRAME_SQL, frameValues(frame));
+      for (const frame of frames) await client.query(this.upsertSql, frameValues(frame));
       await client.query("COMMIT");
       return frames.map((frame) => ({ id: frame.id, success: true }));
     } catch (error) {
@@ -381,7 +399,7 @@ export class PostgresFrameStore implements FrameStore {
   async getFrameById(id: string): Promise<Frame | null> {
     await this.ensureReady();
     const result = await this.pool.query<PostgresFrameRow>(
-      `SELECT ${FRAME_COLUMNS} FROM frames WHERE id = $1`,
+      `SELECT ${FRAME_COLUMNS} FROM ${this.target.relation("frames")} WHERE id = $1`,
       [id]
     );
     return result.rows[0] ? rowToFrame(result.rows[0]) : null;
@@ -405,7 +423,7 @@ export class PostgresFrameStore implements FrameStore {
     if (criteria.until) clauses.push(`"timestamp" <= ${add(criteria.until.toISOString())}`);
     if (criteria.userId) clauses.push(`user_id = ${add(criteria.userId)}`);
 
-    let sql = `SELECT ${FRAME_COLUMNS} FROM frames`;
+    let sql = `SELECT ${FRAME_COLUMNS} FROM ${this.target.relation("frames")}`;
     if (clauses.length) sql += ` WHERE ${clauses.join(" AND ")}`;
     sql += ` ORDER BY "timestamp" DESC, id DESC`;
     if (criteria.limit !== undefined) sql += ` LIMIT ${add(criteria.limit)}`;
@@ -432,7 +450,7 @@ export class PostgresFrameStore implements FrameStore {
     }
     if (options?.userId) clauses.push(`user_id = ${add(options.userId)}`);
 
-    let sql = `SELECT ${FRAME_COLUMNS} FROM frames`;
+    let sql = `SELECT ${FRAME_COLUMNS} FROM ${this.target.relation("frames")}`;
     if (clauses.length) sql += ` WHERE ${clauses.join(" AND ")}`;
     sql += ` ORDER BY "timestamp" DESC, id DESC LIMIT ${add(limit + 1)}`;
     if (!options?.cursor && options?.offset !== undefined) {
@@ -457,38 +475,48 @@ export class PostgresFrameStore implements FrameStore {
   async deleteFrame(id: string): Promise<boolean> {
     this.assertWritable();
     await this.ensureReady();
-    const result = await this.pool.query("DELETE FROM frames WHERE id = $1", [id]);
+    const result = await this.pool.query(
+      `DELETE FROM ${this.target.relation("frames")} WHERE id = $1`,
+      [id]
+    );
     return (result.rowCount ?? 0) > 0;
   }
 
   async deleteFramesBefore(date: Date): Promise<number> {
     this.assertWritable();
     await this.ensureReady();
-    const result = await this.pool.query('DELETE FROM frames WHERE "timestamp" < $1', [
-      date.toISOString(),
-    ]);
+    const result = await this.pool.query(
+      `DELETE FROM ${this.target.relation("frames")} WHERE "timestamp" < $1`,
+      [date.toISOString()]
+    );
     return result.rowCount ?? 0;
   }
 
   async deleteFramesByBranch(branch: string): Promise<number> {
     this.assertWritable();
     await this.ensureReady();
-    const result = await this.pool.query("DELETE FROM frames WHERE branch = $1", [branch]);
+    const result = await this.pool.query(
+      `DELETE FROM ${this.target.relation("frames")} WHERE branch = $1`,
+      [branch]
+    );
     return result.rowCount ?? 0;
   }
 
   async deleteFramesByModule(moduleId: string): Promise<number> {
     this.assertWritable();
     await this.ensureReady();
-    const result = await this.pool.query("DELETE FROM frames WHERE $1 = ANY(module_scope)", [
-      moduleId,
-    ]);
+    const result = await this.pool.query(
+      `DELETE FROM ${this.target.relation("frames")} WHERE $1 = ANY(module_scope)`,
+      [moduleId]
+    );
     return result.rowCount ?? 0;
   }
 
   async getFrameCount(): Promise<number> {
     await this.ensureReady();
-    const result = await this.pool.query<{ count: string }>("SELECT COUNT(*) AS count FROM frames");
+    const result = await this.pool.query<{ count: string }>(
+      `SELECT COUNT(*) AS count FROM ${this.target.relation("frames")}`
+    );
     return Number(result.rows[0]?.count ?? 0);
   }
 
@@ -511,7 +539,7 @@ export class PostgresFrameStore implements FrameStore {
         COUNT(*) FILTER (WHERE "timestamp" >= $2) AS this_month,
         MIN("timestamp") AS oldest_date,
         MAX("timestamp") AS newest_date
-       FROM frames`,
+       FROM ${this.target.relation("frames")}`,
       [oneWeekAgo.toISOString(), oneMonthAgo.toISOString()]
     );
     const row = result.rows[0];
@@ -526,7 +554,7 @@ export class PostgresFrameStore implements FrameStore {
     if (detailed && stats.totalFrames > 0) {
       const distribution = await this.pool.query<{ module_id: string; count: string }>(`
         SELECT module_id, COUNT(*) AS count
-        FROM frames, unnest(module_scope) AS module_id
+        FROM ${this.target.relation("frames")}, unnest(module_scope) AS module_id
         GROUP BY module_id
         ORDER BY COUNT(*) DESC, module_id ASC
         LIMIT 20
@@ -552,7 +580,7 @@ export class PostgresFrameStore implements FrameStore {
         COUNT(*) AS frame_count,
         COALESCE(SUM((spend ->> 'tokens_estimated')::numeric), 0) AS estimated_tokens,
         COALESCE(SUM((spend ->> 'prompts')::numeric), 0) AS prompts
-       FROM frames ${where}`,
+       FROM ${this.target.relation("frames")} ${where}`,
       values
     );
     const row = result.rows[0];
@@ -569,46 +597,46 @@ export class PostgresFrameStore implements FrameStore {
   ): Promise<boolean> {
     this.assertWritable();
     await this.ensureReady();
-    const columnMap: Record<string, string> = {
-      branch: "branch",
-      jira: "jira",
-      module_scope: "module_scope",
-      summary_caption: "summary_caption",
-      reference_point: "reference_point",
-      status_snapshot: "status_snapshot",
-      keywords: "keywords",
-      atlas_frame_id: "atlas_frame_id",
-      feature_flags: "feature_flags",
-      permissions: "permissions",
-      module_attribution: "module_attribution",
-      runId: "run_id",
-      planHash: "plan_hash",
-      spend: "spend",
-      userId: "user_id",
-      superseded_by: "superseded_by",
-      merged_from: "merged_from",
-    };
-    const clauses: string[] = [];
-    const values: unknown[] = [];
-    for (const [key, value] of Object.entries(updates)) {
-      const column = columnMap[key];
-      if (!column) continue;
-      values.push(value ?? null);
-      clauses.push(`${column} = $${values.length}`);
+    const {
+      id: _discardedId,
+      timestamp: _discardedTimestamp,
+      ...safeUpdates
+    } = updates as typeof updates & Record<string, unknown>;
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+      const existing = await client.query<PostgresFrameRow>(
+        `SELECT ${FRAME_COLUMNS} FROM ${this.target.relation("frames")} WHERE id = $1 FOR UPDATE`,
+        [id]
+      );
+      const row = existing.rows[0];
+      if (!row) {
+        await client.query("ROLLBACK");
+        return false;
+      }
+      const next = FrameSchema.parse({
+        ...rowToFrame(row),
+        ...safeUpdates,
+        id: row.id,
+        timestamp: row.timestamp,
+      });
+      const result = await client.query(this.upsertSql, frameValues(next));
+      await client.query("COMMIT");
+      return (result.rowCount ?? 0) > 0;
+    } catch (error) {
+      await client.query("ROLLBACK").catch(() => undefined);
+      throw error;
+    } finally {
+      client.release();
     }
-    if (clauses.length === 0) return (await this.getFrameById(id)) !== null;
-    values.push(id);
-    const result = await this.pool.query(
-      `UPDATE frames SET ${clauses.join(", ")} WHERE id = $${values.length}`,
-      values
-    );
-    return (result.rowCount ?? 0) > 0;
   }
 
   async purgeSuperseded(): Promise<number> {
     this.assertWritable();
     await this.ensureReady();
-    const result = await this.pool.query("DELETE FROM frames WHERE superseded_by IS NOT NULL");
+    const result = await this.pool.query(
+      `DELETE FROM ${this.target.relation("frames")} WHERE superseded_by IS NOT NULL`
+    );
     return result.rowCount ?? 0;
   }
 

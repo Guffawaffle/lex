@@ -9,6 +9,9 @@ import {
   RUNTIME_SCOPE_CONFORMANCE_FIXTURES,
   WORKSPACE_AUTHORITY_ERROR_CODES,
   SqliteLocalBindingRegistry,
+  captureTrustedBootstrapInput,
+  createTrustedRuntimeScopeBootstrap,
+  authorizeTrustedRuntimeEntrypoint,
   detectExecutionSurface,
   resolveLocalRegistryLocation,
   resolveRuntimeScope,
@@ -22,7 +25,7 @@ import {
 } from "@smartergpt/lex/runtime-scope";
 ```
 
-Phase 1 froze the public contract. Phase 2 adds opt-in deterministic resolver and local-registry services. Existing CLI, MCP, Frame, and FrameStore behavior is unchanged; no existing entrypoint invokes these services yet.
+Phase 1 froze the public contract. Phase 2 added the deterministic resolver and local-registry services. Phase 3 provides production repository discovery, explicit binding administration, and one shared injectable CLI/MCP guard. Compatibility hosts remain available during the prerelease weave, but a Lex 3.0 host must supply canonical authority, trusted selection, and a scope-bound store together.
 
 ## Boundary
 
@@ -144,15 +147,90 @@ Authority and registry exceptions fail closed. Normal results contain no diagnos
 
 `InMemoryAuthorityDirectory` is a deterministic test and embedding implementation of the authority contract. It is not shared PostgreSQL authority and does not establish a production trust boundary.
 
+`PostgresAuthorityDirectory` is the shared production implementation. It resolves opaque
+authentication handles through persisted digests, pins all lookups for one resolution to a
+repeatable-read transaction, verifies explicit workspace/repository associations, and rejects a
+runtime role that can mutate canonical authority. Both runtime and administration require one
+validated explicit schema and qualify every authority relation, independent of pool `search_path`.
+`PostgresAuthorityAdministration` is the separate privileged migration, provisioning, inspection,
+and revocation seam. See
+[PostgreSQL Canonical Authority](./POSTGRES_AUTHORITY.md).
+
+## Phase 3 trusted bootstrap and entrypoint wiring
+
+`captureTrustedBootstrapInput` freezes `argv`, `cwd`, native platform/surface evidence, and a small compatibility-environment allow-list exactly once. The allow-list contains only home/state and caller-root discovery inputs. Database credentials and registry-path overrides are discarded, and retained environment values remain discovery inputs rather than authority.
+
+`createTrustedRuntimeScopeBootstrap` accepts injected canonical authority and repository discovery adapters. For every CLI or MCP invocation it:
+
+1. clones and freezes the captured input and discovery evidence;
+2. selects the native surface-local registry from standard state directories;
+3. opens that existing registry read-only and always closes the handle;
+4. calls the deterministic resolver with only the explicitly requested capabilities; and
+5. returns an immutable compact result, or an opt-in diagnostic envelope.
+
+`NodeRuntimeScopeDiscoveryAdapter` is the production evidence adapter. It starts only from the frozen caller-root snapshot, executes native Git without a shell, rejects unrelated roots, and hashes Git common-directory, filesystem, declaration, and supported provider-remote evidence. An optional checked-in `lex.repository.json` is an untrusted repository declaration. The adapter cannot select a principal or workspace itself: a separately injected `TrustedRuntimeSelectionProviderV1` supplies an opaque authentication reference and requested workspace for canonical authorization.
+
+```json
+{
+  "schemaVersion": 1,
+  "repositoryId": "<opaque canonical repository id>",
+  "repositorySlug": "lex",
+  "preferredWorkspace": {
+    "tenantSlug": "platform-dogfood",
+    "workspaceSlug": "lex"
+  }
+}
+```
+
+The IDs and slugs in this file remain declaration/selection hints. Editing or copying it cannot grant workspace access.
+
+`WorkspaceBindingAdminService` owns the explicit `lex workspace recover|bind|inspect|rebind|revoke` lifecycle. Recovery creates only an absent, empty surface-local registry and refuses in-place repair or replacement. Every mutation is independently authorized with a named workspace-administration capability and produces or preserves registry receipts. Normal bootstrap never calls this service.
+
+`createTrustedRuntimeScopeEntrypointGuard` constructs the one canonical guard used by both `run()` and `MCPServer`. CLI authorization completes before Commander dispatch. MCP authorization completes before tool dispatch, and a denial therefore cannot invoke even a mutating in-memory test store. Command and tool capability maps are exhaustive against the real Commander tree, advertised MCP tools, and supported aliases; unknown operations reject rather than inheriting a default grant. Explicit dry-run commands attenuate write/delete capabilities.
+
+`createPostgresTrustedRuntimeHost` completes the production composition without ambient authority.
+It receives the runtime Pool, explicit authority schema, trusted selection/secret-provider seam,
+process capture, IDs, diagnostic emitter, and scoped store binder explicitly, then returns
+structurally ready `cli` and `mcp` host options backed by the same guard and binder. The CLI
+composition alone receives the explicit local binding administration service.
+
+When an operation requests any `frame:*` capability, the host must pair the guard with a `ScopedFrameStoreBinder`. The resolved `AuthorizedScope` is bound and passed lexically into that one command/tool dispatch, then the view is closed. Missing or failed binding returns `LEX_FRAME_STORE_INVALID_SCOPE`; it never falls back to a legacy unscoped store. A canonical guarded MCP host also defers physical store construction until after authorization.
+
+Normal calls add no scope metadata to agent output. CLI diagnostics use `--diagnostic` for summary detail and `--diagnostic --diagnostic-level=full` for full detail; MCP tools accept `diagnostics: "summary" | "full"`. Full authority, binding, and selection detail requires an independent `runtime:diagnose` authorization decision, uses opaque hashed references, and never changes the operation capability set or its resolution result. Authentication references and project roots are always omitted.
+
+`authorityMode: "local-offline"` is explicit and still requires an injected authority implementation plus finite cached-authority evidence. It does not pair execution surfaces or turn copied local state into shared authority.
+
+## Scoped SQLite Frame ownership
+
+`SqliteScopedFrameStoreBackend` persists the Phase 3 scope contract in SQLite
+schema v15. SQLite remains a per-workspace deployment: one file has one
+immutable tenant/workspace binding, while every Frame row also records ownership
+contract version, creator principal, and the scope version active at creation.
+All normal reads, searches, lists, exports, counts, statistics, updates, and
+deletes are issued through a bound view and include its tenant/workspace filter.
+Ownership never appears in normal Frame results.
+
+Unowned v14 stores are excluded from normal scoped service. `lex db scope`
+provides separate inventory, manifest, migration, and recovery operations.
+Manifests bind the exact source digest to explicit canonical UUIDs; identity is
+never inferred from environment variables, paths, directory names, repository
+metadata, or legacy user fields. Migration is dry-run by default. Explicit write
+mode creates a mandatory recovery snapshot, rebuilds transactionally, stores a
+deterministic path-redacted receipt, and verifies the result. Recovery is also
+dry-run by default and accepts only the exact recorded legacy snapshot.
+
+This local file binding is an authorization invariant, not a global publication
+mechanism. Cross-workspace/global Frames, projections, and catalogs remain
+separate future contracts.
+
 ## Deferred implementation
 
-The following remain intentionally absent after Phase 2:
+The following remain intentionally outside this Phase 3 slice:
 
-- CLI/MCP bootstrap integration;
-- Frame ownership columns or migration;
+- making the standalone compatibility executable mandatory-guarded before a production `AuthorityDirectory` and trusted selection provider are available;
 - PostgreSQL RLS;
 - projections and catalog publication;
-- offline authority pairing;
+- offline authority pairing or locally minted authority;
 - a cross-repository helper package.
 
-See [ADR-0011](./adr/0011-trusted-runtime-scope-and-authority.md), epic [#749](https://github.com/Guffawaffle/lex/issues/749), and Phase 2 issue [#755](https://github.com/Guffawaffle/lex/issues/755).
+See [ADR-0011](./adr/0011-trusted-runtime-scope-and-authority.md), epic [#749](https://github.com/Guffawaffle/lex/issues/749), Phase 2 issue [#755](https://github.com/Guffawaffle/lex/issues/755), and Phase 3 issue [#758](https://github.com/Guffawaffle/lex/issues/758).

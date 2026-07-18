@@ -6,8 +6,7 @@
  */
 
 import { loadPolicy } from "../policy/loader.js";
-// Future: PolicyModule type for enhanced metadata
-// import type { PolicyModule } from "../types/policy.js";
+import type { Policy } from "../types/policy.js";
 import { extractNeighborhood, generateCoordinates } from "./graph.js";
 export interface AtlasFrame {
   atlas_timestamp: string;
@@ -65,10 +64,21 @@ export function generateAtlasFrame(
   foldRadius: number = 1,
   policyPath?: string
 ): AtlasFrame {
-  const timestamp = new Date().toISOString();
-
-  // Load policy graph
   const policy = loadPolicy(policyPath);
+  return generateAtlasFrameFromPolicy(seedModules, policy, foldRadius);
+}
+
+/**
+ * Generate an Atlas Frame from an already authorized policy snapshot.
+ * Trusted multi-workspace hosts use this form so policy resolution remains
+ * request-local and cannot fall back to process environment or cwd.
+ */
+export function generateAtlasFrameFromPolicy(
+  seedModules: string[],
+  policy: Policy,
+  foldRadius: number = 1
+): AtlasFrame {
+  const timestamp = new Date().toISOString();
 
   // Extract neighborhood using BFS traversal
   const neighborhood = extractNeighborhood(policy, seedModules, foldRadius);

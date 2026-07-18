@@ -13,8 +13,16 @@ import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { getLogger } from "../logger/index.js";
 import { expandTokensInObject } from "../tokens/expander.js";
+import { canonicalizeContainedPath, readContainedFile } from "./contained-path.js";
 
 const logger = getLogger("config");
+
+export {
+  canonicalizeContainedPath,
+  readContainedFile,
+  ContainedPathError,
+  type ContainedFileSnapshot,
+} from "./contained-path.js";
 
 export type WorkspaceRootSource = "explicit" | "git" | "package" | "cwd";
 
@@ -26,6 +34,24 @@ export interface WorkspaceRootResolution {
 export interface WorkspaceRootOptions {
   startPath?: string;
   explicitRoot?: string | null;
+}
+
+/**
+ * Controls for resolving configuration at an explicit trust boundary.
+ * Defaults preserve the legacy process-oriented resolution behavior.
+ */
+export interface TrustedConfigBoundary {
+  /** Authorized project root. Configuration paths must remain physically contained here. */
+  projectRoot: string;
+  /** Captured invocation time used for deterministic today/now token expansion. */
+  capturedAt: string;
+  branch?: string;
+  commit?: string;
+}
+
+export interface ConfigResolutionOptions extends WorkspaceRootOptions {
+  /** Opt into deterministic, environment-independent trusted workspace resolution. */
+  trustedBoundary?: TrustedConfigBoundary;
 }
 
 export type ConfigFileSource = "caller-workspace" | "package-fallback" | "none";
@@ -152,7 +178,10 @@ function findLexPackageRoot(): string {
   return process.cwd();
 }
 
-function resolveConfigFilePath(callerRoot: WorkspaceRootResolution): {
+function resolveConfigFilePath(
+  callerRoot: WorkspaceRootResolution,
+  includePackageFallback: boolean
+): {
   path: string | null;
   source: ConfigFileSource;
 } {
@@ -164,13 +193,15 @@ function resolveConfigFilePath(callerRoot: WorkspaceRootResolution): {
     };
   }
 
-  const packageRoot = findLexPackageRoot();
-  const packageConfigPath = path.join(packageRoot, ".lex.config.json");
-  if (packageRoot !== callerRoot.path && fs.existsSync(packageConfigPath)) {
-    return {
-      path: packageConfigPath,
-      source: "package-fallback",
-    };
+  if (includePackageFallback) {
+    const packageRoot = findLexPackageRoot();
+    const packageConfigPath = path.join(packageRoot, ".lex.config.json");
+    if (packageRoot !== callerRoot.path && fs.existsSync(packageConfigPath)) {
+      return {
+        path: packageConfigPath,
+        source: "package-fallback",
+      };
+    }
   }
 
   return {
@@ -182,20 +213,28 @@ function resolveConfigFilePath(callerRoot: WorkspaceRootResolution): {
 /**
  * Load configuration from .lex.config.json file if it exists.
  */
-function loadConfigFile(configPath: string | null): Partial<LexConfig> | null {
+function loadConfigFile(
+  configPath: string | null,
+  options: {
+    strict: boolean;
+    tokenContext?: Parameters<typeof expandTokensInObject>[1];
+    content?: string;
+  }
+): Partial<LexConfig> | null {
   if (!configPath) {
     return null;
   }
 
   try {
-    const content = fs.readFileSync(configPath, "utf-8");
+    const content = options.content ?? fs.readFileSync(configPath, "utf-8");
     const parsed = JSON.parse(content) as Partial<LexConfig>;
 
     // Expand tokens in the configuration
-    const expanded = expandTokensInObject(parsed);
+    const expanded = expandTokensInObject(parsed, options.tokenContext);
 
     return expanded;
   } catch (error) {
+    if (options.strict) throw error;
     const errorMessage = error instanceof Error ? error.message : String(error);
     logger.warn(`Failed to parse .lex.config.json: ${errorMessage}`);
     return null;
@@ -276,16 +315,58 @@ let cachedConfigResolution: ConfigResolution | null = null;
  * Resolve configuration for a specific caller without populating the process-wide cache.
  * MCP hosts use this form when their execution root is supplied as a constructor option.
  */
-export function resolveConfigResolution(options: WorkspaceRootOptions = {}): ConfigResolution {
-  const workspaceRoot = resolveCallerWorkspaceRoot(options);
+export function resolveConfigResolution(options: ConfigResolutionOptions = {}): ConfigResolution {
+  const trustedBoundary = options.trustedBoundary;
+  const trustedRoot = trustedBoundary
+    ? canonicalizeContainedPath(trustedBoundary.projectRoot, trustedBoundary.projectRoot)
+    : null;
+  const capturedAt = trustedBoundary ? new Date(trustedBoundary.capturedAt) : null;
+  if (capturedAt && Number.isNaN(capturedAt.valueOf())) {
+    throw new TypeError("Trusted configuration capturedAt must be a valid timestamp.");
+  }
+  const includeEnvironmentOverrides = !trustedBoundary;
+  const includePackageFallback = !trustedBoundary;
+  const workspaceRoot = resolveCallerWorkspaceRoot(
+    trustedRoot ? { startPath: trustedRoot, explicitRoot: trustedRoot } : options
+  );
   const defaultConfig = createDefaultConfig(workspaceRoot);
-  const configFile = resolveConfigFilePath(workspaceRoot);
-  const fileConfig = loadConfigFile(configFile.path);
-  const envConfig = loadEnvConfig();
+  let configFile = resolveConfigFilePath(workspaceRoot, includePackageFallback);
+  let trustedConfigContent: string | undefined;
+  if (trustedRoot && configFile.path) {
+    const snapshot = readContainedFile(trustedRoot, configFile.path);
+    configFile = {
+      ...configFile,
+      path: snapshot.canonicalPath,
+    };
+    trustedConfigContent = snapshot.content;
+  }
+  const fileConfig = loadConfigFile(configFile.path, {
+    strict: Boolean(trustedBoundary),
+    ...(trustedConfigContent !== undefined ? { content: trustedConfigContent } : {}),
+    ...(trustedBoundary && capturedAt
+      ? {
+          tokenContext: {
+            today: capturedAt,
+            now: capturedAt,
+            repoRoot: trustedRoot ?? trustedBoundary.projectRoot,
+            workspaceRoot: trustedRoot ?? trustedBoundary.projectRoot,
+            branch: trustedBoundary.branch ?? "",
+            commit: trustedBoundary.commit ?? "",
+          },
+        }
+      : {}),
+  });
+  const envConfig = includeEnvironmentOverrides ? loadEnvConfig() : null;
 
   // Merge: defaults < file < env vars
   const mergedConfig = mergeConfig(defaultConfig, fileConfig, envConfig);
   const configBaseDir = configFile.path ? path.dirname(configFile.path) : workspaceRoot.path;
+  if (trustedRoot) {
+    const configuredAppRoot = path.isAbsolute(mergedConfig.paths.appRoot)
+      ? mergedConfig.paths.appRoot
+      : path.resolve(configBaseDir, mergedConfig.paths.appRoot);
+    mergedConfig.paths.appRoot = canonicalizeContainedPath(trustedRoot, configuredAppRoot);
+  }
   const config = resolveConfigPaths(mergedConfig, configBaseDir);
 
   return {
@@ -293,23 +374,26 @@ export function resolveConfigResolution(options: WorkspaceRootOptions = {}): Con
     workspaceRoot,
     configFile,
     pathSources: {
-      appRoot: process.env.LEX_APP_ROOT
-        ? "env:LEX_APP_ROOT"
-        : fileConfig?.paths?.appRoot
-          ? "file:.lex.config.json"
-          : "default",
-      database: process.env.LEX_DB_PATH
-        ? "env:LEX_DB_PATH"
-        : process.env.LEX_MEMORY_DB
-          ? "env:LEX_MEMORY_DB"
-          : fileConfig?.paths?.database
+      appRoot:
+        includeEnvironmentOverrides && process.env.LEX_APP_ROOT
+          ? "env:LEX_APP_ROOT"
+          : fileConfig?.paths?.appRoot
             ? "file:.lex.config.json"
             : "default",
-      policy: process.env.LEX_POLICY_PATH
-        ? "env:LEX_POLICY_PATH"
-        : fileConfig?.paths?.policy
-          ? "file:.lex.config.json"
-          : "default",
+      database:
+        includeEnvironmentOverrides && process.env.LEX_DB_PATH
+          ? "env:LEX_DB_PATH"
+          : includeEnvironmentOverrides && process.env.LEX_MEMORY_DB
+            ? "env:LEX_MEMORY_DB"
+            : fileConfig?.paths?.database
+              ? "file:.lex.config.json"
+              : "default",
+      policy:
+        includeEnvironmentOverrides && process.env.LEX_POLICY_PATH
+          ? "env:LEX_POLICY_PATH"
+          : fileConfig?.paths?.policy
+            ? "file:.lex.config.json"
+            : "default",
     },
   };
 }

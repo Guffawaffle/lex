@@ -20,7 +20,8 @@ Contains:
 
 ### [Subpath Exports](./subpath-exports-example.ts)
 
-Demonstrates all available Lex subpath exports:
+Demonstrates representative Lex subpath exports. The complete, executable inventory is maintained
+in the [Public Package API](../docs/PUBLIC_API.md):
 - `@smartergpt/lex` — Core API
 - `@smartergpt/lex/cli` — Programmatic CLI
 - `@smartergpt/lex/store` — Direct database operations

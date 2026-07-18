@@ -185,7 +185,7 @@ Requires Node.js 20+ and currently supports Node.js 20 through 24, matching the 
 
 WSL users should use a native WSL install on `PATH`, not Windows npm shims or npm's `_npx` cache. See [WSL Native Lex Install](./docs/WSL_NATIVE_INSTALL.md) for the recommended user-local install, checkout symlink bridge, and native SQLite build requirements.
 
-Lex supports structured output (`--json`), recoverable errors (AXError), and Frame Schema v3 for orchestrator integration. Commands provide both human-readable and machine-parseable output where supported.
+Lex supports structured output (`--json`), recoverable errors (AXError), and Frame Schema v7 for orchestrator integration. Commands provide both human-readable and machine-parseable output where supported.
 
 ### Initialize
 
@@ -438,7 +438,7 @@ const results = await searchFrames(db, { referencePoint: 'authentication' });
 closeDb(db);
 ```
 
-### Subpath exports
+### Common subpath exports
 
 | Import | Purpose | Documentation |
 |--------|---------|---------------|
@@ -460,7 +460,9 @@ closeDb(db);
 | `@smartergpt/lex/lexsona` | Behavioral memory socket (v2.0+) | [Control Stack](./docs/control-stack/index.md) |
 | `@smartergpt/lex/prompts` | Template system | [Canon Architecture](./docs/CANON_ARCHITECTURE.md) |
 
-[Full API Documentation](./docs/API_USAGE.md)
+The export map contains additional maintenance, receipt, MCP server, and versioned JSON Schema
+paths. Every declared path is public and semver-governed; undeclared source and `dist/` paths are
+internal. See the [complete public package API](./docs/PUBLIC_API.md) and [API usage guide](./docs/API_USAGE.md).
 
 ---
 
@@ -468,7 +470,7 @@ closeDb(db);
 
 **Current Version:** `2.10.0` ([Changelog](./CHANGELOG.md))
 
-Current Lex releases include structured output, recoverable errors, and Frame Schema v3 for agent and orchestrator integration.
+Current Lex releases include structured output, recoverable errors, and Frame Schema v7 for agent and orchestrator integration.
 
 Commonly used for:
 
@@ -481,7 +483,7 @@ Commonly used for:
 Current capability highlights:
 
 - Structured output contract (v0.1): machine-parseable output, recoverable errors, and recall-focused events ([AX Contract](./docs/specs/AX-CONTRACT.md))
-- Frame Schema v3: runner fields such as `runId`, `planHash`, and `toolCalls` for orchestration ([Schema Docs](./docs/specs/FRAME-SCHEMA-V3.md))
+- Frame Schema v7: additive runner, turn-cost, deduplication, contradiction, and module-attribution metadata, with the canonical runtime and TypeScript sources identified in the [contract surface](./docs/CONTRACT_SURFACE.md)
 - AXError Schema: structured errors with `code`, `message`, `context`, and `nextActions[]` for programmatic recovery
 - CLI JSON Output: `lex remember --json` and `lex timeline --json` with machine-parseable event streams
 - Instructions Management: `lex instructions` CLI for syncing AI instructions across IDEs
