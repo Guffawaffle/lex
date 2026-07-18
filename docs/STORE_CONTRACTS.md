@@ -82,6 +82,19 @@ repairing them implicitly.
 
 ### PostgreSQL Access Modes
 
+Lex 3.0 normal PostgreSQL consumers use `PostgresScopedFrameStoreBackend`, not the transitional
+unscoped factory. The runtime adapter requires an explicit connection/pool, verifies a non-owner
+and non-`BYPASSRLS` role, binds an `AuthorizedScope`, and runs every operation in a transaction
+with transaction-local tenant/workspace/principal context. Explicit predicates and forced RLS
+both fail closed. Migration and ownership inspection are available only through the separately
+constructed `PostgresFrameStoreAdministration` boundary. See
+[PostgreSQL Scope Security](./POSTGRES_SCOPE_SECURITY.md) for role grants, pool-reset behavior,
+legacy-row quarantine, and integration verification.
+
+The following behavior describes the transitional unscoped 2.x adapter. It must not be wired to
+Lex 3.0 trusted CLI/MCP dispatch, and it cannot serve a database after schema v2 enables forced
+RLS without an authorized scope:
+
 `new PostgresFrameStore(url)` keeps the default `read-write` behavior and may apply PostgreSQL
 schema migrations before serving operations. `new PostgresFrameStore(url, {
 accessMode: "read-only" })` checks that the existing schema is exactly the supported version and
@@ -89,8 +102,7 @@ never starts a migration transaction. Missing, older, or newer schemas fail with
 instead of being changed.
 
 PostgreSQL read-only mode is an application-level no-write contract rather than a replacement for
-database permissions. Deployments that require defense in depth should also use a PostgreSQL role
-whose grants prohibit schema and data mutation.
+database permissions.
 
 ## CodeAtlasStore (@experimental)
 

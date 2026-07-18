@@ -34,8 +34,8 @@ await store.close();
 ```
 
 Lex 3.0 normal consumers must instead receive a `ScopedFrameStore` created from
-an immutable `AuthorizedScope`. The additive in-memory reference backend shows
-the binding contract while physical SQLite and PostgreSQL adapters are migrated:
+an immutable `AuthorizedScope`. The in-memory reference backend and PostgreSQL
+runtime backend implement the same binding contract:
 
 ```typescript
 import { MemoryScopedFrameStoreBackend } from "@smartergpt/lex/store";
@@ -44,6 +44,12 @@ const backend = new MemoryScopedFrameStoreBackend();
 const scopedStore = backend.bind(authorizedScope);
 await scopedStore.saveFrame(frame);
 ```
+
+Shared PostgreSQL runtime code constructs `PostgresScopedFrameStoreBackend` with an explicit
+non-owner runtime pool, then binds the same authorized scope. Schema migration and ownership
+inspection require a separately constructed `PostgresFrameStoreAdministration`; normal code
+cannot reach those methods. See `docs/POSTGRES_SCOPE_SECURITY.md` for forced RLS, role grants,
+transaction-local scope, pool cleanup, and legacy-row quarantine.
 
 Normal scoped operations cannot accept tenant, workspace, or principal filters.
 Migration, repair, and lifecycle work belongs to the separately authorized
