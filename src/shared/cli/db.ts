@@ -14,8 +14,15 @@ import {
   getDefaultDbPath,
   resolveFrameStoreBackend,
   SqliteFrameStore,
+  createSqliteScopeMigrationManifest,
+  inventorySqliteScope,
+  migrateSqliteStoreToScopedV15,
+  recoverSqliteScopeMigration,
+  ScopedSqliteError,
   type FrameStore,
+  type SqliteScopeMigrationManifestV1,
 } from "../../memory/store/index.js";
+import type { PrincipalId, ScopeVersion, TenantId, WorkspaceId } from "../runtime-scope/index.js";
 import { backupDatabase, vacuumDatabase, getBackupRetention } from "../../memory/store/backup.js";
 import { deriveEncryptionKey, initializeDatabase } from "../../memory/store/db.js";
 import { repairSqliteDatabase } from "../../memory/store/sqlite/schema-repair.js";
@@ -23,7 +30,15 @@ import { SqliteSchemaIntegrityError } from "../../memory/store/sqlite/schema-int
 import * as output from "./output.js";
 import { getNDJSONLogger } from "../logger/index.js";
 import Database from "better-sqlite3-multiple-ciphers";
-import { existsSync, renameSync, unlinkSync, copyFileSync, statSync } from "fs";
+import {
+  copyFileSync,
+  existsSync,
+  readFileSync,
+  renameSync,
+  statSync,
+  unlinkSync,
+  writeFileSync,
+} from "fs";
 import { createHash, randomBytes } from "crypto";
 import { dirname, join, basename } from "path";
 import { AXErrorException } from "../errors/ax-error.js";
@@ -51,6 +66,29 @@ export interface DbRepairOptions {
   database?: string;
   write?: boolean;
   json?: boolean;
+}
+
+export interface DbScopeInventoryOptions {
+  database?: string;
+  json?: boolean;
+}
+
+export interface DbScopeManifestOptions extends DbScopeInventoryOptions {
+  tenantId: string;
+  workspaceId: string;
+  creatorPrincipalId: string;
+  scopeVersion: string;
+  output?: string;
+}
+
+export interface DbScopeMigrateOptions extends DbScopeInventoryOptions {
+  manifest: string;
+  write?: boolean;
+}
+
+export interface DbScopeRecoverOptions extends DbScopeInventoryOptions {
+  backup: string;
+  write?: boolean;
 }
 
 export interface DbEncryptOptions {
@@ -81,6 +119,116 @@ export interface DbEncryptOptions {
 export interface DbStatsOptions {
   json?: boolean;
   detailed?: boolean;
+}
+
+function reportScopeMaintenanceFailure(operation: string, error: unknown, json = false): void {
+  const code =
+    error instanceof ScopedSqliteError ? error.code : "LEX_SQLITE_SCOPE_MAINTENANCE_FAILED";
+  const message = error instanceof Error ? error.message : String(error);
+  if (json) {
+    output.json({ ok: false, operation, error: { code, message } });
+  } else {
+    output.error(message, undefined, code);
+  }
+  process.exitCode = 1;
+}
+
+/** Compact, path-redacted inventory for explicit v14 ownership staging. */
+export async function dbScopeInventory(options: DbScopeInventoryOptions = {}): Promise<void> {
+  try {
+    requireSqliteMaintenance("scope inventory");
+    const inventory = inventorySqliteScope(options.database || getDefaultDbPath());
+    if (options.json) {
+      output.json(inventory);
+      return;
+    }
+    output.info(`State: ${inventory.state}`);
+    output.info(`Schema: ${inventory.sqliteSchemaVersion ?? "missing"}`);
+    output.info(`Frames: ${inventory.frameCount ?? "unavailable"}`);
+    output.info(`Store ref: ${inventory.databaseRef}`);
+    for (const issue of inventory.issues) output.warn(issue);
+  } catch (error) {
+    reportScopeMaintenanceFailure("sqlite-scope-inventory", error, options.json);
+  }
+}
+
+/** Create the deterministic source-to-scope manifest; never reads identity from environment. */
+export async function dbScopeManifest(options: DbScopeManifestOptions): Promise<void> {
+  try {
+    requireSqliteMaintenance("scope manifest");
+    const manifest = createSqliteScopeMigrationManifest(options.database || getDefaultDbPath(), {
+      tenantId: options.tenantId as TenantId,
+      workspaceId: options.workspaceId as WorkspaceId,
+      creatorPrincipalId: options.creatorPrincipalId as PrincipalId,
+      scopeVersion: options.scopeVersion as ScopeVersion,
+    });
+    if (options.output) {
+      writeFileSync(options.output, `${JSON.stringify(manifest, null, 2)}\n`, {
+        flag: "wx",
+        mode: 0o600,
+      });
+    }
+    if (options.json || !options.output) {
+      output.json(manifest);
+      return;
+    }
+    output.success(`Migration manifest written: ${options.output}`);
+    output.info(`Migration: ${manifest.migrationId}`);
+    output.info(`Frames: ${manifest.source.frameCount}`);
+  } catch (error) {
+    reportScopeMaintenanceFailure("sqlite-scope-manifest", error, options.json);
+  }
+}
+
+/** Dry-run by default; `--write` is required to assign durable ownership. */
+export async function dbScopeMigrate(options: DbScopeMigrateOptions): Promise<void> {
+  try {
+    requireSqliteMaintenance("scope migrate");
+    const manifest = JSON.parse(
+      readFileSync(options.manifest, "utf8")
+    ) as SqliteScopeMigrationManifestV1;
+    const result = migrateSqliteStoreToScopedV15(options.database || getDefaultDbPath(), manifest, {
+      write: options.write ?? false,
+    });
+    if (options.json) {
+      output.json({ receipt: result.receipt, localRecoveryPath: result.recoveryPath });
+      return;
+    }
+    output.success(
+      result.receipt.outcome === "ready"
+        ? "Scoped SQLite migration manifest is valid; no changes were made."
+        : `Scoped SQLite migration outcome: ${result.receipt.outcome}`
+    );
+    output.info(`Migration: ${result.receipt.migrationId}`);
+    output.info(`Frames: ${result.receipt.source.frameCount}`);
+    if (result.recoveryPath) output.info(`Local recovery snapshot: ${result.recoveryPath}`);
+  } catch (error) {
+    reportScopeMaintenanceFailure("sqlite-scope-migration", error, options.json);
+  }
+}
+
+/** Verify by default; `--write` atomically restores the exact recorded v14 source. */
+export async function dbScopeRecover(options: DbScopeRecoverOptions): Promise<void> {
+  try {
+    requireSqliteMaintenance("scope recover");
+    const result = recoverSqliteScopeMigration(
+      options.database || getDefaultDbPath(),
+      options.backup,
+      { write: options.write ?? false }
+    );
+    if (options.json) {
+      output.json(result.receipt);
+      return;
+    }
+    output.success(
+      result.receipt.outcome === "ready"
+        ? "Recovery snapshot is valid; no changes were made."
+        : "Legacy SQLite source restored and verified."
+    );
+    output.info(`Migration: ${result.receipt.migrationId}`);
+  } catch (error) {
+    reportScopeMaintenanceFailure("sqlite-scope-migration-recovery", error, options.json);
+  }
 }
 
 /** Diagnose SQLite structural integrity and optionally apply a recognized repair. */

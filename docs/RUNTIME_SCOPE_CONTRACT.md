@@ -185,12 +185,34 @@ Normal calls add no scope metadata to agent output. CLI diagnostics use `--diagn
 
 `authorityMode: "local-offline"` is explicit and still requires an injected authority implementation plus finite cached-authority evidence. It does not pair execution surfaces or turn copied local state into shared authority.
 
+## Scoped SQLite Frame ownership
+
+`SqliteScopedFrameStoreBackend` persists the Phase 3 scope contract in SQLite
+schema v15. SQLite remains a per-workspace deployment: one file has one
+immutable tenant/workspace binding, while every Frame row also records ownership
+contract version, creator principal, and the scope version active at creation.
+All normal reads, searches, lists, exports, counts, statistics, updates, and
+deletes are issued through a bound view and include its tenant/workspace filter.
+Ownership never appears in normal Frame results.
+
+Unowned v14 stores are excluded from normal scoped service. `lex db scope`
+provides separate inventory, manifest, migration, and recovery operations.
+Manifests bind the exact source digest to explicit canonical UUIDs; identity is
+never inferred from environment variables, paths, directory names, repository
+metadata, or legacy user fields. Migration is dry-run by default. Explicit write
+mode creates a mandatory recovery snapshot, rebuilds transactionally, stores a
+deterministic path-redacted receipt, and verifies the result. Recovery is also
+dry-run by default and accepts only the exact recorded legacy snapshot.
+
+This local file binding is an authorization invariant, not a global publication
+mechanism. Cross-workspace/global Frames, projections, and catalogs remain
+separate future contracts.
+
 ## Deferred implementation
 
 The following remain intentionally outside this Phase 3 slice:
 
 - making the standalone compatibility executable mandatory-guarded before a production `AuthorityDirectory` and trusted selection provider are available;
-- Frame ownership columns or migration;
 - PostgreSQL RLS;
 - projections and catalog publication;
 - offline authority pairing or locally minted authority;
