@@ -20,37 +20,50 @@ This will:
 - Ask whether the change is major/minor/patch
 - Ask for a summary of the change
 
-### 2. Weekly Release (Wednesday)
+### 2. Preparing a Release
 
-On Wednesday, the release manager:
+The release manager prepares a release branch or pull request:
 
 ```bash
-# 1. Generate version bumps and changelog
+# 1. Inspect the queued release intent
+npx changeset status
+
+# 2. Generate version bumps and changelog, consuming queued changesets
 npx changeset version
 
-# 2. Review changes to package.json and CHANGELOG.md
+# 3. Review package.json, package-lock.json, CHANGELOG.md, and removed changesets
 
-# 3. Commit the version changes
-git add .
+# 4. Commit the reviewed release changes
+git add package.json package-lock.json CHANGELOG.md .changeset
 git commit -m "chore: version packages for release"
 
-# 4. Push to main
-git push origin main
+# 5. Push the branch, open a PR, and merge it to main
+git push -u origin HEAD
 
-# 5. Tag the release
+# 6. Tag the merged release commit
 git checkout main
 git pull
 git tag -s v0.X.Y -m "Release v0.X.Y"
 git push origin v0.X.Y
 ```
 
-### 3. Publishing (Automated)
+If a queued changeset was accidentally carried into the release tag but its
+change is already represented in that version's changelog, remove the stale
+file without applying another version bump. `npm run check:release-drift`
+detects this state while allowing changesets created after the current tag.
+
+### 3. Publishing
 
 When the signed tag is pushed, GitHub Actions will:
 - Validate the tag
 - Build and test
-- Publish to npm with provenance
 - Create GitHub release
+
+npm publishing remains manual because the account requires interactive 2FA:
+
+```bash
+npm publish --access public
+```
 
 ## Changeset Examples
 
