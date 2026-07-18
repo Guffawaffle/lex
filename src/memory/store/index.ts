@@ -30,6 +30,25 @@ export type {
   FrameStoreMetadata,
   FrameStoreHealth,
 } from "./frame-store.js";
+export {
+  FRAME_STORE_SCOPE_CONTRACT_VERSION,
+  FRAME_STORE_CAPABILITIES,
+  SCOPED_FRAME_STORE_ERROR_CODES,
+  ScopedFrameStoreError,
+} from "./scoped-frame-store.js";
+export type {
+  FrameStoreCapability,
+  FrameOwnershipV1,
+  ScopedFrameInput,
+  ScopedFrameUpdate,
+  ScopedFrameSearchCriteria,
+  ScopedFrameListOptions,
+  ScopedFrameStore,
+  ScopedFrameStoreBinder,
+  FrameStoreAdmin,
+  FrameStoreAdminBinder,
+  ScopedFrameStoreErrorCode,
+} from "./scoped-frame-store.js";
 export type { CodeAtlasStore } from "./code-atlas-store.js";
 
 // SqliteFrameStore - production-ready FrameStore implementation
@@ -45,7 +64,8 @@ export {
 export type { PostgresFrameStoreAccessMode, PostgresFrameStoreOptions } from "./postgres/index.js";
 
 // Memory-based store implementations for testing
-export { MemoryFrameStore } from "./memory/index.js";
+export { MemoryFrameStore, MemoryScopedFrameStoreBackend } from "./memory/index.js";
+export type { MemoryScopedFrameStoreOptions } from "./memory/index.js";
 
 // Import FrameStore interface and SqliteFrameStore for factory function
 import type { FrameStore } from "./frame-store.js";

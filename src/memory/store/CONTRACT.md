@@ -6,6 +6,48 @@
 
 This document defines the persistence contract for Frames. All implementations of `FrameStore` must conform to this specification.
 
+## Lex 3.0 Scope-Bound Contract
+
+The v1 contract below describes the legacy physical-adapter surface. Lex 3.0
+introduces `ScopedFrameStore` as the only normal CLI, MCP, and SDK boundary:
+
+```typescript
+const store = backend.bind(authorizedScope);
+await store.saveFrame(frame);
+const visible = await store.listFrames();
+```
+
+`AuthorizedScope` is required at binding time and is copied into an immutable
+view. Normal methods have no tenant, workspace, or principal selector. The
+backend stamps `(tenant_id, workspace_id)` ownership and creator attribution
+from the trusted scope, while ordinary Frame results omit that authority
+metadata. Repository identity remains provenance rather than an ownership
+partition.
+
+The scoped contract checks these named capabilities at operation boundaries:
+
+| Capability | Operations |
+|---|---|
+| `frame:read` | get, recall/search, list/export, count, statistics, and turn-cost metrics |
+| `frame:write` | create, batch create, and update |
+| `frame:delete` | single and bulk deletion, including superseded cleanup |
+| `frame:admin` | the separately typed `FrameStoreAdmin` boundary |
+
+Administrative inspection, migration, repair, and lifecycle operations must
+remain absent from `ScopedFrameStore`. They cannot be reached with a special
+normal selector or type cast.
+
+`MemoryScopedFrameStoreBackend` is the reference implementation for these
+semantics. Its conformance tests establish that equivalent Frame IDs in
+different tenant/workspace partitions do not collide, caller-provided legacy
+`userId` values cannot override creator attribution, and empty or narrow
+capability requests never expand.
+
+The exported unscoped `FrameStore` and physical adapters coexist temporarily so
+the trusted bootstrap, SQLite ownership migration, and PostgreSQL RLS work can
+land independently. This compatibility seam is not the Lex 3.0 normal API and
+must be removed from normal construction/wiring before issue #759 is complete.
+
 ---
 
 ## Schema Version
