@@ -361,6 +361,7 @@ export class WorkspaceBindingAdminService implements WorkspaceBindingAdminServic
       executionSurfaceId: this.newId() as ExecutionSurfaceId,
       executionSurface: request.bootstrap.executionSurface,
       createdAt: this.now(),
+      now: this.now,
     });
     try {
       return Object.freeze({
@@ -441,6 +442,7 @@ export class WorkspaceBindingAdminService implements WorkspaceBindingAdminServic
       databasePath: location.registryPath,
       executionSurface: bootstrap.executionSurface,
       access: "read-only",
+      now: this.now,
     });
   }
 
@@ -450,6 +452,7 @@ export class WorkspaceBindingAdminService implements WorkspaceBindingAdminServic
       databasePath: location.registryPath,
       executionSurface: bootstrap.executionSurface,
       access: "administrative",
+      now: this.now,
     });
   }
 }
