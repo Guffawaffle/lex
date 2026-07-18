@@ -145,6 +145,15 @@ interface CountRow extends QueryResultRow {
   count: string;
 }
 
+interface CurrentTenantSlugRow extends QueryResultRow {
+  tenant_slug: string;
+}
+
+interface CurrentWorkspaceSlugRow extends QueryResultRow {
+  tenant_id: string;
+  workspace_slug: string;
+}
+
 function canonicalJson(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
   if (value && typeof value === "object") {
@@ -412,6 +421,21 @@ export class PostgresAuthorityAdministration implements PostgresAuthorityAdminis
         assertIdentityApplied(applied, "Authentication binding");
       }
       for (const tenant of topology.tenants) {
+        const currentTenant = await client.query<CurrentTenantSlugRow>(
+          `SELECT tenant_slug
+           FROM lex_authority_tenants
+           WHERE tenant_id = $1::uuid
+           FOR UPDATE`,
+          [tenant.tenantId]
+        );
+        const canonicalSlugConflict = await client.query(
+          `SELECT tenant_id
+           FROM lex_authority_tenants
+           WHERE tenant_slug = $1 AND tenant_id <> $2::uuid
+           LIMIT 1`,
+          [tenant.tenantSlug, tenant.tenantId]
+        );
+        assertNoIdentityConflict(canonicalSlugConflict, "Tenant slug");
         const currentSlugConflict = await client.query(
           `SELECT tenant_id
            FROM lex_authority_tenant_slug_aliases
@@ -431,7 +455,17 @@ export class PostgresAuthorityAdministration implements PostgresAuthorityAdminis
              authority_version = EXCLUDED.authority_version`,
           [tenant.tenantId, tenant.tenantSlug, tenant.displayName ?? null, tenant.authorityVersion]
         );
-        for (const alias of immutableSorted(tenant.aliases ?? [], "tenant alias")) {
+        const previousTenantSlug = currentTenant.rows[0]?.tenant_slug;
+        const tenantAliases = immutableSorted(
+          [
+            ...(tenant.aliases ?? []),
+            ...(previousTenantSlug && previousTenantSlug !== tenant.tenantSlug
+              ? [previousTenantSlug]
+              : []),
+          ],
+          "tenant alias"
+        );
+        for (const alias of tenantAliases) {
           const aliasConflict = await client.query(
             `SELECT tenant_id
              FROM lex_authority_tenants
@@ -452,6 +486,26 @@ export class PostgresAuthorityAdministration implements PostgresAuthorityAdminis
         }
       }
       for (const workspace of topology.workspaces) {
+        const currentWorkspace = await client.query<CurrentWorkspaceSlugRow>(
+          `SELECT tenant_id::text, workspace_slug
+           FROM lex_authority_workspaces
+           WHERE workspace_id = $1::uuid
+           FOR UPDATE`,
+          [workspace.workspaceId]
+        );
+        if (currentWorkspace.rows[0] && currentWorkspace.rows[0].tenant_id !== workspace.tenantId) {
+          throw new Error("Workspace conflicts with an existing immutable authority identity.");
+        }
+        const canonicalSlugConflict = await client.query(
+          `SELECT workspace_id
+           FROM lex_authority_workspaces
+           WHERE tenant_id = $1::uuid
+             AND workspace_slug = $2
+             AND workspace_id <> $3::uuid
+           LIMIT 1`,
+          [workspace.tenantId, workspace.workspaceSlug, workspace.workspaceId]
+        );
+        assertNoIdentityConflict(canonicalSlugConflict, "Workspace slug");
         const currentSlugConflict = await client.query(
           `SELECT workspace_id
            FROM lex_authority_workspace_slug_aliases
@@ -482,7 +536,17 @@ export class PostgresAuthorityAdministration implements PostgresAuthorityAdminis
           ]
         );
         assertIdentityApplied(applied, "Workspace");
-        for (const alias of immutableSorted(workspace.aliases ?? [], "workspace alias")) {
+        const previousWorkspaceSlug = currentWorkspace.rows[0]?.workspace_slug;
+        const workspaceAliases = immutableSorted(
+          [
+            ...(workspace.aliases ?? []),
+            ...(previousWorkspaceSlug && previousWorkspaceSlug !== workspace.workspaceSlug
+              ? [previousWorkspaceSlug]
+              : []),
+          ],
+          "workspace alias"
+        );
+        for (const alias of workspaceAliases) {
           const aliasConflict = await client.query(
             `SELECT workspace_id
              FROM lex_authority_workspaces

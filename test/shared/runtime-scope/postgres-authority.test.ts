@@ -192,6 +192,56 @@ class AdministrationClient {
   }
 }
 
+class SlugHistoryAdministrationClient extends AdministrationClient {
+  constructor(
+    private readonly options: {
+      readonly currentTenantSlug?: string;
+      readonly currentWorkspaceSlug?: string;
+      readonly conflictingTenantAlias?: string;
+      readonly conflictingWorkspaceAlias?: string;
+    }
+  ) {
+    super();
+  }
+
+  override async query(sqlValue: string, params: readonly unknown[] = []): Promise<QueryResult> {
+    const sql = sqlValue.replace(/\s+/g, " ").trim();
+    if (sql.includes("SELECT tenant_slug") && sql.includes("FOR UPDATE") && params[0] === TENANT) {
+      this.calls.push({ sql, params });
+      return this.options.currentTenantSlug
+        ? result([{ tenant_slug: this.options.currentTenantSlug }])
+        : result([]);
+    }
+    if (
+      sql.includes("SELECT tenant_id::text, workspace_slug") &&
+      sql.includes("FOR UPDATE") &&
+      params[0] === WORKSPACE
+    ) {
+      this.calls.push({ sql, params });
+      return this.options.currentWorkspaceSlug
+        ? result([{ tenant_id: TENANT, workspace_slug: this.options.currentWorkspaceSlug }])
+        : result([]);
+    }
+    if (
+      this.options.conflictingTenantAlias &&
+      sql.includes("FROM lex_authority_tenant_slug_aliases") &&
+      params[0] === this.options.conflictingTenantAlias
+    ) {
+      this.calls.push({ sql, params });
+      return result([{ tenant_id: TENANT }]);
+    }
+    if (
+      this.options.conflictingWorkspaceAlias &&
+      sql.includes("FROM lex_authority_workspace_slug_aliases") &&
+      params[1] === this.options.conflictingWorkspaceAlias
+    ) {
+      this.calls.push({ sql, params });
+      return result([{ workspace_id: WORKSPACE }]);
+    }
+    return super.query(sqlValue, params);
+  }
+}
+
 function poolFor(client: AuthorityClient | AdministrationClient): Pool {
   return { connect: async () => client as unknown as PoolClient } as unknown as Pool;
 }
@@ -407,6 +457,84 @@ describe("PostgreSQL canonical authority", () => {
     assert.equal(
       conflictClient.calls.some(({ sql }) => sql === "ROLLBACK"),
       true
+    );
+  });
+
+  test("preserves canonical slug history and rejects reassignment to another identity", async () => {
+    const topology = createLex3DogfoodAuthorityTopology(AUTH_REF);
+    const renamedTopology = {
+      ...topology,
+      tenants: topology.tenants.map((tenant) =>
+        tenant.tenantId === TENANT ? { ...tenant, tenantSlug: "platform-renamed" } : tenant
+      ),
+      workspaces: topology.workspaces.map((workspace) =>
+        workspace.workspaceId === WORKSPACE
+          ? { ...workspace, workspaceSlug: "lex-renamed" }
+          : workspace
+      ),
+    };
+    const renameClient = new SlugHistoryAdministrationClient({
+      currentTenantSlug: "platform-original",
+      currentWorkspaceSlug: "lex-original",
+    });
+    await new PostgresAuthorityAdministration(poolFor(renameClient), {
+      now: () => NOW,
+    }).seedTopology(renamedTopology);
+    assert.equal(
+      renameClient.calls.some(
+        ({ sql, params }) =>
+          sql.includes("INSERT INTO lex_authority_tenant_slug_aliases") &&
+          params[0] === "platform-original" &&
+          params[1] === TENANT
+      ),
+      true
+    );
+    assert.equal(
+      renameClient.calls.some(
+        ({ sql, params }) =>
+          sql.includes("INSERT INTO lex_authority_workspace_slug_aliases") &&
+          params[1] === "lex-original" &&
+          params[2] === WORKSPACE
+      ),
+      true
+    );
+
+    const otherTenant = LEX3_DOGFOOD_CANONICAL_IDS.tenants.stfc;
+    const tenantReuseTopology = {
+      ...topology,
+      tenants: topology.tenants.map((tenant) =>
+        tenant.tenantId === otherTenant ? { ...tenant, tenantSlug: "platform-original" } : tenant
+      ),
+    };
+    const tenantReuseClient = new SlugHistoryAdministrationClient({
+      conflictingTenantAlias: "platform-original",
+    });
+    await assert.rejects(
+      () =>
+        new PostgresAuthorityAdministration(poolFor(tenantReuseClient), {
+          now: () => NOW,
+        }).seedTopology(tenantReuseTopology),
+      /Tenant slug conflicts with an existing immutable authority identity/
+    );
+
+    const otherWorkspace = LEX3_DOGFOOD_CANONICAL_IDS.workspaces.axf;
+    const workspaceReuseTopology = {
+      ...topology,
+      workspaces: topology.workspaces.map((workspace) =>
+        workspace.workspaceId === otherWorkspace
+          ? { ...workspace, workspaceSlug: "lex-original" }
+          : workspace
+      ),
+    };
+    const workspaceReuseClient = new SlugHistoryAdministrationClient({
+      conflictingWorkspaceAlias: "lex-original",
+    });
+    await assert.rejects(
+      () =>
+        new PostgresAuthorityAdministration(poolFor(workspaceReuseClient), {
+          now: () => NOW,
+        }).seedTopology(workspaceReuseTopology),
+      /Workspace slug conflicts with an existing immutable authority identity/
     );
   });
 

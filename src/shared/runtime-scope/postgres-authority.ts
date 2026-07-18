@@ -99,8 +99,6 @@ interface RuntimeRoleBoundaryRow extends QueryResultRow {
 }
 
 export interface PostgresAuthorityDirectoryOptionsV1 {
-  /** Tests may disable only the role probe; production defaults fail closed. */
-  readonly enforceRuntimeRole?: boolean;
   readonly now?: () => string;
 }
 
@@ -522,14 +520,12 @@ class PostgresAuthoritySnapshot implements AuthorityDirectory, RepositoryScopedA
 export class PostgresAuthorityDirectory
   implements ConsistentAuthorityDirectory, RepositoryScopedAuthorityDirectory
 {
-  private readonly enforceRuntimeRole: boolean;
   private readonly now: () => string;
 
   constructor(
     private readonly pool: Pool,
     options: PostgresAuthorityDirectoryOptionsV1 = {}
   ) {
-    this.enforceRuntimeRole = options.enforceRuntimeRole ?? true;
     this.now = options.now ?? (() => new Date().toISOString());
   }
 
@@ -539,7 +535,7 @@ export class PostgresAuthorityDirectory
     const client = await this.pool.connect();
     try {
       await client.query("BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY");
-      if (this.enforceRuntimeRole) await assertReadOnlyRuntimeRole(client);
+      await assertReadOnlyRuntimeRole(client);
       const verifiedAt = timestamp(this.now(), "authority verification time");
       const snapshot = new PostgresAuthoritySnapshot(client, verifiedAt);
       const result = await operation(snapshot);

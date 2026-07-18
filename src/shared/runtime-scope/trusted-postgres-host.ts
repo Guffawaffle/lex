@@ -1,5 +1,6 @@
 import type { Pool } from "pg";
 
+import type { ScopedFrameStoreBinder } from "../../memory/store/scoped-frame-store.js";
 import type { DiagnosticEnvelopeV1 } from "./diagnostics.js";
 import type { AuthorizedScopeV1 } from "./runtime.js";
 import {
@@ -22,8 +23,8 @@ import {
   type WorkspaceBindingAdminServiceV1,
 } from "./workspace-admin.js";
 
-export interface TrustedCanonicalFrameStoreBinderV1<BoundStore = unknown> {
-  bind(scope: AuthorizedScopeV1): BoundStore;
+export interface TrustedCanonicalFrameStoreBinderV1 extends ScopedFrameStoreBinder {
+  bind(scope: AuthorizedScopeV1): ReturnType<ScopedFrameStoreBinder["bind"]>;
 }
 
 export interface PostgresTrustedRuntimeHostOptionsV1<
