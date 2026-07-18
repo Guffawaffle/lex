@@ -16,10 +16,12 @@ import { importFrames, type ImportCommandOptions } from "./import.js";
 import {
   dbVacuum,
   dbBackup,
+  dbRepair,
   dbEncrypt,
   dbStats,
   type DbVacuumOptions,
   type DbBackupOptions,
+  type DbRepairOptions,
   type DbEncryptOptions,
   type DbStatsOptions,
 } from "./db.js";
@@ -348,6 +350,22 @@ export function createProgram(): Command {
         json: globalOptions.json || false,
       };
       await dbBackup(options);
+    });
+
+  // lex db repair
+  dbCommand
+    .command("repair")
+    .description("Diagnose SQLite schema integrity (read-only unless --write is explicit)")
+    .option("--database <path>", "SQLite database file (default: configured Lex store)")
+    .option("--write", "Back up and apply a recognized safe repair")
+    .action(async (cmdOptions) => {
+      const globalOptions = program.opts();
+      const options: DbRepairOptions = {
+        database: cmdOptions.database,
+        write: cmdOptions.write || false,
+        json: globalOptions.json || false,
+      };
+      await dbRepair(options);
     });
 
   // lex db encrypt

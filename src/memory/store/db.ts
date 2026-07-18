@@ -14,6 +14,13 @@ import { dirname } from "path";
 import { mkdirSync, existsSync, readFileSync, statSync } from "fs";
 import { pbkdf2Sync } from "crypto";
 import { loadConfig } from "../../shared/config/index.js";
+import {
+  inspectSqliteSchema,
+  LEGACY_DIVERGENT_SCHEMA_VERSION,
+  SQLITE_SCHEMA_VERSION,
+  SqliteSchemaIntegrityError,
+  type SqliteSchemaInspection,
+} from "./sqlite/schema-integrity.js";
 
 /**
  * FrameStore schema version following SemVer.
@@ -28,7 +35,7 @@ import { loadConfig } from "../../shared/config/index.js";
 export const FRAME_STORE_SCHEMA_VERSION = "1.0.1";
 
 /** Latest SQLite migration applied by initializeDatabase(). */
-export const DATABASE_SCHEMA_VERSION = 12;
+export const DATABASE_SCHEMA_VERSION = SQLITE_SCHEMA_VERSION;
 
 export type ReadOnlyDatabaseErrorCode =
   "STORE_NOT_FOUND" | "STORE_REQUIRES_MIGRATION" | "STORE_INCOMPATIBLE" | "STORE_UNAVAILABLE";
@@ -294,13 +301,6 @@ function configureEncryption(db: Database.Database): boolean {
   return true;
 }
 
-function readDatabaseSchemaVersion(db: Database.Database): number {
-  const row = db.prepare("SELECT MAX(version) AS version FROM schema_version").get() as {
-    version: number | null;
-  };
-  return row?.version ?? 0;
-}
-
 interface FileSnapshotState {
   signature: string;
   size: bigint;
@@ -403,7 +403,7 @@ function normalizeDetachedSnapshotJournalMode(snapshot: Buffer): Buffer {
  * This path deliberately does not create directories, initialize schema, apply
  * migrations, or set file-backed pragmas such as journal_mode.
  */
-export function openDatabaseReadOnly(dbPath: string): Database.Database {
+function openDetachedDatabaseReadOnly(dbPath: string): Database.Database {
   if (dbPath.startsWith("file:")) {
     throw new ReadOnlyDatabaseError(
       "STORE_UNAVAILABLE",
@@ -445,11 +445,99 @@ export function openDatabaseReadOnly(dbPath: string): Database.Database {
     db = new Database(normalizeDetachedSnapshotJournalMode(snapshot));
     db.pragma("query_only = ON");
 
-    const currentVersion = readDatabaseSchemaVersion(db);
-    if (currentVersion < DATABASE_SCHEMA_VERSION) {
+    return db;
+  } catch (error) {
+    if (db) db.close();
+    if (error instanceof ReadOnlyDatabaseError) throw error;
+
+    const message = error instanceof Error ? error.message : String(error);
+    throw new ReadOnlyDatabaseError(
+      "STORE_UNAVAILABLE",
+      `The selected Lex store could not be opened read-only: ${message}`
+    );
+  }
+}
+
+/** Inspect a detached snapshot without creating, migrating, or repairing the source store. */
+export function inspectDatabaseSchemaReadOnly(dbPath: string): SqliteSchemaInspection {
+  const db = openDetachedDatabaseReadOnly(dbPath);
+  try {
+    return inspectSqliteSchema(db, { integrityCheck: true, frameCount: true });
+  } finally {
+    db.close();
+  }
+}
+
+/**
+ * Open an existing store for an explicitly requested maintenance operation.
+ * This configures encryption and connection-local safety settings but never
+ * initializes or migrates schema.
+ */
+export function openDatabaseForMaintenance(dbPath: string): Database.Database {
+  if (!dbPath || dbPath === ":memory:" || dbPath.startsWith("file:") || !existsSync(dbPath)) {
+    throw new Error(`SQLite maintenance requires an existing filesystem database: ${dbPath}.`);
+  }
+
+  const db = new Database(dbPath, { fileMustExist: true });
+  try {
+    configureEncryption(db);
+    db.pragma("busy_timeout = 5000");
+    db.pragma("foreign_keys = ON");
+    return db;
+  } catch (error) {
+    db.close();
+    throw error;
+  }
+}
+
+/**
+ * Open an existing database through a connection that cannot write.
+ *
+ * This path deliberately does not create directories, initialize schema, apply
+ * migrations, or set file-backed pragmas such as journal_mode.
+ */
+export function openDatabaseReadOnly(dbPath: string): Database.Database {
+  const db = openDetachedDatabaseReadOnly(dbPath);
+  try {
+    const inspection = inspectSqliteSchema(db);
+    const currentVersion = inspection.schema_version;
+
+    if (currentVersion === null) {
       throw new ReadOnlyDatabaseError(
         "STORE_REQUIRES_MIGRATION",
-        `The selected Lex store uses SQLite schema version ${currentVersion}; version ${DATABASE_SCHEMA_VERSION} is required. Run an explicit writable Lex command to migrate it.`,
+        `The selected Lex store has no valid schema version metadata; version ${DATABASE_SCHEMA_VERSION} is required. Run an explicit writable Lex command to initialize or migrate it.`,
+        0
+      );
+    }
+
+    const structuralIssues = inspection.issues.filter(
+      (issue) =>
+        ![
+          "SCHEMA_VERSION_BEHIND",
+          "LEGACY_DIVERGENT_SCHEMA_VERSION",
+          "SCHEMA_VERSION_NEWER",
+        ].includes(issue.code)
+    );
+    if (currentVersion >= 12 && structuralIssues.length > 0) {
+      throw new ReadOnlyDatabaseError(
+        "STORE_INCOMPATIBLE",
+        `The selected Lex store reports SQLite schema version ${currentVersion} but is structurally inconsistent: ${structuralIssues
+          .map((issue) => issue.object_name)
+          .join(
+            ", "
+          )}. Run \`lex db repair\` to diagnose it; read-only access will not modify the store.`,
+        currentVersion
+      );
+    }
+
+    if (currentVersion < DATABASE_SCHEMA_VERSION) {
+      const action =
+        currentVersion === LEGACY_DIVERGENT_SCHEMA_VERSION
+          ? "Run `lex db repair`, then explicitly apply the recognized repair with `lex db repair --write`."
+          : "Run an explicit writable Lex command to migrate it.";
+      throw new ReadOnlyDatabaseError(
+        "STORE_REQUIRES_MIGRATION",
+        `The selected Lex store uses SQLite schema version ${currentVersion}; version ${DATABASE_SCHEMA_VERSION} is required. ${action}`,
         currentVersion
       );
     }
@@ -460,23 +548,25 @@ export function openDatabaseReadOnly(dbPath: string): Database.Database {
         currentVersion
       );
     }
+    if (!inspection.healthy) {
+      throw new ReadOnlyDatabaseError(
+        "STORE_INCOMPATIBLE",
+        `The selected Lex store failed structural validation: ${inspection.issues
+          .map((issue) => issue.object_name)
+          .join(", ")}. Run \`lex db repair\` to diagnose it.`,
+        currentVersion
+      );
+    }
 
     return db;
   } catch (error) {
-    if (db) db.close();
+    db.close();
     if (error instanceof ReadOnlyDatabaseError) throw error;
-
-    const message = error instanceof Error ? error.message : String(error);
-    if (/no such table:\s*schema_version/i.test(message)) {
-      throw new ReadOnlyDatabaseError(
-        "STORE_REQUIRES_MIGRATION",
-        `The selected Lex store has no schema version metadata; version ${DATABASE_SCHEMA_VERSION} is required. Run an explicit writable Lex command to initialize or migrate it.`,
-        0
-      );
-    }
     throw new ReadOnlyDatabaseError(
       "STORE_UNAVAILABLE",
-      `The selected Lex store could not be validated read-only: ${message}`
+      `The selected Lex store could not be validated read-only: ${
+        error instanceof Error ? error.message : String(error)
+      }`
     );
   }
 }
@@ -505,6 +595,21 @@ export function initializeDatabase(db: Database.Database): void {
     version: number | null;
   };
   const currentVersion = versionRow?.version || 0;
+
+  if (currentVersion > DATABASE_SCHEMA_VERSION) {
+    const inspection = inspectSqliteSchema(db);
+    throw new SqliteSchemaIntegrityError(
+      `SQLite schema version ${currentVersion} is newer than supported version ${DATABASE_SCHEMA_VERSION}.`,
+      inspection
+    );
+  }
+  if (currentVersion === LEGACY_DIVERGENT_SCHEMA_VERSION) {
+    const inspection = inspectSqliteSchema(db);
+    throw new SqliteSchemaIntegrityError(
+      `SQLite schema version ${currentVersion} requires explicit repair; ordinary initialization will not modify it. Run \`lex db repair\` to diagnose the store.`,
+      inspection
+    );
+  }
 
   // Apply migrations
   if (currentVersion < 1) {
@@ -551,9 +656,25 @@ export function initializeDatabase(db: Database.Database): void {
     applyMigrationV11(db);
     db.prepare("INSERT INTO schema_version (version) VALUES (?)").run(11);
   }
-  if (currentVersion < DATABASE_SCHEMA_VERSION) {
+  if (currentVersion < 12) {
     applyMigrationV12(db);
+    db.prepare("INSERT INTO schema_version (version) VALUES (?)").run(12);
+  }
+
+  const migratedInspection = inspectSqliteSchema(db);
+  const nonVersionIssues = migratedInspection.issues.filter(
+    (issue) => issue.code !== "SCHEMA_VERSION_BEHIND"
+  );
+  if (migratedInspection.schema_version === 12 && nonVersionIssues.length === 0) {
     db.prepare("INSERT INTO schema_version (version) VALUES (?)").run(DATABASE_SCHEMA_VERSION);
+  }
+
+  const finalInspection = inspectSqliteSchema(db);
+  if (!finalInspection.healthy) {
+    throw new SqliteSchemaIntegrityError(
+      "The SQLite store does not match the required FrameStore structure. Run `lex db repair` for a non-mutating diagnosis.",
+      finalInspection
+    );
   }
 }
 
@@ -1182,19 +1303,24 @@ export function createDatabase(dbPath?: string): Database.Database {
   }
   const db = new Database(path);
 
-  // Apply encryption if key is available
-  if (configureEncryption(db)) {
-    // Verify encryption is working by testing database access
-    try {
-      db.prepare("SELECT 1").get();
-    } catch (error) {
-      throw new Error(
-        `Failed to open encrypted database. The encryption key may be incorrect. ` +
-          `Error: ${error instanceof Error ? error.message : String(error)}`
-      );
+  try {
+    // Apply encryption if key is available
+    if (configureEncryption(db)) {
+      // Verify encryption is working by testing database access
+      try {
+        db.prepare("SELECT 1").get();
+      } catch (error) {
+        throw new Error(
+          `Failed to open encrypted database. The encryption key may be incorrect. ` +
+            `Error: ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
     }
-  }
 
-  initializeDatabase(db);
-  return db;
+    initializeDatabase(db);
+    return db;
+  } catch (error) {
+    db.close();
+    throw error;
+  }
 }

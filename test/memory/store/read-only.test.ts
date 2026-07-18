@@ -201,12 +201,12 @@ test("openDatabaseReadOnly refuses an older store without migrating or changing 
       (error: unknown) => {
         assert.ok(error instanceof ReadOnlyDatabaseError);
         assert.strictEqual(error.code, "STORE_REQUIRES_MIGRATION");
-        assert.strictEqual(error.currentVersion, DATABASE_SCHEMA_VERSION - 1);
+        assert.strictEqual(error.currentVersion, 12);
         return true;
       }
     );
 
-    assert.strictEqual(schemaVersion(dbPath), DATABASE_SCHEMA_VERSION - 1);
+    assert.strictEqual(schemaVersion(dbPath), 12);
     assert.deepStrictEqual(filesystemSnapshot(dbPath), filesBefore);
   } finally {
     rmSync(root, { recursive: true, force: true });
@@ -364,7 +364,7 @@ test("openDatabaseReadOnly reports missing schema metadata without changing the 
         assert.ok(error instanceof ReadOnlyDatabaseError);
         assert.strictEqual(error.code, "STORE_REQUIRES_MIGRATION");
         assert.strictEqual(error.currentVersion, 0);
-        assert.match(error.message, /no schema version metadata/i);
+        assert.match(error.message, /no valid schema version metadata/i);
         return true;
       }
     );

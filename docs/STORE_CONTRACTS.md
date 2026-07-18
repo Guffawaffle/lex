@@ -74,6 +74,12 @@ The other current SQLite-backed CLI paths—`recall`,
 initialize or migrate the selected database. Callers that require a non-mutating read must use
 the explicit read-only constructor or `openDatabaseReadOnly(path)`.
 
+`lex db repair` is the exception among `db` operations: it inspects the same detached snapshot and
+does not mutate by default. `--write` is required to apply a recognized additive repair, and Lex
+creates an adjacent recovery backup before opening the maintenance connection. Ordinary store
+initialization refuses divergent schema 13 and current-version structural mismatches rather than
+repairing them implicitly.
+
 ### PostgreSQL Access Modes
 
 `new PostgresFrameStore(url)` keeps the default `read-write` behavior and may apply PostgreSQL
