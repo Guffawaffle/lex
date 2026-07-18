@@ -169,7 +169,10 @@ Tests cover:
 
 ## Migration Notes
 
-The storage system uses schema versioning via the `schema_version` table. Migrations are applied automatically on database initialization.
+The storage system uses schema versioning via the `schema_version` table. Canonical migrations are
+applied automatically on database initialization. Structurally inconsistent current stores and
+the recognized divergent SQLite schema 13 fail closed; operators diagnose them with
+`lex db repair` and must pass `--write` to create a mandatory backup and apply a safe repair.
 
 SQLite and PostgreSQL maintain separate explicit migration tables. The selected backend reports its live schema version through `FrameStore.getHealth()` and CLI/MCP introspection.
 

@@ -4,6 +4,7 @@
  * Commands:
  * - lex db vacuum: Optimize database
  * - lex db backup [--rotate N]: Create timestamped backup with rotation
+ * - lex db repair [--write]: Diagnose or explicitly repair SQLite schema integrity
  * - lex db encrypt: Encrypt existing database with SQLCipher
  */
 
@@ -17,6 +18,8 @@ import {
 } from "../../memory/store/index.js";
 import { backupDatabase, vacuumDatabase, getBackupRetention } from "../../memory/store/backup.js";
 import { deriveEncryptionKey, initializeDatabase } from "../../memory/store/db.js";
+import { repairSqliteDatabase } from "../../memory/store/sqlite/schema-repair.js";
+import { SqliteSchemaIntegrityError } from "../../memory/store/sqlite/schema-integrity.js";
 import * as output from "./output.js";
 import { getNDJSONLogger } from "../logger/index.js";
 import Database from "better-sqlite3-multiple-ciphers";
@@ -41,6 +44,12 @@ export interface DbVacuumOptions {
 
 export interface DbBackupOptions {
   rotate?: number;
+  json?: boolean;
+}
+
+export interface DbRepairOptions {
+  database?: string;
+  write?: boolean;
   json?: boolean;
 }
 
@@ -72,6 +81,88 @@ export interface DbEncryptOptions {
 export interface DbStatsOptions {
   json?: boolean;
   detailed?: boolean;
+}
+
+/** Diagnose SQLite structural integrity and optionally apply a recognized repair. */
+export async function dbRepair(options: DbRepairOptions = {}): Promise<void> {
+  const startTime = Date.now();
+  const dbPath = options.database || getDefaultDbPath();
+
+  try {
+    requireSqliteMaintenance("repair");
+    const receipt = repairSqliteDatabase(dbPath, { write: options.write ?? false });
+    const duration = Date.now() - startTime;
+
+    logger.info("Database repair inspection completed", {
+      operation: "dbRepair",
+      duration_ms: duration,
+      metadata: {
+        dbPath,
+        mode: receipt.mode,
+        changed: receipt.changed,
+        healthy: receipt.inspection.healthy,
+      },
+    });
+
+    if (options.json) {
+      output.json({ ...receipt, duration_ms: duration });
+      return;
+    }
+
+    if (receipt.inspection.healthy) {
+      const message = receipt.changed
+        ? `SQLite store repaired and verified in ${duration}ms`
+        : `SQLite store is structurally healthy (${duration}ms)`;
+      output.success(message);
+    } else {
+      output.warn(
+        `SQLite store has ${receipt.inspection.issues.length} structural issue(s); no changes were made.`
+      );
+    }
+    output.info(`Database: ${dbPath}`);
+    output.info(
+      `Schema: ${receipt.inspection.schema_version ?? "missing"}/${receipt.inspection.required_schema_version}`
+    );
+    output.info(`Frames: ${receipt.inspection.frame_count ?? "unavailable"}`);
+    for (const issue of receipt.before?.issues ?? receipt.inspection.issues) {
+      output.warn(`${issue.code}: ${issue.message}`);
+    }
+    for (const action of receipt.actions) output.info(`Repair action: ${action}`);
+    if (receipt.backup) output.info(`Mandatory backup: ${receipt.backup}`);
+    if (!receipt.inspection.healthy && receipt.inspection.repairable) {
+      output.info("Apply the recognized repair explicitly with: lex db repair --write");
+    }
+  } catch (error) {
+    logger.error("Database repair failed", {
+      operation: "dbRepair",
+      error: error instanceof Error ? error : new Error(String(error)),
+    });
+
+    const inspection = error instanceof SqliteSchemaIntegrityError ? error.inspection : undefined;
+    if (options.json) {
+      output.json({
+        ok: false,
+        operation: "sqlite-schema-repair",
+        mode: options.write ? "write" : "diagnose",
+        database: dbPath,
+        error: {
+          code:
+            error instanceof SqliteSchemaIntegrityError
+              ? error.code
+              : "SQLITE_SCHEMA_REPAIR_FAILED",
+          message: error instanceof Error ? error.message : String(error),
+        },
+        ...(inspection ? { inspection } : {}),
+      });
+    } else {
+      output.error(
+        `Failed to inspect or repair SQLite store: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
+    }
+    process.exitCode = 1;
+  }
 }
 
 /**

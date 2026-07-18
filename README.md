@@ -327,7 +327,8 @@ Humans see a local, inspectable record instead of an opaque assistant memory:
 - Policy files live in the repository and can be reviewed in code review.
 - NDJSON logs are written to `.smartergpt/lex/logs/lex.log.ndjson` with structured fields such as `timestamp`, `level`, `operation`, `duration_ms`, `metadata`, and `error`.
 - Policy checks can run in CI with `lex check merged-facts.json`.
-- Database maintenance commands support backups, rotation, and vacuuming.
+- Database maintenance commands support backups, rotation, vacuuming, and explicit SQLite
+  structural repair.
 
 ```bash
 # Create a collision-safe timestamped backup (memory-20251123-120000.000.sqlite)
@@ -336,6 +337,12 @@ lex db backup --rotate 7
 
 # Optimize database (rebuild and compact)
 lex db vacuum
+
+# Diagnose SQLite structure without changing the store
+lex db repair --json
+
+# Apply only a recognized additive repair after creating a mandatory adjacent backup
+lex db repair --write --json
 
 # Set backup retention via environment variable
 export LEX_BACKUP_RETENTION=14  # Keep 14 most recent backups

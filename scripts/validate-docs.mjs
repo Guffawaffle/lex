@@ -211,7 +211,7 @@ if (!cliAvailable) {
     if (dbHelp === null || dbHelp === "") {
       error("Failed to get help for db command");
     } else {
-      const dbSubcommands = ["vacuum", "backup", "encrypt", "stats"];
+      const dbSubcommands = ["vacuum", "backup", "repair", "encrypt", "stats"];
       for (const subcmd of dbSubcommands) {
         if (dbHelp.includes(subcmd)) {
           pass(`db subcommand "${subcmd}" exists`);
