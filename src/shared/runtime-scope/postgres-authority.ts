@@ -223,6 +223,7 @@ async function assertReadOnlyRuntimeRole(client: PoolClient): Promise<void> {
       EXISTS (
         SELECT 1
         FROM unnest(ARRAY[
+          'lex_authority_migrations',
           'lex_authority_principals',
           'lex_authority_authentication_refs',
           'lex_authority_tenants',
