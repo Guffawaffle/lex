@@ -118,7 +118,7 @@ Registry selection follows the native process, including when WSL launches a Win
 | WSL or Linux fallback | `~/.local/state/lex/registry.db` |
 | macOS | `~/Library/Application Support/Lex/registry.db` |
 
-These variables and home paths are captured by the entrypoint and supplied as values; core resolution never reads them directly. Each WSL distribution therefore has its own registry through its own native user-state path.
+These variables and home paths are captured by the entrypoint and supplied as values; core resolution never reads them directly. Registry locations must be absolute and native to the execution surface: WSL registries cannot use Windows-mounted paths, and Windows registries cannot use WSL UNC paths. Each WSL distribution therefore has its own registry through its own native user-state path. Launch provenance such as Windows-via-WSL interop remains observable evidence but is not part of a Windows installation's persistent registry identity.
 
 ### Local SQLite registry
 
@@ -137,7 +137,8 @@ A registry is bound to its captured execution-surface evidence. Copying it to an
 3. enforces finite cached-authority expiry;
 4. validates any optional repository declaration against canonical authority;
 5. verifies matching local repository evidence and rejects ambiguity; and
-6. returns only the compact result or stable error vocabulary.
+6. attenuates `AuthorizedScope.capabilities` to the explicitly requested subset, including an empty set when no capabilities were requested; and
+7. returns only the compact result or stable error vocabulary.
 
 Authority and registry exceptions fail closed. Normal results contain no diagnostic envelope, local topology inventory, or authority trace. Diagnostics remain a separate, explicitly requested, capability-gated concern.
 

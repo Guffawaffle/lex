@@ -72,7 +72,11 @@ function evidence(root = "/srv/lex"): RepositoryInstanceEvidenceV1 {
 }
 
 function authoritySeed(
-  options: { revoked?: boolean; expiresAt?: string } = {}
+  options: {
+    revoked?: boolean;
+    expiresAt?: string;
+    capabilities?: readonly CapabilityId[];
+  } = {}
 ): InMemoryAuthoritySeedV1 {
   return {
     principals: [
@@ -120,7 +124,7 @@ function authoritySeed(
           tenantId: TENANT_ID,
           workspaceId: WORKSPACE_ID,
           principalId: PRINCIPAL_ID,
-          capabilities: [CAPABILITY],
+          capabilities: options.capabilities ?? [CAPABILITY],
           authorityVersion: "authority-v1" as AuthorityVersion,
           scopeVersion: "scope-v1" as ScopeVersion,
           authorityDigest: "sha256:authority" as ContentDigest,
@@ -295,6 +299,63 @@ describe("deterministic runtime-scope resolver", () => {
     });
   });
 
+  test("clones and deeply freezes nested repository declarations", async () => {
+    await withResolver("mutable-declaration", async ({ registry, authority, request }) => {
+      const preferredWorkspace = {
+        tenantSlug: TENANT_SLUG,
+        workspaceSlug: WORKSPACE_SLUG,
+      };
+      const mutableDeclaration = { ...declaration, preferredWorkspace };
+      const result = await resolveRuntimeScope(
+        { ...request, repositoryDeclaration: mutableDeclaration },
+        { authorityDirectory: authority, localRegistry: registry }
+      );
+
+      assert.equal(result.resolved, true);
+      if (!result.resolved || !result.invocationContext.repositoryDeclaration) return;
+      const resolvedDeclaration = result.invocationContext.repositoryDeclaration;
+      assert.notEqual(resolvedDeclaration, mutableDeclaration);
+      assert.notEqual(resolvedDeclaration.preferredWorkspace, preferredWorkspace);
+      assert.equal(Object.isFrozen(resolvedDeclaration), true);
+      assert.equal(Object.isFrozen(resolvedDeclaration.preferredWorkspace), true);
+      assert.equal(
+        Reflect.set(resolvedDeclaration.preferredWorkspace!, "workspaceSlug", "tampered"),
+        false
+      );
+
+      Reflect.set(preferredWorkspace, "workspaceSlug", "tampered");
+      assert.equal(resolvedDeclaration.preferredWorkspace?.workspaceSlug, WORKSPACE_SLUG);
+    });
+  });
+
+  test("attenuates AuthorizedScope to the explicitly requested capabilities", async () => {
+    const write = "frame:write" as CapabilityId;
+    const diagnostics = "diagnostics:full" as CapabilityId;
+    await withResolver(
+      "capability-attenuation",
+      async ({ registry, authority, request }) => {
+        const readOnly = await resolveRuntimeScope(request, {
+          authorityDirectory: authority,
+          localRegistry: registry,
+        });
+        assert.equal(readOnly.resolved, true);
+        if (readOnly.resolved) {
+          assert.deepEqual(readOnly.authorizedScope.capabilities, [CAPABILITY]);
+        }
+
+        const noCapabilities = await resolveRuntimeScope(
+          { ...request, requestedCapabilities: [] },
+          { authorityDirectory: authority, localRegistry: registry }
+        );
+        assert.equal(noCapabilities.resolved, true);
+        if (noCapabilities.resolved) {
+          assert.deepEqual(noCapabilities.authorizedScope.capabilities, []);
+        }
+      },
+      { authority: authoritySeed({ capabilities: [CAPABILITY, write, diagnostics] }) }
+    );
+  });
+
   test("resolves an existing verified binding when no declaration is present", async () => {
     await withResolver("no-declaration-existing", async ({ registry, authority, request }) => {
       const { repositoryDeclaration: _omitted, ...withoutDeclaration } = request;
@@ -353,6 +414,92 @@ describe("deterministic runtime-scope resolver", () => {
           result.error.code,
           WORKSPACE_AUTHORITY_ERROR_CODES.REPOSITORY_BINDING_MISMATCH
         );
+      }
+    });
+  });
+
+  test("fails closed when projectRoot is unrelated to repository evidence", async () => {
+    await withResolver("unrelated-root", async ({ registry, authority, request }) => {
+      const result = await resolveRuntimeScope(
+        { ...request, projectRoot: "/srv/another-repository" },
+        { authorityDirectory: authority, localRegistry: registry }
+      );
+      assert.equal(result.resolved, false);
+      if (!result.resolved) {
+        assert.equal(
+          result.error.code,
+          WORKSPACE_AUTHORITY_ERROR_CODES.REPOSITORY_BINDING_MISMATCH
+        );
+      }
+    });
+  });
+
+  test("rejects an injected binding outside the active project root", async () => {
+    await withResolver("injected-unrelated-root", async ({ registry, authority, request }) => {
+      const [storedBinding] = await registry.inspectBindings();
+      assert.ok(storedBinding);
+      const unrelatedBinding = {
+        ...storedBinding,
+        evidence: { ...storedBinding.evidence, canonicalRoot: "/srv/another-repository" },
+      };
+      const permissiveRegistry = new Proxy(registry, {
+        get(target, property) {
+          if (property === "findRepositoryInstances") return async () => [unrelatedBinding];
+          if (property === "verifyBinding") {
+            return async () => ({
+              schemaVersion: 1 as const,
+              status: "verified" as const,
+              bindingId: unrelatedBinding.bindingId,
+              evidenceDigest: "sha256:unrelated" as ContentDigest,
+              verifiedAt: NOW,
+              reasons: [],
+            });
+          }
+          const value = Reflect.get(target, property, target) as unknown;
+          return typeof value === "function" ? value.bind(target) : value;
+        },
+      });
+
+      const result = await resolveRuntimeScope(request, {
+        authorityDirectory: authority,
+        localRegistry: permissiveRegistry,
+      });
+      assert.equal(result.resolved, false);
+      if (!result.resolved) {
+        assert.equal(
+          result.error.code,
+          WORKSPACE_AUTHORITY_ERROR_CODES.REPOSITORY_BINDING_MISMATCH
+        );
+      }
+    });
+  });
+
+  test("fails closed on unsupported versions at resolver boundaries", async () => {
+    await withResolver("future-version", async ({ registry, authority, request }) => {
+      const futureEvidence = {
+        ...request.repositoryEvidence,
+        schemaVersion: 2,
+      } as unknown as RepositoryInstanceEvidenceV1;
+      const futureRuntimeSurface = {
+        ...request.runtimeSurface,
+        schemaVersion: 2,
+      } as unknown as RuntimeScopeResolutionRequestV1["runtimeSurface"];
+
+      for (const futureRequest of [
+        { ...request, repositoryEvidence: futureEvidence },
+        { ...request, runtimeSurface: futureRuntimeSurface },
+      ]) {
+        const result = await resolveRuntimeScope(futureRequest, {
+          authorityDirectory: authority,
+          localRegistry: registry,
+        });
+        assert.equal(result.resolved, false);
+        if (!result.resolved) {
+          assert.equal(
+            result.error.code,
+            WORKSPACE_AUTHORITY_ERROR_CODES.REPOSITORY_BINDING_MISMATCH
+          );
+        }
       }
     });
   });

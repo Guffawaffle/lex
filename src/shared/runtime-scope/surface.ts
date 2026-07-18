@@ -36,7 +36,7 @@ export type RegistryLocationSource =
 /** Explicit host paths captured by an entrypoint or injected by an embedder. */
 export interface RegistryLocationInputV1 {
   readonly executionSurface: ExecutionSurfaceEvidenceV1;
-  readonly homeDirectory: string;
+  readonly homeDirectory?: string;
   readonly localAppDataDirectory?: string;
   readonly xdgStateDirectory?: string;
 }
@@ -57,6 +57,69 @@ function requireNonEmpty(value: string | undefined, name: string): string {
 function normalizeOptional(value: string | undefined): string | undefined {
   const normalized = value?.trim();
   return normalized ? normalized : undefined;
+}
+
+function assertSurfaceVersion(surface: ExecutionSurfaceEvidenceV1): void {
+  if (surface.schemaVersion !== LOCAL_BINDING_CONTRACT_VERSION) {
+    throw new TypeError(
+      `executionSurface schema ${String(surface.schemaVersion)} is not supported by schema ${LOCAL_BINDING_CONTRACT_VERSION}.`
+    );
+  }
+}
+
+/** Normalize an absolute path using the native path semantics of one execution surface. */
+export function normalizeExecutionSurfacePath(
+  value: string | undefined,
+  surface: ExecutionSurfaceEvidenceV1,
+  name: string
+): string {
+  assertSurfaceVersion(surface);
+  const captured = requireNonEmpty(value, name);
+  const path = surface.nativePlatform === "win32" ? win32 : posix;
+  if (!path.isAbsolute(captured)) {
+    throw new TypeError(`${name} must be an absolute ${surface.nativePlatform} path.`);
+  }
+  return path.normalize(captured);
+}
+
+function isWithin(parent: string, child: string, surface: ExecutionSurfaceEvidenceV1): boolean {
+  const path = surface.nativePlatform === "win32" ? win32 : posix;
+  const relative = path.relative(parent, child);
+  return (
+    relative === "" ||
+    (relative !== ".." && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative))
+  );
+}
+
+/** Return whether two absolute paths describe nested locations on one native surface. */
+export function executionSurfacePathsAreRelated(
+  left: string,
+  right: string,
+  surface: ExecutionSurfaceEvidenceV1
+): boolean {
+  const capturedLeft = normalizeExecutionSurfacePath(left, surface, "left path");
+  const capturedRight = normalizeExecutionSurfacePath(right, surface, "right path");
+  const normalizedLeft =
+    surface.nativePlatform === "win32" ? capturedLeft.toLowerCase() : capturedLeft;
+  const normalizedRight =
+    surface.nativePlatform === "win32" ? capturedRight.toLowerCase() : capturedRight;
+  return (
+    isWithin(normalizedLeft, normalizedRight, surface) ||
+    isWithin(normalizedRight, normalizedLeft, surface)
+  );
+}
+
+function rejectCrossSurfaceRegistryPath(
+  path: string,
+  surface: ExecutionSurfaceEvidenceV1,
+  name: string
+): void {
+  if (surface.kind === "wsl" && /^\/mnt\/[^/]+(?:\/|$)/iu.test(path)) {
+    throw new TypeError(`${name} must remain inside the WSL filesystem.`);
+  }
+  if (surface.kind === "windows-native" && /^\\\\(?:wsl\$|wsl\.localhost)\\/iu.test(path)) {
+    throw new TypeError(`${name} must remain inside the Windows filesystem.`);
+  }
 }
 
 function digestFields(fields: readonly (string | undefined)[]): ContentDigest {
@@ -116,8 +179,7 @@ export function detectExecutionSurface(
       nativePlatform,
       kind,
       installationRef,
-      wslDistribution,
-      launchOrigin,
+      kind === "wsl" ? wslDistribution : undefined,
     ]),
   });
 }
@@ -126,14 +188,16 @@ export function detectExecutionSurface(
 export function resolveLocalRegistryLocation(
   input: RegistryLocationInputV1
 ): ResolvedRegistryLocationV1 {
-  const homeDirectory = requireNonEmpty(input.homeDirectory, "homeDirectory");
   const { executionSurface } = input;
+  assertSurfaceVersion(executionSurface);
 
   if (executionSurface.kind === "windows-native") {
-    const localAppData = requireNonEmpty(
+    const localAppData = normalizeExecutionSurfacePath(
       input.localAppDataDirectory,
+      executionSurface,
       "localAppDataDirectory for a Windows-native surface"
     );
+    rejectCrossSurfaceRegistryPath(localAppData, executionSurface, "localAppDataDirectory");
     return Object.freeze({
       schemaVersion: RUNTIME_SCOPE_IMPLEMENTATION_VERSION,
       registryPath: win32.join(localAppData, "Lex", "registry.db"),
@@ -142,6 +206,11 @@ export function resolveLocalRegistryLocation(
   }
 
   if (executionSurface.kind === "macos-native") {
+    const homeDirectory = normalizeExecutionSurfacePath(
+      input.homeDirectory,
+      executionSurface,
+      "homeDirectory for a macOS-native surface"
+    );
     return Object.freeze({
       schemaVersion: RUNTIME_SCOPE_IMPLEMENTATION_VERSION,
       registryPath: posix.join(
@@ -157,12 +226,25 @@ export function resolveLocalRegistryLocation(
 
   const xdgStateDirectory = normalizeOptional(input.xdgStateDirectory);
   if (xdgStateDirectory) {
+    const stateDirectory = normalizeExecutionSurfacePath(
+      xdgStateDirectory,
+      executionSurface,
+      "xdgStateDirectory"
+    );
+    rejectCrossSurfaceRegistryPath(stateDirectory, executionSurface, "xdgStateDirectory");
     return Object.freeze({
       schemaVersion: RUNTIME_SCOPE_IMPLEMENTATION_VERSION,
-      registryPath: posix.join(xdgStateDirectory, "lex", "registry.db"),
+      registryPath: posix.join(stateDirectory, "lex", "registry.db"),
       source: "xdg-state-home",
     });
   }
+
+  const homeDirectory = normalizeExecutionSurfacePath(
+    input.homeDirectory,
+    executionSurface,
+    "homeDirectory"
+  );
+  rejectCrossSurfaceRegistryPath(homeDirectory, executionSurface, "homeDirectory");
 
   return Object.freeze({
     schemaVersion: RUNTIME_SCOPE_IMPLEMENTATION_VERSION,

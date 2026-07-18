@@ -329,6 +329,138 @@ describe("SQLite local binding registry", () => {
     });
   });
 
+  test("reopens one Windows registry across native and WSL-interop launches", () => {
+    const root = mkdtempSync(join(tmpdir(), "lex-local-registry-windows-provenance-"));
+    const databasePath = join(root, "registry.db");
+    const identity = ids("windows-provenance");
+    const native = detectExecutionSurface({
+      platform: "win32",
+      installationRef: "windows-installation",
+      launchOrigin: "native-shell",
+    });
+    const interop = detectExecutionSurface({
+      platform: "win32",
+      installationRef: "windows-installation",
+      wslDistribution: "Ubuntu-24.04",
+      launchOrigin: "wsl-interop",
+    });
+
+    const registry = SqliteLocalBindingRegistry.initialize({
+      databasePath,
+      registryInstanceId: identity.registryInstanceId,
+      executionSurfaceId: identity.executionSurfaceId,
+      executionSurface: native,
+      createdAt: NOW,
+    });
+    registry.close();
+    const reopened = SqliteLocalBindingRegistry.open({
+      databasePath,
+      executionSurface: interop,
+    });
+    reopened.close();
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  test("rejects future contract versions instead of reconstructing them as v1", async () => {
+    await withTempRegistry("future-version", async ({ registry }) => {
+      const futureEvidence = {
+        ...evidence("/srv/lex"),
+        schemaVersion: 2,
+      } as unknown as RepositoryInstanceEvidenceV1;
+      const futureDeclaration = {
+        ...declaration,
+        schemaVersion: 2,
+      } as unknown as RepositoryDeclarationV1;
+
+      await assert.rejects(
+        registry.registerBinding({
+          ...registerRequest("future-version", "/srv/lex"),
+          evidence: futureEvidence,
+        }),
+        (error: unknown) =>
+          error instanceof LocalRegistryError && error.code === "REGISTRY_INVALID_INPUT"
+      );
+      await assert.rejects(
+        registry.findRepositoryInstances({
+          projectRoot: "/srv/lex",
+          repositoryDeclaration: futureDeclaration,
+          evidence: evidence("/srv/lex"),
+        }),
+        /repository declaration schema 2 is not supported/
+      );
+    });
+  });
+
+  test("requires projectRoot to belong to the repository evidence", async () => {
+    await withTempRegistry("root-membership", async ({ registry }) => {
+      await registry.registerBinding(registerRequest("root-membership", "/srv/lex"));
+
+      await assert.rejects(
+        registry.findRepositoryInstances({
+          projectRoot: "/srv/unrelated",
+          repositoryDeclaration: declaration,
+          evidence: evidence("/srv/lex"),
+        }),
+        /projectRoot must identify the repository root or a path nested with it/
+      );
+      assert.equal(
+        (
+          await registry.findRepositoryInstances({
+            projectRoot: "/srv/lex/packages/runtime-scope",
+            repositoryDeclaration: declaration,
+            evidence: evidence("/srv/lex"),
+          })
+        ).length,
+        1
+      );
+    });
+  });
+
+  test("serializes lifecycle decisions across administrative handles", async () => {
+    await withTempRegistry("lifecycle-race", async ({ databasePath, registry, surface }) => {
+      const identity = ids("lifecycle-race");
+      const receipt = await registry.registerBinding(registerRequest("lifecycle-race", "/srv/lex"));
+      const second = SqliteLocalBindingRegistry.open({
+        databasePath,
+        executionSurface: surface,
+        access: "administrative",
+        idFactory: deterministicIds("second-handle"),
+      });
+      try {
+        await registry.revokeBinding({
+          bindingId: receipt.bindingId,
+          revokedByPrincipalId: identity.principalId,
+          revokedAt: "2026-07-18T05:10:00.000Z",
+          reason: "First handle won the lifecycle decision.",
+        });
+        await assert.rejects(
+          second.rebindBinding({
+            bindingId: receipt.bindingId,
+            declaration,
+            evidence: evidence("/srv/lex-moved"),
+            authorityEvidence: authority(),
+            reboundByPrincipalId: identity.principalId,
+            reboundAt: "2026-07-18T05:11:00.000Z",
+            reason: "A stale second handle must not emit a receipt.",
+          }),
+          /revoked binding cannot be rebound/
+        );
+        await second.revokeBinding({
+          bindingId: receipt.bindingId,
+          revokedByPrincipalId: identity.principalId,
+          revokedAt: "2026-07-18T05:12:00.000Z",
+          reason: "Idempotent stale revocation.",
+        });
+        assert.deepEqual(
+          (await registry.inspectReceipts(receipt.bindingId)).map(({ action }) => action),
+          ["register", "revoke"]
+        );
+      } finally {
+        second.close();
+      }
+    });
+  });
+
   test("rejects a copied registry on another surface", async () => {
     await withTempRegistry("copied", async ({ databasePath, registry }) => {
       registry.close();

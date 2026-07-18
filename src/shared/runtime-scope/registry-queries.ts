@@ -418,9 +418,13 @@ export function insertLocalRegistryBinding(db: Database.Database, binding: Bindi
   ).run(binding);
 }
 
-export function updateLocalRegistryBinding(db: Database.Database, binding: BindingUpdateRow): void {
-  db.prepare(
-    `UPDATE repository_bindings SET
+export function updateLocalRegistryBinding(
+  db: Database.Database,
+  binding: BindingUpdateRow
+): number {
+  return db
+    .prepare(
+      `UPDATE repository_bindings SET
       canonical_root = @canonical_root,
       manifest_digest = @manifest_digest,
       git_common_directory_digest = @git_common_directory_digest,
@@ -436,17 +440,20 @@ export function updateLocalRegistryBinding(db: Database.Database, binding: Bindi
       authority_revoked_at = @authority_revoked_at,
       last_verified_at = @last_verified_at
     WHERE binding_id = @binding_id AND state = 'active'`
-  ).run(binding);
+    )
+    .run(binding).changes;
 }
 
 export function revokeLocalRegistryBinding(
   db: Database.Database,
   bindingId: string,
   revokedAt: string
-): void {
-  db.prepare(
-    `UPDATE repository_bindings
+): number {
+  return db
+    .prepare(
+      `UPDATE repository_bindings
      SET state = 'revoked', revoked_at = ?
      WHERE binding_id = ? AND state = 'active'`
-  ).run(revokedAt, bindingId);
+    )
+    .run(revokedAt, bindingId).changes;
 }

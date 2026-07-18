@@ -22,7 +22,6 @@ describe("runtime-scope execution surfaces", () => {
 
     const location = resolveLocalRegistryLocation({
       executionSurface: surface,
-      homeDirectory: "C:\\Users\\Guff",
       localAppDataDirectory: "C:\\Users\\Guff\\AppData\\Local",
       xdgStateDirectory: "/tmp/must-not-win",
     });
@@ -61,6 +60,23 @@ describe("runtime-scope execution surfaces", () => {
     assert.equal(ubuntuLocation.registryPath, "/home/guff/.local/state/lex/registry.db");
     assert.equal(debianLocation.registryPath, "/home/guff/.debian/state/lex/registry.db");
     assert.notEqual(ubuntuLocation.registryPath, debianLocation.registryPath);
+  });
+
+  test("keeps Windows launch provenance out of persistent surface identity", () => {
+    const native = detectExecutionSurface({
+      platform: "win32",
+      installationRef: "windows-installation",
+      launchOrigin: "native-shell",
+    });
+    const interop = detectExecutionSurface({
+      platform: "win32",
+      installationRef: "windows-installation",
+      wslDistribution: "Ubuntu-24.04",
+      launchOrigin: "wsl-interop",
+    });
+
+    assert.equal(native.evidenceDigest, interop.evidenceDigest);
+    assert.notEqual(native.launchOrigin, interop.launchOrigin);
   });
 
   test("uses deterministic Linux and macOS fallbacks from explicit home directories", () => {
@@ -116,6 +132,51 @@ describe("runtime-scope execution surfaces", () => {
           homeDirectory: "C:\\Users\\Guff",
         }),
       /localAppDataDirectory/
+    );
+  });
+
+  test("rejects relative and cross-surface registry locations", () => {
+    const windows = detectExecutionSurface({
+      platform: "win32",
+      installationRef: "windows-installation",
+    });
+    const wsl = detectExecutionSurface({
+      platform: "linux",
+      installationRef: "wsl-installation",
+      wslDistribution: "Ubuntu-24.04",
+    });
+
+    assert.throws(
+      () =>
+        resolveLocalRegistryLocation({
+          executionSurface: windows,
+          localAppDataDirectory: "AppData\\Local",
+        }),
+      /absolute win32 path/
+    );
+    assert.throws(
+      () =>
+        resolveLocalRegistryLocation({
+          executionSurface: windows,
+          localAppDataDirectory: "\\\\wsl$\\Ubuntu-24.04\\home\\guff",
+        }),
+      /inside the Windows filesystem/
+    );
+    assert.throws(
+      () =>
+        resolveLocalRegistryLocation({
+          executionSurface: wsl,
+          xdgStateDirectory: "state",
+        }),
+      /absolute linux path/
+    );
+    assert.throws(
+      () =>
+        resolveLocalRegistryLocation({
+          executionSurface: wsl,
+          xdgStateDirectory: "/mnt/c/Users/Guff/AppData/Local/Lex",
+        }),
+      /inside the WSL filesystem/
     );
   });
 });

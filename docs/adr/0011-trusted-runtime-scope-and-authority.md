@@ -71,7 +71,7 @@ Binding creation, rebinding, inspection, and revocation are administrative opera
 
 `InvocationContext` records the runtime, active project root, requested workspace selector, repository claim/evidence, local binding, runtime surface, and source revision.
 
-`AuthorizedScope` records the single active tenant/workspace grant for an invocation. It is minted by trusted authority and stamps scope into later store operations.
+`AuthorizedScope` records the single active tenant/workspace grant for an invocation. It is minted by trusted authority and stamps scope into later store operations. Its capability set is attenuated to the capabilities explicitly requested for that invocation; requesting none never expands to the grant's full capability set.
 
 Only a trusted entrypoint may capture ambient CLI, environment, path, and platform inputs. Core modules receive immutable values and do not reread `process.env`, `cwd`, or mutable global caches.
 

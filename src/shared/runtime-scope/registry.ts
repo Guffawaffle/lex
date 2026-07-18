@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { chmodSync, existsSync, mkdirSync } from "node:fs";
 import { createRequire } from "node:module";
-import { dirname, posix, win32 } from "node:path";
+import { dirname } from "node:path";
 
 import type Database from "better-sqlite3-multiple-ciphers";
 
@@ -51,6 +51,7 @@ import {
   type BindingRow,
   type RegistryIdentityRow,
 } from "./registry-queries.js";
+import { executionSurfacePathsAreRelated, normalizeExecutionSurfacePath } from "./surface.js";
 
 export const LOCAL_REGISTRY_SCHEMA_VERSION = 1 as const;
 export const LOCAL_REGISTRY_APPLICATION_ID = 0x4c585231 as const;
@@ -156,6 +157,43 @@ function timestamp(value: string, name: string): number {
   return parsed;
 }
 
+function assertSchemaVersion(
+  value: { readonly schemaVersion: number },
+  expected: number,
+  name: string
+): void {
+  if (value.schemaVersion !== expected) {
+    throw new LocalRegistryError(
+      "REGISTRY_INVALID_INPUT",
+      `${name} schema ${String(value.schemaVersion)} is not supported by schema ${expected}.`
+    );
+  }
+}
+
+function assertExecutionSurfaceVersion(surface: ExecutionSurfaceEvidenceV1): void {
+  assertSchemaVersion(surface, LOCAL_BINDING_CONTRACT_VERSION, "execution surface");
+}
+
+function assertEvidenceVersion(evidence: RepositoryInstanceEvidenceV1): void {
+  assertSchemaVersion(evidence, LOCAL_BINDING_CONTRACT_VERSION, "repository evidence");
+}
+
+function assertDeclarationVersion(declaration: RepositoryDeclarationV1 | undefined): void {
+  if (declaration) {
+    assertSchemaVersion(declaration, LOCAL_BINDING_CONTRACT_VERSION, "repository declaration");
+  }
+}
+
+function assertAuthorityVersion(authority: CachedAuthorityEvidenceV1): void {
+  assertSchemaVersion(authority, LOCAL_BINDING_CONTRACT_VERSION, "cached authority");
+}
+
+function assertBindingVersions(binding: RepositoryInstanceBindingV1): void {
+  assertSchemaVersion(binding, LOCAL_BINDING_CONTRACT_VERSION, "repository binding");
+  assertEvidenceVersion(binding.evidence);
+  if (binding.cachedAuthority) assertAuthorityVersion(binding.cachedAuthority);
+}
+
 function digestFields(fields: readonly (string | undefined)[]): ContentDigest {
   const hash = createHash("sha256");
   for (const field of fields) {
@@ -169,16 +207,43 @@ function digestFields(fields: readonly (string | undefined)[]): ContentDigest {
 }
 
 function normalizeRoot(root: string, surface: ExecutionSurfaceEvidenceV1): string {
-  const capturedRoot = requireNonEmpty(root, "repository canonical root");
-  return surface.nativePlatform === "win32"
-    ? win32.normalize(capturedRoot).toLowerCase()
-    : posix.normalize(capturedRoot);
+  try {
+    const normalized = normalizeExecutionSurfacePath(root, surface, "repository canonical root");
+    return surface.nativePlatform === "win32" ? normalized.toLowerCase() : normalized;
+  } catch (error) {
+    throw new LocalRegistryError(
+      "REGISTRY_INVALID_INPUT",
+      error instanceof Error ? error.message : String(error)
+    );
+  }
+}
+
+function assertRelatedRoots(
+  projectRoot: string,
+  canonicalRoot: string,
+  surface: ExecutionSurfaceEvidenceV1
+): void {
+  try {
+    if (!executionSurfacePathsAreRelated(projectRoot, canonicalRoot, surface)) {
+      throw new LocalRegistryError(
+        "REGISTRY_INVALID_INPUT",
+        "projectRoot must identify the repository root or a path nested with it."
+      );
+    }
+  } catch (error) {
+    if (error instanceof LocalRegistryError) throw error;
+    throw new LocalRegistryError(
+      "REGISTRY_INVALID_INPUT",
+      error instanceof Error ? error.message : String(error)
+    );
+  }
 }
 
 function normalizeEvidence(
   evidence: RepositoryInstanceEvidenceV1,
   surface: ExecutionSurfaceEvidenceV1
 ): RepositoryInstanceEvidenceV1 {
+  assertEvidenceVersion(evidence);
   return Object.freeze({
     ...evidence,
     canonicalRoot: normalizeRoot(evidence.canonicalRoot, surface),
@@ -201,6 +266,7 @@ export function computeRepositoryEvidenceDigest(
   evidence: RepositoryInstanceEvidenceV1,
   surface: ExecutionSurfaceEvidenceV1
 ): ContentDigest {
+  assertExecutionSurfaceVersion(surface);
   const normalized = normalizeEvidence(evidence, surface);
   return digestFields([
     String(normalized.schemaVersion),
@@ -218,6 +284,7 @@ function authorityStatus(
   authority: CachedAuthorityEvidenceV1,
   at: string
 ): "usable" | "expired" | "revoked" {
+  assertAuthorityVersion(authority);
   const atTime = timestamp(at, "authority verification time");
   const expiresAt = timestamp(authority.expiresAt, "authority expiresAt");
   timestamp(authority.verifiedAt, "authority verifiedAt");
@@ -250,7 +317,10 @@ function applySchemaV1(
     surface_evidence_digest: options.executionSurface.evidenceDigest,
     native_platform: options.executionSurface.nativePlatform,
     surface_kind: options.executionSurface.kind,
-    wsl_distribution: options.executionSurface.wslDistribution ?? null,
+    wsl_distribution:
+      options.executionSurface.kind === "wsl"
+        ? (options.executionSurface.wslDistribution ?? null)
+        : null,
     created_at: options.createdAt ?? appliedAt,
   });
   insertLocalRegistryMigration(db, LOCAL_REGISTRY_SCHEMA_VERSION, appliedAt);
@@ -319,7 +389,8 @@ function validateSchemaAndIdentity(
     identity.surface_evidence_digest !== executionSurface.evidenceDigest ||
     identity.native_platform !== executionSurface.nativePlatform ||
     identity.surface_kind !== executionSurface.kind ||
-    identity.wsl_distribution !== (executionSurface.wslDistribution ?? null) ||
+    identity.wsl_distribution !==
+      (executionSurface.kind === "wsl" ? (executionSurface.wslDistribution ?? null) : null) ||
     (expectedRegistryInstanceId !== undefined &&
       identity.registry_instance_id !== expectedRegistryInstanceId) ||
     (expectedExecutionSurfaceId !== undefined &&
@@ -562,6 +633,7 @@ export class SqliteLocalBindingRegistry implements LocalBindingRegistry {
   private readonly idFactory: LocalRegistryIdFactoryV1;
 
   static initialize(options: InitializeLocalRegistryOptionsV1): SqliteLocalBindingRegistry {
+    assertExecutionSurfaceVersion(options.executionSurface);
     requireNonEmpty(options.databasePath, "databasePath");
     const isMemory = options.databasePath === ":memory:";
     const existed = !isMemory && existsSync(options.databasePath);
@@ -599,6 +671,7 @@ export class SqliteLocalBindingRegistry implements LocalBindingRegistry {
   }
 
   static open(options: OpenLocalRegistryOptionsV1): SqliteLocalBindingRegistry {
+    assertExecutionSurfaceVersion(options.executionSurface);
     requireNonEmpty(options.databasePath, "databasePath");
     if (options.databasePath === ":memory:" || !existsSync(options.databasePath)) {
       throw new LocalRegistryError(
@@ -674,6 +747,9 @@ export class SqliteLocalBindingRegistry implements LocalBindingRegistry {
   async findRepositoryInstances(
     request: FindRepositoryInstancesRequestV1
   ): Promise<readonly RepositoryInstanceBindingV1[]> {
+    assertEvidenceVersion(request.evidence);
+    assertDeclarationVersion(request.repositoryDeclaration);
+    assertRelatedRoots(request.projectRoot, request.evidence.canonicalRoot, this.executionSurface);
     const rows = listActiveLocalRegistryBindings(this.db);
     const matches = rows
       .map(rowBinding)
@@ -751,6 +827,10 @@ export class SqliteLocalBindingRegistry implements LocalBindingRegistry {
   }
 
   async verifyBinding(request: VerifyBindingRequestV1): Promise<BindingVerificationV1> {
+    assertBindingVersions(request.binding);
+    assertDeclarationVersion(request.declaration);
+    assertEvidenceVersion(request.evidence);
+    assertAuthorityVersion(request.authorityEvidence);
     const verifiedAt = request.verifiedAt;
     timestamp(verifiedAt, "binding verifiedAt");
     const evidence = normalizeEvidence(request.evidence, this.executionSurface);
@@ -794,59 +874,59 @@ export class SqliteLocalBindingRegistry implements LocalBindingRegistry {
 
   async rebindBinding(request: RebindBindingRequestV1): Promise<BindingLifecycleReceiptV1> {
     this.assertAdministrative();
+    assertDeclarationVersion(request.declaration);
+    assertEvidenceVersion(request.evidence);
+    assertAuthorityVersion(request.authorityEvidence);
     requireNonEmpty(request.reason, "rebind reason");
     timestamp(request.reboundAt, "reboundAt");
     assertAuthorityUsable(request.authorityEvidence, request.reboundAt);
-    const row = this.bindingRow(request.bindingId);
-    if (!row) {
-      throw new LocalRegistryError(
-        "REGISTRY_INVALID_INPUT",
-        "The binding to rebind was not found."
-      );
-    }
-    const binding = rowBinding(row);
-    if (binding.state !== "active") {
-      throw new LocalRegistryError("REGISTRY_CONFLICT", "A revoked binding cannot be rebound.");
-    }
     const evidence = normalizeEvidence(request.evidence, this.executionSurface);
-    if (!hasStableRebindEvidence(binding, request.declaration, evidence)) {
-      throw new LocalRegistryError(
-        "REGISTRY_INVALID_INPUT",
-        "Rebinding requires stable provider, Git common-directory, or filesystem evidence in addition to any declaration."
-      );
-    }
-    const continuityReasons = verificationReasons(
-      binding,
-      request.declaration,
-      evidence,
-      true
-    ).filter((reason) => reason !== "manifest-evidence-mismatch");
-    if (continuityReasons.length > 0) {
-      throw new LocalRegistryError(
-        "REGISTRY_CONFLICT",
-        `Repository evidence does not preserve binding identity: ${continuityReasons.join(", ")}.`
-      );
-    }
-
     const evidenceDigest = computeRepositoryEvidenceDigest(evidence, this.executionSurface);
-    const receiptId = this.idFactory.receiptId();
-    const event: BindingEventRow = {
-      receipt_id: receiptId,
-      binding_id: binding.bindingId,
-      action: "rebind",
-      registry_instance_id: this.registryInstanceId,
-      execution_surface_id: this.executionSurfaceId,
-      repository_instance_id: binding.repositoryInstanceId,
-      workspace_instance_id: binding.workspaceInstanceId,
-      evidence_digest: evidenceDigest,
-      authority_digest: request.authorityEvidence.authorityDigest,
-      actor_principal_id: request.reboundByPrincipalId,
-      created_at: request.reboundAt,
-      reason: request.reason,
-    };
-
-    const rebind = this.db.transaction(() => {
-      updateLocalRegistryBinding(this.db, {
+    const rebind = this.db.transaction((): BindingEventRow => {
+      const row = this.bindingRow(request.bindingId);
+      if (!row) {
+        throw new LocalRegistryError(
+          "REGISTRY_INVALID_INPUT",
+          "The binding to rebind was not found."
+        );
+      }
+      const binding = rowBinding(row);
+      if (binding.state !== "active") {
+        throw new LocalRegistryError("REGISTRY_CONFLICT", "A revoked binding cannot be rebound.");
+      }
+      if (!hasStableRebindEvidence(binding, request.declaration, evidence)) {
+        throw new LocalRegistryError(
+          "REGISTRY_INVALID_INPUT",
+          "Rebinding requires stable provider, Git common-directory, or filesystem evidence in addition to any declaration."
+        );
+      }
+      const continuityReasons = verificationReasons(
+        binding,
+        request.declaration,
+        evidence,
+        true
+      ).filter((reason) => reason !== "manifest-evidence-mismatch");
+      if (continuityReasons.length > 0) {
+        throw new LocalRegistryError(
+          "REGISTRY_CONFLICT",
+          `Repository evidence does not preserve binding identity: ${continuityReasons.join(", ")}.`
+        );
+      }
+      const event: BindingEventRow = {
+        receipt_id: this.idFactory.receiptId(),
+        binding_id: binding.bindingId,
+        action: "rebind",
+        registry_instance_id: this.registryInstanceId,
+        execution_surface_id: this.executionSurfaceId,
+        repository_instance_id: binding.repositoryInstanceId,
+        workspace_instance_id: binding.workspaceInstanceId,
+        evidence_digest: evidenceDigest,
+        authority_digest: request.authorityEvidence.authorityDigest,
+        actor_principal_id: request.reboundByPrincipalId,
+        created_at: request.reboundAt,
+        reason: request.reason,
+      };
+      const changes = updateLocalRegistryBinding(this.db, {
         binding_id: binding.bindingId,
         canonical_root: evidence.canonicalRoot,
         manifest_digest: evidence.manifestDigest ?? null,
@@ -863,46 +943,78 @@ export class SqliteLocalBindingRegistry implements LocalBindingRegistry {
         authority_revoked_at: request.authorityEvidence.revokedAt ?? null,
         last_verified_at: request.reboundAt,
       });
+      if (changes !== 1) {
+        throw new LocalRegistryError(
+          "REGISTRY_CONFLICT",
+          "The binding changed before the rebind could be committed."
+        );
+      }
       this.insertEvent(event);
+      return event;
     });
-    rebind();
-    return eventReceipt(event);
+    try {
+      return eventReceipt(rebind.immediate());
+    } catch (error) {
+      if (error instanceof LocalRegistryError) throw error;
+      throw new LocalRegistryError(
+        "REGISTRY_CONFLICT",
+        `The binding could not be rebound: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
   }
 
   async revokeBinding(request: RevokeBindingRequestV1): Promise<void> {
     this.assertAdministrative();
     requireNonEmpty(request.reason, "revocation reason");
     timestamp(request.revokedAt, "revokedAt");
-    const row = this.bindingRow(request.bindingId);
-    if (!row) {
+    const revoke = this.db.transaction((): BindingEventRow | null => {
+      const row = this.bindingRow(request.bindingId);
+      if (!row) {
+        throw new LocalRegistryError(
+          "REGISTRY_INVALID_INPUT",
+          "The binding to revoke was not found."
+        );
+      }
+      if (row.state === "revoked") return null;
+      const binding = rowBinding(row);
+      const evidenceDigest = computeRepositoryEvidenceDigest(
+        binding.evidence,
+        this.executionSurface
+      );
+      const event: BindingEventRow = {
+        receipt_id: this.idFactory.receiptId(),
+        binding_id: binding.bindingId,
+        action: "revoke",
+        registry_instance_id: this.registryInstanceId,
+        execution_surface_id: this.executionSurfaceId,
+        repository_instance_id: binding.repositoryInstanceId,
+        workspace_instance_id: binding.workspaceInstanceId,
+        evidence_digest: evidenceDigest,
+        authority_digest:
+          binding.cachedAuthority?.authorityDigest ?? ("sha256:none" as ContentDigest),
+        actor_principal_id: request.revokedByPrincipalId,
+        created_at: request.revokedAt,
+        reason: request.reason,
+      };
+      const changes = revokeLocalRegistryBinding(this.db, request.bindingId, request.revokedAt);
+      if (changes !== 1) {
+        throw new LocalRegistryError(
+          "REGISTRY_CONFLICT",
+          "The binding changed before the revocation could be committed."
+        );
+      }
+      this.insertEvent(event);
+      return event;
+    });
+    try {
+      revoke.immediate();
+    } catch (error) {
+      if (error instanceof LocalRegistryError) throw error;
       throw new LocalRegistryError(
-        "REGISTRY_INVALID_INPUT",
-        "The binding to revoke was not found."
+        "REGISTRY_CONFLICT",
+        `The binding could not be revoked: ${error instanceof Error ? error.message : String(error)}`
       );
     }
-    if (row.state === "revoked") return;
-    const binding = rowBinding(row);
-    const evidenceDigest = computeRepositoryEvidenceDigest(binding.evidence, this.executionSurface);
-    const event: BindingEventRow = {
-      receipt_id: this.idFactory.receiptId(),
-      binding_id: binding.bindingId,
-      action: "revoke",
-      registry_instance_id: this.registryInstanceId,
-      execution_surface_id: this.executionSurfaceId,
-      repository_instance_id: binding.repositoryInstanceId,
-      workspace_instance_id: binding.workspaceInstanceId,
-      evidence_digest: evidenceDigest,
-      authority_digest:
-        binding.cachedAuthority?.authorityDigest ?? ("sha256:none" as ContentDigest),
-      actor_principal_id: request.revokedByPrincipalId,
-      created_at: request.revokedAt,
-      reason: request.reason,
-    };
-    const revoke = this.db.transaction(() => {
-      revokeLocalRegistryBinding(this.db, request.bindingId, request.revokedAt);
-      this.insertEvent(event);
-    });
-    revoke();
   }
 }
 
