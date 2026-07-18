@@ -245,6 +245,56 @@ describe("deterministic runtime-scope resolver", () => {
     });
   });
 
+  test("clones and deeply freezes a binding returned by an injected registry", async () => {
+    await withResolver("mutable-binding", async ({ registry, authority, request }) => {
+      const [storedBinding] = await registry.inspectBindings();
+      assert.ok(storedBinding);
+      const mutableBinding = {
+        ...storedBinding,
+        evidence: {
+          ...storedBinding.evidence,
+          provider: storedBinding.evidence.provider
+            ? { ...storedBinding.evidence.provider }
+            : undefined,
+        },
+        cachedAuthority: storedBinding.cachedAuthority
+          ? { ...storedBinding.cachedAuthority }
+          : undefined,
+      };
+      const mutableRegistry = new Proxy(registry, {
+        get(target, property) {
+          if (property === "findRepositoryInstances") return async () => [mutableBinding];
+          const value = Reflect.get(target, property, target) as unknown;
+          return typeof value === "function" ? value.bind(target) : value;
+        },
+      });
+
+      const result = await resolveRuntimeScope(request, {
+        authorityDirectory: authority,
+        localRegistry: mutableRegistry,
+      });
+      assert.equal(result.resolved, true);
+      if (!result.resolved || !result.invocationContext.binding) return;
+
+      const resolvedBinding = result.invocationContext.binding;
+      assert.notEqual(resolvedBinding, mutableBinding);
+      assert.notEqual(resolvedBinding.evidence, mutableBinding.evidence);
+      assert.notEqual(resolvedBinding.evidence.provider, mutableBinding.evidence.provider);
+      assert.notEqual(resolvedBinding.cachedAuthority, mutableBinding.cachedAuthority);
+      assert.equal(Object.isFrozen(resolvedBinding), true);
+      assert.equal(Object.isFrozen(resolvedBinding.evidence), true);
+      assert.equal(Object.isFrozen(resolvedBinding.evidence.provider), true);
+      assert.equal(Object.isFrozen(resolvedBinding.cachedAuthority), true);
+      assert.equal(Reflect.set(resolvedBinding, "state", "revoked"), false);
+      assert.equal(Reflect.set(resolvedBinding.evidence, "canonicalRoot", "/srv/tampered"), false);
+
+      Reflect.set(mutableBinding, "state", "revoked");
+      Reflect.set(mutableBinding.evidence, "canonicalRoot", "/srv/tampered");
+      assert.equal(resolvedBinding.state, "active");
+      assert.equal(resolvedBinding.evidence.canonicalRoot, "/srv/lex");
+    });
+  });
+
   test("resolves an existing verified binding when no declaration is present", async () => {
     await withResolver("no-declaration-existing", async ({ registry, authority, request }) => {
       const { repositoryDeclaration: _omitted, ...withoutDeclaration } = request;

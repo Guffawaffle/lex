@@ -143,6 +143,28 @@ function repositoryEvidence(evidence: RepositoryInstanceEvidenceV1): RepositoryI
   });
 }
 
+function repositoryBinding(binding: RepositoryInstanceBindingV1): RepositoryInstanceBindingV1 {
+  return Object.freeze({
+    schemaVersion: binding.schemaVersion,
+    bindingId: binding.bindingId,
+    registryInstanceId: binding.registryInstanceId,
+    executionSurfaceId: binding.executionSurfaceId,
+    workspaceInstanceId: binding.workspaceInstanceId,
+    repositoryInstanceId: binding.repositoryInstanceId,
+    tenantId: binding.tenantId,
+    workspaceId: binding.workspaceId,
+    repositoryId: binding.repositoryId,
+    evidence: repositoryEvidence(binding.evidence),
+    ...(binding.cachedAuthority
+      ? { cachedAuthority: Object.freeze({ ...binding.cachedAuthority }) }
+      : {}),
+    state: binding.state,
+    createdAt: binding.createdAt,
+    ...(binding.lastVerifiedAt ? { lastVerifiedAt: binding.lastVerifiedAt } : {}),
+    ...(binding.revokedAt ? { revokedAt: binding.revokedAt } : {}),
+  });
+}
+
 function cacheEvidence(
   grant: AuthorizedWorkspaceGrantV1,
   request: RuntimeScopeResolutionRequestV1
@@ -201,7 +223,7 @@ function invocationContext(
       ? { repositoryDeclaration: Object.freeze({ ...request.repositoryDeclaration }) }
       : {}),
     repositoryEvidence: repositoryEvidence(request.repositoryEvidence),
-    binding,
+    binding: repositoryBinding(binding),
     runtimeSurface: Object.freeze({ ...request.runtimeSurface }),
     ...(request.sourceRevision
       ? { sourceRevision: Object.freeze({ ...request.sourceRevision }) }
