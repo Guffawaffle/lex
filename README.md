@@ -560,9 +560,14 @@ Run CI checks locally without touching GitHub:
 ```bash
 npm run local-ci          # Run full CI suite locally
 npm run local-ci:nonet    # Run without network access
+npm run local-ci -- --pretty       # Add a check-only repository-wide Prettier audit
+npm run local-ci -- --prettier     # Exact alias for --pretty
 ```
 
 This uses `ci.Dockerfile` for local parity with CI checks.
+The formatting audit is opt-in and runs after the required validation sequence. It never rewrites
+files; use the separate `npm run format` command only when formatting mutation is intended. The
+default `npm run ci` gate remains unchanged and does not run a repository-wide Prettier audit.
 
 ### Multi-language policy scanning
 

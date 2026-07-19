@@ -52,6 +52,11 @@ The `scripts/ci.sh` script (used by `npm run local-ci`) automatically:
 2. Runs the health check before tests
 3. Fails fast with clear instructions if bindings are broken
 
+Pass `--pretty` (or its exact `--prettier` alias) through `npm run local-ci --` to add the
+repository-wide `npm run format:check` audit after required validation. This audit is check-only;
+it never invokes `prettier --write` or `npm run format`. Without either flag, the formatting audit
+does not run.
+
 ## Doctrine
 
 **We treat broken SQLite bindings as a failing gate, not a shrug.**

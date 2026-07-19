@@ -1,9 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 # Run ci.sh in the same container image but disable network
-IMAGE="${1:-lex-ci:local}"
+IMAGE="lex-ci:local"
+if [[ $# -gt 0 && "$1" != --* ]]; then
+  IMAGE="$1"
+  shift
+fi
 docker run --rm --network=none \
   --user "$(id -u):$(id -g)" \
   -v "$PWD":/work -w /work \
   "${IMAGE}" \
-  bash -lc "./scripts/ci.sh"
+  ./scripts/ci.sh "$@"

@@ -12,4 +12,4 @@ docker run --rm -it \
   --user "$(id -u):$(id -g)" \
   -v "$PWD":/work -w /work \
   "${IMAGE}" \
-  bash -lc "./scripts/ci.sh"
+  ./scripts/ci.sh "$@"
