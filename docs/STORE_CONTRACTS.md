@@ -123,8 +123,17 @@ that read and replace serialize that merge with an immediate transaction or row 
 partial updates cannot erase unrelated fields.
 
 The following behavior describes the transitional unscoped 2.x adapter. It must not be wired to
-Lex 3.0 trusted CLI/MCP dispatch, and it cannot serve a database after schema v3 enables forced
-RLS without an authorized scope:
+Lex 3.0 trusted CLI/MCP dispatch. The compatibility and scope-bound PostgreSQL stores may use the
+same database and schema name, but they use separate physical contracts:
+
+| Contract | Relations | Migration ledger | Current version |
+|---|---|---|---:|
+| Unscoped compatibility | `lex_compat_frames` and `lex_compat_*` support objects | `lex_compat_frame_store_migrations` | 2 |
+| Scope-bound/RLS | `frames` and scoped support objects | `lex_frame_store_migrations` | 3 |
+
+The compatibility adapter therefore neither bypasses RLS on the scoped relation nor interprets
+scoped ownership as unscoped data. Its credential-free backend identity includes this physical
+contract, so a launcher cannot report false parity with the former shared relation.
 
 `new PostgresFrameStore(url)` keeps the default `read-write` behavior and may apply PostgreSQL
 schema migrations before serving operations. The compatibility target defaults to `public`; an
@@ -135,6 +144,13 @@ existing target schema is exactly the supported version and never starts a migra
 Missing, older, or newer schemas fail with a diagnostic instead of being changed.
 The transitional `createFrameStore()` factory forwards the same explicit `schema` option when
 PostgreSQL is selected.
+
+When upgrading directly from an unscoped Lex 2.x schema at migration version 1, the compatibility
+migration copies legacy Frames transactionally into `lex_compat_frames` without deleting or
+changing the source relation. It adopts only a source with no tenant ownership columns. A Lex 3
+scoped relation—and any quarantined legacy rows—are never adopted automatically because doing so
+would invent tenant/workspace ownership. Moving those records requires an explicit administrative
+inventory and ownership decision.
 
 PostgreSQL read-only mode is an application-level no-write contract rather than a replacement for
 database permissions.

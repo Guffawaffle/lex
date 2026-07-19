@@ -93,6 +93,7 @@ export {
   PostgresScopedFrameStoreBackend,
   migratePostgresFrameStore,
   planPostgresFrameStoreMigration,
+  POSTGRES_COMPATIBILITY_FRAME_STORE_SCHEMA_VERSION,
   POSTGRES_FRAME_STORE_SCHEMA_VERSION,
 } from "./postgres/index.js";
 export type {

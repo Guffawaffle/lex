@@ -19,6 +19,7 @@ These values are independent and must not be substituted for one another:
 | Scoped ownership contract | `FRAME_STORE_SCOPE_CONTRACT_VERSION = 1` | Scope binding, capability, and ownership semantics |
 | Legacy/unowned SQLite | `DATABASE_SCHEMA_VERSION = 14` | Last physical schema accepted by the unscoped adapter |
 | Scope-owned SQLite | `SCOPED_SQLITE_SCHEMA_VERSION = 15` | Per-workspace physical schema with immutable ownership |
+| Unscoped compatibility PostgreSQL | `POSTGRES_COMPATIBILITY_FRAME_STORE_SCHEMA_VERSION = 2` | Dedicated `lex_compat_*` relations without tenant authorization |
 | Scope-owned PostgreSQL | `POSTGRES_FRAME_STORE_SCHEMA_VERSION = 3` | Explicit qualified schema with forced RLS |
 
 Physical migration versions are monotonic backend histories. A recorded version is not sufficient
@@ -81,6 +82,12 @@ Administrative inspection, migration, repair, and lifecycle operations remain ab
 `SqliteScopedFrameStoreBackend` binds one SQLite v15 file permanently to one tenant/workspace.
 `PostgresScopedFrameStoreBackend` applies the same contract to PostgreSQL v3 with explicit scope
 predicates and forced RLS. All run the shared normal-operation conformance suite.
+
+The exported unscoped `PostgresFrameStore` uses a separate version-2 compatibility domain:
+`lex_compat_frames`, its own migration ledger, and compatibility-specific support objects. It may
+coexist with the scoped/RLS domain in one PostgreSQL schema, but it never reads that domain or
+assigns ownership to scoped or quarantined records. Its backend identity includes the compatibility
+contract version.
 
 Trusted MCP does not currently expose attachment creation through scoped stores. Until a
 scope-bound attachment service exists, trusted tool schemas and help omit `images`, direct

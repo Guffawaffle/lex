@@ -1,5 +1,6 @@
 export { PostgresFrameStore } from "./frame-store.js";
 export type { PostgresFrameStoreAccessMode, PostgresFrameStoreOptions } from "./frame-store.js";
+export { POSTGRES_COMPATIBILITY_FRAME_STORE_SCHEMA_VERSION } from "./compatibility-migrations.js";
 export {
   PostgresFrameStoreAdministration,
   PostgresScopedFrameStoreBackend,

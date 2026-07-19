@@ -4,6 +4,7 @@ import { randomBytes } from "node:crypto";
 import { Pool } from "pg";
 import {
   FRAME_STORE_CAPABILITIES,
+  PostgresFrameStore,
   PostgresFrameStoreAdministration,
   PostgresScopedFrameStoreBackend,
 } from "@app/memory/store/index.js";
@@ -31,6 +32,7 @@ let scopedAdminPool: Pool;
 let runtimePool: Pool;
 let administration: PostgresFrameStoreAdministration;
 let backend: PostgresScopedFrameStoreBackend;
+let compatibilityStore: PostgresFrameStore;
 
 function scopedUrl(value: string): string {
   const url = new URL(value);
@@ -96,6 +98,7 @@ integration("PostgreSQL scoped FrameStore live RLS", () => {
     });
     administration = new PostgresFrameStoreAdministration(scopedAdminPool, { schema });
     await administration.migrate();
+    compatibilityStore = new PostgresFrameStore(scopedAdminPool, { schema });
 
     runtimePool = new Pool({
       connectionString: scopedUrl(runtimeUrl as string),
@@ -120,12 +123,50 @@ integration("PostgreSQL scoped FrameStore live RLS", () => {
 
   after(async () => {
     await backend?.close();
+    await compatibilityStore?.close();
     await administration?.close();
     await runtimePool?.end();
     await scopedAdminPool?.end();
     await adminPool?.query(`DROP SCHEMA IF EXISTS ${quoteIdentifier(shadowSchema)} CASCADE`);
     await adminPool?.query(`DROP SCHEMA IF EXISTS ${quoteIdentifier(schema)} CASCADE`);
     await adminPool?.end();
+  });
+
+  test("keeps compatibility writes separate from the scoped/RLS ownership domain", async () => {
+    const compatibilityFrame = {
+      id: "compatibility-frame",
+      timestamp: "2026-07-18T03:30:00.000Z",
+      branch: "main",
+      module_scope: ["memory/store/postgres"],
+      summary_caption: "Compatibility PostgreSQL Frame",
+      reference_point: "separate persistence domains",
+      status_snapshot: { next_action: "verify scoped isolation" },
+    };
+    await compatibilityStore.saveFrame(compatibilityFrame);
+    assert.deepEqual(
+      await compatibilityStore.getFrameById(compatibilityFrame.id),
+      compatibilityFrame
+    );
+
+    const scoped = backend.bind(
+      scope(
+        "01900000-0000-7000-8000-000000000001",
+        "01900000-0000-7000-8000-000000000101",
+        "01900000-0000-7000-8000-000000000201"
+      )
+    );
+    assert.equal(await scoped.getFrameById(compatibilityFrame.id), null);
+    const relations = await adminPool.query<{
+      scoped: string | null;
+      compatibility: string | null;
+    }>(
+      `SELECT
+        to_regclass($1)::text AS scoped,
+        to_regclass($2)::text AS compatibility`,
+      [`${schema}.frames`, `${schema}.lex_compat_frames`]
+    );
+    assert.ok(relations.rows[0]?.scoped);
+    assert.ok(relations.rows[0]?.compatibility);
   });
 
   test("isolates collisions while rapidly alternating tenants and workspaces on one client", async () => {

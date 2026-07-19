@@ -5,6 +5,10 @@
 ### Patch Changes
 
 - 2d79248: Rewrite Lex's documentation around the agent continuity story, add a bounded agent evaluation path, and align the prominent operator and contract references with Lex 3.
+- Restore environment-selected PostgreSQL writes after the Lex 3 scoped migration by moving the
+  unscoped compatibility adapter onto a distinct versioned relation and migration ledger. Direct
+  Lex 2.x upgrades copy only demonstrably unowned Frames; scoped and quarantined data remain behind
+  an explicit administrative ownership decision. ([#774](https://github.com/Guffawaffle/lex/issues/774))
 
 All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and the project follows
