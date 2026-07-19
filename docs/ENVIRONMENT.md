@@ -52,6 +52,10 @@ export LEX_DB_PATH=/absolute/path/to/frames.db
 Connection URL used by the compatibility PostgreSQL adapter when `LEX_STORE=postgres`.
 Introspection redacts its password and query parameters.
 
+This adapter uses dedicated `lex_compat_*` relations and a separate migration ledger. It may
+coexist with the Lex 3 scoped/RLS store in one PostgreSQL schema, but it is not a tenant boundary
+and never auto-adopts scoped or quarantined legacy Frames.
+
 ```bash
 export LEX_STORE=postgres
 export LEX_DATABASE_URL=postgresql://lex@127.0.0.1:5433/lex

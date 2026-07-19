@@ -2,13 +2,14 @@ import { afterEach, test } from "node:test";
 import assert from "node:assert/strict";
 import {
   createFrameStore,
-  POSTGRES_FRAME_STORE_SCHEMA_VERSION,
+  POSTGRES_COMPATIBILITY_FRAME_STORE_SCHEMA_VERSION,
   PostgresFrameStore,
   resolveFrameStoreBackend,
   SqliteFrameStore,
 } from "@app/memory/store/index.js";
-import type { Pool } from "pg";
+import type { Pool, PoolClient } from "pg";
 import type { Frame } from "../../../src/memory/frames/types.js";
+import { migratePostgresCompatibilityFrameStore } from "@app/memory/store/postgres/compatibility-migrations.js";
 
 const originalStore = process.env.LEX_STORE;
 const originalUrl = process.env.LEX_DATABASE_URL;
@@ -99,7 +100,7 @@ test("PostgresFrameStore read-only mode validates schema without migrations and 
   const client = {
     query: async (sql: string) => {
       queries.push(sql);
-      return { rows: [{ version: POSTGRES_FRAME_STORE_SCHEMA_VERSION }] };
+      return { rows: [{ version: POSTGRES_COMPATIBILITY_FRAME_STORE_SCHEMA_VERSION }] };
     },
     release: () => undefined,
   };
@@ -116,6 +117,90 @@ test("PostgresFrameStore read-only mode validates schema without migrations and 
   assert.ok(!queries.some((sql) => /\b(?:BEGIN|CREATE|INSERT|ALTER)\b/i.test(sql)));
   await assert.rejects(store.deleteFrame("frame-1"), /read-only/i);
   await store.close();
+});
+
+test("PostgreSQL compatibility migration uses distinct objects and safely adopts a v1 source", async () => {
+  const queries: Array<{ sql: string; params: readonly unknown[] }> = [];
+  const client = {
+    query: async (sql: string, params: readonly unknown[] = []) => {
+      const normalized = sql.replace(/\s+/g, " ").trim();
+      queries.push({ sql: normalized, params });
+      if (
+        normalized.includes("SELECT MAX(version)") &&
+        normalized.includes('"lex_compat"."lex_compat_frame_store_migrations"')
+      ) {
+        return { rows: [{ version: 0 }], rowCount: 1 };
+      }
+      if (normalized.startsWith("SELECT to_regclass")) {
+        return {
+          rows: [
+            {
+              frames_exists: "lex_compat.frames",
+              migrations_exists: "lex_compat.lex_frame_store_migrations",
+              has_tenant_id: false,
+            },
+          ],
+          rowCount: 1,
+        };
+      }
+      if (
+        normalized.includes("SELECT MAX(version)") &&
+        normalized.includes('"lex_compat"."lex_frame_store_migrations"')
+      ) {
+        return { rows: [{ version: 1 }], rowCount: 1 };
+      }
+      return { rows: [], rowCount: 1 };
+    },
+  } as unknown as PoolClient;
+
+  await migratePostgresCompatibilityFrameStore(client, "lex_compat");
+
+  const sql = queries.map(({ sql }) => sql).join("\n");
+  assert.match(sql, /"lex_compat"\."lex_compat_frame_store_migrations"/);
+  assert.match(sql, /CREATE TABLE IF NOT EXISTS "lex_compat"\."lex_compat_frames"/);
+  assert.match(sql, /PRIMARY KEY/);
+  assert.match(sql, /FROM "lex_compat"\."frames" AS source/);
+  assert.match(sql, /ON CONFLICT \(id\) DO NOTHING/);
+  assert.doesNotMatch(sql, /ALTER TABLE "lex_compat"\."frames"/);
+  assert.equal(queries[0]?.sql, "BEGIN");
+  assert.equal(queries.at(-1)?.sql, "COMMIT");
+});
+
+test("PostgreSQL compatibility migration never adopts a scoped ownership table", async () => {
+  const queries: string[] = [];
+  const client = {
+    query: async (sql: string) => {
+      const normalized = sql.replace(/\s+/g, " ").trim();
+      queries.push(normalized);
+      if (
+        normalized.includes("SELECT MAX(version)") &&
+        normalized.includes("lex_compat_frame_store_migrations")
+      ) {
+        return { rows: [{ version: 0 }], rowCount: 1 };
+      }
+      if (normalized.startsWith("SELECT to_regclass")) {
+        return {
+          rows: [
+            {
+              frames_exists: "lex_compat.frames",
+              migrations_exists: "lex_compat.lex_frame_store_migrations",
+              has_tenant_id: true,
+            },
+          ],
+          rowCount: 1,
+        };
+      }
+      return { rows: [], rowCount: 1 };
+    },
+  } as unknown as PoolClient;
+
+  await migratePostgresCompatibilityFrameStore(client, "lex_compat");
+
+  assert.equal(
+    queries.some((sql) => sql.includes('"frames" AS source')),
+    false
+  );
+  assert.equal(queries.at(-1), "COMMIT");
 });
 
 test("PostgresFrameStore pins compatibility CRUD and durable Frame metadata to its schema", async () => {
@@ -205,7 +290,10 @@ test("PostgresFrameStore pins compatibility CRUD and durable Frame metadata to i
     query: async (sql: string, params: readonly unknown[] = []) => {
       record(sql, params);
       if (sql.includes("SELECT MAX(version)")) {
-        return { rows: [{ version: POSTGRES_FRAME_STORE_SCHEMA_VERSION }], rowCount: 1 };
+        return {
+          rows: [{ version: POSTGRES_COMPATIBILITY_FRAME_STORE_SCHEMA_VERSION }],
+          rowCount: 1,
+        };
       }
       if (sql.includes("FOR UPDATE")) return { rows: [row], rowCount: 1 };
       return { rows: [], rowCount: 1 };
@@ -216,7 +304,7 @@ test("PostgresFrameStore pins compatibility CRUD and durable Frame metadata to i
     connect: async () => client,
     query: async (sql: string, params: readonly unknown[] = []) => {
       record(sql, params);
-      if (sql.includes("SELECT") && sql.includes('"lex_compat"."frames"')) {
+      if (sql.includes("SELECT") && sql.includes('"lex_compat"."lex_compat_frames"')) {
         return { rows: [row], rowCount: 1 };
       }
       return { rows: [], rowCount: 1 };
@@ -228,9 +316,9 @@ test("PostgresFrameStore pins compatibility CRUD and durable Frame metadata to i
   assert.deepEqual(await store.getFrameById(frame.id), frame);
   assert.equal(await store.updateFrame(frame.id, { guardrailProfile: "updated" }), true);
 
-  const frameSql = queries.filter(({ sql }) => /\bframes\b/.test(sql));
+  const frameSql = queries.filter(({ sql }) => sql.includes('"lex_compat"."lex_compat_frames"'));
   assert.ok(frameSql.length > 0);
-  assert.ok(frameSql.every(({ sql }) => sql.includes('"lex_compat"."frames"')));
+  assert.ok(frameSql.every(({ sql }) => sql.includes('"lex_compat"."lex_compat_frames"')));
   const writes = queries.filter(({ sql }) => sql.startsWith("INSERT INTO"));
   assert.deepEqual(
     (writes[0]?.params[19] as { guardrailProfile?: string }).guardrailProfile,

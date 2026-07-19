@@ -82,6 +82,10 @@ multi-workspace hosts must use explicit runtime authority and a scope-bound Post
 [Runtime Scope](./RUNTIME_SCOPE_CONTRACT.md) and
 [PostgreSQL Scope Security](./POSTGRES_SCOPE_SECURITY.md).
 
+The compatibility adapter uses dedicated `lex_compat_*` relations and a separate migration ledger.
+It may coexist in the same PostgreSQL schema as the Lex 3 scoped/RLS store, but it never reads the
+scoped relation or automatically assigns ownership to scoped or quarantined legacy Frames.
+
 Installed CLI and MCP consumers discover `.lex.config.json` from the caller project root. This provides a file-based alternative when the host does not support environment wiring:
 
 ```json

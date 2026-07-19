@@ -13,13 +13,14 @@ import type {
 } from "../frame-store.js";
 import type { Frame, FrameStatusSnapshot, FrameSpendMetadata } from "../../frames/types.js";
 import { Frame as FrameSchema } from "../../frames/types.js";
-import {
-  createPostgresSchemaTarget,
-  type PostgresSchemaTargetV1,
-} from "../../../shared/runtime-scope/postgres-schema.js";
+import { type PostgresSchemaTargetV1 } from "../../../shared/runtime-scope/postgres-schema.js";
 import { durableFrameMetadata, parseDurableFrameMetadata } from "../durable-frame-metadata.js";
 import { normalizeSearchTerms } from "../search-utils.js";
-import { migratePostgresFrameStore, POSTGRES_FRAME_STORE_SCHEMA_VERSION } from "./migrations.js";
+import {
+  createPostgresCompatibilitySchemaTarget,
+  migratePostgresCompatibilityFrameStore,
+  POSTGRES_COMPATIBILITY_FRAME_STORE_SCHEMA_VERSION,
+} from "./compatibility-migrations.js";
 
 interface PaginationCursor {
   timestamp: string;
@@ -198,6 +199,12 @@ function postgresIdentity(location: string): string {
   return `postgres-v1:${createHash("sha256").update(location).digest("hex").slice(0, 16)}`;
 }
 
+function compatibilityIdentity(location: string, schema: string): string {
+  return postgresIdentity(
+    `${location}|schema=${schema}|contract=compat-v${POSTGRES_COMPATIBILITY_FRAME_STORE_SCHEMA_VERSION}`
+  );
+}
+
 /** Translate the existing FTS5 normalization contract to a PostgreSQL tsquery. */
 function toPostgresTsQuery(criteria: FrameSearchCriteria): string | null {
   const terms = normalizeSearchTerms(criteria).map((term) =>
@@ -220,7 +227,7 @@ export class PostgresFrameStore implements FrameStore {
 
   constructor(connectionStringOrPool?: string | Pool, options: PostgresFrameStoreOptions = {}) {
     this._accessMode = options.accessMode ?? "read-write";
-    this.target = createPostgresSchemaTarget(options.schema ?? "public");
+    this.target = createPostgresCompatibilitySchemaTarget(options.schema ?? "public");
     this.upsertSql = upsertFrameSql(this.target);
     if (typeof connectionStringOrPool === "object") {
       this.pool = connectionStringOrPool;
@@ -230,7 +237,7 @@ export class PostgresFrameStore implements FrameStore {
         backend: "postgres",
         location,
         canonicalLocation: location,
-        identity: postgresIdentity(`${location}|schema=${this.target.schema}`),
+        identity: compatibilityIdentity(location, this.target.schema),
         capabilities: { encryption: false, images: false },
       };
       return;
@@ -261,7 +268,7 @@ export class PostgresFrameStore implements FrameStore {
       backend: "postgres",
       location,
       canonicalLocation: location,
-      identity: postgresIdentity(`${location}|schema=${this.target.schema}`),
+      identity: compatibilityIdentity(location, this.target.schema),
       capabilities: { encryption: false, images: false },
     };
   }
@@ -322,9 +329,9 @@ export class PostgresFrameStore implements FrameStore {
       `SELECT MAX(version) AS version FROM ${this.target.relation("lex_frame_store_migrations")}`
     );
     const currentVersion = result.rows[0]?.version ?? 0;
-    if (currentVersion !== POSTGRES_FRAME_STORE_SCHEMA_VERSION) {
+    if (currentVersion !== POSTGRES_COMPATIBILITY_FRAME_STORE_SCHEMA_VERSION) {
       throw new Error(
-        `PostgreSQL FrameStore schema ${currentVersion} is not the required schema ${POSTGRES_FRAME_STORE_SCHEMA_VERSION}; run an explicit writable Lex command to migrate it`
+        `PostgreSQL compatibility FrameStore schema ${currentVersion} is not the required schema ${POSTGRES_COMPATIBILITY_FRAME_STORE_SCHEMA_VERSION}; run an explicit writable Lex command to migrate it`
       );
     }
   }
@@ -337,7 +344,7 @@ export class PostgresFrameStore implements FrameStore {
           const client = await this.pool.connect();
           try {
             if (this._accessMode === "read-only") await this.verifySchema(client);
-            else await migratePostgresFrameStore(client, this.target.schema);
+            else await migratePostgresCompatibilityFrameStore(client, this.target.schema);
           } finally {
             client.release();
           }
