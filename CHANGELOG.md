@@ -1,5 +1,11 @@
 # Changelog
 
+## 3.0.1
+
+### Patch Changes
+
+- 2d79248: Rewrite Lex's documentation around the agent continuity story, add a bounded agent evaluation path, and align the prominent operator and contract references with Lex 3.
+
 All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and the project follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
@@ -902,7 +908,8 @@ Initial release with unified single-package structure after monorepo consolidati
 - TypeScript with strict type checking
 - Comprehensive test coverage
 
-[Unreleased]: https://github.com/Guffawaffle/lex/compare/v3.0.0...HEAD
+[Unreleased]: https://github.com/Guffawaffle/lex/compare/v3.0.1...HEAD
+[3.0.1]: https://github.com/Guffawaffle/lex/releases/tag/v3.0.1
 [3.0.0]: https://github.com/Guffawaffle/lex/releases/tag/v3.0.0
 [0.3.0]: https://github.com/Guffawaffle/lex/releases/tag/v0.3.0
 [0.2.0]: https://github.com/Guffawaffle/lex/releases/tag/v0.2.0
