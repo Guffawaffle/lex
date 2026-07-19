@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck source=scripts/ci-options.sh
+source "$SCRIPT_DIR/ci-options.sh"
+lex_ci_parse_options "$@"
+
 echo "==> Local CI replica starting"
 echo "pwd: $(pwd)"
 node -v
@@ -53,4 +58,5 @@ else
   if npm run | rg -q '^  test(:|$)'; then npm test; fi
 fi
 
+lex_ci_run_optional_audits
 echo "==> Local CI replica completed OK"

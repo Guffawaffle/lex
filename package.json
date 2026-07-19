@@ -171,7 +171,7 @@
     "ci:minimal": "npm run lint && npm run type-check",
     "ci": "npm run lint && npm run type-check && npm test && npm run build && npm run check:public-api",
     "ci:full": "npm run lint && npm run type-check && npm test && npm run test:integration && npm run build && npm run check:public-api && npm run guard:pack",
-    "local-ci": "npm run ci",
+    "local-ci": "./scripts/local-ci-run.sh",
     "local-ci:nonet": "./scripts/ci-nonet.sh",
     "generate:test-frames": "node scripts/generate-test-frames.mjs",
     "changeset": "changeset",
