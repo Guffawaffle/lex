@@ -1,5 +1,9 @@
 # PostgreSQL Scope Security
 
+This guide is for database operators and trusted-host implementers deploying shared Frame storage.
+It assumes separate administrative and runtime connections, a dedicated protected schema,
+canonical runtime authority, and the ability to inspect effective PostgreSQL role privileges.
+
 Lex 3.0 uses two independent controls for shared PostgreSQL Frame storage:
 
 1. every normal query contains explicit tenant, workspace, and active-principal predicates; and
@@ -78,7 +82,7 @@ PostgreSQL independently requires inserted creator provenance to equal the trans
 A protected trigger rejects any update to tenant, workspace, creator, or scope-version ownership,
 while collaborators can still update ordinary Frame content inside their authorized workspace.
 
-## Schema v2 and existing rows
+## Legacy v1 quarantine during the v2 migration
 
 Schema v1 Frames do not contain trustworthy tenant, workspace, or creator ownership. Migration
 therefore never guesses it. Within the migration transaction it copies those rows to the
@@ -86,6 +90,9 @@ admin-only `lex_frame_store_unowned_frames_v1` quarantine, empties the runtime t
 non-null ownership columns and the `(tenant_id, workspace_id, id)` primary key, and enables forced
 RLS. Quarantined rows cannot re-enter normal storage until a separately designed administrative
 ownership-establishment workflow exists.
+
+The current serving schema is v3. Schema v3 follows the ownership migration and adds the complete
+Frame metadata required for exact durable Frame v7 round trips.
 
 Use `PostgresFrameStoreAdministration.planMigration()` to report the current version, pending
 versions, and quarantine count without starting a transaction or mutating schema. Migration itself

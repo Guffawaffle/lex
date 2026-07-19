@@ -1,394 +1,230 @@
-# Lex Environment Variables
+# Compatibility Environment Reference
 
-This document lists all `LEX_*` environment variables used by Lex, their purpose, and precedence rules.
+This document covers supported environment configuration for the standalone Lex CLI, the
+compatibility FrameStore factory, and the packaged MCP launcher.
 
-## Precedence Rules
+Environment variables are convenient local process configuration. They are **not** tenant,
+workspace, principal, or capability authority. A trusted Lex 3 host supplies repository evidence,
+authority, backend connections, and scoped store binders explicitly; it does not grant access by
+reconstructing scope from ambient environment variables.
 
-Lex follows a consistent precedence order for configuration:
+When a command offers an equivalent CLI flag, the explicit flag takes precedence. Use
+`lex introspect --json` to confirm the effective workspace, store, policy, and warnings rather than
+assuming that an inherited shell environment is harmless.
 
-1. **CLI flags** (highest priority)
-2. **Environment variables** (`LEX_*`)
-3. **Workspace config** (`.lex.config.json`)
-4. **Sensible defaults** (lowest priority)
-
----
-
-## Core Path Variables
+## Storage and workspace
 
 ### `LEX_STORE`
 
-**Purpose:** Select the Frame storage backend.
-
-**Values:** `sqlite` (default) or `postgres`.
-
-Runtime FrameStore selection remains explicit: PostgreSQL is selected with `LEX_STORE=postgres`. The `lex init` bootstrap is intentionally more defensive; when `LEX_STORE` is unset, the presence of `LEX_DATABASE_URL` selects its PostgreSQL-only path so initialization cannot accidentally create SQLite state. `lex init --store sqlite|postgres` has the highest precedence for that command.
+Selects the compatibility Frame backend: `sqlite` (default) or `postgres`.
 
 ```bash
-export LEX_STORE=postgres
-export LEX_DATABASE_URL='postgresql://lex:<password>@127.0.0.1:5432/lex'
+export LEX_STORE=sqlite
+```
+
+PostgreSQL selection is explicit for normal compatibility runtime operations. `lex init` is more
+defensive: `--store sqlite|postgres` wins, and an otherwise unset `LEX_STORE` plus a present
+`LEX_DATABASE_URL` chooses PostgreSQL so initialization does not accidentally create SQLite state.
+
+### `LEX_WORKSPACE_ROOT`
+
+Overrides the active repository/workspace root. The normal default is the current or detected
+project root. It affects relative database and policy paths, logs, backups, and repository state.
+
+```bash
+export LEX_WORKSPACE_ROOT=/absolute/path/to/project
+```
+
+### `LEX_DB_PATH` and `LEX_MEMORY_DB`
+
+`LEX_DB_PATH` selects the SQLite file. The default is `.smartergpt/lex/memory.db` relative to the
+workspace. Use an absolute path when multiple trusted local launchers should share one store.
+
+`LEX_MEMORY_DB` is a compatibility alias. `LEX_DB_PATH` wins when both are present.
+
+```bash
+export LEX_STORE=sqlite
+export LEX_DB_PATH=/absolute/path/to/frames.db
 ```
 
 ### `LEX_DATABASE_URL`
 
-**Purpose:** PostgreSQL connection URL used when `LEX_STORE=postgres`.
-
-The URL is required for PostgreSQL and ignored by SQLite. Introspection redacts the password and query parameters. Keep credentials in the host environment or a secret manager; do not commit them.
-
-To keep credentials out of launcher configuration, use a password-free URL and
-provide the secret separately:
+Connection URL used by the compatibility PostgreSQL adapter when `LEX_STORE=postgres`.
+Introspection redacts its password and query parameters.
 
 ```bash
+export LEX_STORE=postgres
 export LEX_DATABASE_URL=postgresql://lex@127.0.0.1:5433/lex
-export LEX_POSTGRES_PASSWORD=secret
 ```
 
 ### `LEX_POSTGRES_PASSWORD`
 
-**Purpose:** Optional PostgreSQL password used only when `LEX_DATABASE_URL`
-does not embed one. It is never included in store metadata or introspection.
+Optional PostgreSQL password applied only when `LEX_DATABASE_URL` does not contain one. It is not
+included in store metadata or introspection. Prefer a secret-injection mechanism over checked-in
+launcher files.
 
 ### `LEX_POSTGRES_POOL_MAX`
 
-**Purpose:** Maximum PostgreSQL pool size.
-
-**Default:** `10`.
-
-### `LEX_WORKSPACE_ROOT`
-
-**Purpose:** Override the workspace root directory.
-
-**Default:** Current working directory, or auto-detected from `package.json` location.
-
-**Used by:** Database path resolution, log directory, backup directory, path normalization.
-
-```bash
-export LEX_WORKSPACE_ROOT=/path/to/my/project
-```
-
----
-
-### `LEX_DB_PATH`
-
-**Purpose:** Override the SQLite database file location.
-
-**Default:** `.smartergpt/lex/memory.db` relative to workspace root.
-
-**Used by:** SQLite Frame storage. It is not used by the PostgreSQL backend.
-
-```bash
-export LEX_DB_PATH=/custom/path/frames.db
-```
-
-For multi-root workspaces, use the same absolute value for direct CLI, MCP, and routed Lex processes. `lex introspect` and `lex context` expose the canonical active path, store identity, and alternate-store warnings.
-
-### `LEX_MEMORY_DB`
-
-Compatibility alias for `LEX_DB_PATH`. When both are set, `LEX_DB_PATH` wins. New configuration should use `LEX_DB_PATH`.
-
----
-
-### `LEX_POLICY_PATH`
-
-**Purpose:** Override the policy file location.
-
-**Default:** Searched in this order:
-1. `.smartergpt/lex/lexmap.policy.json`
-2. `src/policy/policy_spec/lexmap.policy.json.example`
-
-**Behavior when policy file not found:**
-- CLI commands that use policy (e.g., `lex remember`) will emit a warning but continue execution
-- Module validation will be skipped, allowing any module ID
-- To explicitly skip policy validation even when a file exists, use the `--skip-policy` flag
-
-**Used by:** Policy loading, module ID validation, Atlas Frame generation.
-
-```bash
-export LEX_POLICY_PATH=/custom/path/my-policy.json
-```
-
-**Note:** You can also use the `--skip-policy` flag with `lex remember` to bypass policy validation:
-
-```bash
-lex remember --skip-policy --modules "any-module-id" --reference-point "test" --summary "test" --next "test"
-```
-
----
+Maximum compatibility PostgreSQL pool size. Default: `10`.
 
 ### `LEX_APP_ROOT`
 
-**Purpose:** Override the application root directory (used by config system).
+Compatibility override for the application root used by the configuration and path systems.
+Prefer an explicit command project root or `LEX_WORKSPACE_ROOT` in new launchers.
 
-**Default:** Auto-detected from `package.json` location.
+## Repository policy and packaged data
 
-**Used by:** Config loading, path resolution.
+### `LEX_POLICY_PATH`
 
-```bash
-export LEX_APP_ROOT=/path/to/app
-```
+Overrides the repository policy path. Without it, Lex searches the active workspace in this order:
 
----
-
-## Git Integration Variables
-
-### `LEX_GIT_MODE`
-
-**Purpose:** Control git integration behavior.
-
-**Values:**
-- `live` (default): Execute real git commands
-- `off`: Disable git integration, use fallback values
-
-**Used by:** Branch detection, commit detection, tests that need to avoid git.
+1. `.smartergpt/lex/lexmap.policy.json`
+2. `canon/policy/lexmap.policy.json`
+3. `src/policy/policy_spec/lexmap.policy.json.example`
 
 ```bash
-export LEX_GIT_MODE=off  # Useful for CI or testing
+export LEX_POLICY_PATH=/absolute/path/to/lexmap.policy.json
 ```
 
----
-
-### `LEX_DEFAULT_BRANCH`
-
-**Purpose:** Fallback branch name when git is unavailable or `LEX_GIT_MODE=off`.
-
-**Default:** `main`
-
-**Aliases:** `LEX_BRANCH` (legacy, deprecated)
-
-```bash
-export LEX_DEFAULT_BRANCH=develop
-```
-
----
-
-### `LEX_DEFAULT_COMMIT`
-
-**Purpose:** Fallback commit SHA when git is unavailable or `LEX_GIT_MODE=off`.
-
-**Default:** `0000000000000000000000000000000000000000`
-
-**Aliases:** `LEX_COMMIT` (legacy, deprecated)
-
-```bash
-export LEX_DEFAULT_COMMIT=abc123
-```
-
----
-
-## CLI Output Variables
-
-### `LEX_CLI_OUTPUT_MODE`
-
-**Purpose:** Control CLI output format.
-
-**Values:**
-- `text` (default): Human-readable text output
-- `json`: Machine-readable JSON output (JSONL format)
-
-**Used by:** All CLI commands.
-
-```bash
-export LEX_CLI_OUTPUT_MODE=json  # Force JSON output
-```
-
----
-
-### `LEX_CLI_PRETTY`
-
-**Purpose:** Force pretty (colored) output even when not in a TTY.
-
-**Values:**
-- `1`: Enable colors
-- (unset): Auto-detect from TTY
-
-**Used by:** CLI output formatting.
-
-```bash
-export LEX_CLI_PRETTY=1
-```
-
----
-
-## Logging Variables
-
-### `LEX_LOG_LEVEL`
-
-**Purpose:** Control log verbosity.
-
-**Values:** `silent`, `error`, `warn`, `info`, `debug`
-
-**Default:** `silent` in test mode, `info` otherwise.
-
-```bash
-export LEX_LOG_LEVEL=debug
-```
-
----
-
-### `LEX_LOG_PRETTY`
-
-**Purpose:** Force pretty (human-readable) log formatting.
-
-**Values:**
-- `1`: Enable pretty logging
-- (unset): Auto-detect from TTY
-
-```bash
-export LEX_LOG_PRETTY=1
-```
-
----
-
-### `LEX_LOG_NDJSON`
-
-**Purpose:** Enable NDJSON file logging.
-
-**Values:**
-- `1`: Enable NDJSON logging to `.smartergpt/lex/logs/lex.log.ndjson`
-- (unset): Disable in test mode, auto-detect otherwise
-
-**Log location:** `.smartergpt/lex/logs/lex.log.ndjson`
-
-**Log rotation:** Automatic at 100MB.
-
-```bash
-export LEX_LOG_NDJSON=1
-```
-
----
-
-### `LEX_DEBUG`
-
-**Purpose:** Enable debug output for troubleshooting.
-
-**Values:**
-- `1`: Enable debug messages
-- (unset): Disabled
-
-**Used by:** Alias resolution, MCP server, policy loading.
-
-```bash
-export LEX_DEBUG=1
-```
-
----
-
-## Prompts and Rules Variables
-
-### `LEX_PROMPTS_DIR`
-
-**Purpose:** Override the prompts directory.
-
-**Default:** Searched in this order:
-1. `LEX_PROMPTS_DIR` (this variable)
-2. `.smartergpt/prompts/`
-3. `prompts/` (legacy)
-4. Package `canon/prompts/` (built-in fallback)
-
-```bash
-export LEX_PROMPTS_DIR=/custom/prompts
-```
-
----
+When no readable policy exists, core Frame operations can continue without policy enrichment. Use
+`--modules unscoped` for an explicit ontology-free Frame, or `--skip-policy` when intentionally
+bypassing validation.
 
 ### `LEX_RULES_DIR`
 
-**Purpose:** Override the behavioral rules directory.
+Overrides behavioral-rule discovery. Otherwise Lex checks workspace and packaged rule locations.
+Rules are optional and separate from tenant/workspace authority.
 
-**Default:** Searched in this order:
-1. `LEX_RULES_DIR` (this variable)
-2. `.smartergpt/rules/`
-3. `canon/rules/` (package defaults)
+### `LEX_SCHEMAS_DIR`
 
-**Note:** Rules are experimental and not part of the Lex 1.0.0 contract.
+Overrides packaged schema discovery for embedded or development layouts. Ordinary installed users
+should not need it.
+
+Prompt scaffolding uses the `lex init --prompts-dir <path>` command option. `LEX_PROMPTS_DIR` is
+not a supported runtime variable.
+
+## Git evidence
+
+### `LEX_GIT_MODE`
+
+Set to `off` to disable live Git commands. The default is `live`.
+
+### `LEX_DEFAULT_BRANCH` and `LEX_BRANCH`
+
+`LEX_DEFAULT_BRANCH` overrides detected branch evidence. `LEX_BRANCH` is a legacy alias. Without
+an override, disabled or unavailable Git yields `unknown`; it does not silently claim `main`.
+
+### `LEX_DEFAULT_COMMIT` and `LEX_COMMIT`
+
+`LEX_DEFAULT_COMMIT` overrides detected commit evidence. `LEX_COMMIT` is a legacy alias. Without
+an override, disabled or unavailable Git yields `unknown`.
+
+These values are discovery evidence for compatibility workflows, not proof of repository identity
+in a trusted host.
+
+## CLI output
+
+### `LEX_CLI_OUTPUT_MODE`
+
+Controls shared CLI event rendering:
+
+- `plain` (default): human-readable event text;
+- `jsonl`: one versioned `CliEvent` JSON object per line.
 
 ```bash
-export LEX_RULES_DIR=/custom/rules
+export LEX_CLI_OUTPUT_MODE=jsonl
 ```
 
----
+This is distinct from the global `lex --json` flag. Commands such as `recall` and `context` use
+`--json` for their command-specific machine-readable result, while `jsonl` controls shared event
+emission. See [CLI Output](./CLI_OUTPUT.md).
 
-## Database Variables
+### `LEX_CLI_PRETTY`
+
+Set to `1` to force ANSI color in shared plain-mode CLI events even when stdout is not a TTY.
+
+### `LEX_VERBOSE`
+
+Set to `1` to enable the diagnostic sink used by shared CLI output. The `--verbose` global flag
+sets this behavior for the packaged CLI.
+
+## Logging
+
+### `LEX_LOG_LEVEL`
+
+Pino log level: `silent`, `error`, `warn`, `info`, or `debug`. Library logging defaults to `info`
+outside tests, but the packaged CLI forces `silent` unless verbose or debug logging is requested
+so machine-readable stdout remains usable.
+
+### `LEX_LOG_PRETTY`
+
+Set to `1` to force human-readable Pino formatting.
+
+### `LEX_LOG_NDJSON`
+
+Set to `1` to explicitly enable NDJSON file logs below `.smartergpt/lex/logs/`. Outside tests,
+non-silent library logging may also write the file. Logs rotate at 100 MB and can contain sensitive
+repository metadata.
+
+### `LEX_DEBUG`
+
+Set to `1` for diagnostic behavior used by the packaged CLI, MCP server, policy loader, and alias
+resolution. Review diagnostics before sharing them because local paths and identifiers may appear.
+
+## SQLite maintenance
 
 ### `LEX_DB_KEY`
 
-**Purpose:** Passphrase for database encryption.
-
-**Default:** None (database is unencrypted).
-
-**Security:** This enables SQLite encryption via `better-sqlite3-multiple-ciphers`.
-
-**Note:** Database encryption is experimental and not part of the Lex 1.0.0 contract.
-
-```bash
-export LEX_DB_KEY=my-secret-passphrase
-```
-
----
+SQLCipher-compatible SQLite passphrase. It is required by `lex db encrypt` and when opening an
+encrypted compatibility store. Keep it out of source control, shell history, Frames, and shared
+launcher files.
 
 ### `LEX_BACKUP_RETENTION`
 
-**Purpose:** Number of database backups to retain.
+Number of rotated database backups to retain. Default: `7`.
 
-**Default:** `7`
+## Developer and test controls
 
-**Used by:** `lex db backup --rotate`
+These variables are for this repository's test/tooling workflows rather than ordinary consumers:
 
-```bash
-export LEX_BACKUP_RETENTION=14
-```
+| Variable | Purpose |
+|---|---|
+| `LEX_ENABLE_EXTERNAL_SCANNER_TESTS=1` | Run external language-scanner tests |
+| `LEX_ENABLE_SLOW_CLI_TESTS=1` | Run opt-in slow CLI tests |
+| `LEX_UPDATE_SNAPSHOTS=1` | Update designated test snapshots |
 
----
+`NODE_ENV` and standard package-manager variables also affect tests and dependency behavior but
+are outside the Lex-specific configuration contract.
 
-## Testing Variables
+## Quick reference
 
-### `LEX_ENABLE_EXTERNAL_SCANNER_TESTS`
+| Variable | Compatibility purpose | Default |
+|---|---|---|
+| `LEX_WORKSPACE_ROOT` | Active workspace root | Detected/current project |
+| `LEX_STORE` | `sqlite` or `postgres` | `sqlite` |
+| `LEX_DB_PATH` | SQLite database | `.smartergpt/lex/memory.db` |
+| `LEX_MEMORY_DB` | Legacy SQLite path alias | — |
+| `LEX_DATABASE_URL` | PostgreSQL connection URL | — |
+| `LEX_POSTGRES_PASSWORD` | Separate PostgreSQL password | — |
+| `LEX_POSTGRES_POOL_MAX` | PostgreSQL pool size | `10` |
+| `LEX_POLICY_PATH` | Policy file override | Workspace lookup |
+| `LEX_GIT_MODE` | Live or disabled Git evidence | `live` |
+| `LEX_DEFAULT_BRANCH` | Branch evidence override | — |
+| `LEX_DEFAULT_COMMIT` | Commit evidence override | — |
+| `LEX_CLI_OUTPUT_MODE` | Shared event format | `plain` |
+| `LEX_CLI_PRETTY` | Force shared-event color | TTY detection |
+| `LEX_LOG_LEVEL` | Pino verbosity | Context-dependent |
+| `LEX_LOG_PRETTY` | Pretty Pino logs | TTY detection |
+| `LEX_LOG_NDJSON` | Explicit file logging | Off in tests |
+| `LEX_DEBUG` | Diagnostics | Off |
+| `LEX_DB_KEY` | SQLite encryption passphrase | — |
+| `LEX_BACKUP_RETENTION` | Backup retention count | `7` |
+| `LEX_RULES_DIR` | Rule directory override | Workspace/package lookup |
+| `LEX_SCHEMAS_DIR` | Schema directory override | Workspace/package lookup |
 
-**Purpose:** Enable tests for external language scanners.
+## See also
 
-**Values:**
-- `1`: Enable external scanner tests
-- (unset): Skip external scanner tests
-
-**Note:** Scanners are experimental and not part of the Lex 1.0.0 contract.
-
-```bash
-export LEX_ENABLE_EXTERNAL_SCANNER_TESTS=1
-```
-
----
-
-## Quick Reference
-
-| Variable | Purpose | Default | Contract Status |
-|----------|---------|---------|-----------------|
-| `LEX_WORKSPACE_ROOT` | Workspace root | Auto-detect | 1.0.0 |
-| `LEX_STORE` | Frame backend (`sqlite` or `postgres`) | `sqlite` | Experimental |
-| `LEX_DATABASE_URL` | PostgreSQL connection URL | — | Experimental |
-| `LEX_POSTGRES_PASSWORD` | Separate PostgreSQL password | — | Experimental |
-| `LEX_POSTGRES_POOL_MAX` | PostgreSQL pool size | `10` | Experimental |
-| `LEX_DB_PATH` | SQLite database path | `.smartergpt/lex/memory.db` | 1.0.0 |
-| `LEX_MEMORY_DB` | Compatibility alias for `LEX_DB_PATH` | — | Compatibility |
-| `LEX_POLICY_PATH` | Policy file path | `.smartergpt/lex/lexmap.policy.json` | 1.0.0 |
-| `LEX_APP_ROOT` | App root | Auto-detect | 1.0.0 |
-| `LEX_GIT_MODE` | Git integration | `live` | 1.0.0 |
-| `LEX_DEFAULT_BRANCH` | Fallback branch | `main` | 1.0.0 |
-| `LEX_DEFAULT_COMMIT` | Fallback commit | `0000...` | 1.0.0 |
-| `LEX_CLI_OUTPUT_MODE` | Output format | `text` | 1.0.0 |
-| `LEX_CLI_PRETTY` | Force colors | Auto-detect | 1.0.0 |
-| `LEX_LOG_LEVEL` | Log verbosity | `info` | Internal |
-| `LEX_LOG_PRETTY` | Pretty logs | Auto-detect | Internal |
-| `LEX_LOG_NDJSON` | File logging | Auto | Internal |
-| `LEX_DEBUG` | Debug output | Disabled | Internal |
-| `LEX_PROMPTS_DIR` | Prompts path | Precedence chain | Internal |
-| `LEX_RULES_DIR` | Rules path | Precedence chain | Experimental |
-| `LEX_DB_KEY` | Encryption key | None | Experimental |
-| `LEX_BACKUP_RETENTION` | Backup count | `7` | 1.0.0 |
-| `LEX_ENABLE_EXTERNAL_SCANNER_TESTS` | Scanner tests | Disabled | Experimental |
-
----
-
-## See Also
-
-- [CLI Output Documentation](./CLI_OUTPUT.md)
-- [API Usage Guide](./API_USAGE.md)
-- [Architecture Overview](./ARCHITECTURE.md)
+- [Security Policy](../SECURITY.md)
+- [Store Contracts](./STORE_CONTRACTS.md)
+- [Runtime Scope Contract](./RUNTIME_SCOPE_CONTRACT.md)
+- [CLI Output](./CLI_OUTPUT.md)

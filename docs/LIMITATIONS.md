@@ -1,102 +1,94 @@
-# Limitations & Future Work
+# Current Limitations
 
-This document tracks known constraints in Lex and planned enhancements.
+This document describes constraints in Lex 3. It is not a roadmap and does not promise a delivery
+date for missing capabilities.
 
-## Current Limitations
+## Checkpoints are explicit
 
-### Module ID Drift and Aliasing (Future Work)
+Lex does not watch a session and decide what to remember. A user, agent, application, or MCP client
+must explicitly create each Frame. This protects consent and signal quality, but a useful handoff
+can still be lost when no checkpoint is written.
 
-**THE CRITICAL RULE** is currently strict:
-> Module IDs in Frames must match the IDs in `lexmap.policy.json` exactly.
+Frame quality also depends on the caller: vague summaries and next actions remain vague when
+recalled.
 
-This is correct for CI (policy enforcement must be unambiguous), but humans are messy:
-- People type shorthand or old names when capturing a Frame via `/remember`
-- Teams rename modules over time
+## Context budgets are approximate
 
-Planned direction:
-- `shared/aliases/` will maintain an alias table mapping historical or shorthand names to canonical module IDs
-- Recall (`lex recall`) will be allowed to resolve aliases/fuzzy matches with confidence scores
-- CI (`lex check`) will remain strict
+`lex context --max-tokens` and Atlas auto-tuning use deterministic estimates, not a target model's
+exact tokenizer. The budget is a practical bound for selecting and formatting context, not a
+guarantee that every model will count the result identically.
 
-This gives us strict enforcement where it matters (policy/CI) and forgiveness where it's human-facing (recall).
+## SQLite is a local store
 
-### Single-Repo Scope
+SQLite is well suited to one local workspace and trusted user. It is not the cross-machine or
+multi-tenant coordination boundary. Do not synchronize or concurrently mount the live database as
+a replacement for a shared service; use PostgreSQL for coordinated trusted hosts.
 
-Currently, Lex assumes one `lexmap.policy.json` per codebase. For monorepos with multiple products or microservice architectures, this means:
-- One unified policy file (can get large)
-- Or separate Lex instances per service (loses cross-service policy view)
+Several compatibility CLI paths acquire a writable SQLite store and may initialize or migrate it,
+even when the requested operation sounds read-oriented. `lex context` is the hard read-only
+bootstrap surface.
 
-Future: Support for hierarchical policy files or policy composition.
+## Hard read-only SQLite has snapshot constraints
 
-### Scanner Coverage
+To avoid touching WAL or shared-memory sidecars, read-only SQLite access uses a detached snapshot.
+Lex fails closed rather than returning potentially stale data when an active non-empty WAL or
+rollback journal prevents a coherent snapshot.
 
-Language scanners are "dumb by design" (emit facts, don't interpret). Current coverage:
-- ✅ TypeScript (imports, function calls)
-- ✅ Python (imports, function calls)
-- ✅ PHP (namespace imports, function calls)
-- ❌ Java, C#, Go, Rust (not yet implemented)
+Encrypted SQLite stores are not currently available through this snapshot path. Consequently,
+hard read-only `lex context` cannot read an encrypted SQLite database. Ordinary read-write
+compatibility paths can use the configured encryption key.
 
-Adding a new language scanner is straightforward (emit JSON facts), but requires per-language work.
+## PostgreSQL deployment is intentionally explicit
 
-### Memory Card Rendering
+The compatibility `LEX_STORE=postgres` adapter can provide shared unscoped storage, but it is not
+a tenant authorization boundary. Trusted multi-tenant and multi-workspace use requires explicit
+runtime authority, a scope-bound store binder, a protected schema, separate migration/runtime
+roles, forced row-level security, and fail-closed pool hygiene.
 
-Frame memory card images are generated but currently minimal:
-- Text-based layout
-- No visual policy graph yet
-- No syntax-highlighted diffs
+That is more operational work than the default SQLite path. See
+[PostgreSQL Scope Security](./POSTGRES_SCOPE_SECURITY.md).
 
-Future: Render Atlas Frame as interactive SVG/Canvas graph showing allowed/forbidden edges with visual indicators.
+## Trusted scoped attachments are unavailable
 
-### No Cloud Sync
+Trusted scoped MCP requests currently reject attachments, images, and caller-supplied `image_ids`
+because Lex does not yet expose a scope-bound attachment service. The unscoped SQLite compatibility
+path retains its existing attachment behavior.
 
-Frames are stored locally (SQLite, local-only). This is by design (no telemetry, no surveillance), but means:
-- No cross-machine sync
-- No team-wide Frame sharing
-- Backup is user's responsibility
+## Policy and module inference depend on repository modeling
 
-Future: Optional self-hosted sync server for teams (still no SaaS dependency).
+Policy is only as accurate as its path ownership and relationship declarations. `--modules auto`
+uses bounded evidence from paths, intent, branch state, and recent Frames; it records confidence
+and evidence, but it cannot manufacture a correct ontology.
 
-### ~~Fold Radius Fixed at 1~~ ✅ **Implemented**
+Use explicit module IDs when accuracy matters, and use `--modules unscoped` when the repository
+does not yet have a useful policy. Aliases help vocabulary alignment but do not replace deliberate
+policy maintenance.
 
-**Update (2025-11-06):** Fold radius is now fully configurable with caching and auto-tuning:
-- ✅ Variable radius (0 for just seed modules, 1-3 for deeper context)
-- ✅ Auto-tune radius based on context window limits (`--auto-radius --max-tokens`)
-- ✅ Cache computed Atlas Frames by `(module_scope, radius)` key with LRU eviction
-- ✅ CLI support: `lex recall --fold-radius N --auto-radius --max-tokens N --cache-stats`
+## Scanner coverage is partial
 
-See `shared/atlas/README.md` for full documentation.
+The built-in Code Atlas extractor focuses on TypeScript/JavaScript and Python source. Policy
+scanner support is language-specific; Python and PHP examples exist, while Java, C#, Go, Rust, and
+other ecosystems require additional scanner work or external fact generation.
 
-## Planned Enhancements
+Static scanners emit structural evidence. They cannot fully model runtime dispatch, generated
+code, reflection, or every framework convention.
 
-### Merge Conflict Assistance
+## Code Atlas persistence remains experimental
 
-When `/recall` returns a Frame + Atlas Frame, the system could:
-- Detect if current branch has diverged
-- Show policy changes since Frame was captured
-- Highlight new violations introduced by other work
+The `CodeAtlasStore` extension surface is experimental. Its API may change before it receives the
+same stability guarantees as the Frame and scoped-store contracts.
 
-### Integration with CI/CD
+## Historical Frames can become stale or hostile
 
-- Automatic Frame capture on CI failure (with logs, test results, stack traces)
-- `/recall` in CI comments on PRs ("this violates policy X, see Frame Y for context")
+Frames are durable evidence, not current truth. Branches move, decisions change, and stored text
+can contain mistaken or adversarial instructions. Consumers must treat Frame bodies as untrusted
+history and verify important claims against current sources.
 
-### Visual Timeline
+## Compatibility adapters are not the trusted Lex 3 boundary
 
-- Render all Frames for a ticket/branch as timeline
-- Show evolution of `module_scope` over time (what modules were touched when)
-- Highlight when blockers were introduced vs resolved
+Lex retains unscoped 2.x store adapters and environment-driven composition for migration and local
+compatibility. Trusted hosts must not reconstruct tenant/workspace authority from ambient
+environment variables or pass an unbound administrative store to ordinary request handling.
 
-### Policy Change Impact Analysis
-
-When updating `lexmap.policy.json`:
-- Show which existing Frames would be affected
-- Identify Frames that reference renamed/deleted modules
-- Generate migration plan for alias table
-
-## Known Bugs
-
-None currently. This is early alpha — bugs will be filed as issues in GitHub.
-
----
-
-**Last updated:** 2025-11-02 (during LexBrain + LexMap merge)
+See [Runtime Scope](./RUNTIME_SCOPE_CONTRACT.md), [Store Contracts](./STORE_CONTRACTS.md), and
+[Security](../SECURITY.md) for the current boundary.

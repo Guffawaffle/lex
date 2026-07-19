@@ -1,248 +1,163 @@
-# Lex Contract Surface (v1)
+# Lex Contract Surface
+
+This document orients application, runner, and tool authors to the contracts Lex 3 actually
+publishes. It is not a compatibility certification suite. The package export map, runtime
+validators, version constants, JSON Schemas, and focused conformance tests remain the normative
+artifacts.
+
+Every declared package entry point is public and semver-governed. Source files, undeclared `dist/`
+paths, and historical `lex/...` imports are internal. See the exact
+[Public Package API](./PUBLIC_API.md).
+
+## Contract map
 
-> **For runner authors and tool builders.**
-> This is what you must understand to be "Lex-compatible."
+| Surface | Public entry point or artifact | Current boundary |
+|---|---|---|
+| Runtime identity and authority | `@smartergpt/lex/runtime-scope` | Contract v1; trusted-host scope resolution |
+| Frames | `@smartergpt/lex/types` | Frame Schema v7 |
+| Frame stores | `@smartergpt/lex/store` | Compatibility and scope-bound adapters |
+| Repository policy | `@smartergpt/lex/policy` | Zod-validated module/path relationships |
+| Atlas | `@smartergpt/lex/atlas` | Policy neighborhoods and experimental extraction surfaces |
+| CLI events | `@smartergpt/lex/cli-output` plus published schema | `CliEvent` v1 |
+| MCP | `@smartergpt/lex/mcp-server` | Embeddable server and deterministic tool schemas |
+| Instructions | CLI plus `lex.yaml`/marker contracts | Canonical source projected into host files |
 
-**Scope:** This document defines the Lex contract surface. LexRunner behavior is intentionally out of scope — it is one implementation, not the specification.
+## Trusted runtime scope
+
+Trusted hosting separates four ideas that compatibility launchers historically allowed one
+process to blur:
 
-See also: [`FOUNDERS_NOTE.md`](./FOUNDERS_NOTE.md) for the philosophy behind this separation.
+```text
+canonical authority     who may access which tenant/workspace
+surface-local registry  which native checkout is locally bound
+invocation context      what this request asked to do
+scoped store            the only data view normal dispatch receives
+```
 
----
+Important invariants:
 
-## Overview
+- canonical IDs are opaque; slugs and paths are selectors or evidence, not authority;
+- one invocation has one active tenant and workspace;
+- Windows and each WSL distribution retain separate native local registries;
+- local bindings cannot mint membership or grants;
+- capabilities are attenuated to the explicitly requested subset;
+- diagnostics are opt-in, capability-gated, redacted, and never change authorization;
+- CLI/MCP dispatch that needs Frames receives a lexically bound `ScopedFrameStore`;
+- PostgreSQL canonical authority and forced-RLS scoped storage are independent, explicit controls.
+
+Use the [Runtime Scope Contract](./RUNTIME_SCOPE_CONTRACT.md),
+[PostgreSQL Authority](./POSTGRES_AUTHORITY.md), and
+[PostgreSQL Scope Security](./POSTGRES_SCOPE_SECURITY.md) when building a trusted host. Ordinary
+local SQLite users do not need this composition.
+
+## Frames
+
+A Frame is the durable work-checkpoint record. The public metadata shape is defined in
+`src/shared/types/frame.ts`, its Zod helpers in `src/shared/types/frame-schema.ts`, and persistence
+validation in `src/memory/frames/types.ts`. Alignment tests require all three shapes to agree.
+
+Current invariants:
+
+- `FRAME_SCHEMA_VERSION = 7`; the version is package/contract metadata rather than a field on
+  every Frame;
+- `id` is opaque and unique within its bound workspace;
+- `saveFrame` is an idempotent upsert by `id`;
+- targeted `updateFrame` operations preserve `id`, creation `timestamp`, ownership, and unrelated
+  fields;
+- `superseded_by` and `merged_from` represent consolidation provenance;
+- a scope-bound store derives tenant, workspace, and creator ownership from `AuthorizedScope`;
+  callers do not put authority metadata in the Frame payload.
+
+Existing valid Frames must remain readable within a compatible package line. Additions to the
+record shape need aligned validators, storage round-trip coverage, documentation, and a versioning
+decision.
+
+## Repository policy
+
+Policy declares stable module IDs, owned paths/namespaces, allowed or forbidden callers, exposed
+symbols, and kill patterns. Module IDs may contain lowercase letters, digits, `_`, `-`, and `/`.
+
+The supported runtime validator is exported by `@smartergpt/lex/policy`; its implementation source
+is `src/shared/policy/schema.ts`. Policy checking is deterministic for identical policy and scanner
+facts, but scanner coverage and repository modeling determine how complete that evidence is.
+
+Policy is architectural context and enforcement input. It is not tenant/workspace authorization.
+See the [Repository Policy Guide](./API_USAGE.md).
+
+## Instructions
+
+Lex projects `.smartergpt/instructions/lex.md` into configured host files using one
+`<!-- LEX:BEGIN -->` / `<!-- LEX:END -->` block.
+
+- generation is deterministic for the same canonical source, configuration, and Lex version;
+- content outside the managed marker pair is preserved;
+- `lex instructions check` is the non-mutating drift gate;
+- consumers should validate configuration against the implementation contract in
+  `src/shared/config/lex-yaml-schema.ts` and the published specification documents.
+
+See [Canonical Agent Instructions](./INSTRUCTIONS.md).
+
+## CLI output and errors
+
+The global `--json` flag requests a command-specific result. The shared writer can separately emit
+versioned `CliEvent` JSONL using `LEX_CLI_OUTPUT_MODE=jsonl`. Consumers must not assume the two
+shapes are interchangeable.
 
-Lex exposes a contract surface that any runner or tool can target. This document defines:
-1. What contracts exist
-2. What guarantees they provide
-3. What you must respect to call yourself Lex-compatible
+AXError codes, structured details, next actions, and hint IDs are the machine-facing recovery
+surface when present. Human prose is not a parsing contract. See [CLI Output](./CLI_OUTPUT.md) and
+the `@smartergpt/lex/errors` entry in the [Public Package API](./PUBLIC_API.md).
 
----
+## MCP
 
-## Core Contracts
+The MCP server exposes deterministic tool definitions and versioned input schemas around the same
+core capabilities. New integrations should use canonical tool names such as `frame_create` and
+`frame_search`; legacy short names remain compatibility aliases.
 
-### 0. Trusted Runtime Scope
+A trusted host authorizes before dispatch and injects a scope-bound store. The packaged
+`@smartergpt/lex-mcp` launcher remains a local compatibility surface and must not be treated as
+tenant authority. See [Lex MCP](../README.mcp.md).
 
-**What:** Deterministic separation of canonical authority, surface-local repository/workspace bindings, invocation context, and agent-safe diagnostics.
+## Experimental surfaces
 
-**Public API:** `@smartergpt/lex/runtime-scope`
+Code Atlas persistence and `@smartergpt/lex/lexsona` expose useful integration points but retain
+explicit experimental status in their source contracts. Their declared package entry points are
+real and supported as import paths; experimental behavior inside them may require an explicit
+stabilization decision before external consumers should rely on it broadly.
 
-**Schema Version:** 1
+## Versioning expectations
 
-**Invariants:**
-- Canonical IDs are opaque and immutable; slugs are human selectors, not ownership keys.
-- `AuthorityDirectory` owns shared membership and grants.
-- `LocalBindingRegistry` owns native-environment topology/evidence and cannot mint authority.
-- One invocation binds to one active tenant/workspace.
-- Windows and each WSL distribution use separate local registries and local instance IDs.
-- Paths, Git state, manifests, flags, and environment values may select evidence but cannot grant access.
-- Diagnostics are versioned, redacted observability and never change resolution.
+- Removing a declared package path or exported contract symbol is a package-major change.
+- Additive public symbols normally require at least a package-minor change.
+- Removing accepted data, changing field meaning, or adding a required caller input is breaking.
+- Documentation-only correction does not change runtime compatibility.
+- Each serialized contract's own version field or constant governs its data evolution; do not
+  infer compatibility solely from the package version.
 
-**Implementation:** Phase 2 adds pure execution-surface and registry-location resolution, a separate versioned SQLite local registry, a deterministic fail-closed runtime-scope resolver, and an in-memory authority implementation for tests and embedding. Phase 3 adds native repository evidence discovery, an explicit capability-gated binding lifecycle, exhaustive CLI/MCP capability decisions, redacted diagnostics, and lexical handoff into a scope-bound FrameStore. The scope-bound contract has in-memory reference semantics plus a per-workspace SQLite v15 adapter; legacy v14 ownership is assigned only by the explicit, manifest-backed `lex db scope` administrative flow. Normal resolution stays read-only and never falls back to an unscoped store after authorization.
+## Integration expectations
 
-**Conformance:** The package exports deterministic Windows/WSL, clone, worktree, fork, binding, selector, cached-authority, and diagnostic fixtures. Lex runs all exported fixtures against the concrete Phase 2 resolver and registry without changing their expected semantics.
+A Lex-aware runner or tool should:
 
-See [Trusted Runtime Scope Contract](./RUNTIME_SCOPE_CONTRACT.md) and [ADR-0011](./adr/0011-trusted-runtime-scope-and-authority.md).
+- import only declared package entry points;
+- preserve Frame identity, creation timestamp, scope ownership, and unmodified optional fields
+  during updates and round trips;
+- use declared Frame fields and propose schema additions instead of inventing `metadata`, `context`,
+  or other unvalidated payload keys;
+- keep runner-specific orchestration state in the runner's own schema unless Lex deliberately
+  adopts it;
+- honor policy when claiming policy enforcement;
+- preserve instruction content outside Lex markers;
+- reject unsupported contract versions rather than silently downgrading them;
+- use trusted runtime scope and bound stores when serving more than one authority domain;
+- test the exact contracts it consumes.
 
-### 1. Introspect
+`lex policy check` validates repository policy; it is not a runner-conformance certification.
 
-**What:** Discovery mechanism for agents to understand current Lex state, capabilities, and error codes.
+## Adjacent orchestration
 
-**Schema:** Introspect response (no external schema file - defined by MCP server implementation)
+[LexRunner](https://github.com/Guffawaffle/lexrunner) is the source-available orchestration engine
+used alongside Lex for fanout, attempts, verification, workspace coordination, and merge-weave.
+It consumes Lex contracts but does not define them, and it is not required for the Lex CLI,
+SQLite, policy, Atlas, instruction, or MCP workflows.
 
-**Schema Version:** 1.0.0
-
-**Invariants:**
-- Response includes `schemaVersion` field for contract stability tracking
-- All arrays (tools, modules, error codes) are returned in **deterministic sorted order**
-- Error codes enum values are stable across minor versions (additions only)
-- Full format returns: `schemaVersion`, `version`, `policy`, `state`, `capabilities`, `errorCodes`
-- Compact format returns abbreviated versions: `schemaVersion`, `v`, `caps`, `state`, `mods`, `errs`
-
-**Stable Fields (guaranteed across minor releases):**
-- `schemaVersion`: Version of the introspect response contract (SemVer)
-- `version`: Lex package version
-- `policy.modules`: Array of module IDs (sorted alphabetically)
-- `policy.moduleCount`: Number of modules
-- `state.frameCount`: Number of stored frames
-- `state.currentBranch`: Current git branch
-- `state.latestFrame`: Timestamp of most recent frame (or null)
-- `capabilities.encryption`: Whether encryption is available
-- `capabilities.images`: Whether image storage is available
-- `errorCodes`: Array of MCPErrorCode enum values (sorted alphabetically)
-
-**Best-Effort Fields (may change or be null):**
-- `policy`: Null if no policy file is loaded
-- `state.latestFrame`: Null if no frames exist
-
-**Guarantee:** 
-- Schema version follows SemVer. Agents can cache and depend on the structure within a major version.
-- Deterministic ordering enables reliable caching and diffing of introspect results.
-- Adding new error codes, capabilities, or fields is considered a minor version bump.
-- Removing or changing existing fields is a major version bump.
-
----
-
-### 2. Frames
-
-**What:** The atomic unit of AI memory.
-
-**Public API:** `@smartergpt/lex/types`
-
-**Current Record Schema Version:** `FRAME_SCHEMA_VERSION = 7`
-
-**Sources:** `src/shared/types/frame.ts` defines the public TypeScript metadata contract,
-`src/shared/types/frame-schema.ts` provides the public Zod helpers, and
-`src/memory/frames/types.ts` is the persistence runtime validator. Their exported record-version
-constants and record fields must agree. `test/shared/types/frame-contract-alignment.test.ts`
-exercises the full field set across all validation surfaces so version-only agreement cannot hide
-shape drift.
-
-**Invariants:**
-- `id` is an opaque string. Lex does not require UUID or ULID syntax; a store enforces uniqueness
-  within its bound workspace.
-- Record schema version is package metadata, not a `schemaVersion` field on each Frame.
-- `saveFrame` is an idempotent upsert by `id`. `updateFrame` supports targeted changes while
-  preserving `id` and `timestamp`.
-- Supersession and consolidation use `superseded_by` and `merged_from`. There is no normative
-  `parent_id` relation or created/active/archived lifecycle field.
-- Scope-bound stores derive tenant/workspace ownership and creator attribution from
-  `AuthorizedScope`; callers do not place authority metadata in Frame payloads.
-
-**Guarantee:** Existing valid episodic Frames remain readable. Optional record metadata evolves
-additively within a compatible package line; changing required fields or accepted semantics is a
-breaking package change.
-
----
-
-### 3. Policy
-
-**What:** Rules that govern module ownership, caller permissions, and kill patterns.
-
-**Schema:** `schemas/lexmap.policy.schema.json`
-
-**Invariants:**
-- Policy is loaded once at startup (or explicitly reloaded)
-- Module IDs are lowercase, hyphenated identifiers
-- `allowed_callers` and `forbidden_callers` are enforced at scan time
-- `global_kill_patterns` apply to all modules
-
-**Guarantee:** Policy validation is deterministic. Same policy + same codebase = same violations.
-
----
-
-### 4. Instructions
-
-**What:** IDE/host-specific instruction blocks generated from a canonical source.
-
-**Schema:** `schemas/lex-yaml.schema.json` (config) + marker format
-
-**Invariants:**
-- Canonical source lives in `.smartergpt/instructions/lex.md`
-- Projections use markers: `<!-- LEX:BEGIN -->` / `<!-- LEX:END -->`
-- Content outside markers is never modified by Lex
-- Generation is idempotent
-
-**Guarantee:** Running `lex instructions generate` twice produces identical output.
-
----
-
-### 5. Rules
-
-**What:** Behavioral rules with confidence scores and decay.
-
-**Schema:** `schemas/behavior-rule.schema.json`
-
-**Invariants:**
-- Rules have Bayesian confidence (alpha/beta)
-- Rules decay over time (configurable tau)
-- Rules are scoped by **Scope Contract A+** (Lex-owned canonical base keys). See [`docs/LEXSONA.md`](./LEXSONA.md) for the authoritative definition, legacy alias handling, and normalization requirements.
-
-**Guarantee:** Rule confidence is computable from stored values. No hidden state.
-
----
-
-### 6. MCP Tools
-
-**What:** Model Context Protocol tools exposed by the Lex MCP server.
-
-**Invariants:**
-- Tools list is returned in **deterministic sorted order** by name
-- Tool schemas are stable within a major version
-- New tools may be added in minor versions
-- Tool removal or signature changes require major version bump
-
-**Guarantee:** Tools/list returns a deterministically ordered array, enabling reliable caching and comparison.
-
----
-
-## Versioning
-
-All schemas follow SemVer:
-- **Patch:** Additive optional fields, documentation only
-- **Minor:** Additive required fields with safe defaults
-- **Major:** Breaking changes to structure or semantics
-
-Lex will refuse to load schemas with unknown major versions.
-
----
-
-## What Runners Must Do
-
-To be Lex-compatible, a runner must:
-
-| Requirement | Description |
-|-------------|-------------|
-| **Parse Lex schemas** | Use the published JSON schemas or Zod types |
-| **Respect immutability** | Never mutate Frames after creation |
-| **Honor policy** | Enforce `allowed_callers`, `forbidden_callers`, `kill_patterns` |
-| **Use markers correctly** | Never touch content outside `LEX:BEGIN`/`LEX:END` |
-| **Version-check** | Refuse unknown major schema versions |
-
----
-
-## What Runners May Do
-
-Runners are free to:
-
-- Add their own orchestration logic
-- Define their own workflows (gates, merge pyramids, etc.)
-- Extend Frames with runner-specific metadata (in designated fields)
-- Ignore optional Lex features (e.g., Instructions if not needed)
-
----
-
-## What Runners Must Not Do
-
-- **Fork Lex schemas** — Target them, don't modify them
-- **Invent new Frame fields** — Use `metadata` or `context` for extensions
-- **Bypass policy** — If policy says no, it's no
-- **Claim Lex-compatibility without testing** — Use `lex policy check` to validate
-
----
-
-## Reference Implementation
-
-**LexRunner** (`lexrunner`) is the reference runner. It demonstrates:
-- Gate execution (lint, typecheck, test)
-- Merge pyramid construction
-- PR fan-out and dependency ordering
-- ScopeGOAT workflow (internal process pattern)
-
-LexRunner is **not required** to use Lex. It's one way to build on Lex—the way the Lex authors use.
-
----
-
-## Getting Started
-
-1. Install Lex: `npm install @smartergpt/lex`
-2. Initialize: `lex init`
-3. Check policy: `lex policy check`
-4. Generate instructions: `lex instructions generate`
-
-For runner development, see [`docs/RUNNER_DEVELOPMENT.md`](./RUNNER_DEVELOPMENT.md) *(coming soon)*.
-
----
-
-## Questions
-
-If something in this contract is unclear, that's a bug. File an issue.
+If a published contract is ambiguous, file an issue with the package version, public entry point,
+expected invariant, and a minimal consumer example.

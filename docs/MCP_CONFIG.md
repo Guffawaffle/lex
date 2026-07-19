@@ -12,7 +12,8 @@ Create `.vscode/mcp.json` in your project:
       "command": "npx",
       "args": ["@smartergpt/lex-mcp"],
       "env": {
-        "LEX_WORKSPACE_ROOT": "${workspaceFolder}"
+        "LEX_WORKSPACE_ROOT": "${workspaceFolder}",
+        "LEX_STORE": "sqlite"
       }
     }
   }
@@ -30,7 +31,8 @@ Add to `~/.config/Claude/claude_desktop_config.json` (Linux) or `~/Library/Appli
       "command": "npx",
       "args": ["@smartergpt/lex-mcp"],
       "env": {
-        "LEX_WORKSPACE_ROOT": "/path/to/your/project"
+        "LEX_WORKSPACE_ROOT": "/path/to/your/project",
+        "LEX_STORE": "sqlite"
       }
     }
   }
@@ -50,6 +52,7 @@ When several repositories should share continuity, configure every Lex launch pa
       "args": ["@smartergpt/lex-mcp"],
       "env": {
         "LEX_WORKSPACE_ROOT": "D:\\dev\\stfc-mod",
+        "LEX_STORE": "sqlite",
         "LEX_DB_PATH": "D:\\dev\\.smartergpt\\lex\\memory.db"
       }
     }
@@ -72,6 +75,12 @@ For a shared PostgreSQL store, configure every surface with the same two variabl
 ```
 
 Keep the password in the host environment or secret configuration. A password may alternatively be embedded in `LEX_DATABASE_URL`. PostgreSQL introspection reports a credential-free `postgres-v1` identity, live connection health, schema/server versions, Frame count, and capabilities. Images are reported unsupported on PostgreSQL. `LEX_DB_PATH` remains SQLite-only.
+
+This environment-selected PostgreSQL path is the compatibility adapter. It can coordinate a
+trusted shared store, but it is not a tenant authorization boundary. Multi-tenant and
+multi-workspace hosts must use explicit runtime authority and a scope-bound PostgreSQL store; see
+[Runtime Scope](./RUNTIME_SCOPE_CONTRACT.md) and
+[PostgreSQL Scope Security](./POSTGRES_SCOPE_SECURITY.md).
 
 Installed CLI and MCP consumers discover `.lex.config.json` from the caller project root. This provides a file-based alternative when the host does not support environment wiring:
 
@@ -103,8 +112,8 @@ Installed CLI and MCP consumers discover `.lex.config.json` from the caller proj
 
 Once configured, the following MCP tools are available:
 
-- `frame_create` - Store a memory snapshot
-- `frame_search` - Search past snapshots
+- `frame_create` - Store a deliberate Frame
+- `frame_search` - Search past Frames
 - `frame_get` - Retrieve a specific frame
 - `frame_list` - List recent frames
 - `frame_validate` - Validate frame input

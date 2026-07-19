@@ -1,529 +1,189 @@
 # Lex FAQ
 
-Frequently asked questions about privacy, security, compliance, and how Lex actually works.
+## What does Lex remember?
 
----
+Lex stores deliberate checkpoints called **Frames**. A useful Frame captures the decision, current
+state, blocker, next action, and repository module scope that another session would otherwise have
+to reconstruct.
 
-## Is this recording my screen?
+Lex remembers the work, not the conversation. It does not record screens, keystrokes, terminal
+history, or complete agent transcripts.
 
-**No.**
+## Does Lex capture anything automatically?
 
-Lex does **not** record your screen. It does not scrape everything you do. It does not capture every keystroke or every terminal command.
-
-Lex captures **intentional checkpoints** called Frames. You call `/remember` when you've hit a meaningful moment (diagnosed a blocker, about to switch branches, about to hand off). If you don't call `/remember`, nothing is saved.
-
----
-
-## Where does this data live?
-
-**On your machine.**
-
-Frames are stored in a **local database** (for example: `~/.lex/lex.db`).
-
-Lex is local-first by design. There is no cloud upload by default. There is no remote server that "phones home."
-
-If you want to sync Frames to your own controlled storage (e.g. your own S3 bucket), you can configure that explicitly. But the default is: data stays local.
-
----
-
-## Can this leak to the cloud?
-
-**Not by default.**
-
-Lex is designed to expose Frames to an assistant through **MCP over `stdio`** (spawned process with environment variables). This is local IPC, not network communication.
-
-You do **not** have to run Lex as an HTTP server. You do **not** have to open a port. You do **not** have to trust a third-party service.
-
-If you explicitly configure Lex to sync to a remote store or expose an HTTP endpoint, that's your choice. The default is local-only.
-
----
-
-## Is this spying on engineers?
-
-**No.**
-
-Lex is not a surveillance tool. It is not a management dashboard. It is not a productivity tracker.
-
-Frames are **deliberate, high-signal checkpoints** that you trigger manually. If you don't call `/remember`, nothing happens.
-
-This is by design. Engineers will not adopt a "spy." We built Lex to solve a specific pain: assistants forget what you were doing yesterday. That's it.
-
----
-
-## What if I don't WANT my session saved?
-
-**Then don't call `/remember`.**
-
-Lex only captures Frames when you explicitly trigger it. If you don't want a particular session saved, just don't capture a Frame for it.
-
-No automatic scraping. No background recording. No "oops, we saved that."
-
----
-
-## Why images instead of just dumping text?
-
-**Token efficiency.**
-
-Dumping huge text logs into an LLM eats a ton of tokens. A compact rendered "memory card" image with those logs (monospace text panel, timestamp header, current blockers) costs dramatically fewer tokens for a vision-capable model—roughly **7–20× context compression**—while keeping enough detail for reasoning.
-
-Example:
-
-- Raw text logs: 10,000 tokens
-- Rendered memory card image: ~500 tokens (for a vision-capable model)
-
-You still store the raw text for exact recall when needed. But for "what was I doing yesterday?" questions, the image is cheaper and faster.
-
----
-
-## Where does Policy come in?
-
-**Policy enforcement is optional, but powerful.**
-
-You can run Lex standalone and get continuity ("what was I doing yesterday?").
-
-If you **also** use policy enforcement, and you follow THE CRITICAL RULE (your `module_scope` uses the same module IDs defined in `lexmap.policy.json`), then your assistant can answer deeper questions like:
-
-> "Why is the Add User button still disabled?"
-
-The assistant can:
-
-1. Pull the last Frame for that ticket
-2. See `module_scope = ["ui/user-admin-panel", "services/auth-core"]`
-3. Check if `ui/user-admin-panel` is allowed to call `services/auth-core` directly
-4. Answer: "It's disabled because the UI is calling a forbidden service. Policy says that path must go through the approved service layer and be gated by `can_manage_users`. Here's the timestamped Frame from last night."
-
-That's **policy-aware reasoning with receipts**.
-
-Without policy, you get "what was I doing?" continuity.
-With policy, you get "what was I doing **and why was it blocked by policy?**" explainability.
-
----
-
-## Do I need policy to use Lex?
-
-**No.**
-
-Lex works standalone. You can capture Frames, recall them, and get instant continuity without ever touching policy.
-
-Policy only matters if you want your assistant to:
-
-- Understand which modules are allowed to call each other
-- Explain why a button is disabled based on architecture policy
-- Cite timestamped Frames and line them up with policy violations
-
-If you don't care about that, just use Lex memory by itself.
-
----
-
-## What is THE CRITICAL RULE?
-
-> **THE CRITICAL RULE:**
-> Every module name in `module_scope` MUST match the module IDs defined in your `lexmap.policy.json`.
-> No ad hoc naming. No "almost the same module."
-> If the vocabulary drifts, we lose the ability to line up:
->
-> - "what you were actually doing last night"
->   with
-> - "what the architecture is supposed to allow."
-
-This rule is the bridge between memory (Frames) and policy.
-
-If you break it, the assistant can't line up your Frames with architectural rules, and you lose the explainability moat.
-
-### How It's Enforced
-
-When you call `/remember`, the system validates each module ID through alias resolution:
-
-1. **Exact match** → ✅ Frame stored with canonical ID
-2. **Explicit alias** → ✅ Resolved to canonical ID and stored
-3. **Unique substring match** → ✅ Resolved to canonical ID (if only one match)
-4. **Ambiguous substring** → ❌ Error: multiple matches, be more specific
-5. **Typo detected** → ❌ Error with suggestions: "Did you mean 'indexer'?"
-6. **No match** → ❌ Error with suggestions if available
-
-Example:
-```bash
-# Exact match
-/remember "Auth work" --modules "services/auth-core"
-# ✅ Frame stored
-
-# Using an alias (requires aliases.json)
-/remember "Auth work" --modules "auth"
-# ✅ Resolved to services/auth-core, Frame stored
-
-# Unique substring match
-/remember "Auth work" --modules "auth-core"
-# ✅ If only one module contains "auth-core", resolved and stored
-
-# Ambiguous substring
-/remember "Auth work" --modules "user"
-# ❌ Error: Multiple modules match (user-access-api, user-profile-service, etc.)
-
-# Typo
-/remember "Auth work" --modules "indexr"
-# ❌ Error: Module 'indexr' not found. Did you mean 'indexer'?
-
-# Disable substring matching (strict mode for CI)
-/remember "Auth work" --modules "auth-core" --no-substring
-# ❌ Error if "auth-core" is not exact or explicit alias
-```
-
-### Alias Tables (✅ Implemented)
-
-You can now use alias tables for team shorthand and historical renames:
-
-```json
-{
-  "aliases": {
-    "auth": {
-      "canonical": "services/auth-core",
-      "confidence": 1.0,
-      "reason": "team shorthand"
-    }
-  }
-}
-```
-
-This allows `/remember "Auth work" --modules "auth"` while storing the canonical ID internally.
-
----
-
-## Can I search Frames by keyword?
-
-**Yes.**
-
-Frames are indexed by:
-
-- Ticket ID (e.g. `TICKET-123`)
-- Keywords (e.g. `"auth timeout"`, `"Add User disabled"`)
-- Summary caption (e.g. `"Auth handshake timeout"`)
-- Branch (e.g. `feature/TICKET-123_auth_handshake_fix`)
-
-You can recall by any of those:
-
-```bash
-/recall TICKET-123
-/recall "auth timeout"
-/recall "Add User disabled"
-```
-
-All of these return the most recent matching Frame.
-
----
-
-## What is Mind Palace?
-
-**Mind Palace** is an optional enhancement that adds **reference points** and **Atlas Frames** to Lex.
-
-Instead of searching by ticket ID or keyword, you recall by natural phrasing:
-
-```bash
-/recall "Add User button"
-```
-
-Or just ask your assistant:
-
-> "Where did I leave off with the Add User button?"
-
-**What you get back:**
-1. **Frame metadata** - what you were doing, next action, blockers
-2. **Atlas Frame** - visual map of relevant modules and policy boundaries
-
-**Key benefits:**
-- **Faster recall** - jump directly to context via human-memorable anchor phrases
-- **Reduced tokens** - only unfold the module neighborhood that matters (fold radius)
-- **Policy-aware reasoning** - see which edges are allowed/forbidden
-
-See [Mind Palace Guide](./MIND_PALACE.md) for details.
-
----
-
-## Do I need Mind Palace?
-
-**No, it's optional.**
-
-You can use Lex without Mind Palace and still get full continuity:
-- Capture Frames with `/remember`
-- Recall by ticket ID or keyword
-- Get instant context on what you were doing
-
-Mind Palace adds:
-- **Reference points** - human-memorable anchors instead of ticket IDs
-- **Atlas Frames** - structural context (module neighborhoods + policy boundaries)
-- **Fold radius** - controlled context expansion to prevent token bloat
-
-If you want natural recall ("Where did I leave off with X?") and policy-aware structural context, use Mind Palace.
-
-If you just want "what was I doing on TICKET-123?", baseline Lex is enough.
-
----
-
-## How many Frames should I capture per day?
-
-**5–10, max.**
-
-Lex is for **high-signal checkpoints**, not constant scraping.
-
-Good times to capture:
-
-- End of a debugging push
-- Just before switching branches
-- Just before sleep
-- Right after diagnosing a blocker
-- Right before handing off to a teammate
-
-Bad times to capture:
-
-- Every 5 minutes
-- Every file save
-- Every terminal command
-
-If you over-capture, Frames lose signal. You'll have too much noise.
-
-The rule: **If it's not worth explaining to a teammate, don't capture it.**
-
----
-
-## Can I delete a Frame?
-
-**Yes.**
-
-Frames are stored in a local database. You can delete them manually:
-
-```bash
-lex delete TICKET-123
-```
-
-Or you can directly edit the database (it's just SQLite):
-
-```bash
-sqlite3 /srv/lex-brain/thoughts.db
-sqlite> DELETE FROM frames WHERE jira = 'TICKET-123';
-```
-
-No cloud sync means no "you can never delete this" problem.
-
----
-
-## Can I export Frames for backup or audit?
-
-**Yes.**
-
-You can export Frames to JSON:
-
-```bash
-lex export --output /path/to/backup.json
-```
-
-You can also just copy the database file:
-
-```bash
-cp /srv/lex-brain/thoughts.db /path/to/backup/thoughts-2025-11-01.db
-```
-
-Since everything is local, you control the backup strategy.
-
----
-
-## Is this production-ready?
-
-**Lex is at version 1.0.0 and production-ready for local development workflows.**
-
-The Frame metadata schema is treated as a contract, and we won't break it without a migration plan. The core functionality (Frames, recall, policy enforcement) is stable.
-
----
-
-## Can my manager weaponize this?
-
-**Not if you control the data.**
-
-Frames are stored locally. You control the database. You control what gets captured (you call `/remember` explicitly). You control who has access.
-
-If your org tries to mandate "upload all Frames to a central server for productivity tracking," that's a policy problem, not a Lex problem. Lex doesn't force you to do that.
-
-The default design is: **local-first, engineer-controlled, intentional capture**.
-
-If someone tries to turn it into surveillance, they're breaking the design.
-
----
-
-## What if I work on multiple machines?
-
-**You can sync Frames yourself.**
-
-Lex doesn't have built-in cloud sync, but you can:
-
-- Copy the database file to another machine
-- Use `rsync` to sync `/srv/lex-brain/thoughts.db` across machines
-- Store the database in a synced folder (e.g. Dropbox, your own S3 bucket)
-
-Just make sure you're not violating your org's data policies if you put Frames in a shared location.
-
----
-
-## Can I use this with GitHub Copilot / Claude / other assistants?
-
-**Yes, if they support MCP.**
-
-Lex exposes Frames through **MCP over `stdio`**. If your assistant supports MCP, you can wire it up:
-
-```json
-{
-  "mcpServers": {
-    "lex": {
-      "command": "/srv/lex-brain/mcp-stdio.mjs",
-      "env": {
-        "LEX_DB_PATH": "/srv/lex-brain/memory.db"
-      }
-    }
-  }
-}
-```
-
-Then your assistant can call `lex recall TICKET-123` to pull Frames.
-
-If your assistant doesn't support MCP yet, you can still use Lex manually via CLI and copy/paste the memory card or summary into the assistant.
-
----
-
-## What if I don't have a ticket ID?
-
-**Use keywords instead.**
-
-You don't have to use Jira or any ticketing system. You can capture Frames with just a summary and keywords:
+No. A Frame is written only when a user, agent, application, or MCP client explicitly calls a
+write operation such as `lex remember` or `frame_create`.
 
 ```bash
 lex remember \
-  --summary "Auth handshake timeout; Add User button still disabled" \
-  --next "Fix UserAccessController wiring" \
-  --keywords "auth timeout,Add User disabled"
+  --summary "Kept token validation in API middleware" \
+  --next "Add password-reset coverage" \
+  --modules unscoped
 ```
 
-Then recall by keyword:
+Do not create a Frame when there is nothing worth handing off. High-signal continuity is more
+useful than exhaustive activity history.
+
+## Where are Frames stored?
+
+SQLite is the default. Its default path is `.smartergpt/lex/memory.db` relative to the active
+workspace. Set an absolute `LEX_DB_PATH` when several local launch configurations should use the
+same file.
+
+PostgreSQL is available for explicit shared storage. A trusted multi-tenant or multi-workspace
+host must additionally use Lex 3 runtime authority, scope-bound stores, and PostgreSQL row-level
+security. Selecting PostgreSQL with environment variables alone is a compatibility configuration,
+not a tenant authorization boundary.
+
+See [Store Contracts](./STORE_CONTRACTS.md).
+
+## Does Lex upload Frames to a cloud service?
+
+Lex has no Lex-operated cloud memory service and does not sync SQLite files by default. The CLI
+and stdio MCP transport do not need a listening network port.
+
+Your package registry, MCP client, PostgreSQL deployment, agent host, or other surrounding tools
+may have their own network behavior. Evaluate those systems separately.
+
+## Can I share one SQLite file between machines?
+
+Do not synchronize or concurrently mount a live SQLite database as a substitute for a shared
+service. Use PostgreSQL when trusted hosts or workspaces need coordinated access. For backup or
+migration, use `lex db backup` or `lex frames export` rather than copying a database while it may
+have an active journal or WAL.
+
+## Are Frames safe to put directly into an agent prompt?
+
+Frame bodies are user-controlled historical data. Treat them as untrusted context, not executable
+instructions. `lex context` produces a bounded bootstrap and labels the history boundary, but the
+consumer still needs to verify important claims against current code, tests, issue state, and
+explicit human direction.
+
+Never store credentials, tokens, private keys, or other secrets in Frames.
+
+## What is the difference between `recall` and `context`?
+
+`lex recall` retrieves Frames for a person or program to inspect. It supports compact summaries,
+listing, and Atlas-related controls.
+
+`lex context` is the bounded session-bootstrap surface. It selects a small set of relevant Frames,
+reports provenance and warnings, and enforces an approximate output budget. It uses hard read-only
+store access and will not create or migrate the selected database.
 
 ```bash
-/recall "auth timeout"
+lex recall "authentication" --summary
+lex context "authentication" --max-tokens 800
 ```
 
-Frames are flexible. Ticket IDs just make them easier to organize.
+## Why does `remember` require modules?
 
----
+Module attribution prevents durable work context from becoming detached from the repository it
+describes. Choose one strategy:
 
-## Can I customize the memory card renderer?
+- `--modules services/auth,api/middleware` for exact policy IDs;
+- `--modules auto` for bounded inference in a policy-backed repository;
+- `--modules unscoped` when no useful module ontology exists.
 
-**Yes.**
+`unscoped` is explicit and valid. You do not need to adopt repository policy before trying Lex.
 
-The memory card renderer is just a script that takes raw text and outputs an image. You can replace it with your own:
+## What does repository policy add?
+
+Policy maps stable module IDs to owned paths and allowed or forbidden relationships. Lex can use
+that vocabulary for Frame attribution, Atlas neighborhoods, and static boundary checks.
+
+Policy is optional and is not an access-control system. See the [Repository Policy Guide](./API_USAGE.md).
+
+## What is Atlas?
+
+Atlas turns policy relationships into a bounded neighborhood around the modules relevant to a
+Frame. It helps an agent see nearby architectural context without loading an entire repository
+graph. If no readable policy exists, core Frame recall still works without Atlas enrichment.
+
+Code Atlas extraction is a separate, experimental source-indexing surface. See the
+[Atlas guide](./atlas/README.md).
+
+## Do I need MCP?
+
+No. The CLI, structured output, TypeScript exports, and MCP server are alternative entry points to
+the same core. Use MCP when your agent client benefits from typed, discoverable tools. Use the CLI
+when a shell command is the simpler integration.
+
+See [Lex MCP](../README.mcp.md).
+
+## Can I evaluate Lex without installing or writing files?
+
+Yes. Give your agent the [Agent Evaluation](./agent-evaluation.md) rubric. That review is expressly
+read-only and asks for evidence, overlap, risks, and the smallest reversible pilot.
+
+When you are ready to exercise the actual workflow, the [Quick Start](../QUICK_START.md) describes
+the exact write surface and rollback.
+
+## What does `remember --dry-run` do?
+
+It validates and previews a Frame without storing it. The SQLite compatibility path may still
+open the selected database, which can create an empty database file. Use an isolated absolute
+`LEX_DB_PATH` and `LEX_STORE=sqlite` when filesystem isolation matters.
+
+## How do I back up or move Frames?
+
+For a SQLite database backup:
 
 ```bash
-lex config set renderer_path /path/to/your/custom-renderer.sh
+lex db backup
 ```
 
-Your custom renderer should:
-
-- Take raw text as input (logs, stack trace, summary, etc.)
-- Output a legible, high-contrast image (PNG, JPEG, etc.)
-- Include a header with timestamp, branch, ticket ID
-
-Lex will use your custom renderer instead of the default.
-
----
-
-## What license is this?
-
-See [LICENSE](../LICENSE).
-
-Lex is open source. You can use it, modify it, and deploy it however you want, as long as you follow the license terms.
-
----
-
-## What happens if I make a typo in a module ID?
-
-The system will catch it and provide helpful suggestions based on fuzzy matching:
+For a portable Frame export:
 
 ```bash
-/remember "Work on auth" --modules "servcies/auth-core"
+lex frames export --out ./lex-frames
+lex frames import --help
 ```
 
-Error response:
-```
-Invalid module IDs in module_scope:
-  • Module 'servcies/auth-core' not found in policy.
-    Did you mean: services/auth-core?
+Check command help before automation because export and maintenance operations have explicit
+overwrite, recovery, and storage semantics.
 
-Available modules: indexer, ts, php, mcp, services/auth-core, ui/main-panel
-```
+## Can SQLite be encrypted?
 
-Just correct the typo and retry. The fuzzy matching uses Levenshtein distance to find the closest matches.
+Yes. Lex uses SQLCipher-compatible SQLite support and reads the passphrase from `LEX_DB_KEY`.
 
----
-
-## Can I use shorthand like "auth" instead of "services/auth-core"?
-
-**Yes! ✅ Implemented**
-
-Explicit alias tables now support team shorthand conventions. Edit `src/shared/aliases/aliases.json`:
-
-```json
-{
-  "aliases": {
-    "auth": {
-      "canonical": "services/auth-core",
-      "confidence": 1.0,
-      "reason": "team shorthand"
-    }
-  }
-}
+```bash
+lex db encrypt --input path/to/memory.db --output path/to/encrypted.db --verify
 ```
 
-After rebuilding (`npm run build`), you can use `--modules "auth"` and it will store `services/auth-core` internally.
+The automatic pre-encryption recovery backup contains the original plaintext database. Protect or
+remove it according to your retention policy after verification. Hard read-only `lex context`
+cannot currently deserialize encrypted SQLite snapshots; see [Limitations](./LIMITATIONS.md).
 
-You can also use substring matching (enabled by default). For example, `--modules "auth-core"` will work if only one module contains that substring.
+## Why did a read-looking command create or migrate a database?
 
----
+For backward compatibility, several SQLite CLI paths still acquire a writable store even when the
+operation itself is conceptually a read. Use `lex context` for a hard read-only session bootstrap.
+`lex db repair` is also read-only unless `--write` is explicit.
 
-## What if a module gets renamed in our codebase?
+The exact access-mode contract is documented in [Store Contracts](./STORE_CONTRACTS.md).
 
-When you refactor and rename a module (e.g., `services/user-access-api` → `api/user-access`):
+## How do I inspect what Lex selected?
 
-1. Update `lexmap.policy.json` with the new name
-2. Old Frames with the old name will still exist in your database
-3. **✅ Use alias tables** to map old → new names:
-
-```json
-{
-  "aliases": {
-    "services/user-access-api": {
-      "canonical": "api/user-access",
-      "confidence": 1.0,
-      "reason": "refactored 2025-10-15"
-    }
-  }
-}
+```bash
+lex introspect --json
+lex db stats --help
 ```
 
-This allows recall to work seamlessly across the rename. New Frames can use either the old alias or the new canonical name.
+Introspection reports the active workspace, store identity, policy state, capabilities, and
+warnings. Diagnostic output may reveal local paths and repository identifiers, so review it before
+sharing publicly.
 
----
+## Does Lex support Windows and WSL?
 
-## How fast is module validation?
+Yes, but install native dependencies separately on each operating-system surface and do not share
+`node_modules` between Windows and WSL. WSL should resolve a Linux-native `lex`, not a Windows npm
+shim or an ephemeral `_npx` cache. See [WSL Native Installation](./WSL_NATIVE_INSTALL.md).
 
-Very fast:
+## What should I read next?
 
-- **Exact match:** ~0.5ms (hash table lookup)
-- **Typo with suggestions:** ~2ms (Levenshtein distance calculation)
-- **Policy cache:** ~10KB in memory
-
-Performance benchmarks are in `memory/mcp_server/alias-benchmarks.test.ts`.
-
-Target: <5% performance regression vs no validation ✅ MET
-
----
-
-## Who built this?
-
-Lex was built to solve a real pain: assistants forget what you were doing yesterday.
-
-If you have questions, open an issue on GitHub. If you want to contribute, read [CONTRIBUTING.md](../CONTRIBUTING.md).
-
-We're not trying to sell you a service. We're just making tools that make engineering less painful.
+- First pilot: [Quick Start](../QUICK_START.md)
+- Agent handoffs: [Agent Continuity](./AGENT_CONTINUITY.md)
+- Security and trust: [Security Policy](../SECURITY.md)
+- Storage behavior: [Store Contracts](./STORE_CONTRACTS.md)
+- Trusted hosting: [Runtime Scope Contract](./RUNTIME_SCOPE_CONTRACT.md)
+- Exact package entry points: [Public Package API](./PUBLIC_API.md)
