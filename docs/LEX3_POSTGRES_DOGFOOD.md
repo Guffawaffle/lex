@@ -1,10 +1,17 @@
-# Lex 3 PostgreSQL GA Dogfood Gate
+# Lex 3 PostgreSQL Isolation Canary
 
-Lex 3.0.0 GA requires the two-tenant/five-workspace PostgreSQL isolation canary to pass. This is a
-security gate: a normal operation must not observe, mutate, count, infer, or collide with a Frame
-outside its resolved tenant/workspace scope.
+The two-tenant/five-workspace PostgreSQL isolation canary served as the Lex 3.0 GA gate and remains
+the live end-to-end security canary. It is an acceptance test, not a general PostgreSQL deployment
+guide: a normal operation must not observe, mutate, count, infer, or collide with a Frame outside
+its resolved tenant/workspace scope.
 
 ## Opt-in developer command
+
+The operator must provide both `LEX_DATABASE_URL` and `LEX_POSTGRES_PASSWORD`. The administrative
+database identity must be able to create and remove an isolated schema and temporary login role,
+migrate objects, grant/revoke privileges, and execute the live identity checks. The canary creates
+and removes temporary PostgreSQL roles and schemas; do not run it against a database where that
+administrative activity is prohibited.
 
 The canary is intentionally excluded from `npm test` and `npm run ci`. An operator supplies the
 existing PostgreSQL configuration to one explicitly invoked developer wrapper:
@@ -16,8 +23,8 @@ npm run test:dogfood:postgres
 The wrapper accepts `LEX_DATABASE_URL` and `LEX_POSTGRES_PASSWORD` from its own process and
 immediately passes one explicit in-memory connection string to the canary runner. It never prints,
 returns, or persists either value. Production runtime composition remains environment-independent:
-authority directories, runtime pools, and secret-provider handles still enter through explicit
-constructor inputs.
+authority directories, deployer-constructed pools, and the trusted selection provider still enter
+through explicit constructor inputs.
 
 Use `npm run test:dogfood:postgres -- --diagnostic` to add canonical IDs, a secret-free backend
 identity, pool size, and scope-transition count. Diagnostics remain redacted and opt-in.

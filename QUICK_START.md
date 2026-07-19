@@ -1,271 +1,146 @@
-# 🚀 Repository Hardening - Quick Start
+# Lex Quick Start
 
-This guide gets you started with the new security and workflow infrastructure.
+This guide proves one thing: whether a durable checkpoint helps a later agent session continue
+without making you reconstruct the work.
 
-## ✅ What's Been Set Up
+The pilot uses local SQLite. It does not require MCP, policy, Atlas, PostgreSQL, instruction
+projection, AXF, LexRunner, or LexSona.
 
-### New Files Created:
-- `.github/workflows/ci.yml` - Hermetic CI with hardened runners
-- `.github/workflows/security.yml` - CodeQL, Snyk, OpenSSF Scorecard
-- `.github/workflows/release.yml` - Automated npm publishing with provenance
-- `.github/workflows/dependency-updates.yml` - Weekly update reports
-- `.github/dependabot.yml` - Daily security updates
-- `.github/CODEOWNERS` - Maintainer approval workflow
-- `.changeset/` - Version management for monorepo
-- `SECURITY.md` - Security policy for vulnerability reporting
-- `eslint.config.mjs` - Code linting
-- `.prettierrc.json` - Code formatting
-- `.commitlintrc.json` - Commit message validation
-- `scripts/setup-hardening.sh` - Automated setup script
+## Before you begin
 
-## 🎯 Immediate Actions (This Week)
+You need:
 
-### 1. Run the Setup Script
+- Node.js 20 through 24;
+- a Git repository;
+- a disposable branch, worktree, or clone if you want complete filesystem isolation;
+- approval to create `.smartergpt/lex/memory.db` in the pilot workspace.
 
-```bash
-./scripts/setup-hardening.sh
-```
+`npx` may fetch and execute `@smartergpt/lex` when the package is not already cached. Pin or
+install it first if your repository's supply-chain policy requires an approved lockfile or exact
+version.
 
-This will check your environment and guide you through GPG setup.
+Do not put passwords, tokens, private keys, customer data, or other secret material in a Frame.
 
-### 2. Set Up GPG Signing (5 minutes)
+If you have not decided whether Lex is worth trying, stop here and use the read-only
+[Agent Evaluation](./docs/agent-evaluation.md) first.
+
+## 1. Record the baseline
+
+Before the pilot, inspect the workspace so you can distinguish existing files from pilot output:
 
 ```bash
-# Generate GPG key
-gpg --full-generate-key
-# Choose: (1) RSA and RSA, (4096), (0 = never expires)
-# Use your GitHub email address
-
-# Get your key ID
-gpg --list-secret-keys --keyid-format=long
-# Look for: sec   rsa4096/YOUR_KEY_ID
-
-# Export public key
-gpg --armor --export YOUR_KEY_ID
-
-# Add to GitHub
-# Go to: https://github.com/settings/keys → New GPG key
-# Paste the key
-
-# Configure git
-git config --global user.signingkey YOUR_KEY_ID
-git config --global commit.gpgsign true
-git config --global tag.gpgsign true
-
-# Test it
-git commit --allow-empty -S -m "test: signed commit"
-git verify-commit HEAD
+git status --short
 ```
 
-### 3. Enable GitHub Security Features (requires repo admin)
+The narrow pilot does not call `lex init`. It creates only the SQLite store beneath
+`.smartergpt/lex/`.
 
-Go to https://github.com/Guffawaffle/lex/settings:
-
-**Security & analysis:**
-- ✅ Dependency graph (enabled by default)
-- ✅ Dependabot alerts → Enable
-- ✅ Dependabot security updates → Enable
-- ✅ Code scanning → Set up → CodeQL analysis
-
-**Branches:**
-- Add rule for `main`:
-  - Branch name pattern: `main`
-  - ✅ Require pull request reviews (1 approval from @Guffawaffle)
-  - ✅ Require status checks: `all-checks-pass`
-  - ✅ Require signed commits
-  - ✅ Require linear history
-  - ✅ Do not allow bypassing the above settings
-  - ✅ Restrict who can push (maintainers only)
-  - ✅ Lock branch
-  - **Note**: Increase to 2 approvals when more maintainers join
-
-- Add rule for `staging`:
-  - Branch name pattern: `staging`
-  - ✅ Require pull request reviews (1)
-  - ✅ Require status checks: `all-checks-pass`
-  - ✅ Require signed commits
-  - ✅ Require linear history
-
-### 4. Add GitHub Secrets
-
-Settings → Secrets and variables → Actions → New repository secret:
-
-```
-NPM_TOKEN - Get from https://www.npmjs.com/settings/[username]/tokens
-            (Create "Automation" token with "Publish" permission)
-
-CODECOV_TOKEN - Get from https://codecov.io/gh/Guffawaffle/lex/settings
-                (After signing up/in)
-
-SNYK_TOKEN - (Optional) Get from https://app.snyk.io/account
-```
-
-### 5. Create `staging` Branch (if not exists)
+## 2. Validate a Frame
 
 ```bash
-# Create staging from current branch
-git checkout -b staging
-git push origin staging
-
-# Set as default branch
-gh repo edit --default-branch staging
-
-# Or via web: Settings → Branches → Default branch → Switch to staging
+LEX_STORE=sqlite npx @smartergpt/lex remember \
+  --dry-run \
+  --reference-point "Lex pilot" \
+  --summary "Evaluating whether durable agent handoffs help this repository" \
+  --next "Recall this checkpoint in a new session" \
+  --modules unscoped
 ```
 
-## 📝 Using Changesets (Version Management)
+The explicit `LEX_STORE=sqlite` prevents an existing PostgreSQL configuration in the shell from
+redirecting the pilot into a shared store.
 
-### When You Make Changes:
+`--dry-run` validates the Frame without storing it. The SQLite adapter may create an empty
+`.smartergpt/lex/memory.db` when it opens; this is the only expected pilot artifact at this point.
+
+`--modules unscoped` is an explicit statement that this first Frame is workspace-level. You can
+introduce a module policy later if the pilot proves useful.
+
+## 3. Store the Frame
+
+After reviewing the validation output, remove `--dry-run`:
 
 ```bash
-# After making changes that should be released:
-npx changeset
-
-# It will ask:
-# 1. Which packages changed? (spacebar to select)
-# 2. Is this a major/minor/patch change?
-# 3. What changed? (write a summary for CHANGELOG)
-
-# Commit the changeset
-git add .changeset/
-git commit -m "chore: add changeset for feature X"
+LEX_STORE=sqlite npx @smartergpt/lex remember \
+  --reference-point "Lex pilot" \
+  --summary "Evaluating whether durable agent handoffs help this repository" \
+  --next "Recall this checkpoint in a new session" \
+  --modules unscoped
 ```
 
-### Example Changeset Workflow:
+This writes one Frame to `.smartergpt/lex/memory.db`.
+
+## 4. Recall it
 
 ```bash
-# 1. Make a change to the CLI
-vim src/shared/cli/lex.ts
-
-# 2. Create changeset
-npx changeset
-# Select: lex (single package)
-# Type: minor (new feature)
-# Summary: "Add new --format flag for output formatting"
-
-# 3. Commit
-git add .
-git commit -m "feat(cli): add format flag"
-git push origin my-feature-branch
-
-# 4. Create PR to staging
-gh pr create --base staging --title "feat(cli): add format flag"
+LEX_STORE=sqlite npx @smartergpt/lex recall "Lex pilot"
 ```
 
-## 🗓️ Wednesday Release Workflow
+You should see the summary, next action, reference point, timestamp, and explicit
+`workspace/unscoped` attribution.
 
-### Every Wednesday (or as needed):
+## 5. See the agent-facing context
 
 ```bash
-# 1. Generate version bumps from all changesets
-npx changeset version
-
-# This updates:
-# - All package.json versions
-# - CHANGELOG.md files
-# - Removes consumed changesets
-
-# 2. Review the changes
-git diff
-
-# 3. Commit version bumps
-git add .
-git commit -m "chore(release): version packages"
-git push origin staging
-
-# 4. Create Release PR
-gh pr create \
-  --base main \
-  --head staging \
-  --title "Release $(date +%Y-%m-%d)" \
-  --body "Weekly release. See CHANGELOG.md files for details."
-
-# 5. After PR is merged to main:
-git checkout main
-git pull origin main
-
-# 6. Tag the release (with GPG signature)
-VERSION=$(cat package.json | grep '"version"' | head -1 | sed 's/.*: "\(.*\)".*/\1/')
-git tag -s "v${VERSION}" -m "Release v${VERSION}"
-git push origin "v${VERSION}"
-
-# 7. CI automatically publishes to npm! 🎉
+LEX_STORE=sqlite npx @smartergpt/lex context "Lex pilot" --max-tokens 500
 ```
 
-## 🧪 Testing Your Setup
+The context response is read-only and bounded. It identifies the active project, branch, store,
+selection reasons, warnings, and approximate token use. Stored Frame text is labeled as untrusted
+historical data.
+
+## 6. Test the actual value
+
+Start a fresh agent session and provide the recalled or bounded context. Ask the agent:
+
+```text
+Using this Lex context, state what was happening, what should happen next, and what information is
+still missing. Do not change the repository.
+```
+
+The pilot succeeds only if the checkpoint reduces repeated explanation or prevents lost context.
+A successful command by itself is not evidence that Lex belongs in the workflow.
+
+## Decide
+
+- **Adopt** when the value is already clear and the local operating cost is acceptable.
+- **Pilot** when more than one real handoff is needed to judge the value.
+- **Defer** when the problem is real but current workflow, platform, or trust constraints make this
+  the wrong time.
+- **Not a fit** when Lex duplicates a working continuity system or stores context you should not
+  retain.
+
+Use [Agent Evaluation](./docs/agent-evaluation.md) for the complete decision rubric.
+
+## Roll back
+
+First compare the workspace with the baseline:
 
 ```bash
-# Run all checks
-npm run lint          # ESLint (optional, may need config)
-npm run type-check    # TypeScript
-npm run build         # Build all packages
-npm test              # Run tests
-
-# Test formatting
-npm run format:check  # Check if files need formatting
-npm run format        # Auto-format files
-
-# Test commit message format
-echo "feat(cli): test message" | npx commitlint
-
-# Test changeset
-npx changeset         # Create a test changeset
+git status --short
 ```
 
-## 🔍 Monitoring & Metrics
+For the narrow pilot, `.smartergpt/lex/memory.db` is the expected Lex-created artifact. Remove only
+files that did not exist before the pilot. Empty `.smartergpt/lex/` and `.smartergpt/` directories
+may remain after the database is removed; remove them only when the baseline confirms the pilot
+created them. If you used a disposable worktree or clone, remove that isolated workspace through
+your normal Git workflow.
 
-After first release:
+Do not use a broad cleanup command in a repository that already had `.smartergpt/`, `lex.yaml`, or
+Lex-managed instruction files.
 
-- **GitHub Actions**: https://github.com/Guffawaffle/lex/actions
-- **Codecov**: https://codecov.io/gh/Guffawaffle/lex
-- **npm packages**: https://www.npmjs.com/~guffawaffle
-- **Security**: https://github.com/Guffawaffle/lex/security
+## Expand deliberately
 
-## 🆘 Troubleshooting
+Once the local handoff is useful, add one capability at a time:
 
-### GPG "no secret key" error
-```bash
-# Make sure you exported the key
-gpg --list-secret-keys --keyid-format=long
+| Need | Next step |
+|---|---|
+| Agent session bootstrap | [Agent Continuity](./docs/AGENT_CONTINUITY.md) |
+| MCP client access | [MCP Server](./README.mcp.md) |
+| Repository module boundaries | [Policy usage](./docs/API_USAGE.md) |
+| Nearby module context | [Atlas](./docs/atlas/README.md) |
+| Canonical assistant instructions | [Instructions](./docs/INSTRUCTIONS.md) |
+| Shared cross-host storage | [Store Contracts](./docs/STORE_CONTRACTS.md) and [PostgreSQL Scope Security](./docs/POSTGRES_SCOPE_SECURITY.md) |
+| Trusted tenant/workspace scope | [Runtime Scope](./docs/RUNTIME_SCOPE_CONTRACT.md) |
 
-# Make sure git is configured
-git config --global user.signingkey YOUR_KEY_ID
-```
-
-### Changesets "No packages found"
-```bash
-# Make sure you're in the repo root
-cd /srv/lex-mcp/lex
-
-# Run changeset
-npx changeset
-```
-
-### CI failing on "all-checks-pass"
-The first time you push, the workflow needs to run once to create the status check.
-After that, branch protection can enforce it.
-
-### ESLint errors
-ESLint is currently optional (continue-on-error). You can skip it for now.
-
-## 📚 Documentation
-
-- **Full Plan**: `REPO_HARDENING_PLAN.md`
-- **Implementation Details**: `IMPLEMENTATION_SUMMARY.md`
-- **Changesets Guide**: `.changeset/README.md`
-- **Security Policy**: `SECURITY.md`
-- **Release Process**: `RELEASE.md`
-
-## 🎉 Next Steps
-
-1. ✅ Complete steps 1-5 above
-2. Make your first signed commit
-3. Create a test changeset
-4. Merge this hardening PR to staging
-5. Test the Wednesday release workflow
-6. Monitor CI/security dashboards
-
----
-
-**Questions?** Open an issue or check the docs above.
-**Need help?** See `REPO_HARDENING_PLAN.md` Section 8 for detailed roadmap.
+`lex init` is the broader bootstrap for these features. Inspect `lex init --help` and its planned
+outputs before using it in an established repository.

@@ -46,6 +46,12 @@ and compiles imports for every declaration path.
 | `@smartergpt/lex/schemas/feature-spec-v0.json` | Versioned feature specification JSON Schema |
 | `@smartergpt/lex/schemas/profile.schema.json` | Lex profile JSON Schema |
 
+The export path itself is stable once declared. Individual symbols may carry a narrower explicit
+status: `@smartergpt/lex/lexsona` and Code Atlas persistence currently identify experimental
+behavior in their source contracts. Consumers should not infer full behavioral stabilization from
+path availability alone; promoting or breaking those experimental symbols still requires an
+explicit contract decision and release note.
+
 ## Lex 3.0 storage boundary
 
 `@smartergpt/lex/store` keeps the unscoped 2.x adapters for migration compatibility, but trusted

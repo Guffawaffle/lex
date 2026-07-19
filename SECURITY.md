@@ -1,799 +1,174 @@
 # Security Policy
 
-**Target Use Case:** Single-developer / small-team dev-time library
-**NOT Recommended For:** Public multi-tenant production services without additional hardening
+Lex stores durable project context and can expose it to agents. Treat its databases, exports,
+logs, and diagnostics as potentially sensitive development artifacts.
 
-## Supported Versions
+## Supported release line
 
-We provide security updates for the following versions:
+Security fixes target the current `3.x` release line. Earlier release lines are not actively
+maintained. Reproduce a report on the newest published version when practical.
 
-| Version | Supported          | Security Posture |
-| ------- | ------------------ | ---------------- |
-| 1.0.x   | :white_check_mark: | Production-ready for local/private use |
-| 0.5.x   | :white_check_mark: | Maintenance only |
-| < 0.5   | :x:                | End of support |
+## Report a vulnerability
 
-**Version Support Policy:**
-- **1.0.0:** Production-ready for local dev, private automation, trusted teams. Includes OAuth2/JWT and SQLCipher encryption.
-- Security fixes backported to current minor version only
-- We follow semantic versioning strictly
+Do not open a public issue for an unpatched vulnerability. Use
+[GitHub private vulnerability reporting](https://github.com/Guffawaffle/lex/security/advisories/new)
+and include:
 
----
+- the affected Lex version and operating system;
+- the storage and hosting model involved;
+- a minimal reproduction or proof of concept;
+- the expected and observed security boundary;
+- any known mitigations.
 
-## Known Limitations (1.0.0)
+Do not include live credentials or private repository data. General bugs and hardening ideas that
+do not disclose an exploitable condition may use the public issue tracker.
 
-Lex 1.0.0 is production-ready for local development and trusted team environments. Known limitations:
+## Core trust boundaries
 
-1. **No authentication on MCP stdio mode** (MCP server runs as local process - by design)
-2. **HTTP mode supports OAuth2/JWT** (recommended for multi-user) - See Authentication below
-3. **Database encryption available** (SQLCipher) - See Database Encryption below
-4. **Limited audit trail** (HTTP requests logged, database ops not tracked)
-5. **SQLite limitations** (not suitable for high-concurrency multi-tenant deployments)
-6. **Example scanners not audited** (Python/PHP in `examples/scanners/`)
+### Frames are sensitive, untrusted history
 
-**Security Features (1.0.0):**
-- ✅ OAuth2/JWT authentication for multi-user deployments
-- ✅ User isolation (frames scoped to user_id)
-- ✅ Token refresh and revocation
-- ✅ CSRF protection via state parameter
-- ✅ Database encryption at rest (SQLCipher/AES-256)
-- ✅ PBKDF2 key derivation (64,000 iterations)
+A Frame can contain decisions, paths, branch names, blockers, ticket identifiers, and free-form
+text. Store only information that the operators of the selected backend are allowed to retain.
+Never put passwords, tokens, private keys, or other credentials in a Frame.
 
-**Acceptable for:**
-- ✅ Local development by single developer
-- ✅ Private automation scripts
-- ✅ Small trusted teams on secure networks
-- ✅ Internal production use with OAuth2/JWT enabled
+Recalled Frame bodies are user-controlled historical data. Agents and applications must treat
+them as untrusted context, not executable instructions, and verify important claims against
+current code, tests, issue state, and explicit human direction.
 
-**NOT acceptable for:**
-- ❌ Public internet-facing services without TLS
-- ❌ Multi-tenant SaaS applications at scale
-- ❌ Environments with strict compliance requirements (HIPAA, PCI-DSS)
-- ❌ High-security production environments without encryption at rest
+### Local SQLite trusts the local account
 
-See `docs/SECURITY_POSTURE.md` for detailed guidance and production roadmap
+SQLite is the default and writes below `.smartergpt/lex/` unless an explicit path is selected. Its
+primary security boundary is the local operating-system account and filesystem permissions.
 
----
+- Restrict access to the workspace and database file.
+- Keep live databases and exports out of version control.
+- Do not share a live SQLite file across machines or untrusted users.
+- Use an absolute `LEX_DB_PATH` when several trusted local launchers must select the same store.
+- Use `lex context` when a hard read-only bootstrap is required.
 
-## Database Encryption
+Several compatibility CLI paths may initialize or migrate SQLite even when the operation sounds
+read-oriented. The exact access contract is in [Store Contracts](./docs/STORE_CONTRACTS.md).
 
-**⚠️ IMPORTANT: Database encryption is OPTIONAL but RECOMMENDED for production use.**
+### SQLite encryption protects the database at rest
 
-Lex now supports database encryption at rest using SQLCipher. This protects Frame data, Atlas maps, and metadata from unauthorized access.
+Lex supports SQLCipher-compatible SQLite encryption with `LEX_DB_KEY` and `lex db encrypt`.
+Encryption protects database contents at rest; it does not protect data after Lex or an authorized
+agent reads it, and it does not replace filesystem permissions or host security.
 
-### Encryption Features
+The automatic recovery backup created before encryption contains the original plaintext database.
+Protect or remove that backup according to your retention policy after the encrypted output has
+been verified. A normal `lex db backup` copies the selected database bytes, so a backup of an
+already encrypted database remains encrypted.
 
-✅ **SQLCipher Integration**
-- AES-256 encryption for database files
-- PBKDF2 key derivation (64,000 iterations)
-- Drop-in replacement for better-sqlite3
-- Backward compatible with unencrypted databases
+Do not put `LEX_DB_KEY` in source control, command history, shared launcher files, or Frames. Hard
+read-only SQLite snapshots cannot currently open encrypted databases; see
+[Current Limitations](./docs/LIMITATIONS.md).
 
-✅ **Key Management**
-- Environment variable-based key configuration (`LEX_DB_KEY`)
-- Mandatory encryption in production mode (`NODE_ENV=production`)
-- Deterministic key derivation for consistent access
-- No key recovery mechanism (keep your passphrase secure!)
+### MCP trusts the launching host
 
-✅ **Migration Support**
-- `lex db encrypt` command to migrate existing databases
-- Data integrity verification with SHA-256 checksums
-- Non-destructive migration (creates new encrypted database)
+The packaged MCP server uses stdio and does not open a listening port. The MCP client launches the
+process and can call whichever Lex tools the server advertises, including writes. Review client
+configuration, environment inheritance, executable resolution, package pinning, and the selected
+workspace/store as one trust boundary.
 
-### Quick Start
+`@smartergpt/lex-mcp` is the coordinated compatibility launcher. There is no supported `lex mcp`
+CLI command. Lex's historical internal HTTP server is not a declared public package export and is
+not a supported deployment surface.
 
-**1. Enable Encryption (New Databases)**
+### Environment configuration is not authorization
 
-```bash
-# Set encryption passphrase (required in production)
-export LEX_DB_KEY="your-strong-passphrase-here-32-chars-minimum"
+Standalone CLI and compatibility store factories can select paths and backends with `LEX_*`
+variables. Those variables are process configuration for a trusted local operator. They do not
+prove a tenant, workspace, principal, or capability grant.
 
-# Start using Lex - database will be encrypted automatically
-lex remember --reference-point "my work" --summary "Testing encryption"
+A trusted Lex 3 host must compose these objects explicitly:
+
+```text
+trusted selection + repository evidence
+        ↓
+canonical authority and workspace binding
+        ↓
+AuthorizedScope
+        ↓
+scope-bound FrameStore
 ```
 
-**2. Migrate Existing Database**
-
-```bash
-# Set passphrase for encryption
-export LEX_DB_KEY="your-strong-passphrase-here"
-
-# Encrypt existing database with verification
-lex db encrypt --verify
-
-# Output will be: .smartergpt/lex/memory-encrypted.db
-# Rename to replace original database (after verifying it works)
-```
-
-**3. Using Custom Paths**
-
-```bash
-# Encrypt specific database file
-lex db encrypt \
-  --input /path/to/unencrypted.db \
-  --output /path/to/encrypted.db \
-  --passphrase "your-passphrase" \
-  --verify
-```
-
-### Key Management Best Practices
-
-**DO:**
-- ✅ Use strong passphrases (32+ characters, mix of letters, numbers, symbols)
-- ✅ Store passphrase in environment variables (never commit to git)
-- ✅ Use different passphrases for dev/staging/production
-- ✅ Back up your passphrase securely (password manager, encrypted vault)
-- ✅ Rotate passphrases periodically (re-encrypt database)
-
-**DON'T:**
-- ❌ Hard-code passphrases in application code
-- ❌ Store passphrases in version control
-- ❌ Share passphrases between environments
-- ❌ Use weak or guessable passphrases
-- ❌ Lose your passphrase (no recovery mechanism exists)
-
-### Environment Variables
-
-```bash
-# Required for encrypted databases
-export LEX_DB_KEY="your-passphrase-here"
-
-# Optional: Custom database path
-export LEX_DB_PATH="/custom/path/to/database.db"
-
-# Production mode (requires LEX_DB_KEY)
-export NODE_ENV="production"
-```
-
-### Example: Production Deployment
-
-```bash
-#!/bin/bash
-# production-deploy.sh
-
-# Generate strong passphrase (save to password manager!)
-PASSPHRASE=$(openssl rand -base64 32)
-
-# Encrypt database for production
-LEX_DB_KEY="$PASSPHRASE" lex db encrypt \
-  --input .smartergpt/lex/memory.db \
-  --output .smartergpt/lex/memory-prod.db \
-  --verify
-
-# Deploy with encrypted database
-export NODE_ENV="production"
-export LEX_DB_KEY="$PASSPHRASE"
-export LEX_DB_PATH=".smartergpt/lex/memory-prod.db"
-
-# Application will now use encrypted database
-lex mcp
-```
-
-### Migration Workflow
-
-```bash
-# Step 1: Create backup of existing database
-lex db backup --rotate 5
-
-# Step 2: Encrypt database with verification
-LEX_DB_KEY="new-passphrase" lex db encrypt --verify
-
-# Step 3: Test encrypted database
-LEX_DB_KEY="new-passphrase" lex recall "test query"
-
-# Step 4: If successful, rename encrypted database
-mv .smartergpt/lex/memory-encrypted.db .smartergpt/lex/memory.db
-
-# Step 5: Update environment configuration
-echo 'export LEX_DB_KEY="new-passphrase"' >> ~/.bashrc
-```
-
-### Security Considerations
-
-**Encryption Scope:**
-- ✅ All Frame data (timestamps, branches, summaries, status)
-- ✅ Atlas maps and module metadata
-- ✅ FTS5 search indexes
-- ✅ Schema and migration history
-
-**NOT Encrypted:**
-- ❌ Backups (use `lex db backup` after encryption)
-- ❌ In-memory data during runtime
-- ❌ Log files (configure logger separately)
-- ❌ Files in `.smartergpt/` (git-ignored, but not encrypted)
-
-**Performance Impact:**
-- ~10-17% overhead for read operations
-- ~20% overhead for write operations
-- Negligible impact for typical workloads (<10K frames)
-- See `docs/PERFORMANCE.md` for detailed benchmarks
-
-### Troubleshooting
-
-**Error: "Failed to open encrypted database. The encryption key may be incorrect."**
-- Verify `LEX_DB_KEY` is set correctly
-- Check for typos in passphrase
-- Ensure database was encrypted with the same passphrase
-
-**Error: "LEX_DB_KEY environment variable is required in production mode."**
-- Set `LEX_DB_KEY` environment variable
-- Or change `NODE_ENV` to development/test for unencrypted mode
-
-**Database corrupted after power loss:**
-- SQLCipher uses SQLite's WAL mode (write-ahead logging)
-- Restore from most recent backup: `lex db backup --rotate 5`
-
----
-
-## HTTP Server Security (New in 0.4.2)
-
-**⚠️ IMPORTANT: HTTP mode is less secure than MCP stdio mode. Use stdio for local development.**
-
-### Security Features (0.4.2+)
-
-The HTTP Frame Ingestion API includes the following security hardening:
-
-✅ **Mandatory API Key Authentication**
-- API key is REQUIRED (cannot start server without it)
-- Bearer token authentication on all `/api/frames` endpoints
-- Separate rate limiting for auth failures (5 attempts / 15min)
-
-✅ **Rate Limiting**
-- General API: 100 requests per 15 minutes per IP
-- Auth failures: 5 attempts per 15 minutes per IP
-- Configurable via `HttpServerOptions`
-
-✅ **Request Security**
-- 1MB request size limit (prevents memory exhaustion)
-- Security headers via Helmet (CSP, HSTS, etc.)
-- JSON strict parsing only
-
-✅ **Audit Logging**
-- All HTTP requests logged with: method, path, status, duration, IP, user agent
-- API key hashes logged (NOT the actual keys)
-- Separate audit logger: `memory:mcp_server:audit`
-
-### Deployment Best Practices
-
-**DO:**
-- ✅ Use strong, randomly-generated API keys (32+ characters)
-- ✅ Deploy behind TLS-terminating reverse proxy (nginx, Caddy, Traefik)
-- ✅ Bind to localhost and proxy from reverse proxy
-- ✅ Monitor audit logs for suspicious activity
-- ✅ Rotate API keys regularly
-- ✅ Use environment variables for API keys (never commit to git)
-
-**DON'T:**
-- ❌ Expose HTTP server directly to internet without reverse proxy
-- ❌ Use weak or guessable API keys
-- ❌ Share API keys across multiple clients
-- ❌ Log API keys in application code
-- ❌ Use HTTP mode for local development (use stdio instead)
-
-### Example: Nginx Reverse Proxy with TLS
-
-```nginx
-server {
-  listen 443 ssl http2;
-  server_name lex.internal.company.com;
-
-  # TLS configuration (Let's Encrypt)
-  ssl_certificate /etc/letsencrypt/live/lex.internal.company.com/fullchain.pem;
-  ssl_certificate_key /etc/letsencrypt/live/lex.internal.company.com/privkey.pem;
-  ssl_protocols TLSv1.2 TLSv1.3;
-  ssl_ciphers HIGH:!aNULL:!MD5;
-
-  # Security headers
-  add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
-  add_header X-Frame-Options DENY always;
-  add_header X-Content-Type-Options nosniff always;
-
-  # Proxy to Lex HTTP server (localhost only)
-  location /api/frames {
-    proxy_pass http://127.0.0.1:3000;
-    proxy_set_header Host $host;
-    proxy_set_header X-Real-IP $remote_addr;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
-
-    # Additional rate limiting at nginx level
-    limit_req zone=api_limit burst=20 nodelay;
-  }
-
-  # Health check (no auth required)
-  location /health {
-    proxy_pass http://127.0.0.1:3000;
-    access_log off;
-  }
-}
-
-# Rate limit zone definition (add to http block)
-limit_req_zone $binary_remote_addr zone=api_limit:10m rate=10r/s;
-```
-
----
-
-## OAuth2/JWT Security (New in 0.4.6)
-
-**OAuth2/JWT authentication is RECOMMENDED for multi-user and production deployments.**
-
-### Security Features
-
-✅ **Token-based authentication**
-- RS256 asymmetric cryptography (2048-bit RSA keys)
-- Access tokens expire after 1 hour (short-lived, minimize blast radius)
-- Refresh tokens expire after 30 days (long-lived, stored hashed in database)
-- Tokens are stateless (no session storage required)
-
-✅ **User isolation**
-- All frames are scoped to `user_id`
-- Users can only access their own data
-- System default user for legacy API key frames
-
-✅ **CSRF protection**
-- State parameter in OAuth2 flow (32-byte random)
-- State is single-use and expires after 10 minutes
-- Prevents cross-site request forgery attacks
-
-✅ **Audit logging**
-- All authentication events logged
-- Token hashes logged (never actual tokens)
-- Failed auth attempts logged separately
-
-### Deployment Best Practices
-
-**DO:**
-- ✅ Use HTTPS/TLS for all OAuth2 flows
-- ✅ Store JWT private keys securely (secrets manager, environment variables)
-- ✅ Never commit private keys to version control
-- ✅ Set restrictive file permissions: `chmod 600 jwt-private.pem`
-- ✅ Rotate keys periodically (regenerate and update clients)
-- ✅ Monitor audit logs for suspicious activity
-- ✅ Use strong GitHub OAuth client secrets
-
-**DON'T:**
-- ❌ Use HTTP for OAuth2 (always use HTTPS in production)
-- ❌ Share JWT private keys across environments
-- ❌ Log access tokens or refresh tokens
-- ❌ Use same keys for dev/staging/production
-- ❌ Ignore token expiration errors (refresh tokens properly)
-
-### JWT Token Security
-
-**Access Token Lifecycle:**
-```
-1. User authenticates via OAuth2 → Access token issued (1 hour TTL)
-2. Client uses access token for API requests
-3. Token expires after 1 hour
-4. Client refreshes token using refresh token → New access token issued
-5. Repeat until refresh token expires (30 days)
-```
-
-**Token Storage:**
-- **Access tokens:** Client-side (localStorage, memory) - short-lived so lower risk
-- **Refresh tokens:** Database, hashed with SHA-256 - cannot be recovered if DB compromised
-- **JWT private key:** File system (`.smartergpt/lex/keys/jwt-private.pem`) with 0600 permissions
-
-**Token Revocation:**
-- Call `/auth/revoke` to revoke refresh token immediately
-- Access token remains valid until expiration (max 1 hour)
-- For immediate revocation, implement token blacklist (not included)
-
-### Starting HTTP Server with OAuth2
-
-```typescript
-import { startHttpServer } from "lex/memory/mcp_server";
-import { createDatabase } from "lex/memory/store";
-
-const db = createDatabase();
-
-await startHttpServer(db, {
-  port: 3000,
-  enableOAuth: true,  // Enable OAuth2/JWT authentication
-  github: {
-    clientId: process.env.LEX_GITHUB_CLIENT_ID!,
-    clientSecret: process.env.LEX_GITHUB_CLIENT_SECRET!,
-    redirectUri: "https://api.example.com/auth/callback",
-  },
-  // Optional: Legacy API key for backward compatibility
-  apiKey: process.env.LEX_HTTP_API_KEY,
-});
-```
-
-### Environment Variables
-
-```bash
-# OAuth2 Configuration (Recommended)
-export LEX_OAUTH_ENABLED=true
-export LEX_GITHUB_CLIENT_ID="your_github_oauth_client_id"
-export LEX_GITHUB_CLIENT_SECRET="your_github_oauth_client_secret"
-export LEX_GITHUB_REDIRECT_URI="https://api.example.com/auth/callback"
-
-# Optional: Legacy API key (deprecated)
-export LEX_HTTP_API_KEY="your-secure-random-api-key-here"
-
-# Optional: Server configuration
-export LEX_HTTP_PORT="3000"
-export LEX_HTTP_RATE_LIMIT_WINDOW="900000"  # 15min in ms
-export LEX_HTTP_RATE_LIMIT_MAX="100"
-```
-
-### Starting HTTP Server
-
-```typescript
-import { startHttpServer } from "lex/memory/mcp_server";
-import { openDatabase } from "lex/memory/store";
-
-const db = openDatabase();
-
-// OAuth2/JWT (Recommended for production)
-await startHttpServer(db, {
-  enableOAuth: true,
-  github: {
-    clientId: process.env.LEX_GITHUB_CLIENT_ID!,
-    clientSecret: process.env.LEX_GITHUB_CLIENT_SECRET!,
-    redirectUri: process.env.LEX_GITHUB_REDIRECT_URI!,
-  },
-  port: 3000,
-});
-
-// OR: API key only (Deprecated, for backward compatibility)
-await startHttpServer(db, {
-  apiKey: process.env.LEX_HTTP_API_KEY!, // Will show deprecation warning
-  port: 3000,
-});
-```
-
-### Environment Variables
-
-```bash
-# OAuth2 Configuration (Recommended)
-export LEX_OAUTH_ENABLED=true
-export LEX_GITHUB_CLIENT_ID="your_github_client_id"
-export LEX_GITHUB_CLIENT_SECRET="your_github_client_secret"
-export LEX_GITHUB_REDIRECT_URI="https://api.example.com/auth/callback"
-
-# OR: Legacy API key (Deprecated)
-export LEX_HTTP_API_KEY="your-secure-random-api-key-here"
-
-# Optional configuration
-export LEX_HTTP_PORT="3000"
-export LEX_HTTP_RATE_LIMIT_WINDOW="900000"  # 15min in ms
-export LEX_HTTP_RATE_LIMIT_MAX="100"
-```
-
-### MCP Stdio Mode (Recommended for Local Dev)
-
-For local development and personal use, **MCP stdio mode is safer**:
-
-```json
-// Claude Desktop config: ~/.config/Claude/claude_desktop_config.json
-{
-  "mcpServers": {
-    "lex": {
-      "command": "lex",
-      "args": ["mcp"],  // stdio mode (default) - NO HTTP server
-      "env": {}
-    }
-  }
-}
-```
-
-**Why stdio is safer:**
-- ✅ No network exposure (not listening on any port)
-- ✅ Runs as subprocess of MCP client
-- ✅ Inherits OS-level permissions
-- ✅ Cannot be accessed remotely
-- ✅ No need for API keys or TLS
-
-**When to use HTTP mode:**
-- CI/CD pipelines need to POST frames programmatically
-- External tools (non-MCP) require webhook-based ingestion
-- Distributed systems need centralized frame storage
-- You have proper reverse proxy with TLS
-
----
-
-## Known Limitations (0.4.0-alpha)
-
-## Reporting a Vulnerability
-
-**⚠️ Please do NOT report security vulnerabilities through public GitHub issues.**
-
-### Reporting Channels
-
-1. **GitHub Security Advisories** (preferred):
-   - [Report a vulnerability](https://github.com/Guffawaffle/lex/security/advisories/new)
-   - Provides private communication and coordinated disclosure
-
-2. **Email** (alternative):
-   - Contact the maintainer team through GitHub profile
-   - Use subject line: `[SECURITY] Brief description`
-   - Include "SECURITY" in subject for priority handling
-
-### What to Include
-
-Please provide:
-
-- **Type of vulnerability**: Buffer overflow, injection, XSS, etc.
-- **Full paths** of affected source files
-- **Location**: Tag/branch/commit or direct URL
-- **Step-by-step reproduction**: Detailed instructions
-- **Proof-of-concept**: Code demonstrating the issue (if possible)
-- **Impact**: How this could be exploited in practice
-- **Affected versions**: Which versions are vulnerable
-- **Suggested fix**: If you have one (optional but appreciated)
-
-### Example Report
-
-```
-Vulnerability Type: SQL Injection in Frame Storage
-
-Affected Component: src/memory/store/index.ts:42
-Affected Versions: 0.1.0 - 0.2.0
-Location: https://github.com/Guffawaffle/lex/blob/main/src/memory/store/index.ts#L42
-
-Description:
-User-controlled input in `searchFrames()` is concatenated directly into SQL query
-without sanitization, allowing arbitrary SQL execution.
-
-Reproduction:
-1. Call searchFrames(db, { referencePoint: "'; DROP TABLE frames; --" })
-2. Observe that the frames table is deleted
-
-Impact:
-Remote attackers can read/modify/delete all frame data
-
-Suggested Fix:
-Use parameterized queries with db.prepare() instead of string concatenation
-```
-
-### What NOT to Include
-
-- ❌ **Production credentials** or API keys
-- ❌ **Personal data** from production systems
-- ❌ **Customer information** or proprietary code
-- ❌ **Unverified claims** without reproduction steps
-
----
-
-## Response Timeline
-
-| Stage | Timeline |
-|-------|----------|
-| **Acknowledgment** | Within 48 hours of report |
-| **Initial Assessment** | Within 7 days |
-| **Detailed Response** | Within 7-14 days |
-| **Fix Development** | Varies by severity (see below) |
-| **Public Disclosure** | After fix is released |
-
-### Severity Levels
-
-**Critical** (CVSS 9.0-10.0):
-- Fix target: 7 days
-- Examples: Remote code execution, authentication bypass
-
-**High** (CVSS 7.0-8.9):
-- Fix target: 14 days
-- Examples: SQL injection, privilege escalation
-
-**Medium** (CVSS 4.0-6.9):
-- Fix target: 30 days
-- Examples: XSS, information disclosure
-
-**Low** (CVSS 0.1-3.9):
-- Fix target: 90 days or next release
-- Examples: Low-impact information leaks
-
----
-
-## Disclosure Process
-
-We follow **coordinated disclosure**:
-
-1. **Private Report**: You report the vulnerability privately
-2. **Investigation**: We investigate and confirm the issue
-3. **Fix Development**: We develop and test a fix
-4. **Release**: We release patched version(s)
-5. **Public Disclosure**: We publish a security advisory (typically 24-48 hours after release)
-6. **Credit**: We credit you in the advisory (unless you prefer anonymity)
-
-### Credit
-
-If you wish to be credited:
-- Provide your name/handle and optional link (GitHub, website, etc.)
-- We will include you in:
-  - Security advisory on GitHub
-  - Release notes
-  - CHANGELOG.md
-
-If you prefer to remain anonymous, let us know and we will not mention your name.
-
----
-
-## Security Best Practices for Users
-
-### Installation
-
-```bash
-# ✅ Install from npm (with provenance verification)
-npm install lex
-npm audit signatures
-
-# ✅ Use specific versions (not ranges)
-npm install lex@0.2.0
-
-# ⚠️ Avoid installing from unverified sources
-```
-
-### Dependency Management
-
-```bash
-# Run security audits regularly
-npm audit
-
-# Fix vulnerabilities automatically (review changes!)
-npm audit fix
-
-# Check for outdated packages
-npm outdated
-```
-
-### Runtime Security
-
-When using Lex in your application:
-
-- ✅ **Validate input**: Sanitize user input before passing to Lex APIs
-- ✅ **Use latest version**: Keep Lex updated to get security patches
-- ✅ **Review CHANGELOG**: Check for security-related changes before upgrading
-- ✅ **Enable Dependabot**: Set up automated dependency updates
-- ✅ **Least privilege**: Run with minimal required permissions
-- ✅ **Secure storage**: If using frame storage, ensure database files are protected
-
-### Configuration Security
-
-```typescript
-// ✅ Good: Validate module IDs before use
-const moduleId = validateModuleId(userInput);
-const frame = await saveFrame(db, { moduleScope: [moduleId] });
-
-// ❌ Bad: Using user input directly
-const frame = await saveFrame(db, { moduleScope: [userInput] });
-```
-
-### Sensitive Data
-
-- ❌ **Do NOT** store credentials, API keys, or secrets in frames
-- ❌ **Do NOT** include production PII in memory captures
-- ✅ **Do** use frames for architectural context and work status only
-- ✅ **Do** review frame contents before sharing
-
----
-
-## Security Verification
-
-All releases include:
-
-### Signed Git Tags
-```bash
-# Verify tag signature
-git verify-tag v0.2.0
-
-# Expected output:
-# gpg: Good signature from "Maintainer Name <email>"
-```
-
-### npm Provenance
-```bash
-# Verify package provenance
-npm audit signatures lex
-
-# Check package integrity
-npm view lex@0.2.0 dist.integrity
-```
-
-### Checksums
-Release artifacts include SHA256 checksums:
-```bash
-# Verify tarball
-sha256sum lex-0.2.0.tgz
-# Compare with published checksum in release notes
-```
-
----
-
-## Automated Security
-
-We use:
-
-- **Dependabot**: Automated dependency updates
-- **CodeQL**: Static analysis for security issues
-- **npm audit**: Vulnerability scanning in CI
-- **Snyk**: Additional dependency monitoring (planned)
-
----
-
-## Security-Related Configuration
-
-### Recommended npm Config
-
-```bash
-# Enforce HTTPS for registry
-npm config set registry https://registry.npmjs.org/
-
-# Enable audit during install
-npm config set audit true
-
-# Require signatures
-npm config set require-signatures true
-```
-
-### Environment Variables
-
-None currently. Lex does not require environment variables for core functionality.
-
----
-
-## Known Security Considerations
-
-### Local Storage
-
-- Frames are stored in local SQLite database (no network)
-- Database file permissions should be restricted (chmod 600)
-- No encryption at rest (use OS-level encryption if needed)
-
-### CLI Execution
-
-- CLI runs with user privileges
-- No elevation or sudo required
-- Scripts in `scripts/` should not be run as root
-
-### MCP Server
-
-- MCP server runs over stdio (no network exposure)
-- Input validation is performed on all MCP requests
-- No authentication required (local process communication only)
-
----
-
-## Contact
-
-For security concerns:
-- GitHub Security Advisories: [Report here](https://github.com/Guffawaffle/lex/security/advisories/new)
-- General questions: [GitHub Discussions](https://github.com/Guffawaffle/lex/discussions)
-
-For non-security bugs: [GitHub Issues](https://github.com/Guffawaffle/lex/issues)
-
----
-
-## Updates to This Policy
-
-This security policy may be updated periodically. Check the git history for changes:
-
-```bash
-git log -p SECURITY.md
-```
-
-Last updated: November 2025
-
-- **Signed with GPG**: Verify tags with `git verify-tag v<version>`
-- **Published with provenance**: Verify with `npm audit signatures`
-- **Scanned for vulnerabilities**: CodeQL, Snyk, and npm audit in CI
-
-## Security Features
-
-- **Hermetic builds**: All CI builds use `npm ci --ignore-scripts`
-- **No network in tests**: Tests run offline to prevent supply chain attacks
-- **Hardened runners**: CI uses `step-security/harden-runner` for egress auditing
-- **Dependency scanning**: Automated security updates via Dependabot
-- **Code scanning**: Weekly CodeQL and OpenSSF Scorecard analysis
-
-## Security Hall of Fame
-
-We appreciate security researchers who help keep Lex secure:
-
-<!-- Security researchers who report vulnerabilities will be listed here -->
-
----
-
-**Last updated**: November 6, 2025
+Ordinary request handlers receive only the bound store view. Administrative migration, repair,
+rebind, and recovery capabilities remain separately authorized. See the
+[Runtime Scope Contract](./docs/RUNTIME_SCOPE_CONTRACT.md).
+
+### PostgreSQL RLS is defense in depth
+
+Trusted shared or multi-tenant PostgreSQL deployments require both application authority and
+database enforcement:
+
+- a protected, explicitly selected schema;
+- a migration/owner role separate from the runtime role;
+- a runtime role that is not an owner and has neither `BYPASSRLS` nor effective schema `CREATE`;
+- forced row-level security on scoped relations;
+- explicit tenant/workspace predicates in application queries;
+- transaction-local scope and principal settings;
+- fail-closed connection-pool reset and scope verification;
+- expiry revalidation after pool checkout;
+- schema-qualified canonical relations.
+
+RLS limits damage if a query is wrong; it does not issue or validate Lex authority. The normative
+deployment details and live verification expectations are in
+[PostgreSQL Scope Security](./docs/POSTGRES_SCOPE_SECURITY.md) and
+[PostgreSQL Authority](./docs/POSTGRES_AUTHORITY.md).
+
+Trusted scoped MCP currently omits and rejects attachment/image inputs until Lex has a scope-bound
+attachment service.
+
+## Secrets and environment variables
+
+Lex can read local compatibility configuration from environment variables, including database
+URLs, PostgreSQL passwords, and SQLite encryption keys. Minimize inheritance into child processes
+and prefer your platform's secret injection mechanism over checked-in `.env` or MCP configuration
+files.
+
+Introspection redacts PostgreSQL URL passwords and query parameters, but diagnostics can still
+contain local paths, repository identifiers, backend identities, and policy state. Review output
+before sharing it publicly.
+
+## Backups, exports, and deletion
+
+Backups and Frame exports inherit the sensitivity of their source. Store them with equivalent
+access controls and retention limits. Do not assume that deleting a source database removes copies
+held by backups, exports, PostgreSQL retention systems, logs, or an agent host.
+
+Database maintenance is an administrative action. In trusted hosting, do not expose an unbound
+`FrameStoreAdmin` or owner connection to normal CLI/MCP request handling.
+
+## Supply-chain and release verification
+
+- Install `@smartergpt/lex` and `@smartergpt/lex-mcp` from the intended registry.
+- Pin versions or lockfile integrity according to your dependency policy.
+- Do not execute a Windows npm shim from WSL or share native `node_modules` across operating
+  systems.
+- Verify source releases and signed annotated tags when building from GitHub.
+- Review dependency and static-analysis findings in the context of the actual trust model; report
+  reproducible vulnerabilities privately.
+
+## Security checklist
+
+Before adopting Lex in a repository:
+
+- decide which project context may be retained;
+- identify who can read the selected SQLite file or PostgreSQL rows;
+- keep secrets out of Frames and launcher configuration;
+- verify the active workspace and store with `lex introspect --json`;
+- use `lex context` for hard read-only agent bootstrap;
+- treat recalled history as untrusted;
+- use explicit authority plus scoped stores for trusted hosting;
+- test PostgreSQL role, RLS, pool-reset, and expiry behavior before serving tenants;
+- protect backups and exports like the original store.
+
+## Related contracts
+
+- [Store Contracts](./docs/STORE_CONTRACTS.md)
+- [Runtime Scope Contract](./docs/RUNTIME_SCOPE_CONTRACT.md)
+- [PostgreSQL Authority](./docs/POSTGRES_AUTHORITY.md)
+- [PostgreSQL Scope Security](./docs/POSTGRES_SCOPE_SECURITY.md)
+- [Environment Reference](./docs/ENVIRONMENT.md)
+- [Current Limitations](./docs/LIMITATIONS.md)

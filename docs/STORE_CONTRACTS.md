@@ -6,11 +6,19 @@ Lex exposes persistence contracts that abstract database operations behind inter
 current normative details, including version domains and Frame record semantics, live in
 [`src/memory/store/CONTRACT.md`](../src/memory/store/CONTRACT.md).
 
+| Deployment need | Use |
+|---|---|
+| One trusted local workspace | Default SQLite store |
+| Compatibility shared store without tenant isolation | Explicit unscoped PostgreSQL adapter |
+| Trusted multi-workspace or multi-tenant host | Runtime scope, canonical authority, and a scope-bound PostgreSQL store with forced RLS |
+
+The compatibility PostgreSQL adapter is not a tenant authorization boundary.
+
 ## FrameStore
 
 `FrameStore` is the persistence contract for Frames (episodic memory snapshots).
 
-### Methods
+### Common operations
 
 - `saveFrame(frame)` — Persist a Frame
 - `getFrameById(id)` — Retrieve by ID
@@ -133,7 +141,8 @@ database permissions.
 
 ## CodeAtlasStore (@experimental)
 
-Experimental interface for Code Atlas data. API may change including breaking changes in 1.0.x releases without semver guarantees. This interface will be stabilized in a future minor release.
+Experimental interface for Code Atlas data. It does not yet carry the stability guarantees of the
+Frame and scope-bound store contracts.
 
 ## Extension Points
 

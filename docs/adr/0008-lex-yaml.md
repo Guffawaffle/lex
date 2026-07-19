@@ -1,4 +1,4 @@
-# ADR-00X: Repo-local AI workflow config (`lex.yaml`)
+# ADR-0008: Repo-local AI workflow config (`lex.yaml`)
 
 - Status: Accepted (v0)
 - Date: 2025-11-27

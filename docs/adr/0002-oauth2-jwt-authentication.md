@@ -1,6 +1,7 @@
 # ADR 0002: OAuth2/JWT Authentication for Multi-User Deployments
 
-**Status:** Accepted
+**Status:** Superseded for trusted Lex 3 hosts by
+[ADR-0011](./0011-trusted-runtime-scope-and-authority.md)
 
 **Date:** 2025-01-24
 

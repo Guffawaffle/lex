@@ -1,5 +1,9 @@
 # PostgreSQL Canonical Authority
 
+This guide is for operators and trusted-host implementers. It assumes separate administrative and
+runtime PostgreSQL pools, a dedicated protected schema, pre-provisioned roles, and an application
+selection provider that resolves opaque authentication state outside Lex.
+
 Lex 3.0 separates shared canonical authority from every surface-local binding registry. The
 PostgreSQL authority owns principal, tenant, workspace, repository, membership, grant, version,
 expiry, and revocation records. Windows and WSL may resolve the same canonical UUIDs while each
@@ -86,8 +90,10 @@ canonical authority.
    it.
 4. Construct a distinct read-only runtime Pool and pass the same explicit schema to
    `PostgresAuthorityDirectory`.
-5. Construct the scoped PostgreSQL FrameStore binder with a non-owner, non-`BYPASSRLS` runtime
-   role.
+5. Provision and migrate the separate scoped FrameStore schema, then construct its binder with a
+   non-owner, non-`BYPASSRLS` runtime role. Follow
+   [PostgreSQL Scope Security](./POSTGRES_SCOPE_SECURITY.md); authority migration alone does not
+   create the Frames schema.
 6. Pass both explicit runtime handles to `createPostgresTrustedRuntimeHost()`.
 7. Bind each native Windows/WSL repository instance through its own local registry.
 

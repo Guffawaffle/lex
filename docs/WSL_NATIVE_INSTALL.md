@@ -1,32 +1,27 @@
-# WSL Native Lex Install
+# WSL Native Lex Installation
 
-This guide keeps the `lex` command in WSL native, stable, and visible on
-`PATH` for tools such as AXF. Do not point `lex` at `~/.npm/_npx/...`;
-that directory is a cache and may disappear or be replaced by npm.
+Install and run Lex inside WSL when the agent or shell runs inside WSL. Do not let a Windows npm
+shim or npm's disposable `_npx` cache win on `PATH`, and do not share native `node_modules` across
+the Windows/WSL boundary.
 
-## Recommended: user-local npm global install
+## Packaged installation
 
-Use this when WSL should run a packaged Lex CLI without depending on
-Windows npm shims or sudo-owned global installs.
+Configure a user-owned npm prefix once if your WSL environment does not already have one:
 
 ```bash
-cd /srv/lex-mcp/lex
-npm ci
-npm run build
-npm run check-sqlite
-
 npm config set prefix "$HOME/.local"
 mkdir -p "$HOME/.local/bin"
-
-# Add this to ~/.bashrc, ~/.zshrc, or your shell profile if needed.
 export PATH="$HOME/.local/bin:$PATH"
+```
 
-npm install --global "$PWD"
+Persist that `PATH` entry in the WSL shell profile, then install the published package:
+
+```bash
+npm install --global @smartergpt/lex
 hash -r
 ```
 
-Confirm WSL resolves the user-local native install before any stale
-system install or Windows path entry:
+Confirm the selected executable is Linux-native and stable:
 
 ```bash
 type -a lex
@@ -35,20 +30,15 @@ readlink -f "$(command -v lex)" || true
 lex --version
 ```
 
-Expected shape:
+The active command should resolve below the WSL npm prefix, not `/mnt/c/...` and not
+`~/.npm/_npx/...`.
 
-- `command -v lex` resolves under `$HOME/.local/bin`.
-- `lex --version` reports the version from this checkout/package.
-- Later `type -a lex` entries under `/usr/bin`, `/bin`, or `/mnt/c/...`
-  are not the active command.
+## Contributor installation from a checkout
 
-## Checkout bridge: stable user-local symlink
-
-Use this only when you deliberately want WSL `lex` to track a stable
-source checkout after each build.
+Use this path only when you intentionally want `lex` to track a source checkout after each build:
 
 ```bash
-cd /srv/lex-mcp/lex
+cd /path/to/lex
 npm ci
 npm run build
 npm run check-sqlite
@@ -59,55 +49,55 @@ export PATH="$HOME/.local/bin:$PATH"
 hash -r
 ```
 
-This is durable because it points at a stable checkout path, not npm's
-`_npx` cache. Re-run `npm run build` after source changes.
+Re-run `npm run build` after source changes. The symlink is stable because it targets the checkout,
+not npm's `_npx` cache.
 
 ## Native module requirements
 
-Lex uses `better-sqlite3-multiple-ciphers`, a native addon compiled for
-the current Node.js ABI and platform. Keep WSL and Windows installs
-separate; do not share `node_modules` across the Linux/Windows boundary.
+Lex uses `better-sqlite3-multiple-ciphers`, a native addon built for the active operating system,
+architecture, and Node.js ABI. Install dependencies independently in WSL and Windows.
 
-WSL/Ubuntu build prerequisites:
+Ubuntu/WSL build prerequisites:
 
 ```bash
 sudo apt-get update
 sudo apt-get install build-essential python3
 ```
 
-If Node.js changes, rebuild and verify the native bindings:
+After changing Node.js versions in a checkout:
 
 ```bash
-cd /srv/lex-mcp/lex
 npm run rebuild-sqlite
 npm run check-sqlite
 ```
 
-See [SQLite Native Bindings](./dev/sqlite-bindings.md) for detailed
-binding failure modes and repair steps.
+See [SQLite Native Bindings](./dev/sqlite-bindings.md) for detailed failure modes.
 
-## Read-only validation
+## Isolated validation
 
-These commands validate the executable path without running write Lex
-commands. `LEX_DB_PATH` keeps recall validation state in a temporary
-database instead of the caller workspace.
+These commands confirm executable resolution and keep any compatibility-store initialization in a
+temporary directory rather than the current repository:
 
 ```bash
 lex --version
 lex introspect --json
-LEX_DB_PATH="$(mktemp -d)/memory.db" lex recall --list 1 --json
+LEX_STORE=sqlite LEX_DB_PATH="$(mktemp -d)/memory.db" lex recall --list 1 --json
 ```
 
-For AXF, confirm the same `lex` is reachable from `PATH`:
+The last command is workspace-isolated, not filesystem read-only: opening the compatibility store
+can create an empty temporary SQLite database.
+
+If AXF is installed separately, optionally confirm it resolves the same WSL-native Lex:
 
 ```bash
-axf --workspace <repo> run global.lex.status --json
+axf --workspace /path/to/repository run global.lex.status --json
 ```
 
 ## Avoid
 
-- Do not point `~/.local/bin/lex` at `~/.npm/_npx/...`.
-- Do not let WSL pick `lex.CMD`, `lex.ps1`, or other Windows npm shims
-  through `/mnt/c/...` PATH entries.
-- Do not use Lex write commands such as `lex remember` just to validate
-  installation.
+- Windows `lex.CMD`, `lex.ps1`, or other npm shims through `/mnt/c/...` paths
+- symlinks into `~/.npm/_npx/...`
+- shared `node_modules` between Windows and WSL
+- `lex remember` merely to prove installation
+- copying a live SQLite database between the two surfaces for shared access; use PostgreSQL for
+  coordinated cross-host storage

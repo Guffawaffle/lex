@@ -1,5 +1,9 @@
 # Trusted Runtime Scope Contract
 
+Use this contract when building a trusted Lex host for more than one tenant, workspace, principal,
+or repository binding. Ordinary local SQLite users do not need it; the CLI/compatibility path is
+documented in the main README and environment reference.
+
 Lex exposes its versioned identity, authority, local-registry, and resolver surface from:
 
 ```ts
@@ -25,7 +29,11 @@ import {
 } from "@smartergpt/lex/runtime-scope";
 ```
 
-Phase 1 froze the public contract. Phase 2 added the deterministic resolver and local-registry services. Phase 3 provides production repository discovery, explicit binding administration, and one shared injectable CLI/MCP guard. Compatibility hosts remain available during the prerelease weave, but a Lex 3.0 host must supply canonical authority, trusted selection, and a scope-bound store together.
+Lex 3 ships the versioned contract, deterministic resolver, surface-local registry, production
+repository discovery, explicit binding administration, canonical PostgreSQL authority, and one
+injectable CLI/MCP guard. Compatibility hosts remain available for local and migration workflows,
+but a trusted Lex 3 host must supply canonical authority, trusted selection, and a scope-bound
+store together.
 
 ## Boundary
 
@@ -104,9 +112,10 @@ Normal agent-facing output should not contain raw tenant/workspace topology, pri
 
 Implementations should adapt the fixtures to their test harness without changing their expected semantics. The fixtures perform no file or database access.
 
-Lex also runs every exported fixture through its concrete Phase 2 resolver and SQLite registry in the implementation conformance suite.
+Lex also runs every exported fixture through its concrete resolver and SQLite registry in the
+implementation conformance suite.
 
-## Phase 2 implementation
+## Resolver and local-registry implementation
 
 ### Trusted capture and execution surfaces
 
@@ -156,7 +165,7 @@ validated explicit schema and qualify every authority relation, independent of p
 and revocation seam. See
 [PostgreSQL Canonical Authority](./POSTGRES_AUTHORITY.md).
 
-## Phase 3 trusted bootstrap and entrypoint wiring
+## Trusted bootstrap and entrypoint wiring
 
 `captureTrustedBootstrapInput` freezes `argv`, `cwd`, native platform/surface evidence, and a small compatibility-environment allow-list exactly once. The allow-list contains only home/state and caller-root discovery inputs. Database credentials and registry-path overrides are discarded, and retained environment values remain discovery inputs rather than authority.
 
@@ -184,7 +193,12 @@ and revocation seam. See
 
 The IDs and slugs in this file remain declaration/selection hints. Editing or copying it cannot grant workspace access.
 
-`WorkspaceBindingAdminService` owns the explicit `lex workspace recover|bind|inspect|rebind|revoke` lifecycle. Recovery creates only an absent, empty surface-local registry and refuses in-place repair or replacement. Every mutation is independently authorized with a named workspace-administration capability and produces or preserves registry receipts. Normal bootstrap never calls this service.
+`WorkspaceBindingAdminService` owns the explicit `lex workspace recover|bind|inspect|rebind|revoke`
+lifecycle. Those commands require an injected trusted-host administration service; the standalone
+packaged CLI exposes the command group but fails closed when administration is not configured.
+Recovery creates only an absent, empty surface-local registry and refuses in-place repair or
+replacement. Every mutation is independently authorized with a named workspace-administration
+capability and produces or preserves registry receipts. Normal bootstrap never calls this service.
 
 `createTrustedRuntimeScopeEntrypointGuard` constructs the one canonical guard used by both `run()` and `MCPServer`. CLI authorization completes before Commander dispatch. MCP authorization completes before tool dispatch, and a denial therefore cannot invoke even a mutating in-memory test store. Command and tool capability maps are exhaustive against the real Commander tree, advertised MCP tools, and supported aliases; unknown operations reject rather than inheriting a default grant. Explicit dry-run commands attenuate write/delete capabilities.
 
@@ -202,7 +216,7 @@ Normal calls add no scope metadata to agent output. CLI diagnostics use `--diagn
 
 ## Scoped SQLite Frame ownership
 
-`SqliteScopedFrameStoreBackend` persists the Phase 3 scope contract in SQLite
+`SqliteScopedFrameStoreBackend` persists the Lex 3 scope contract in SQLite
 schema v15. SQLite remains a per-workspace deployment: one file has one
 immutable tenant/workspace binding, while every Frame row also records ownership
 contract version, creator principal, and the scope version active at creation.
@@ -223,14 +237,18 @@ This local file binding is an authorization invariant, not a global publication
 mechanism. Cross-workspace/global Frames, projections, and catalogs remain
 separate future contracts.
 
-## Deferred implementation
+## Intentionally separate or unavailable
 
-The following remain intentionally outside this Phase 3 slice:
+The following remain intentionally outside the trusted-host contract:
 
 - making the standalone compatibility executable mandatory-guarded before a production `AuthorityDirectory` and trusted selection provider are available;
-- PostgreSQL RLS;
 - projections and catalog publication;
 - offline authority pairing or locally minted authority;
 - a cross-repository helper package.
+
+PostgreSQL canonical authority and forced-RLS scoped Frame storage are implemented. See
+[PostgreSQL Canonical Authority](./POSTGRES_AUTHORITY.md) and
+[PostgreSQL Scope Security](./POSTGRES_SCOPE_SECURITY.md). Global/cross-workspace Frames remain a
+separate publication and projection decision rather than a special scope value.
 
 See [ADR-0011](./adr/0011-trusted-runtime-scope-and-authority.md), epic [#749](https://github.com/Guffawaffle/lex/issues/749), Phase 2 issue [#755](https://github.com/Guffawaffle/lex/issues/755), and Phase 3 issue [#758](https://github.com/Guffawaffle/lex/issues/758).

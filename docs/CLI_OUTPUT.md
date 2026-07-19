@@ -1,521 +1,158 @@
-# CLI Output System
+# CLI Output Contract
 
-## Overview
+Lex has two related machine-facing output surfaces:
 
-The Lex CLI output system provides a centralized, typed wrapper for all command-line output with two key features:
+1. command-specific `--json` results for automation;
+2. versioned JSONL events from the shared output writer.
 
-1. **Dual Sinks**: Outputs go to both user-facing console (stdout/stderr) and optional diagnostic logger (pino)
-2. **Two Modes**: Human-readable plain text with colors/symbols, or machine-readable JSONL events
+They are intentionally distinct. Do not assume every `--json` result is a `CliEvent`, and do not
+wrap a command's documented JSON payload in an extra event envelope.
 
-## Architecture
+## Command-specific JSON
 
-```
-CLI Command
-    ↓
-output.info/success/warn/error/debug
-    ↓
-┌─────────────────────┐
-│  CliOutput Wrapper  │
-│  (output.ts)        │
-└─────────────────────┘
-    ↓           ↓
-    ↓           └─→ Logger (pino)
-    ↓               Diagnostic sink
-    ↓               Non-blocking, pluggable
-    ↓
-┌─────────────────────┐
-│  User-facing Output │
-│  console.log/error  │
-└─────────────────────┘
-    ↓
-stdout/stderr
-```
-
-### Mode Selection
-
-- **Plain Mode** (default): Human-readable with ANSI colors and symbols
-- **JSONL Mode**: Machine-readable, one CliEvent JSON object per line
-
-Set mode via:
-- `LEX_CLI_OUTPUT_MODE=jsonl` environment variable
-- `createOutput({ mode: "jsonl" })` in code
-
-## Output Modes
-
-### Plain Mode (Human-Readable)
-
-Outputs formatted text with colors and symbols:
+Place the global `--json` flag before the command:
 
 ```bash
-$ lex remember --reference "implementing auth" --caption "Added login"
-✔ Frame created successfully!
-  Frame ID: 550e8400-e29b-41d4-a716-446655440000
-  Timestamp: 2025-01-09T12:34:56.789Z
-  Branch: feature/auth
-  Reference: implementing auth
-  Modules: auth/core, auth/login
+lex --json introspect
+lex --json context "authentication" --limit 3 --max-tokens 800
+lex --json recall "authentication"
 ```
 
-#### Symbols
+Commands return their own structured result shape. That is the preferred surface when a script or
+agent needs the semantic result of one operation. Check `lex <command> --help` and the relevant
+contract before depending on optional fields.
 
-- `✔` (green) - Success
-- `⚠` (yellow) - Warning
-- `✖` (red) - Error
-- `•` - Info
-- `∙` (dim) - Debug
-
-#### Colors
-
-Colors are automatically enabled when:
-- Running in a TTY (terminal)
-- `LEX_CLI_PRETTY=1` environment variable is set
-
-#### Stream Routing
-
-- **stdout**: `info`, `success`, `debug`
-- **stderr**: `warn`, `error`
-
-### JSONL Mode (Machine-Readable)
-
-Outputs one JSON event per line conforming to CliEvent v1 schema.
-
-**📌 Stream Routing (Critical for Shell Scripting):**
-- Events with `level: "error"` or `level: "warn"` → **stderr**
-- All other levels (`info`, `success`, `debug`) → **stdout**
-
-**Canonical JSONL Example:**
-
-```jsonl
-{"v":1,"ts":"2025-01-09T12:34:56.789Z","level":"info","scope":"cli","message":"Processing Frame"}
-{"v":1,"ts":"2025-01-09T12:34:57.123Z","level":"error","scope":"cli","message":"Policy violation detected","code":"POLICY_ERROR","hint":"Add module to lexmap.policy.json"}
-```
-
-Note: The first line goes to **stdout**, the second to **stderr**.
+For example, a validation-only Frame write can be requested with:
 
 ```bash
-$ LEX_CLI_OUTPUT_MODE=jsonl lex remember --reference "test" --caption "test"
-{"v":1,"ts":"2025-01-09T12:34:56.789Z","level":"success","scope":"cli","message":"Frame created successfully!","data":{"id":"550e8400-e29b-41d4-a716-446655440000"},"code":"FRAME_CREATED"}
+lex --json remember \
+  --summary "Validated the authentication handoff" \
+  --next "Run the focused tests" \
+  --modules unscoped \
+  --dry-run
 ```
 
-#### CliEvent Schema (v1)
+Machine consumers should also use process exit status. Some commands offer stricter absence
+semantics, such as `lex recall --strict`.
 
-See [schemas/cli-output.v1.schema.json](../schemas/cli-output.v1.schema.json) for full JSON Schema.
+## Shared event output
 
-**Canonical Field Definitions:**
-
-```typescript
-interface CliEvent<T = unknown> {
-  v: 1;                    // Schema version (always 1 for v1 events)
-  ts: string;              // ISO 8601 timestamp (UTC, e.g., "2025-01-09T12:34:56.789Z")
-  level: CliLevel;         // Event severity: "info" | "success" | "warn" | "error" | "debug"
-  scope?: string;          // Component scope (e.g., "cli", "mcp", "policy", "cli:remember")
-  code?: string;           // Machine-readable event code (e.g., "FRAME_CREATED", "POLICY_VIOLATION")
-  message?: string;        // Human-readable message (short summary)
-  data?: T;                // Arbitrary structured data (event-specific payload)
-  hint?: string;           // Optional actionable hint for error resolution
-}
-
-type CliLevel = "info" | "success" | "warn" | "error" | "debug";
-```
-
-**Field Semantics:**
-
-| Field | Required | Type | Description |
-|-------|----------|------|-------------|
-| `v` | ✅ Yes | `number` | Schema version. Always `1` for v1 events. Use this to handle schema evolution. |
-| `ts` | ✅ Yes | `string` | ISO 8601 timestamp in UTC. Format: `YYYY-MM-DDTHH:mm:ss.sssZ`. Produced by `new Date().toISOString()`. |
-| `level` | ✅ Yes | `CliLevel` | Event severity. Maps to log levels: `info`=informational, `success`=operation succeeded, `warn`=potential issue, `error`=failure, `debug`=verbose diagnostic. |
-| `scope` | ❌ No | `string` | Categorizes event origin. Examples: `"cli"` (CLI layer), `"mcp"` (MCP server), `"policy"` (policy checker), `"cli:remember"` (specific command). Useful for filtering logs. |
-| `code` | ❌ No | `string` | Machine-readable event identifier. Use SCREAMING_SNAKE_CASE (e.g., `FRAME_CREATED`, `MODULE_NOT_FOUND`). Consumers can switch on this for programmatic handling. |
-| `message` | ❌ No | `string` | Human-readable summary. Should be concise (1-2 sentences). Suitable for displaying to end users. |
-| `data` | ❌ No | `any` | Event-specific structured payload. Type varies by event. Examples: `{id: "...", timestamp: "..."}` for frame creation, `{violations: [...]}` for policy errors. |
-| `hint` | ❌ No | `string` | Actionable guidance for resolving errors. E.g., "Run `lex check` to validate policy" or "Add module to lexmap.policy.json". |
-
-**Stream Routing in JSONL Mode:**
-
-- Events with `level: "error"` or `level: "warn"` → **stderr**
-- All other levels (`info`, `success`, `debug`) → **stdout**
-
-This allows shell scripts to separate errors from normal output:
+The shared CLI writer emits human-readable text by default. Set `LEX_CLI_OUTPUT_MODE=jsonl` to emit
+one `CliEvent` v1 object per line:
 
 ```bash
-# Capture only successful output, errors go to terminal
-lex recall "auth" 2>/dev/null | jq '.data'
-
-# Capture only errors
-lex check policy.json 2>&1 >/dev/null | jq -r '.message'
-```
-}
+LEX_CLI_OUTPUT_MODE=jsonl lex remember \
+  --summary "Stored the authentication handoff" \
+  --next "Run the focused tests" \
+  --modules unscoped
 ```
 
-#### Required Fields
+A JSONL event has this shape:
 
-- `v`: Always `1` (version)
-- `ts`: ISO 8601 timestamp (e.g., `"2025-01-09T12:34:56.789Z"`)
-- `level`: One of `info`, `success`, `warn`, `error`, `debug`
-
-#### Optional Fields
-
-- `scope`: Logical component (e.g., `"cli"`, `"mcp"`, `"policy"`)
-- `code`: Machine-readable code (e.g., `"FRAME_CREATED"`, `"ATLAS_GEN_FAILED"`)
-- `message`: Human-readable description
-- `data`: Structured payload (frame IDs, counts, metadata)
-- `hint`: Suggestion for error resolution (only for `warn`/`error`)
-
-## Usage Examples
-
-### Basic Output
-
-```typescript
-import { output } from "./shared/cli/output.js";
-
-// Plain mode (default)
-output.info("Processing 42 files...");
-output.success("All files processed");
-output.warn("Cache miss for module X");
-output.error("Failed to load policy", undefined, "POLICY_LOAD_ERR", "Check file permissions");
-output.debug("Token count: 1024");
-```
-
-### With Structured Data
-
-```typescript
-output.success("Frame created", { id: frame.id, timestamp: frame.timestamp }, "FRAME_CREATED");
-```
-
-**Plain output:**
-```
-✔ Frame created
-```
-
-**JSONL output:**
 ```json
-{"v":1,"ts":"2025-01-09T12:34:56.789Z","level":"success","message":"Frame created","data":{"id":"...","timestamp":"..."},"code":"FRAME_CREATED"}
-```
-
-### Custom Scope
-
-```typescript
-import { createOutput } from "./shared/cli/output.js";
-
-const out = createOutput({ scope: "policy-check" });
-out.error("Violation detected", { file: "src/foo.ts" }, "POLICY_VIOLATION");
-```
-
-### Custom Logger
-
-```typescript
-import { createOutput } from "./shared/cli/output.js";
-import { getLogger } from "./shared/logger/index.js";
-
-const out = createOutput({
-  scope: "custom",
-  logger: getLogger("my-scope")
-});
-```
-
-### Backward-Compatible Exports
-
-For existing CLI commands using namespace imports:
-
-```typescript
-import * as output from "./shared/cli/output.js";
-
-output.info("Legacy usage still works");
-output.success("Backward compatible");
-output.json({ foo: "bar" }); // Raw JSON output (for --json flags)
-```
-
-## Environment Variables
-
-### `LEX_CLI_OUTPUT_MODE`
-
-Controls output mode:
-- `plain` (default): Human-readable with colors/symbols
-- `jsonl`: Machine-readable JSONL events
-
-```bash
-export LEX_CLI_OUTPUT_MODE=jsonl
-lex recall "authentication"
-```
-
-### `LEX_CLI_PRETTY`
-
-Forces color/formatting in plain mode:
-- `1`: Enable colors (overrides TTY detection)
-- Not set: Auto-detect from `process.stdout.isTTY`
-
-```bash
-export LEX_CLI_PRETTY=1
-lex remember --reference "test" --caption "test" | cat
-# Still has colors even though output is piped
-```
-
-## Consumer Integration
-
-### Parsing JSONL Output
-
-```typescript
-import { spawn } from "child_process";
-import type { CliEvent } from "lex/cli-output";
-
-const lex = spawn("lex", ["recall", "auth"], {
-  env: { ...process.env, LEX_CLI_OUTPUT_MODE: "jsonl" }
-});
-
-lex.stdout.on("data", (chunk) => {
-  const lines = chunk.toString().split("\n").filter(Boolean);
-  lines.forEach((line) => {
-    const event: CliEvent = JSON.parse(line);
-    console.log(`[${event.level}] ${event.message}`);
-    if (event.data) {
-      console.log(JSON.stringify(event.data, null, 2));
-    }
-  });
-});
-```
-
-### Schema Validation
-
-Validate events against the JSON Schema:
-
-```bash
-npm install ajv
-```
-
-```typescript
-import Ajv from "ajv";
-import schema from "lex/schemas/cli-output.v1.schema.json";
-
-const ajv = new Ajv();
-const validate = ajv.compile(schema);
-
-const event = JSON.parse(line);
-if (!validate(event)) {
-  console.error("Invalid event:", validate.errors);
+{
+  "v": 1,
+  "ts": "2026-07-19T12:34:56.789Z",
+  "level": "success",
+  "scope": "cli:remember",
+  "code": "FRAME_CREATED",
+  "message": "Frame created",
+  "data": { "id": "frame-id" },
+  "hint": "Optional recovery guidance"
 }
 ```
 
-### Error Handling
+Only `v`, `ts`, and `level` are required. The remaining fields are event-specific.
+
+| Field | Meaning |
+|---|---|
+| `v` | Event schema version; currently `1` |
+| `ts` | UTC ISO 8601 timestamp |
+| `level` | `info`, `success`, `warn`, `error`, or `debug` |
+| `scope` | Optional emitting component |
+| `code` | Optional machine-readable event code |
+| `message` | Optional short human-readable summary |
+| `data` | Optional structured payload |
+| `hint` | Optional recovery guidance |
+
+The canonical schema is published at
+`@smartergpt/lex/schemas/cli-output.v1.schema.json` and maintained in
+[`canon/schemas/cli-output.v1.schema.json`](../canon/schemas/cli-output.v1.schema.json).
+
+## Stream routing
+
+The shared writer uses:
+
+- stdout for `info`, `success`, and `debug`;
+- stderr for `warn` and `error`.
+
+This routing is the same in plain and JSONL modes. If a script needs both kinds of events in exact
+emission order, merge the streams deliberately and retain each event's `level`.
+
+Command-specific raw JSON normally uses stdout. Diagnostics and failures belong on stderr, but
+callers should still verify the behavior of the command they automate.
+
+## Plain mode
+
+`LEX_CLI_OUTPUT_MODE=plain` is the default. Shared events use a symbol, optional scope, and message:
+
+```text
+✔ [cli] Frame created
+⚠ [cli] Policy not found
+✖ [cli] Store unavailable
+```
+
+ANSI color is enabled for a TTY. `LEX_CLI_PRETTY=1` forces color when output is redirected.
+
+Warn-level hints are printed as an additional stderr line. The current plain error path does not
+repeat an attached hint; agents that need stable recovery data should use structured output and
+the AXError/hint surfaces rather than scraping prose.
+
+## Programmatic writer
+
+The supported public entry point exports the writer functions, but it does not currently export
+the private `CliEvent` TypeScript type:
 
 ```typescript
-lex.stderr.on("data", (chunk) => {
-  const lines = chunk.toString().split("\n").filter(Boolean);
-  lines.forEach((line) => {
-    const event: CliEvent = JSON.parse(line);
-    if (event.level === "error") {
-      console.error(`ERROR: ${event.message}`);
-      if (event.hint) {
-        console.error(`  Hint: ${event.hint}`);
-      }
-      if (event.code) {
-        console.error(`  Code: ${event.code}`);
-      }
-    }
-  });
-});
+import {
+  createOutput,
+  json,
+  raw,
+} from "@smartergpt/lex/cli-output";
+
+const out = createOutput({ scope: "consumer", mode: "jsonl" });
+
+out.info("Starting validation", { files: 4 }, "VALIDATION_START");
+out.success("Validation passed", { files: 4 }, "VALIDATION_OK");
+
+json({ ok: true }); // pretty-printed command-specific JSON
+raw("preformatted text");
 ```
 
-## Implementation Details
+Use the published JSON Schema for a durable event type in external consumers. Do not import source
+files or undeclared `dist/` paths to reach internal types.
 
-### ESLint Enforcement
+## Diagnostics
 
-The codebase enforces `no-console` globally with targeted exceptions:
+The shared writer's optional diagnostic sink is disabled unless its `verbose` option is true or
+`LEX_DEBUG=1`/`LEX_VERBOSE=1` is set. It receives a short summary, not a copy of the complete event
+payload. The packaged `lex --verbose` flag enables this diagnostic behavior.
 
-```javascript
-// eslint.config.mjs
-rules: {
-  "no-console": "error", // Global default
-}
+Diagnostics can contain local paths and repository identifiers. Keep them off by default in agent
+context and review them before sharing.
 
-// Exceptions:
-// - src/shared/cli/output.ts (CLI output wrapper)
-// - MCP servers (stdio protocol requirement)
-// - Test files (debugging)
-// - Policy tools (lexmap-check, lexmap-merge, etc.)
-// - Atlas demo/perf scripts
-```
+## Guidance for agent-facing integrations
 
-### Dual Sink Behavior
+- Prefer a command's `--json` result when you need its domain object.
+- Prefer JSONL when consuming a stream of shared progress/events.
+- Bound result counts and context budgets at the command level.
+- Treat human prose as display text, not a parsing contract.
+- Treat `code`, AXError details, and stable hint IDs as recovery contracts when available.
+- Keep diagnostic metadata opt-in so normal agent returns stay compact.
 
-1. **User Sink** (console.log/error): Synchronous, blocking
-   - Plain mode: Formatted with colors/symbols
-   - JSONL mode: One JSON line per event
-   - Stream routing: errors/warnings to stderr, others to stdout
+## See also
 
-2. **Diagnostic Sink** (pino logger): Asynchronous, non-blocking
-   - Always receives structured message
-   - Wrapped in try/catch to prevent CLI breakage
-   - Pluggable via `createOutput({ logger })`
-
-### Named Function Exports
-
-The wrapper exports both:
-- `output` instance: Default CLI output (scope="cli")
-- Individual functions: `info`, `success`, `warn`, `error`, `debug`, `json`
-
-This allows CLI commands to use either pattern:
-
-```typescript
-// Pattern 1: Object methods
-import { output } from "./output.js";
-output.info("Works with object");
-
-// Pattern 2: Direct function imports
-import { info, success } from "./output.js";
-info("Direct function call");
-```
-
-### `json()` Function Semantics
-
-The exported `json()` function outputs raw JSON (bypassing the wrapper):
-
-```typescript
-import { json } from "./output.js";
-
-json({ frames: [...], count: 5 });
-// Outputs: {"frames":[...],"count":5}
-```
-
-This is distinct from the wrapper's internal `json()` method which emits CliEvent structures. CLI commands use the exported `json()` for `--json` flags to output arbitrary data.
-
-## Migration Guide
-
-### From Old Output API
-
-**Before:**
-```typescript
-import * as output from "./output.js";
-output.info("message");
-output.error("error message");
-```
-
-**After:**
-No changes needed! Exports remain consistent.
-
-**Modern alternative:**
-```typescript
-import { output } from "./output.js";
-output.info("message", { key: "value" }, "INFO_CODE");
-```
-
-### Adding Structured Data
-
-**Before:**
-```typescript
-output.info(`Frame created: ${frame.id}`);
-```
-
-**After:**
-```typescript
-output.success("Frame created", { id: frame.id }, "FRAME_CREATED");
-```
-
-### Error Hints
-
-**Before:**
-```typescript
-output.error("Policy file not found");
-output.info("Try running: lexmap init");
-```
-
-**After:**
-```typescript
-output.error(
-  "Policy file not found",
-  { path: policyPath },
-  "POLICY_NOT_FOUND",
-  "Try running: lexmap init"
-);
-```
-
-## Rationale
-
-### Why Dual Sinks?
-
-- **User Sink (console)**: Provides immediate feedback to CLI users
-- **Diagnostic Sink (logger)**: Enables post-mortem debugging and monitoring
-- **Non-blocking logger**: Ensures CLI never breaks due to logging failures
-
-### Why Two Modes?
-
-- **Plain Mode**: Optimized for human operators (colors, symbols, formatted)
-- **JSONL Mode**: Optimized for automation (parseable, structured, grep-friendly)
-
-### Why JSONL over JSON?
-
-- Streamable: Can process events as they arrive
-- Grep-friendly: Each line is independent
-- Resilient: One malformed line doesn't break entire output
-- Standard: Used by tools like jq, fluentd, logstash
-
-### Why Centralized Wrapper?
-
-- **Single chokepoint**: Easier to modify output behavior
-- **Testability**: Mock console calls in tests
-- **Consistency**: All CLI commands use same formatting
-- **Type safety**: TypeScript ensures correct usage
-
-## Testing
-
-Tests verify:
-- Plain vs JSONL mode output
-- Stdout/stderr routing
-- Dual sink behavior (console + logger)
-- Color/symbol rendering
-- TTY detection
-- Env var configuration
-- Backward-compatible exports
-- Broken logger doesn't crash CLI
-
-Run tests:
-```bash
-npm test -- test/shared/cli/output.behavior.test.ts
-```
-
-## Schema Versioning
-
-The CliEvent schema uses semantic versioning via the `v` field:
-
-- **v1**: Current version
-  - Required: `v`, `ts`, `level`
-  - Optional: `scope`, `code`, `message`, `data`, `hint`
-
-Future versions will increment `v` for breaking changes. Consumers should check `v` field:
-
-```typescript
-const event: CliEvent = JSON.parse(line);
-if (event.v !== 1) {
-  console.warn(`Unknown schema version: ${event.v}`);
-}
-```
-
-## FAQ
-
-**Q: Can I use console.log in my CLI command?**
-A: No. ESLint enforces `no-console` globally. Use `output.info()` instead.
-
-**Q: How do I output arbitrary JSON for `--json` flags?**
-A: Use the `json()` function: `import { json } from "./output.js"; json(data);`
-
-**Q: Does the wrapper slow down CLI commands?**
-A: No. The user sink (console) is synchronous. The diagnostic sink (logger) is non-blocking and wrapped in try/catch.
-
-**Q: Can I disable colors in plain mode?**
-A: Yes. Unset `LEX_CLI_PRETTY` and don't run in a TTY (e.g., pipe to `cat`).
-
-**Q: What if my logger throws an error?**
-A: The wrapper catches all logger exceptions. CLI output continues unaffected.
-
-**Q: How do I add a new output level?**
-A: Update `CliLevel` in `output.types.ts`, add to schema, implement in wrapper. Consider if it should go to stdout or stderr.
-
-**Q: Can I use the wrapper in MCP servers?**
-A: No. MCP servers use stdio for protocol communication. They must use `console.log` for responses and are ESLint-exempted.
-
-## See Also
-
-- [schemas/cli-output.v1.schema.json](../schemas/cli-output.v1.schema.json) - JSON Schema
-- [src/shared/cli/output.ts](../src/shared/cli/output.ts) - Implementation
-- [src/shared/cli/output.types.ts](../src/shared/cli/output.types.ts) - TypeScript types
-- [test/shared/cli/output.behavior.test.ts](../test/shared/cli/output.behavior.test.ts) - Test suite
+- [Contract Surface](./CONTRACT_SURFACE.md)
+- [Public Package API](./PUBLIC_API.md)
+- [Environment Reference](./ENVIRONMENT.md)
+- [Public error exports](./PUBLIC_API.md)

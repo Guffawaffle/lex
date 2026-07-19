@@ -1,5 +1,15 @@
 # Changelog
 
+All notable changes to this project are documented here. The format follows
+[Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and the project follows
+[Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+_No unreleased changes._
+
+---
+
 ## 3.0.0
 
 ### Major Changes
@@ -69,6 +79,9 @@
 - 5860c42: Detect structurally inconsistent SQLite Frame stores and add an explicit, backed-up repair command
   for recognized additive schema divergence. Read-only and ordinary initialization paths now fail
   closed instead of silently repairing mismatched stores.
+- Compatibility note: canonical MCP tool names remain preferred, but the older short and `lex_*`
+  aliases are still accepted in Lex 3. Their eventual removal requires a separate breaking-change
+  decision.
 
 ## 2.10.0
 
@@ -108,13 +121,6 @@
 
 - Add a bounded, prompt-safe `lex context` command for agent session bootstrap. Align installed CLI and MCP caller-root configuration, expose canonical active-store identity and provenance, detect alternate conventional stores, and document shared `LEX_DB_PATH` configuration for multi-root workspaces.
 
-All notable changes to this project will be documented in this file.
-
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-
----
-
 ## Contract Commitment
 
 **Lex is public. This changelog is a contract.**
@@ -124,15 +130,7 @@ AX guarantees, Frame schemas, Policy invariants — are promises we keep, not
 marketing we forget.
 
 See: [`docs/CONTRACT_SURFACE.md`](docs/CONTRACT_SURFACE.md) for the technical surface.
-See: [`docs/attestation/Lex_Guff_Version_Contract_Pact_v1.0.0.md`](docs/attestation/Lex_Guff_Version_Contract_Pact_v1.0.0.md) for how we think about scope.
-
 **Signatories:** Guff `[signed ~]` · Lex `[signed Lex ✶]`
-
----
-
-## [Unreleased]
-
-_No unreleased changes._
 
 ---
 
@@ -251,7 +249,7 @@ If you encounter the error `table frames has no column named feature_flags`:
 
 ---
 
-## [2.1.1] - 2025-01-01
+## [2.1.1] - 2026-01-01
 
 ### Added
 
@@ -302,7 +300,8 @@ This release removes the namespace prefix from tool definitions to match the Git
 | `lex_policy_check` | `policy_check`   | `mcp_lex_policy_check` |
 | `lex_code_atlas`   | `code_atlas`     | `mcp_lex_code_atlas`   |
 
-**Backwards Compatibility:** The old `lex_*` names are preserved as deprecated aliases and will continue to work. They will be removed in v3.0.0.
+**Backwards Compatibility:** The old `lex_*` names are preserved as deprecated aliases. The
+historical removal target was v3.0.0, but Lex 3 retains them; see the 3.0 compatibility note above.
 
 ### Changed
 
@@ -903,6 +902,7 @@ Initial release with unified single-package structure after monorepo consolidati
 - TypeScript with strict type checking
 - Comprehensive test coverage
 
-[Unreleased]: https://github.com/Guffawaffle/lex/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/Guffawaffle/lex/compare/v3.0.0...HEAD
+[3.0.0]: https://github.com/Guffawaffle/lex/releases/tag/v3.0.0
 [0.3.0]: https://github.com/Guffawaffle/lex/releases/tag/v0.3.0
 [0.2.0]: https://github.com/Guffawaffle/lex/releases/tag/v0.2.0

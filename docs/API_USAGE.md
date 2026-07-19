@@ -1,252 +1,132 @@
-# Frame Ingestion API Usage Examples
+# Repository Policy Guide
 
-This document provides examples of how to use the Frame Ingestion HTTP API.
+Lex policy gives Frames and static checks a shared vocabulary for repository boundaries. It is an
+optional layer: you can start with `--modules unscoped`, add a policy when module attribution is
+useful, and keep the core remember/recall workflow independent of enforcement.
 
-## Starting the Server
+## When policy helps
 
-```typescript
-import { createDatabase } from "lex/memory/store";
-import { startHttpServer } from "lex/memory/mcp_server/http-server";
+Use policy when an agent should be able to answer questions such as:
 
-const db = createDatabase("/path/to/frames.db");
+- Which module owns this path?
+- Which modules may call this boundary?
+- Which architectural rule would this change violate?
+- What nearby modules should accompany a recalled Frame?
 
-// Start server with API key authentication
-await startHttpServer(db, {
-  port: 3000,
-  apiKey: process.env.LEX_API_KEY,
-});
+Policy is not a permission system and does not authorize filesystem or database access. In a
+trusted Lex 3 host, tenant and workspace authorization belongs to runtime authority and a
+scope-bound store.
 
-console.log("Frame ingestion API running on http://localhost:3000");
-```
+## Create or choose a policy
 
-## Basic Frame Ingestion
+`lex init` can create `.smartergpt/lex/lexmap.policy.json` as part of the complete workspace
+bootstrap. If you only need policy, create that file directly or keep a canonical checked-in copy
+at `canon/policy/lexmap.policy.json`.
 
-### Using curl
+A small policy looks like this:
 
-```bash
-curl -X POST http://localhost:3000/api/frames \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer your-api-key" \
-  -d '{
-    "reference_point": "auth handshake timeout",
-    "summary_caption": "Fixed timeout issue in auth service",
-    "module_scope": ["services/auth", "lib/networking"],
-    "status_snapshot": {
-      "next_action": "Deploy to staging",
-      "blockers": ["Waiting for QA approval"]
-    },
-    "branch": "feature/auth-fix",
-    "jira": "TICKET-123"
-  }'
-```
-
-**Response (201 Created):**
 ```json
 {
-  "id": "frame-1699564800-abc123",
-  "status": "created"
-}
-```
-
-### Using JavaScript/TypeScript
-
-```typescript
-const response = await fetch("http://localhost:3000/api/frames", {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json",
-    Authorization: "Bearer your-api-key",
-  },
-  body: JSON.stringify({
-    reference_point: "auth handshake timeout",
-    summary_caption: "Fixed timeout issue in auth service",
-    module_scope: ["services/auth", "lib/networking"],
-    status_snapshot: {
-      next_action: "Deploy to staging",
-      blockers: ["Waiting for QA approval"],
+  "modules": {
+    "api/middleware": {
+      "owns_paths": ["src/api/middleware/**"],
+      "allowed_callers": ["app/server"],
+      "forbidden_callers": ["ui/client"],
+      "notes": "HTTP authentication and request validation"
     },
-    branch: "feature/auth-fix",
-    jira: "TICKET-123",
-  }),
-});
-
-const result = await response.json();
-console.log(`Frame created: ${result.id}`);
-```
-
-### Using Python
-
-```python
-import requests
-
-url = "http://localhost:3000/api/frames"
-headers = {
-    "Content-Type": "application/json",
-    "Authorization": "Bearer your-api-key"
-}
-data = {
-    "reference_point": "auth handshake timeout",
-    "summary_caption": "Fixed timeout issue in auth service",
-    "module_scope": ["services/auth", "lib/networking"],
-    "status_snapshot": {
-        "next_action": "Deploy to staging",
-        "blockers": ["Waiting for QA approval"]
-    },
-    "branch": "feature/auth-fix",
-    "jira": "TICKET-123"
-}
-
-response = requests.post(url, json=data, headers=headers)
-result = response.json()
-print(f"Frame created: {result['id']}")
-```
-
-## Advanced Usage
-
-### Batch Ingestion
-
-```typescript
-async function ingestFrames(frames: any[]) {
-  const results = [];
-
-  for (const frame of frames) {
-    const response = await fetch("http://localhost:3000/api/frames", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: "Bearer your-api-key",
-      },
-      body: JSON.stringify(frame),
-    });
-
-    const result = await response.json();
-    if (response.status === 201) {
-      results.push(result);
-    } else if (response.status === 409) {
-      console.log(`Duplicate frame skipped: ${result.existing_frame_id}`);
-    } else {
-      console.error(`Error ingesting frame: ${result.message}`);
+    "services/auth": {
+      "owns_paths": ["src/services/auth/**"],
+      "allowed_callers": ["api/middleware"]
     }
-  }
-
-  return results;
+  },
+  "global_kill_patterns": []
 }
 ```
 
-### With Merge-Weave Metadata
+Module IDs may contain lowercase letters, digits, `_`, `-`, and `/`. Prefer stable architectural
+names over temporary file or ticket names.
 
-```typescript
-const frame = {
-  reference_point: "payment webhook processing",
-  summary_caption: "Implemented Stripe webhook handler",
-  module_scope: ["services/payment", "api/webhooks"],
-  status_snapshot: {
-    next_action: "Add signature verification",
-  },
-  // Merge-weave provenance metadata
-  runId: "run-12345",
-  planHash: "abc123def456",
-  spend: {
-    prompts: 15,
-    tokens_estimated: 8500,
-  },
-};
-
-const response = await fetch("http://localhost:3000/api/frames", {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json",
-    Authorization: "Bearer your-api-key",
-  },
-  body: JSON.stringify(frame),
-});
-```
-
-## Error Handling
-
-### Handling Validation Errors
-
-```typescript
-try {
-  const response = await fetch("http://localhost:3000/api/frames", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: "Bearer your-api-key",
-    },
-    body: JSON.stringify(frame),
-  });
-
-  const result = await response.json();
-
-  if (response.status === 201) {
-    console.log(`Success: ${result.id}`);
-  } else if (response.status === 400) {
-    console.error(`Validation error: ${result.message}`);
-    console.error(`Field: ${result.field}`);
-  } else if (response.status === 409) {
-    console.log(`Duplicate frame: ${result.existing_frame_id}`);
-  } else if (response.status === 401) {
-    console.error("Authentication failed");
-  } else {
-    console.error(`Server error: ${result.message}`);
-  }
-} catch (error) {
-  console.error("Network error:", error);
-}
-```
-
-### Handling Duplicates
-
-The API automatically detects duplicate frames based on content hash. If you try to ingest a frame with the same:
-- `reference_point`
-- `summary_caption`
-- `module_scope`
-- `status_snapshot.next_action`
-- `timestamp` (within 5-minute bucket)
-
-You'll receive a 409 Conflict response with the existing frame ID:
-
-```json
-{
-  "error": "CONFLICT",
-  "message": "Frame with same content already exists",
-  "code": 409,
-  "existing_frame_id": "frame-1699564800-abc123"
-}
-```
-
-## Health Check
-
-The server includes a health check endpoint:
+## Validate the policy
 
 ```bash
-curl http://localhost:3000/health
+lex policy check
+lex policy check --match --src-dir src
 ```
 
-**Response:**
-```json
-{
-  "status": "ok"
+Use `--policy <path>` when the policy is not in the normal lookup locations. `--match` additionally
+checks whether declared path ownership maps to the current codebase.
+
+Add a module without hand-editing the container shape:
+
+```bash
+lex policy add-module services/payments
+```
+
+Review and complete its ownership and boundary fields afterward.
+
+## Attribute Frames
+
+Use exact policy IDs when you know them:
+
+```bash
+lex remember \
+  --summary "Kept token validation in API middleware" \
+  --next "Add password-reset coverage" \
+  --modules "api/middleware,services/auth"
+```
+
+For a policy-backed repository, `--modules auto` asks Lex to infer a bounded scope from changed
+paths, intent, branch state, and recent Frames. The stored attribution receipt records how the
+scope was chosen. Use `--modules unscoped` when no useful ontology exists yet.
+
+`--skip-policy` bypasses module validation for that write. It does not remove required Frame
+fields or create an authorization boundary.
+
+## Enforce scanned relationships
+
+The low-level enforcement command compares merged scanner facts with a policy:
+
+```bash
+lex check merged-scanner-output.json .smartergpt/lex/lexmap.policy.json
+```
+
+Scanners emit structural facts; the checker interprets those facts against allowed and forbidden
+relationships. Keep this step in CI only after the policy and scanner coverage accurately model
+the repository. A false sense of coverage is worse than an explicitly partial policy.
+
+## Use the public TypeScript API
+
+```typescript
+import {
+  loadPolicy,
+  validatePolicySchema,
+} from "@smartergpt/lex/policy";
+
+const policy = loadPolicy(".smartergpt/lex/lexmap.policy.json");
+const result = validatePolicySchema(policy);
+
+if (!result.valid) {
+  console.error(result.errors);
 }
 ```
 
-## Environment Variables
+Only package paths declared in the [public export inventory](./PUBLIC_API.md) are supported.
+Source paths and historical imports such as `lex/memory/...` are internal. Lex does not currently
+publish its internal HTTP ingestion server as a supported package entry point.
 
-Configure the API using environment variables:
+## Where policy fits
 
-```bash
-# API Key for authentication
-export LEX_API_KEY="your-secure-api-key"
-
-# Database path (optional, defaults to .smartergpt/lex/memory.db)
-export LEX_DB_PATH="/path/to/custom/frames.db"
-
-# Server port (optional, defaults to 3000)
-export LEX_API_PORT=3000
+```text
+repository paths ──→ module IDs ──→ Frame attribution and Atlas neighborhoods
+                              └──→ scanner facts checked against boundaries
 ```
 
-## See Also
+Policy answers architectural questions. Runtime scope answers who may access which tenant and
+workspace. Keep those decisions separate.
 
-- [API Error Codes](./API_ERRORS.md) - Complete list of error codes and responses
-- [Frame Schema](../src/memory/frames/types.ts) - Full Frame schema definition
+## See also
+
+- [Atlas guide](./atlas/README.md)
+- [Runtime scope contract](./RUNTIME_SCOPE_CONTRACT.md)
+- [Public package API](./PUBLIC_API.md)
+- [Contract surface](./CONTRACT_SURFACE.md)

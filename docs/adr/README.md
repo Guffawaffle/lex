@@ -2,15 +2,17 @@
 
 This directory contains Architecture Decision Records for Lex. Each ADR documents a significant decision, its context, and consequences.
 
-> **Public Spec Note:** ADRs in this directory document public, engine-agnostic decisions. Proprietary implementation details (e.g., merge-weave algorithms, persona system) live in [LexRunner's ADR directory](https://github.com/smartergpt/lexrunner/docs/adr/).
+> **Public Spec Note:** ADRs in this directory document Lex decisions. Source-available
+> orchestration decisions such as merge-weave live in
+> [LexRunner's ADR directory](https://github.com/Guffawaffle/lexrunner/tree/main/docs/adr).
 
 ## Index
 
 | ID | Title | Status | Date |
 |----|-------|--------|------|
-| 0001 | [TypeScript-Only, NodeNext Resolution](./0001-ts-only-nodenext.md) | Accepted | 2025-10-XX |
-| 0002a | [Database Encryption with SQLCipher](./0002-database-encryption-sqlcipher.md) | Accepted | 2025-10-XX |
-| 0002b | [OAuth2/JWT Authentication](./0002-oauth2-jwt-authentication.md) | Accepted | 2025-10-XX |
+| 0001 | [TypeScript-Only, NodeNext Resolution](./0001-ts-only-nodenext.md) | Accepted | 2025-11-08 |
+| 0002a | [Database Encryption with SQLCipher](./0002-database-encryption-sqlcipher.md) | Accepted | 2025-11-24 |
+| 0002b | [OAuth2/JWT Authentication](./0002-oauth2-jwt-authentication.md) | Superseded for trusted hosts by 0011 | 2025-01-24 |
 | 0003 | [.smartergpt Workspace Consolidation](./0003-smartergpt-workspace-consolidation.md) | Accepted | 2025-11-23 |
 | 0004 | [Control Stack Architecture](./0004-control-stack-architecture.md) | Accepted | 2025-11-25 |
 | 0005 | [Git Integration Feature Flag](./0005-git-integration-feature-flag.md) | Accepted | 2025-11-25 |
@@ -30,7 +32,8 @@ This directory contains Architecture Decision Records for Lex. Each ADR document
 
 ## Relationship to LexRunner
 
-Lex is the MIT-licensed public library. LexRunner is a proprietary engine that implements Lex concepts. This ADR directory contains:
+Lex is the MIT-licensed public library. LexRunner is a source-available orchestration engine that
+consumes Lex contracts. This ADR directory contains:
 
 - ✅ Public spec decisions (YAML schema, control stack, safety defaults)
 - ✅ Library implementation decisions (TypeScript, SQLCipher, OAuth)
