@@ -378,7 +378,7 @@ For registry-specific issues, see [MCP Registry Documentation](https://github.co
 
 ## Notes
 
-- Package uses semantic versioning (currently `2.10.0`)
+- Package uses semantic versioning (currently `3.0.0`)
 - MIT license
 - Repository: `https://github.com/Guffawaffle/lex.git`
 - Package uses ESM (`"type": "module"`)

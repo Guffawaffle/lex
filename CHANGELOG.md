@@ -1,5 +1,75 @@
 # Changelog
 
+## 3.0.0
+
+### Major Changes
+
+- 8264119: Add the Lex 3 PostgreSQL two-tenant/five-workspace GA acceptance gate, including deterministic
+  redacted receipts, a direct least-privileged runtime login, real CLI/MCP parity checks, local
+  Windows/WSL registry fixtures, and asserted cleanup of isolated live-canary resources. Restore the
+  authority runtime role's read-only access to the schema-version ledger required by its fail-closed
+  snapshot validation while explicitly rejecting ledger mutations.
+- 9dc796b: Add the PostgreSQL canonical authority directory, explicit administration and dogfood topology
+  provisioning, consistent resolver snapshots, workspace/repository authorization, stale local grant
+  rejection, fully qualified explicit-schema persistence, and ready trusted CLI/MCP host compositions
+  without ambient environment authority. Make authority migration provision the runtime role's safe
+  schema usage and read-only table access as one atomic deployment step.
+  Fail closed when the runtime role retains effective authority-schema `CREATE` through `PUBLIC` or
+  an inherited group role.
+- 5e5ab01: Add the Lex 3.0 PostgreSQL scoped FrameStore runtime and separate administration boundaries.
+  Protect every normal Frame operation with explicit tenant/workspace/principal predicates,
+  transaction-local pool context, forced Row-Level Security, runtime-role safety checks, and
+  credential-free deterministic tests. Bind every relation and helper function to an explicit,
+  validated PostgreSQL schema, including the transitional adapter, and preserve every Frame v7 field
+  through a versioned metadata payload.
+  Migrate schema v1 rows into an admin-only unowned quarantine instead of guessing ownership, and
+  expose a non-mutating migration plan before schema v3 is applied.
+  Reject runtime roles with effective `CREATE` on the protected FrameStore schema, including
+  privileges inherited through `PUBLIC` or group roles.
+- 0408fa9: Introduce the Lex 3.0 `ScopedFrameStore` and separately authorized `FrameStoreAdmin` contracts,
+  including stable read, write, delete, and admin capabilities. Add an in-memory reference backend
+  that binds immutable `AuthorizedScope` snapshots, stamps tenant/workspace ownership and creator
+  attribution internally, and proves normal operations cannot cross their bound workspace.
+- df62fa2: Add the Lex 3.0 scope-owned SQLite v15 adapter and explicit legacy migration staging. Each
+  per-workspace file now has one immutable tenant/workspace binding, every normal operation is
+  scope-filtered, and ownership migration requires a reviewed deterministic manifest, mandatory
+  backup, transactional rebuild, verification receipt, and explicit recovery operation. Durable
+  reads and updates preserve and validate the complete Frame v7 contract.
+  Trusted MCP now advertises scoped SQLite attachments as unsupported and rejects attachment inputs
+  until a scope-bound attachment service can preserve ownership safely.
+- f8a9bfd: Bind trusted MCP configuration, policy, Code Atlas, and idempotency behavior to the
+  authorized invocation workspace. Trusted dispatch now consumes physically contained
+  file snapshots, uses the invocation's captured time and repository identity, and
+  avoids ambient process configuration and executable lookup.
+
+### Minor Changes
+
+- 968e01c: Add public, versioned runtime-scope contracts for canonical authority, surface-local bindings,
+  immutable invocation scope, structured diagnostics, stable resolver errors, and cross-platform
+  conformance fixtures. Include deterministic execution-surface and registry-location resolution,
+  a separate versioned SQLite local registry with explicit lifecycle operations, a fail-closed
+  runtime-scope resolver, and concrete conformance coverage for every exported fixture.
+  Add a shared, immutable CLI/MCP bootstrap guard that opens the surface-local registry read-only,
+  attenuates requested capabilities, fails before command dispatch, and keeps redacted diagnostics
+  explicit and capability-gated. Add native Git/filesystem/provider discovery, an explicit
+  surface-local workspace binding lifecycle, exhaustive CLI/MCP capability maps, and lexical
+  scope-bound FrameStore handoff that fails closed instead of falling back to an unscoped store.
+
+### Patch Changes
+
+- 42acca5: Add opt-in `--pretty` and `--prettier` aliases to the developer-validation driver for a
+  check-only repository-wide Prettier audit while leaving the default validation gate unchanged.
+- 69f4ead: Freeze the declared package export inventory and validate every JavaScript, type declaration,
+  JSON Schema, and CLI artifact before release. Packed consumer smoke tests now import and type-check
+  all public paths from a clean tarball installation while confirming internal paths remain blocked.
+  Published declarations now carry their PostgreSQL and supported Node type dependencies and resolve
+  their policy imports entirely within the package.
+  Reconcile public Frame documentation with the implemented v7 record and mutable store contract,
+  including opaque string IDs, targeted updates, and supersession, with a docs drift guard.
+- 5860c42: Detect structurally inconsistent SQLite Frame stores and add an explicit, backed-up repair command
+  for recognized additive schema divergence. Read-only and ordinary initialization paths now fail
+  closed instead of silently repairing mismatched stores.
+
 ## 2.10.0
 
 ### Minor Changes

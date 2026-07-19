@@ -7,8 +7,8 @@
  * manifest all identify the same version and namespace.
  *
  * Usage:
- *   node scripts/verify-mcp-registry-contract.mjs --version 2.9.0
- *   node scripts/verify-mcp-registry-contract.mjs --version 2.9.0 \
+ *   node scripts/verify-mcp-registry-contract.mjs --version 3.0.0
+ *   node scripts/verify-mcp-registry-contract.mjs --version 3.0.0 \
  *     --schema /tmp/server.schema.json --core-metadata /tmp/lex.json \
  *     --wrapper-metadata /tmp/lex-mcp.json
  */

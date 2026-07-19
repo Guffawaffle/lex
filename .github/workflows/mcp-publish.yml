@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Published coordinated release version (for example, 2.9.0)"
+        description: "Published coordinated release version (for example, 3.0.0)"
         required: true
         type: string
       dry_run:
