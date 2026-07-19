@@ -468,7 +468,7 @@ internal. See the [complete public package API](./docs/PUBLIC_API.md) and [API u
 
 ## Project status
 
-**Current Version:** `2.10.0` ([Changelog](./CHANGELOG.md))
+**Current Version:** `3.0.0` ([Changelog](./CHANGELOG.md))
 
 Current Lex releases include structured output, recoverable errors, and Frame Schema v7 for agent and orchestrator integration.
 
