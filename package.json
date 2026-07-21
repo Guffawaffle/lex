@@ -107,6 +107,7 @@
       "import": "./dist/memory/mcp_server/server.js"
     },
     "./schemas/cli-output.v1.schema.json": "./schemas/cli-output.v1.schema.json",
+    "./schemas/ecosystem-release-v1.schema.json": "./schemas/ecosystem-release-v1.schema.json",
     "./schemas/feature-spec-v0.json": "./schemas/feature-spec-v0.json",
     "./schemas/profile.schema.json": "./schemas/profile.schema.json"
   },
@@ -163,6 +164,7 @@
     "check:public-api": "node scripts/verify-public-api.mjs",
     "guard:pack": "node scripts/create-pack-json.js && node scripts/pack-guard.js && rm pack.json *.tgz",
     "check:release-drift": "node scripts/check-release-drift.mjs",
+    "check:ecosystem-release": "node scripts/validate-ecosystem-release.mjs",
     "check:mcp-registry-contract": "node scripts/verify-mcp-registry-contract.mjs --version $(node -p \"require('./package.json').version\")",
     "coverage": "c8 -r text -r lcov npm test",
     "check:coverage": "c8 --check-coverage --branches 60 --functions 60 --lines 60 --statements 60 npm test",

@@ -1,0 +1,278 @@
+{
+  "$schema": "../canon/schemas/ecosystem-release-v1.schema.json",
+  "schemaVersion": 1,
+  "releaseId": "ecosystem-3.1",
+  "displayName": "Lex Ecosystem 3.1",
+  "state": "draft",
+  "runtime": {
+    "nodeMinimumMajor": 24,
+    "nodeUpperBoundExclusive": null
+  },
+  "components": [
+    {
+      "id": "lex",
+      "repository": "Guffawaffle/lex",
+      "role": "Canonical memory, trusted workspace authority, scoped stores, and KnowledgeFrame provider semantics.",
+      "participation": "required-package",
+      "runtimeRequirement": "required",
+      "status": "baseline",
+      "issues": [
+        "https://github.com/Guffawaffle/lex/issues/734",
+        "https://github.com/Guffawaffle/lex/issues/775",
+        "https://github.com/Guffawaffle/lex/issues/779",
+        "https://github.com/Guffawaffle/lex/issues/780",
+        "https://github.com/Guffawaffle/lex/issues/781",
+        "https://github.com/Guffawaffle/lex/issues/782"
+      ],
+      "package": {
+        "name": "@smartergpt/lex",
+        "registry": "https://registry.npmjs.org",
+        "access": "public",
+        "baselineVersion": "3.0.1",
+        "targetVersion": "3.1.0",
+        "publishedVersion": "3.0.1",
+        "integrity": "sha512-iHjxhYIHSva9CSgG4Cdn0DDR9TH60LCMrSsJ0ueqYi20IZT9env2852UBcf57qjTvDGHfKXRThgYzYVtUdDMzw=="
+      },
+      "source": {
+        "commit": "67839108ebc73564c78c7e71304eed0c602b1c28",
+        "tag": "v3.0.1"
+      },
+      "evidence": [
+        "https://github.com/Guffawaffle/lex/releases/tag/v3.0.1"
+      ]
+    },
+    {
+      "id": "lex-mcp",
+      "repository": "Guffawaffle/lex-mcp",
+      "role": "Thin exact-version wrapper that transports Lex's MCP server through npm and the MCP Registry.",
+      "participation": "required-package",
+      "runtimeRequirement": "required",
+      "status": "baseline",
+      "issues": [
+        "https://github.com/Guffawaffle/lex-mcp/issues/11"
+      ],
+      "package": {
+        "name": "@smartergpt/lex-mcp",
+        "registry": "https://registry.npmjs.org",
+        "access": "public",
+        "baselineVersion": "3.0.1",
+        "targetVersion": "3.1.0",
+        "publishedVersion": "3.0.1",
+        "integrity": "sha512-jz+t3O8ru7ZPZ5n7hKt8rxlbUc8F7Zr7FBoMy9t+qXgw78ieFBC+Hx5D0UtxKC+tb57nIrDHfD1yDsoHEGoERA=="
+      },
+      "source": {
+        "commit": "d0b20dab0d651aad6faac03fb2639f0902c56bef",
+        "tag": "v3.0.1"
+      },
+      "evidence": [
+        "https://github.com/Guffawaffle/lex-mcp/releases/tag/v3.0.1"
+      ]
+    },
+    {
+      "id": "lexsona",
+      "repository": "Guffawaffle/lexsona",
+      "role": "Optional deterministic constraint engine with immutable scoped snapshot output.",
+      "participation": "required-package",
+      "runtimeRequirement": "optional",
+      "status": "planned",
+      "issues": [
+        "https://github.com/Guffawaffle/lexsona/issues/125",
+        "https://github.com/Guffawaffle/lexsona/issues/126",
+        "https://github.com/Guffawaffle/lexsona/issues/127",
+        "https://github.com/Guffawaffle/lexsona/issues/128",
+        "https://github.com/Guffawaffle/lexsona/issues/130"
+      ],
+      "package": {
+        "name": "@smartergpt/lexsona",
+        "registry": "https://registry.npmjs.org",
+        "access": "restricted",
+        "baselineVersion": "1.0.0",
+        "targetVersion": null,
+        "publishedVersion": "1.0.0",
+        "integrity": "sha512-g5U7P2A+uq8bqGuV2rbVa9+BJ3t12ZhmE807odSVPog51z0Nxo5amo4tPhm74QohDQp65tEc9Y3spMSiL/CzzA=="
+      },
+      "source": {
+        "commit": "81c2b000806ff673053f0b33f74424205d3447cc",
+        "tag": "v1.0.0"
+      },
+      "evidence": [
+        "https://github.com/Guffawaffle/lexsona/releases/tag/v1.0.0"
+      ]
+    },
+    {
+      "id": "lexrunner",
+      "repository": "Guffawaffle/lexrunner",
+      "role": "Optional execution coordinator that pins LexSona snapshots without deriving authority from them.",
+      "participation": "required-package",
+      "runtimeRequirement": "required",
+      "status": "baseline",
+      "issues": [
+        "https://github.com/Guffawaffle/lexrunner/issues/820",
+        "https://github.com/Guffawaffle/lexrunner/issues/834"
+      ],
+      "package": {
+        "name": "@smartergpt/lexrunner",
+        "registry": "https://registry.npmjs.org",
+        "access": "restricted",
+        "baselineVersion": "1.2.1",
+        "targetVersion": null,
+        "publishedVersion": "1.2.1",
+        "integrity": "sha512-Gny9mrz/u/RCXOpDoU/q4HwPnQLEjB+cO5roI4Tru5pW1e1WAZSkD013XMfevHRXqEhFkMlPMSO8Sbj0liXKEQ=="
+      },
+      "source": {
+        "commit": "3316d38ad09aab21f55a896c8fa027f42046c8db",
+        "tag": "lexrunner-v1.2.1"
+      },
+      "evidence": [
+        "https://github.com/Guffawaffle/lexrunner/issues/823",
+        "https://github.com/Guffawaffle/lexrunner/releases/tag/lexrunner-v1.2.1"
+      ]
+    },
+    {
+      "id": "axf",
+      "repository": "Guffawaffle/axf",
+      "role": "Provider-neutral capability routing, context composition, budgeting, fallback, and conformance.",
+      "participation": "required-package",
+      "runtimeRequirement": "required",
+      "status": "baseline",
+      "issues": [
+        "https://github.com/Guffawaffle/axf/issues/42",
+        "https://github.com/Guffawaffle/axf/issues/49"
+      ],
+      "package": {
+        "name": "@smartergpt/axf",
+        "registry": "https://registry.npmjs.org",
+        "access": "public",
+        "baselineVersion": "2.0.0",
+        "targetVersion": null,
+        "publishedVersion": "2.0.0",
+        "integrity": "sha512-I9DmlJMytzdYeGjQlFXrWf4I6Njmab5LzDWhOB1dFNzTVu+uKGkcB8hKhb2FJ8+vt0uBgJ777VYbDPF7K1lpXg=="
+      },
+      "source": {
+        "commit": "67a2e0a00cf2360e97b0a1993dd659f89f9c0f5b",
+        "tag": "v2.0.0"
+      },
+      "evidence": [
+        "https://github.com/Guffawaffle/axf/releases/tag/v2.0.0"
+      ]
+    },
+    {
+      "id": "stfc-mod",
+      "repository": "Guffawaffle/stfc-mod",
+      "role": "Real-corpus downstream proof for KnowledgeFrame retrieval and AXF shadow routing.",
+      "participation": "required-source-proof",
+      "runtimeRequirement": "none",
+      "status": "planned",
+      "issues": [
+        "https://github.com/Guffawaffle/stfc-mod/issues/165"
+      ],
+      "package": null,
+      "source": {
+        "commit": null,
+        "tag": null
+      },
+      "evidence": []
+    }
+  ],
+  "edges": [
+    {
+      "from": "lex-mcp",
+      "to": "lex",
+      "kind": "runtime",
+      "releaseRequired": true,
+      "constraint": "exact"
+    },
+    {
+      "from": "lexsona",
+      "to": "lex",
+      "kind": "peer",
+      "releaseRequired": true,
+      "constraint": "manifest-selected"
+    },
+    {
+      "from": "lexrunner",
+      "to": "lex",
+      "kind": "runtime",
+      "releaseRequired": true,
+      "constraint": "manifest-selected"
+    },
+    {
+      "from": "lexrunner",
+      "to": "lexsona",
+      "kind": "optional",
+      "releaseRequired": true,
+      "constraint": "off-mode-remains-valid"
+    },
+    {
+      "from": "axf",
+      "to": "lex",
+      "kind": "conformance",
+      "releaseRequired": true,
+      "constraint": "no-runtime-dependency"
+    },
+    {
+      "from": "stfc-mod",
+      "to": "lex",
+      "kind": "downstream-proof",
+      "releaseRequired": true,
+      "constraint": "knowledge-shadow"
+    },
+    {
+      "from": "stfc-mod",
+      "to": "axf",
+      "kind": "downstream-proof",
+      "releaseRequired": true,
+      "constraint": "off-or-shadow"
+    }
+  ],
+  "gates": [
+    {
+      "id": "node-24",
+      "required": true,
+      "status": "planned",
+      "evidence": []
+    },
+    {
+      "id": "knowledge-context",
+      "required": true,
+      "status": "planned",
+      "evidence": []
+    },
+    {
+      "id": "behavioral-constraints",
+      "required": true,
+      "status": "planned",
+      "evidence": []
+    },
+    {
+      "id": "operator-recovery",
+      "required": true,
+      "status": "planned",
+      "evidence": []
+    },
+    {
+      "id": "linux-consumers",
+      "required": true,
+      "status": "planned",
+      "evidence": []
+    },
+    {
+      "id": "windows-consumers",
+      "required": true,
+      "status": "planned",
+      "evidence": []
+    },
+    {
+      "id": "sqlite-postgres-topology",
+      "required": true,
+      "status": "planned",
+      "evidence": []
+    },
+    {
+      "id": "signed-publication",
+      "required": true,
+      "status": "planned",
+      "evidence": []
+    }
+  ]
+}

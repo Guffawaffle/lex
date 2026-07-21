@@ -43,6 +43,7 @@ and compiles imports for every declaration path.
 | `@smartergpt/lex/lexsona` | Behavioral-memory integration |
 | `@smartergpt/lex/mcp-server` | Embeddable MCP server |
 | `@smartergpt/lex/schemas/cli-output.v1.schema.json` | Versioned CLI output JSON Schema |
+| `@smartergpt/lex/schemas/ecosystem-release-v1.schema.json` | Ecosystem release manifest JSON Schema |
 | `@smartergpt/lex/schemas/feature-spec-v0.json` | Versioned feature specification JSON Schema |
 | `@smartergpt/lex/schemas/profile.schema.json` | Lex profile JSON Schema |
 
