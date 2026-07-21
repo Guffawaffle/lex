@@ -1,0 +1,292 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://smartergpt.dev/schemas/ecosystem-release-v1.schema.json",
+  "title": "EcosystemReleaseManifest_v1",
+  "description": "A cross-repository compatibility and release-evidence manifest for the Lex toolset.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "releaseId",
+    "displayName",
+    "state",
+    "runtime",
+    "components",
+    "edges",
+    "gates"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "minLength": 1
+    },
+    "schemaVersion": {
+      "const": 1
+    },
+    "releaseId": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[.-][a-z0-9]+)*$"
+    },
+    "displayName": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120
+    },
+    "state": {
+      "enum": ["draft", "sealed"]
+    },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["nodeMinimumMajor", "nodeUpperBoundExclusive"],
+      "properties": {
+        "nodeMinimumMajor": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "nodeUpperBoundExclusive": {
+          "type": ["integer", "null"],
+          "minimum": 2
+        }
+      }
+    },
+    "components": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/definitions/component"
+      }
+    },
+    "edges": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/edge"
+      }
+    },
+    "gates": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/definitions/gate"
+      }
+    }
+  },
+  "definitions": {
+    "nullableSemver": {
+      "type": ["string", "null"],
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?$"
+    },
+    "nullableSha512": {
+      "type": ["string", "null"],
+      "pattern": "^sha512-[A-Za-z0-9+/]+={0,2}$"
+    },
+    "nullableCommit": {
+      "type": ["string", "null"],
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "component": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "repository",
+        "role",
+        "participation",
+        "runtimeRequirement",
+        "status",
+        "issues",
+        "package",
+        "source",
+        "evidence"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+        },
+        "repository": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+        },
+        "role": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 240
+        },
+        "participation": {
+          "enum": ["required-package", "required-source-proof"]
+        },
+        "runtimeRequirement": {
+          "enum": ["required", "optional", "none"]
+        },
+        "status": {
+          "enum": ["baseline", "planned", "candidate", "published", "verified", "excluded"]
+        },
+        "issues": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^https://github\\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/issues/[0-9]+$"
+          }
+        },
+        "package": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "name",
+                "registry",
+                "access",
+                "baselineVersion",
+                "targetVersion",
+                "publishedVersion",
+                "integrity"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "pattern": "^@smartergpt/[a-z0-9-]+$"
+                },
+                "registry": {
+                  "const": "https://registry.npmjs.org"
+                },
+                "access": {
+                  "enum": ["public", "restricted"]
+                },
+                "baselineVersion": {
+                  "$ref": "#/definitions/nullableSemver"
+                },
+                "targetVersion": {
+                  "$ref": "#/definitions/nullableSemver"
+                },
+                "publishedVersion": {
+                  "$ref": "#/definitions/nullableSemver"
+                },
+                "integrity": {
+                  "$ref": "#/definitions/nullableSha512"
+                }
+              }
+            }
+          ]
+        },
+        "source": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["commit", "tag"],
+          "properties": {
+            "commit": {
+              "$ref": "#/definitions/nullableCommit"
+            },
+            "tag": {
+              "type": ["string", "null"],
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+            }
+          }
+        },
+        "evidence": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "format": "uri",
+            "pattern": "^https://"
+          }
+        }
+      }
+    },
+    "edge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["from", "to", "kind", "releaseRequired", "constraint"],
+      "properties": {
+        "from": {
+          "type": "string"
+        },
+        "to": {
+          "type": "string"
+        },
+        "kind": {
+          "enum": ["runtime", "peer", "optional", "conformance", "downstream-proof"]
+        },
+        "releaseRequired": {
+          "type": "boolean"
+        },
+        "constraint": {
+          "type": ["string", "null"],
+          "maxLength": 120
+        }
+      }
+    },
+    "gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "required", "status", "evidence"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "status": {
+          "enum": ["planned", "passed", "excluded"]
+        },
+        "evidence": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "format": "uri",
+            "pattern": "^https://"
+          }
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "$schema": "../canon/schemas/ecosystem-release-v1.schema.json",
+      "schemaVersion": 1,
+      "releaseId": "ecosystem-example",
+      "displayName": "Example ecosystem release",
+      "state": "draft",
+      "runtime": {
+        "nodeMinimumMajor": 24,
+        "nodeUpperBoundExclusive": null
+      },
+      "components": [
+        {
+          "id": "example-proof",
+          "repository": "example/project",
+          "role": "Illustrative source-proof component.",
+          "participation": "required-source-proof",
+          "runtimeRequirement": "none",
+          "status": "planned",
+          "issues": ["https://github.com/example/project/issues/1"],
+          "package": null,
+          "source": {
+            "commit": null,
+            "tag": null
+          },
+          "evidence": []
+        }
+      ],
+      "edges": [],
+      "gates": [
+        {
+          "id": "example-gate",
+          "required": true,
+          "status": "planned",
+          "evidence": []
+        }
+      ]
+    }
+  ]
+}

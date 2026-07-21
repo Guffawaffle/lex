@@ -117,6 +117,11 @@ export const PUBLIC_EXPORT_CONTRACT = Object.freeze([
     anchors: [],
   },
   {
+    subpath: "./schemas/ecosystem-release-v1.schema.json",
+    purpose: "Ecosystem release manifest JSON Schema",
+    anchors: [],
+  },
+  {
     subpath: "./schemas/feature-spec-v0.json",
     purpose: "Versioned feature specification JSON Schema",
     anchors: [],
