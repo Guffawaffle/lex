@@ -135,7 +135,7 @@
     "postinstall": "node -e \"if (process.env.npm_config_global === 'true' || !process.cwd().includes('node_modules')) { console.log('\\n📦 Lex installed! Run \\\"npx lex init\\\" to set up your workspace.\\n'); }\"",
     "setup-local": "./scripts/setup-local.sh",
     "build": "tsc -b tsconfig.build.json",
-    "postbuild": "chmod +x dist/shared/cli/lex.js && npm run copy-canon",
+    "postbuild": "node scripts/ensure-cli-executable.mjs && npm run copy-canon",
     "copy-canon": "node scripts/copy-canon.js",
     "clean": "tsc -b tsconfig.build.json --clean && rimraf dist prompts schemas",
     "validate-schemas": "node scripts/validate-schemas.js",
