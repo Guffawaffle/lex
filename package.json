@@ -164,6 +164,7 @@
     "check:public-api": "node scripts/verify-public-api.mjs",
     "guard:pack": "node scripts/create-pack-json.js && node scripts/pack-guard.js && rm pack.json *.tgz",
     "check:release-drift": "node scripts/check-release-drift.mjs",
+    "check:node-runtime": "node scripts/check-node-runtime-contract.mjs",
     "check:ecosystem-release": "node scripts/validate-ecosystem-release.mjs",
     "check:mcp-registry-contract": "node scripts/verify-mcp-registry-contract.mjs --version $(node -p \"require('./package.json').version\")",
     "coverage": "c8 -r text -r lcov npm test",
@@ -214,7 +215,7 @@
   },
   "homepage": "https://github.com/Guffawaffle/lex#readme",
   "engines": {
-    "node": ">=20 <25"
+    "node": ">=24"
   },
   "peerDependencies": {
     "pino-pretty": "*"
@@ -231,7 +232,7 @@
   "dependencies": {
     "@types/express": "^5.0.5",
     "@types/jsonwebtoken": "^9.0.10",
-    "@types/node": ">=20 <25",
+    "@types/node": "^24.0.0",
     "@types/pg": "^8.20.0",
     "axios": "^1.13.2",
     "better-sqlite3-multiple-ciphers": "^12.6.2",

@@ -422,7 +422,7 @@ export async function exportGraphAsPNG(
   // If you believe you can fix this, you must:
   // 1. Ensure it works with both ESM and CommonJS Node.js configurations
   // 2. Test with sharp installed AND uninstalled (should gracefully fail)
-  // 3. Verify across Node.js versions 18, 20, and 22
+  // 3. Verify against the supported Node.js 24 runtime contract
   // 4. Document the fix in the PR description with test evidence
   //
   // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment

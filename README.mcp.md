@@ -112,7 +112,7 @@ existing attachment behavior.
 ## Process boundary
 
 - **Transport:** stdio using JSON-RPC 2.0
-- **Runtime:** Node.js 20 through 24
+- **Runtime:** Node.js 24 or newer
 - **Implementation:** `@smartergpt/lex-mcp` is a thin launcher around the server exported by
   `@smartergpt/lex`
 - **Network:** the MCP transport itself does not open a listening port; PostgreSQL and your MCP

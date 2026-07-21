@@ -187,7 +187,7 @@ describe("Feature Name", () => {
 
 The alias tests run automatically on every PR via `.github/workflows/test-aliasing.yml`:
 
-- Runs on Node 20 and 22
+- Runs on the supported Node 24 runtime
 - Checks test passing
 - Verifies 90%+ branch coverage
 - Fails PR if any tests fail

@@ -14,7 +14,7 @@ boundaries surrounding that code—then recalls only what the next session needs
 [![MIT License](https://img.shields.io/badge/License-MIT-green)](./LICENSE)
 [![npm version](https://img.shields.io/npm/v/@smartergpt/lex)](https://www.npmjs.com/package/@smartergpt/lex)
 [![CI Status](https://img.shields.io/badge/CI-passing-success)](https://github.com/Guffawaffle/lex/actions)
-[![Node.js](https://img.shields.io/badge/Node.js-20--24-339933)](https://nodejs.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-24%2B-339933)](https://nodejs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-6-3178C6)](https://www.typescriptlang.org/)
 
 [See the core loop](#remember--recall--continue) · [Should I use Lex?](#should-i-use-lex) · [Five-minute pilot](#five-minute-pilot) · [Agent evaluation](./docs/agent-evaluation.md) · [Documentation](#choose-your-next-step)
@@ -114,7 +114,9 @@ The complete rubric and local-file version are in
 Ready to test the claim? Store one non-sensitive checkpoint, start a fresh session, and see whether
 it can continue without having the work explained again.
 
-Requires Node.js 20 through 24.
+Requires Node.js 24 or newer. Lex does not impose an unproven upper bound. Existing users should
+review the [Node 24 migration](docs/releases/node-24-migration.md), including the native SQLite
+rebuild step.
 
 This approved pilot writes one Frame to the local SQLite store under `.smartergpt/lex/`. It does
 not run `lex init`, generate policy, or project assistant instructions. Use a disposable branch,

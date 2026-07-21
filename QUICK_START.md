@@ -10,7 +10,7 @@ projection, AXF, LexRunner, or LexSona.
 
 You need:
 
-- Node.js 20 through 24;
+- Node.js 24 or newer;
 - a Git repository;
 - a disposable branch, worktree, or clone if you want complete filesystem isolation;
 - approval to create `.smartergpt/lex/memory.db` in the pilot workspace.

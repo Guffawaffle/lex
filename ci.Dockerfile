@@ -1,5 +1,5 @@
 # ci.Dockerfile — Local CI replica image (not used by Actions)
-FROM node:22-bookworm
+FROM node:24-bookworm
 
 # Basic OS deps for native modules like better-sqlite3
 # Add ripgrep for script detection in ci.sh
