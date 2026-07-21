@@ -25,7 +25,7 @@ Before committing, ensure:
 
 ### Prerequisites
 
-- **Node.js**: 20.x, 22.x, or 24.x (we recommend 24 for development)
+- **Node.js**: 24.x or newer (24 is the minimum supported release line)
 - **npm**: 9+ (comes with Node.js)
 - **Git**: 2.30+
 
@@ -588,7 +588,7 @@ For the complete release workflow, tag signing, and rollback procedures, see [RE
 GitHub divides validation across focused workflows. The primary PR surface includes signed-commit
 verification, lint, type checking, MCP registry-contract checks, build/coverage, integration
 tests, and package validation. Separate workflows enforce the lint budget, canonical artifacts and
-documentation, determinism, aliases, and the Node 20/22/24 test matrix.
+documentation, determinism, aliases, and the Node 24 runtime contract.
 
 ### Checks
 1. **Type Check** - `npm run type-check`

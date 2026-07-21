@@ -2,9 +2,9 @@ name: Alias Resolution Tests
 
 on:
   pull_request:
-    branches: [ main ]
+    branches: [main]
   push:
-    branches: [ main ]
+    branches: [main]
   workflow_dispatch:
 
 # Limit permissions to read-only by default
@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   test-aliases:
-    name: Alias Tests (Node 20)
+    name: Alias Tests (Node 24)
     runs-on: ubuntu-latest
 
     steps:
@@ -23,8 +23,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "24"
+          cache: "npm"
 
       - name: Install dependencies (hermetic)
         run: npm ci --ignore-scripts
@@ -70,8 +70,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "24"
+          cache: "npm"
 
       - name: Install dependencies (hermetic)
         run: npm ci --ignore-scripts
@@ -108,8 +108,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "24"
+          cache: "npm"
 
       - name: Install dependencies (hermetic)
         run: npm ci --ignore-scripts

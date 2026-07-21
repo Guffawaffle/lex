@@ -9,7 +9,7 @@ This document tracks performance metrics for Lex, particularly focusing on datab
 - **Library:** better-sqlite3-multiple-ciphers v12.4.6
 - **Cipher:** SQLCipher with AES-256
 - **Key Derivation:** PBKDF2-SHA256, 64,000 iterations
-- **Test Environment:** Node.js v20+, Ubuntu Linux
+- **Test Environment:** Node.js v24+, Ubuntu Linux
 - **Database Size:** 2-10K frames (typical development workload)
 
 ### Encryption Overhead

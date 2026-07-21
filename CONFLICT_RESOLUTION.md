@@ -122,7 +122,7 @@ npm install lex
 
 ### Prerequisites
 
-Node.js 20+
+Node.js 24+
 
 ## Usage
 
@@ -137,7 +137,7 @@ npm install lex
 
 ### Prerequisites
 
-Node.js 20+
+Node.js 24+
 
 ## Usage
 

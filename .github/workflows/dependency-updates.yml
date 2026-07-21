@@ -3,7 +3,7 @@ name: Dependency Updates
 on:
   schedule:
     # Run every Monday at 10 AM UTC
-    - cron: '0 10 * * 1'
+    - cron: "0 10 * * 1"
   workflow_dispatch:
 
 permissions:
@@ -28,7 +28,7 @@ jobs:
 
       - uses: actions/setup-node@v6
         with:
-          node-version: '20'
+          node-version: "24"
 
       - name: Check for outdated dependencies
         id: check

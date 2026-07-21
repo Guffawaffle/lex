@@ -35,7 +35,7 @@ Prior to this decision, the repository had a mix of `.ts` and `.js` files in `sr
 Lex is a library that needs to:
 - Provide strong type safety guarantees to consumers
 - Emit clean, predictable ESM modules
-- Support modern Node.js (18+) without legacy CommonJS baggage
+- Support the current Node.js 24+ runtime contract without legacy CommonJS baggage
 - Enable deterministic builds via TypeScript project references
 - Allow developers to confidently refactor without runtime surprises
 
