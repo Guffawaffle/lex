@@ -22,3 +22,9 @@ export type {
   CompileKnowledgeSnapshotInput,
   KnowledgeSourceInput,
 } from "./compiler.js";
+export {
+  KNOWLEDGE_STORE_SCHEMA_VERSION,
+  KnowledgeSnapshotStore,
+  KnowledgeStoreError,
+} from "./store.js";
+export type { KnowledgeStoreAccessMode, KnowledgeStoreErrorCode } from "./store.js";
