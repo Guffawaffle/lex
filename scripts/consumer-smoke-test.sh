@@ -40,12 +40,16 @@ fi
 
 cp "$REPO_ROOT/scripts/public-api-contract.mjs" .
 cp "$REPO_ROOT/scripts/verify-public-api.mjs" .
+cp "$REPO_ROOT/scripts/verify-sharp-runtime.mjs" .
 
 echo "==> Validating all declared runtime exports"
 node verify-public-api.mjs \
   --package-root "$TEST_DIR/node_modules/@smartergpt/lex" \
   --skip-docs \
   --write-consumer-types "$TEST_DIR/public-api-consumer.ts"
+
+echo "==> Exercising the installed image-rendering runtime"
+node verify-sharp-runtime.mjs "$TEST_DIR/node_modules/@smartergpt/lex"
 
 echo "==> Type-checking all declared exports from the packed package"
 "$REPO_ROOT/node_modules/.bin/tsc" \
@@ -73,5 +77,6 @@ echo "==> ✅ Packed consumer smoke test passed"
 echo "    declared runtime export paths imported"
 echo "    declaration entry points type-checked"
 echo "    undeclared internal paths remained blocked"
+echo "    installed sharp/libvips runtime generated a PNG"
 echo "    installed CLI executed and reported the packed version"
 echo "    consumer example emitted RECEIPT_OK"
