@@ -225,6 +225,6 @@ Potential improvements:
 ## Dependencies
 
 - **shiki** (^1.22.2) - VS Code syntax highlighter
-- **sharp** (^0.33.5) - PNG image generation
+- **sharp** (^0.35.3) - PNG image generation with libvips 8.18.3 security fixes
 
 No security vulnerabilities detected.

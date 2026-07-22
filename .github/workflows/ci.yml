@@ -115,6 +115,7 @@ jobs:
       - run: npm ci --ignore-scripts
       - run: npm run check:mcp-registry-contract
       - run: npm run check:node-runtime
+      - run: npm run check:dependency-audit
       - run: npm run check:ecosystem-release
 
   # Standard gates: build + tests (only on workflow_dispatch with level >= standard)
