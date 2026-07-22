@@ -111,6 +111,7 @@ function parseSnapshot(value: string): CompiledKnowledgeSnapshotV1 {
     typeof snapshot.snapshotId !== "string" ||
     typeof snapshot.repositoryKey !== "string" ||
     typeof snapshot.compilerVersion !== "string" ||
+    typeof snapshot.configurationDigest !== "string" ||
     typeof snapshot.sourceFingerprint !== "string" ||
     !Array.isArray(snapshot.records)
   ) {

@@ -28,3 +28,20 @@ export {
   KnowledgeStoreError,
 } from "./store.js";
 export type { KnowledgeStoreAccessMode, KnowledgeStoreErrorCode } from "./store.js";
+export {
+  buildKnowledgeContext,
+  checkKnowledgeWorkspace,
+  explainKnowledgeFrame,
+  indexKnowledgeWorkspace,
+  readKnowledgeWorkspace,
+} from "./workspace.js";
+export type {
+  KnowledgeCheckResultV1,
+  KnowledgeContextRecordV1,
+  KnowledgeContextV1,
+  KnowledgeExplainResultV1,
+  KnowledgeFreshness,
+  KnowledgeIndexResultV1,
+  KnowledgeWorkspaceOptions,
+  KnowledgeWorkspaceSnapshotV1,
+} from "./workspace.js";

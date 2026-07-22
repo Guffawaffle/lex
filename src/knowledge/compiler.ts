@@ -60,6 +60,8 @@ export interface CompileKnowledgeSnapshotInput {
   readonly repositoryKey: string;
   readonly sources: readonly KnowledgeSourceInput[];
   readonly compilerVersion?: string;
+  /** Digest of the effective knowledge configuration when compiled from a workspace. */
+  readonly configurationDigest?: string;
 }
 
 export interface CompiledKnowledgeSnapshotV1 {
@@ -67,6 +69,7 @@ export interface CompiledKnowledgeSnapshotV1 {
   readonly snapshotId: string;
   readonly repositoryKey: string;
   readonly compilerVersion: string;
+  readonly configurationDigest: string;
   readonly sourceFingerprint: string;
   readonly records: readonly KnowledgeFrameV1[];
 }
@@ -153,6 +156,9 @@ export function compileKnowledgeSnapshot(
   }
 
   const compilerVersion = input.compilerVersion ?? KNOWLEDGE_COMPILER_VERSION;
+  const configurationDigest =
+    input.configurationDigest ??
+    digest(canonicalJson({ sources: sources.map((source) => source.path) }));
   const sourceDescriptors = sources.map((source) => ({
     path: source.path,
     sourceDigest: digest(source.content),
@@ -161,9 +167,16 @@ export function compileKnowledgeSnapshot(
     baseCommitSha: source.baseCommitSha,
     branch: source.branch,
   }));
-  const sourceFingerprint = digest(canonicalJson(sourceDescriptors));
+  const sourceFingerprint = digest(
+    canonicalJson({ configurationDigest, sources: sourceDescriptors })
+  );
   const snapshotId = digest(
-    canonicalJson({ repositoryKey: input.repositoryKey, compilerVersion, sourceFingerprint })
+    canonicalJson({
+      repositoryKey: input.repositoryKey,
+      compilerVersion,
+      configurationDigest,
+      sourceFingerprint,
+    })
   );
 
   const records: KnowledgeFrameV1[] = [];
@@ -307,6 +320,7 @@ export function compileKnowledgeSnapshot(
     snapshotId,
     repositoryKey: input.repositoryKey,
     compilerVersion,
+    configurationDigest,
     sourceFingerprint,
     records,
   };
