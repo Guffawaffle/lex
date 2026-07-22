@@ -13,7 +13,8 @@
     { "path": "./shared/atlas" },
     { "path": "./shared/module_ids" },
     { "path": "./shared/aliases" },
-    { "path": "./shared/runtime-scope" }
+    { "path": "./shared/runtime-scope" },
+    { "path": "./knowledge" }
   ],
   "include": ["index.ts"]
 }

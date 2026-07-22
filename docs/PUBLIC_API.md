@@ -41,6 +41,7 @@ and compiles imports for every declaration path.
 | `@smartergpt/lex/logger` | Structured logging |
 | `@smartergpt/lex/prompts` | Prompt template loading and rendering |
 | `@smartergpt/lex/lexsona` | Behavioral-memory integration |
+| `@smartergpt/lex/knowledge` | KnowledgeFrame contract and deterministic Markdown compiler |
 | `@smartergpt/lex/mcp-server` | Embeddable MCP server |
 | `@smartergpt/lex/schemas/cli-output.v1.schema.json` | Versioned CLI output JSON Schema |
 | `@smartergpt/lex/schemas/ecosystem-release-v1.schema.json` | Ecosystem release manifest JSON Schema |

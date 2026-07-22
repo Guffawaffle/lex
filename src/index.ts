@@ -33,6 +33,9 @@ export { ModuleNotFoundError } from "./shared/types/validation.js";
 // Trusted runtime identity, authority, binding, and diagnostics contracts
 export * from "./shared/runtime-scope/index.js";
 
+// Markdown-authored, derived KnowledgeFrame contract and compiler
+export * from "./knowledge/index.js";
+
 // =============================================================================
 // STORE API (1.0.0 Contract)
 // =============================================================================

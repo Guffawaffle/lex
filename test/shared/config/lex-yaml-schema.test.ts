@@ -34,6 +34,9 @@ describe("LexYamlSchema", () => {
             cursor: true,
           },
         },
+        knowledge: {
+          sources: ["docs/architecture.md", "notes/probes.md"],
+        },
       };
       const result = parseLexYaml(input);
 
@@ -41,6 +44,10 @@ describe("LexYamlSchema", () => {
       assert.strictEqual(result.instructions?.canonical, ".smartergpt/instructions/lex.md");
       assert.strictEqual(result.instructions?.projections?.copilot, true);
       assert.strictEqual(result.instructions?.projections?.cursor, true);
+      assert.deepStrictEqual(result.knowledge?.sources, [
+        "docs/architecture.md",
+        "notes/probes.md",
+      ]);
     });
 
     test("accepts config with instructions but no projections", () => {
@@ -188,6 +195,19 @@ describe("LexYamlSchema", () => {
 
       assert.strictEqual(result.success, false);
       assert.ok(result.error);
+    });
+
+    test("rejects glob, absolute, traversal, and duplicate knowledge sources", () => {
+      for (const sources of [
+        ["docs/*.md"],
+        ["/tmp/notes.md"],
+        ["C:\\temp\\notes.md"],
+        ["../notes.md"],
+        ["docs/notes.md", "docs/notes.md"],
+      ]) {
+        const result = validateLexYaml({ version: 1, knowledge: { sources } });
+        assert.strictEqual(result.success, false, `expected rejection for ${sources.join(",")}`);
+      }
     });
   });
 
