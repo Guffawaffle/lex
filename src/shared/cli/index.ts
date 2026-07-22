@@ -52,6 +52,7 @@ import { introspect, type IntrospectOptions } from "./introspect.js";
 import { context, type ContextOptions } from "./context.js";
 import { hints, type HintsOptions } from "./hints.js";
 import { addWorkspaceAdminCommands, type WorkspaceAdminCliV1 } from "./workspace.js";
+import { addKnowledgeCommands } from "./knowledge.js";
 import {
   scopedFrameStoreAsLegacyView,
   type FrameStore,
@@ -771,6 +772,7 @@ export function createProgram(programOptions: CreateProgramOptionsV1 = {}): Comm
     });
 
   addWorkspaceAdminCommands(program, programOptions.workspaceAdmin);
+  addKnowledgeCommands(program);
 
   return program;
 }

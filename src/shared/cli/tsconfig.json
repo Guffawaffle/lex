@@ -29,6 +29,7 @@
     { "path": "../../memory/renderer" },
     { "path": "../../memory/receipts" },
     { "path": "../../memory/frames" },
+    { "path": "../../knowledge" },
     { "path": "../../github" }
   ]
 }
