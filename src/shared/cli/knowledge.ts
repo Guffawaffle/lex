@@ -29,6 +29,14 @@ function addWorkspaceOptions(command: Command): Command {
     .option("--database <path>", "Dedicated derived knowledge database path");
 }
 
+function positiveInteger(value: string): number {
+  const parsed = Number(value);
+  if (!Number.isSafeInteger(parsed) || parsed < 0) {
+    throw new TypeError(`Expected a non-negative integer, received ${value}.`);
+  }
+  return parsed;
+}
+
 /** Register the structured KnowledgeFrame CLI surface. */
 export function addKnowledgeCommands(program: Command): void {
   const knowledge = program
@@ -51,8 +59,12 @@ export function addKnowledgeCommands(program: Command): void {
     knowledge
       .command("context [query]")
       .description("Return bounded, prompt-safe, hard read-only knowledge context")
-      .option("--limit <count>", "Maximum selected records", Number)
-      .option("--max-bytes <bytes>", "Maximum bytes for selected record projections", Number)
+      .option("--limit <count>", "Maximum selected records", positiveInteger)
+      .option(
+        "--max-bytes <bytes>",
+        "Maximum bytes for the complete context envelope",
+        positiveInteger
+      )
   ).action(
     (
       query: string | undefined,

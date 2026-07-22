@@ -146,4 +146,20 @@ ${probe}`;
     assert.notEqual(before.recordDigest, after.recordDigest);
     assert.notEqual(before.provenance.snapshotId, after.provenance.snapshotId);
   });
+
+  test("retains logical identity across reclassification and rejects unknown schema majors", () => {
+    const before = compileKnowledgeSnapshot({
+      repositoryKey: "example/repo",
+      sources: [source("docs/probe.md", probe)],
+    }).records[0];
+    const after = compileKnowledgeSnapshot({
+      repositoryKey: "example/repo",
+      sources: [source("docs/probe.md", probe.replace("type: probe", "type: seam"))],
+    }).records[0];
+
+    assert.equal(before.id, after.id);
+    assert.equal(after.type, "seam");
+    assert.notEqual(before.recordDigest, after.recordDigest);
+    assert.throws(() => KnowledgeFrameV1Schema.parse({ ...after, schemaVersion: 2 }));
+  });
 });

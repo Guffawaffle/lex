@@ -196,6 +196,7 @@ lex --json context --branch main --limit 5
 | Repository boundaries | Policy checks | [Policy usage](./docs/API_USAGE.md) |
 | Nearby module context | Atlas | [Atlas guide](./docs/atlas/README.md) |
 | Canonical assistant instructions | Instructions projection | [Instructions](./docs/INSTRUCTIONS.md) |
+| Typed Markdown project knowledge | Derived KnowledgeFrame snapshots | [KnowledgeFrames](./docs/KNOWLEDGE_FRAMES.md) |
 | Shared cross-host storage | PostgreSQL | [Store contracts](./docs/STORE_CONTRACTS.md) and [scope security](./docs/POSTGRES_SCOPE_SECURITY.md) |
 | Trusted tenant/workspace scope | Runtime authority and RLS | [Runtime scope](./docs/RUNTIME_SCOPE_CONTRACT.md) |
 | Embedded application access | TypeScript package exports | [Public API](./docs/PUBLIC_API.md) |

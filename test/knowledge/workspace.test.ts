@@ -46,7 +46,10 @@ function write(path: string, content: string): void {
   writeFileSync(path, content, "utf8");
 }
 
-function workspace(title = "Initial observation"): {
+function workspace(
+  title = "Initial observation",
+  body?: string
+): {
   readonly root: string;
   readonly sourcePath: string;
   readonly databasePath: string;
@@ -56,7 +59,7 @@ function workspace(title = "Initial observation"): {
   const sourcePath = join(root, "docs", "knowledge.md");
   const databasePath = join(root, ".smartergpt", "lex", "knowledge.db");
   write(join(root, "lex.yaml"), "version: 1\nknowledge:\n  sources:\n    - docs/knowledge.md\n");
-  write(sourcePath, markdown(title));
+  write(sourcePath, markdown(title, body));
   return {
     root,
     sourcePath,
@@ -78,6 +81,15 @@ describe("Knowledge workspace operations", () => {
     assert.equal(result.operation, "knowledge-check");
     assert.equal(result.recordCount, 1);
     assert.equal(result.databaseWrites, 0);
+    assert.equal(existsSync(fixture.databasePath), false);
+  });
+
+  test("context reports an unindexed workspace without creating a store", () => {
+    const fixture = workspace();
+    const context = buildKnowledgeContext(fixture.options);
+
+    assert.equal(context.snapshot.freshness, "unindexed");
+    assert.deepEqual(context.records, []);
     assert.equal(existsSync(fixture.databasePath), false);
   });
 
@@ -114,6 +126,7 @@ describe("Knowledge workspace operations", () => {
     assert.ok(context.records[0].whySelected.includes("query-match"));
     assert.equal(context.safety.contentTrust, "untrusted-project-data");
     assert.ok(context.budget.usedBytes <= context.budget.maxBytes);
+    assert.equal(Buffer.byteLength(JSON.stringify(context), "utf8"), context.budget.usedBytes);
   });
 
   test("stale source content is never returned in preferred context", () => {
@@ -127,14 +140,29 @@ describe("Knowledge workspace operations", () => {
     assert.ok(context.warnings.some((warning) => warning.includes("stored bodies were excluded")));
   });
 
+  test("removed blocks make the snapshot stale and cannot leak stored bodies", () => {
+    const fixture = workspace("Before removal");
+    indexKnowledgeWorkspace(fixture.options);
+    write(fixture.sourcePath, "# Ordinary Markdown\n\nThe block was removed.\n");
+
+    const context = buildKnowledgeContext(fixture.options);
+    assert.equal(context.snapshot.freshness, "stale");
+    assert.deepEqual(context.records, []);
+    const explained = explainKnowledgeFrame("repair-transition", fixture.options);
+    assert.equal(explained.freshness, "missing");
+    assert.equal(explained.stored?.anchor, "repair-transition");
+    assert.equal(explained.current, null);
+  });
+
   test("one byte budget deterministically omits records that do not fit", () => {
     const fixture = workspace("Oversized", "x".repeat(2_000));
     indexKnowledgeWorkspace(fixture.options);
 
-    const context = buildKnowledgeContext({ ...fixture.options, maxBytes: 256 });
+    const context = buildKnowledgeContext({ ...fixture.options, maxBytes: 2_048 });
     assert.deepEqual(context.records, []);
-    assert.equal(context.budget.maxBytes, 256);
+    assert.equal(context.budget.maxBytes, 2_048);
     assert.equal(context.budget.omittedRecords, 1);
+    assert.ok(Buffer.byteLength(JSON.stringify(context), "utf8") <= context.budget.maxBytes);
   });
 
   test("explain preserves stored coordinates and locates the current ID after a file move", () => {
