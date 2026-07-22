@@ -682,9 +682,9 @@ class PostgresBehavioralWriteView
         `INSERT INTO ${relation(this.#target, "lex_behavioral_write_receipts")} (
            tenant_id, workspace_id, repository_id, repository_instance_id,
            idempotency_key, payload_digest, receipt_json, recorded_at
-         ) VALUES ($1::uuid, $2::uuid, $3::uuid, $4::uuid, $6, $7, $8::jsonb, $9::timestamptz)`,
+         ) VALUES ($1::uuid, $2::uuid, $3::uuid, $4::uuid, $5, $6, $7::jsonb, $8::timestamptz)`,
         [
-          ...scopeValues(this.binding),
+          ...scopeValues(this.binding).slice(0, 4),
           idempotencyKey,
           payloadDigest,
           canonicalBehavioralJson(result),

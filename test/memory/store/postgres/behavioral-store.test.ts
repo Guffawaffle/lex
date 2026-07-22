@@ -119,6 +119,16 @@ describe("PostgresBehavioralStoreBackend", () => {
     assert.equal(pool.queries.filter(({ sql }) => sql === "COMMIT").length, 2);
     assert.ok(pool.queries.some(({ sql }) => sql === "SET TRANSACTION READ ONLY"));
     assert.equal(pool.queries.filter(({ sql }) => sql.startsWith("RESET lex.tenant_id")).length, 4);
+    for (const query of pool.queries.filter(({ values }) => values.length > 0)) {
+      const placeholders = [
+        ...new Set([...query.sql.matchAll(/\$(\d+)/g)].map((match) => Number(match[1]))),
+      ].sort((left, right) => left - right);
+      assert.deepEqual(
+        placeholders,
+        Array.from({ length: query.values.length }, (_, index) => index + 1),
+        `query parameters must be contiguous: ${query.sql}`
+      );
+    }
     for (const query of scopedDataQueries(pool)) {
       if (query.sql.startsWith("INSERT INTO")) {
         assert.match(query.sql, /tenant_id, workspace_id, repository_id, repository_instance_id/);
