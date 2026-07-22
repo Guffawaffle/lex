@@ -21,6 +21,9 @@ These values are independent and must not be substituted for one another:
 | Scope-owned SQLite | `SCOPED_SQLITE_SCHEMA_VERSION = 15` | Per-workspace physical schema with immutable ownership |
 | Unscoped compatibility PostgreSQL | `POSTGRES_COMPATIBILITY_FRAME_STORE_SCHEMA_VERSION = 2` | Dedicated `lex_compat_*` relations without tenant authorization |
 | Scope-owned PostgreSQL | `POSTGRES_FRAME_STORE_SCHEMA_VERSION = 3` | Explicit qualified schema with forced RLS |
+| Behavioral public contract | `BEHAVIORAL_STORE_CONTRACT_VERSION = 1` | Backend-neutral persona/rule revisions, evidence, and receipts |
+| Behavioral SQLite | `SQLITE_BEHAVIORAL_STORE_SCHEMA_VERSION = 1` | Dedicated exact-scope behavioral relations |
+| Behavioral PostgreSQL | `POSTGRES_BEHAVIORAL_STORE_SCHEMA_VERSION = 1` | Dedicated exact-scope relations with forced RLS |
 
 Physical migration versions are monotonic backend histories. A recorded version is not sufficient
 on its own: adapters also validate required tables, columns, indexes, and ownership invariants.

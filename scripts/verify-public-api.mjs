@@ -188,7 +188,7 @@ if (consumerTypesPath) {
       `type PublicApi${index + 1} = typeof import(${JSON.stringify(packageSpecifier(packageJson.name, subpath))});`
   );
   const tuple = PUBLIC_EXPORT_CONTRACT.map((_, index) => `  PublicApi${index + 1},`).join("\n");
-  const consumerSource = `${aliases.join("\n")}\n\nexport type PackedPublicApi = [\n${tuple}\n];\n\nimport type { AuthorizedScope } from "@smartergpt/lex/runtime-scope";\nimport type { FrameStoreAdmin, ScopedFrameStore, ScopedFrameStoreBinder } from "@smartergpt/lex/store";\n\nexport type Lex3PublicTypes = {\n  scope: AuthorizedScope;\n  store: ScopedFrameStore;\n  binder: ScopedFrameStoreBinder;\n  admin: FrameStoreAdmin;\n};\n`;
+  const consumerSource = `${aliases.join("\n")}\n\nexport type PackedPublicApi = [\n${tuple}\n];\n\nimport type { AuthorizedScope } from "@smartergpt/lex/runtime-scope";\nimport type { BehavioralStoreBinder, FrameStoreAdmin, ScopedBehavioralReadStore, ScopedBehavioralWriteStore, ScopedFrameStore, ScopedFrameStoreBinder } from "@smartergpt/lex/store";\n\nexport type Lex3PublicTypes = {\n  scope: AuthorizedScope;\n  store: ScopedFrameStore;\n  binder: ScopedFrameStoreBinder;\n  admin: FrameStoreAdmin;\n  behavioralRead: ScopedBehavioralReadStore;\n  behavioralWrite: ScopedBehavioralWriteStore;\n  behavioralBinder: BehavioralStoreBinder;\n};\n`;
   await writeFile(consumerTypesPath, consumerSource, "utf8");
 }
 

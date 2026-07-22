@@ -13,6 +13,11 @@ RLS is defense in depth. It never grants authority and it does not replace trust
 resolution. Normal callers receive a `ScopedFrameStore` only after Lex has resolved an immutable,
 attenuated `AuthorizedScopeV1`.
 
+The LexSona behavioral data plane applies the same model with the stricter canonical
+repository/repository-instance tuple on every query and RLS policy. Its relation, capability,
+migration, inventory, and rollback details are in
+[Scoped Behavioral Store](./BEHAVIORAL_STORE.md).
+
 ## Runtime and administration are separate
 
 `PostgresScopedFrameStoreBackend` accepts an explicit runtime connection or pool. It can bind a

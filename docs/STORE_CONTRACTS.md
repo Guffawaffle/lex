@@ -14,6 +14,10 @@ current normative details, including version domains and Frame record semantics,
 
 The compatibility PostgreSQL adapter is not a tenant authorization boundary.
 
+LexSona behavioral persistence uses the separate [Scoped Behavioral Store](./BEHAVIORAL_STORE.md).
+Its public integration socket returns data, immutable revisions, and deterministic receipts only;
+it never returns a backend handle.
+
 ## FrameStore
 
 `FrameStore` is the persistence contract for Frames (episodic memory snapshots).

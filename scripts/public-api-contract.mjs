@@ -64,11 +64,14 @@ export const PUBLIC_EXPORT_CONTRACT = Object.freeze([
   },
   {
     subpath: "./store",
-    purpose: "Legacy and scope-bound FrameStore adapters",
+    purpose: "Legacy FrameStore and authorized scoped persistence adapters",
     anchors: [
       "FRAME_STORE_SCOPE_CONTRACT_VERSION",
       "SqliteScopedFrameStoreBackend",
       "PostgresScopedFrameStoreBackend",
+      "BEHAVIORAL_STORE_CONTRACT_VERSION",
+      "SqliteBehavioralStoreBackend",
+      "openPostgresBehavioralStore",
     ],
   },
   { subpath: "./dedup", purpose: "Frame duplicate detection", anchors: ["detectDuplicateFrames"] },
