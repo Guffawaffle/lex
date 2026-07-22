@@ -38,16 +38,15 @@ export const KnowledgeSchema = z.object({
         .string()
         .min(1)
         .max(512)
-        .refine((value) => REPO_RELATIVE_SOURCE_PATH.test(value.replaceAll("\\", "/")), {
+        .transform((value) => value.replaceAll("\\", "/"))
+        .refine((value) => REPO_RELATIVE_SOURCE_PATH.test(value), {
           message: "must be an exact repo-relative Markdown path without traversal or glob syntax",
         })
     )
     .max(256)
-    .refine(
-      (sources) =>
-        new Set(sources.map((source) => source.replaceAll("\\", "/"))).size === sources.length,
-      { message: "must not contain duplicate source paths" }
-    ),
+    .refine((sources) => new Set(sources).size === sources.length, {
+      message: "must not contain duplicate source paths",
+    }),
 });
 
 export type KnowledgeConfig = z.infer<typeof KnowledgeSchema>;

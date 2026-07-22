@@ -16,6 +16,7 @@
  * - src/memory/mcp_server/routes/*.ts (MCP route handlers)
  * - src/shared/cli/db.ts (CLI database utilities)
  * - src/shared/runtime-scope/registry-queries.ts (local binding registry)
+ * - src/knowledge/store-queries.ts (KnowledgeFrame snapshot persistence)
  *
  * @see .github/copilot-instructions.md for SQL safety rules
  */
@@ -40,6 +41,7 @@ const ALLOWED_PATTERNS = [
   "memory/mcp_server/routes/",
   "shared/cli/db.ts",
   "shared/runtime-scope/registry-queries.ts",
+  "knowledge/store-queries.ts",
 ];
 
 describe("SQL Safety", () => {

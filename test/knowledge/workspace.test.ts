@@ -1,5 +1,6 @@
 import { strict as assert } from "node:assert";
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterEach, describe, test } from "node:test";
@@ -181,5 +182,44 @@ describe("Knowledge workspace operations", () => {
     assert.equal(explained.stored?.path, "docs/knowledge.md");
     assert.equal(explained.current?.path, "notes/moved.md");
     assert.equal(explained.current?.anchor, "repair-transition");
+  });
+
+  test("reports invalid repository declarations as targeted compile errors", () => {
+    const fixture = workspace();
+    write(join(fixture.root, "lex.repository.json"), "{ invalid json");
+
+    assert.throws(
+      () => readKnowledgeWorkspace({ ...fixture.options, repositoryKey: undefined }),
+      /Invalid lex\.repository\.json/
+    );
+  });
+
+  test("derives dirty source paths from one workspace status snapshot", () => {
+    const fixture = workspace();
+    write(join(fixture.root, "docs", "other.md"), "ordinary markdown");
+    for (const args of [
+      ["init"],
+      ["config", "user.email", "test@example.com"],
+      ["config", "user.name", "Test"],
+      ["add", "."],
+      ["commit", "-m", "fixture"],
+    ]) {
+      const result = spawnSync("git", args, { cwd: fixture.root, encoding: "utf8" });
+      assert.equal(result.status, 0, result.stderr);
+    }
+    write(fixture.sourcePath, markdown("Dirty observation"));
+    write(join(fixture.root, "docs", "other.md"), "unrelated dirty markdown");
+
+    const observed = readKnowledgeWorkspace({
+      projectRoot: fixture.root,
+      repositoryKey: "example/repo",
+      databasePath: fixture.databasePath,
+    });
+
+    assert.equal(observed.compiled.records[0].provenance.sourceLayer, "working-tree");
+    assert.equal(
+      observed.compiled.records[0].provenance.baseCommitSha,
+      observed.compiled.records[0].provenance.commitSha
+    );
   });
 });

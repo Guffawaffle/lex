@@ -121,7 +121,7 @@ function sha256(value: string): string {
   return `sha256:${createHash("sha256").update(value, "utf8").digest("hex")}`;
 }
 
-function gitValue(projectRoot: string, args: readonly string[]): string | undefined {
+function gitOutput(projectRoot: string, args: readonly string[]): string | undefined {
   const result = spawnSync("git", [...args], {
     cwd: projectRoot,
     encoding: "utf8",
@@ -130,7 +130,11 @@ function gitValue(projectRoot: string, args: readonly string[]): string | undefi
     timeout: 5_000,
   });
   if (result.status !== 0 || result.error) return undefined;
-  const value = result.stdout.trim();
+  return result.stdout;
+}
+
+function gitValue(projectRoot: string, args: readonly string[]): string | undefined {
+  const value = gitOutput(projectRoot, args)?.trim();
   return value || undefined;
 }
 
@@ -149,9 +153,16 @@ function resolveRepositoryKey(projectRoot: string, override?: string): string {
   if (override?.trim()) return override.trim();
   const declarationPath = join(projectRoot, "lex.repository.json");
   if (existsSync(declarationPath)) {
-    const declaration = JSON.parse(readContainedFile(projectRoot, declarationPath).content) as {
-      repositorySlug?: unknown;
-    };
+    let declaration: { repositorySlug?: unknown };
+    try {
+      declaration = JSON.parse(readContainedFile(projectRoot, declarationPath).content) as {
+        repositorySlug?: unknown;
+      };
+    } catch (error) {
+      throw new KnowledgeCompileError(
+        `Invalid lex.repository.json: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
     if (typeof declaration.repositorySlug === "string" && declaration.repositorySlug.trim()) {
       return declaration.repositorySlug.trim();
     }
@@ -162,6 +173,25 @@ function resolveRepositoryKey(projectRoot: string, override?: string): string {
   throw new KnowledgeCompileError(
     "A repository key is required; declare repositorySlug in lex.repository.json or pass repositoryKey explicitly."
   );
+}
+
+function dirtyPathsFromPorcelain(output: string): Set<string> {
+  const paths = new Set<string>();
+  const entries = output.split("\0").filter(Boolean);
+  for (let index = 0; index < entries.length; index += 1) {
+    const entry = entries[index];
+    if (entry.length < 4) continue;
+    paths.add(entry.slice(3).replaceAll("\\", "/"));
+    const status = entry.slice(0, 2);
+    if (status.includes("R") || status.includes("C")) {
+      const previousPath = entries[index + 1];
+      if (previousPath) {
+        paths.add(previousPath.replaceAll("\\", "/"));
+        index += 1;
+      }
+    }
+  }
+  return paths;
 }
 
 function resolveRevision(
@@ -175,10 +205,14 @@ function resolveRevision(
     throw new KnowledgeCompileError("Knowledge compilation requires a Git commit SHA.");
   }
   const branch = gitValue(projectRoot, ["branch", "--show-current"]);
+  const workspaceDirtyPaths = dirtyPathsFromPorcelain(
+    gitOutput(projectRoot, ["status", "--porcelain=v1", "-z", "--untracked-files=all"]) ?? ""
+  );
   const dirtyPaths = new Set<string>();
   for (const sourcePath of sourcePaths) {
-    if (gitValue(projectRoot, ["status", "--porcelain", "--", sourcePath])) {
-      dirtyPaths.add(sourcePath);
+    const normalized = sourcePath.replaceAll("\\", "/");
+    if (workspaceDirtyPaths.has(normalized)) {
+      dirtyPaths.add(normalized);
     }
   }
   return { commitSha, ...(branch ? { branch } : {}), dirtyPaths };

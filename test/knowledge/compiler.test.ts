@@ -162,4 +162,22 @@ ${probe}`;
     assert.notEqual(before.recordDigest, after.recordDigest);
     assert.throws(() => KnowledgeFrameV1Schema.parse({ ...after, schemaVersion: 2 }));
   });
+
+  test("uses consistent marker boundaries for provenance lines and bytes", () => {
+    const record = compileKnowledgeSnapshot({
+      repositoryKey: "example/repo",
+      sources: [source("docs/probe.md", probe)],
+    }).records[0];
+
+    assert.equal(record.provenance.startLine, 5);
+    assert.equal(record.provenance.endLine, 11);
+    assert.equal(
+      record.provenance.startByte,
+      Buffer.byteLength(probe.slice(0, probe.indexOf("-->") + 3))
+    );
+    assert.equal(
+      record.provenance.endByte,
+      Buffer.byteLength(probe.slice(0, probe.indexOf("<!-- lex:end")))
+    );
+  });
 });

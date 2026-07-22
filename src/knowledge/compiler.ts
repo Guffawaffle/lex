@@ -228,7 +228,7 @@ export function compileKnowledgeSnapshot(
           metadata: parsed.data,
           nodeIndex: index,
           startOffset: node.position?.end.offset ?? 0,
-          startLine: node.position?.start.line ?? 1,
+          startLine: node.position?.end.line ?? 1,
         };
         continue;
       }
@@ -260,7 +260,7 @@ export function compileKnowledgeSnapshot(
           path: source.path,
           anchor: open.metadata.id,
           startLine: open.startLine,
-          endLine: node.position?.end.line ?? open.startLine,
+          endLine: node.position?.start.line ?? open.startLine,
           startByte: byteOffset(source.content, open.startOffset),
           endByte: byteOffset(source.content, endOffset),
           sourceDigest,

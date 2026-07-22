@@ -80,6 +80,15 @@ describe("LexYamlSchema", () => {
       assert.strictEqual(result.instructions?.projections?.copilot, false);
       assert.strictEqual(result.instructions?.projections?.cursor, false);
     });
+
+    test("normalizes knowledge source separators before returning parsed config", () => {
+      const result = parseLexYaml({
+        version: 1,
+        knowledge: { sources: ["docs\\architecture.md"] },
+      });
+
+      assert.deepStrictEqual(result.knowledge?.sources, ["docs/architecture.md"]);
+    });
   });
 
   describe("default values", () => {
@@ -204,6 +213,7 @@ describe("LexYamlSchema", () => {
         ["C:\\temp\\notes.md"],
         ["../notes.md"],
         ["docs/notes.md", "docs/notes.md"],
+        ["docs\\notes.md", "docs/notes.md"],
       ]) {
         const result = validateLexYaml({ version: 1, knowledge: { sources } });
         assert.strictEqual(result.success, false, `expected rejection for ${sources.join(",")}`);
