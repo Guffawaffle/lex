@@ -5,6 +5,7 @@ import type { Pool, PoolClient, QueryResult, QueryResultRow } from "pg";
 
 import {
   POSTGRES_BEHAVIORAL_STORE_SCHEMA_VERSION,
+  BehavioralStoreError,
   type BehavioralStoreBinder,
 } from "@app/memory/store/index.js";
 import { PostgresBehavioralStoreBackend } from "@app/memory/store/postgres/behavioral-store.js";
@@ -97,6 +98,18 @@ describe("PostgresBehavioralStoreBackend", () => {
     });
     assert.equal(missing.status, "conflict");
     assert.equal(missing.conflict, "missing-revision");
+    await assert.rejects(
+      () =>
+        writer.recordEvidence({
+          idempotencyKey: "invalid-kind",
+          ruleId: "not-present",
+          ruleRevision: "1",
+          kind: "invalid" as never,
+          sourceFrameIds: [],
+        }),
+      (error: unknown) =>
+        error instanceof BehavioralStoreError && error.code === "LEX_BEHAVIORAL_INVALID_INPUT"
+    );
 
     const settings = pool.queries.filter(({ sql }) => sql.includes("set_config('lex.tenant_id'"));
     assert.equal(settings.length, 2);
@@ -119,6 +132,12 @@ describe("PostgresBehavioralStoreBackend", () => {
     assert.equal(pool.queries.filter(({ sql }) => sql === "COMMIT").length, 2);
     assert.ok(pool.queries.some(({ sql }) => sql === "SET TRANSACTION READ ONLY"));
     assert.equal(pool.queries.filter(({ sql }) => sql.startsWith("RESET lex.tenant_id")).length, 4);
+    const advisoryLock = pool.queries.find(({ sql }) =>
+      sql.startsWith("SELECT pg_advisory_xact_lock")
+    );
+    assert.ok(advisoryLock);
+    assert.doesNotMatch(String(advisoryLock.values[0]), new RegExp(BEHAVIORAL_TEST_IDS.principal));
+    assert.match(String(advisoryLock.values[0]), new RegExp(BEHAVIORAL_TEST_IDS.instanceLex));
     for (const query of pool.queries.filter(({ values }) => values.length > 0)) {
       const placeholders = [
         ...new Set([...query.sql.matchAll(/\$(\d+)/g)].map((match) => Number(match[1]))),

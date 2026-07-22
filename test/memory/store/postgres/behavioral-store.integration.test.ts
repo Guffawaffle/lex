@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { after, before, describe, test } from "node:test";
 
 import { Pool } from "pg";
+import type { PrincipalId } from "@app/shared/runtime-scope/index.js";
 
 import { PostgresBehavioralStoreBackend } from "@app/memory/store/postgres/behavioral-store.js";
 import { migratePostgresBehavioralStore } from "@app/memory/store/postgres/behavioral-migrations.js";
@@ -137,5 +138,32 @@ integration("PostgreSQL behavioral store live shared conformance and RLS", () =>
     } finally {
       client.release();
     }
+  });
+
+  test("serializes one scoped idempotency key across principals", async () => {
+    const firstBinding = behavioralBinding();
+    const secondBinding = {
+      ...firstBinding,
+      authorizedScope: {
+        ...firstBinding.authorizedScope,
+        principalId: "10000000-0000-4000-8000-000000000002" as PrincipalId,
+      },
+    };
+    const first = backend.bindWrite(firstBinding);
+    const second = backend.bindWrite(secondBinding);
+    const input = {
+      idempotencyKey: "postgres-live:cross-principal-observation",
+      ruleId: "verify-gates",
+      ruleRevision: "1",
+      kind: "observation" as const,
+      sourceFrameIds: ["frame-cross-principal"],
+    };
+
+    const receipts = await Promise.all([first.recordEvidence(input), second.recordEvidence(input)]);
+    assert.deepEqual(receipts.map(({ status }) => status).sort(), ["applied", "replayed"]);
+    assert.equal(receipts[0].payloadDigest, receipts[1].payloadDigest);
+    assert.equal(receipts[0].resourceId, receipts[1].resourceId);
+    await first.close();
+    await second.close();
   });
 });

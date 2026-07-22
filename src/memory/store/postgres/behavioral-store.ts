@@ -637,7 +637,7 @@ class PostgresBehavioralWriteView
     const payloadDigest = behavioralContentDigest({ operation, payload });
     return this.#runner.run(this.binding, "write", async (client) => {
       await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [
-        canonicalBehavioralJson([...scopeValues(this.binding), idempotencyKey]),
+        canonicalBehavioralJson([...scopeValues(this.binding).slice(0, 4), idempotencyKey]),
       ]);
       const previous = await client.query<ReceiptRow>(
         `SELECT payload_digest, receipt_json
@@ -821,6 +821,12 @@ class PostgresBehavioralWriteView
   async recordEvidence(input: BehavioralEvidenceInputV1): Promise<BehavioralWriteReceiptV1> {
     validateText(input.ruleId, "ruleId");
     validateText(input.ruleRevision, "ruleRevision");
+    if (!["observation", "counterexample", "correction", "trust-gap"].includes(input.kind)) {
+      throw new BehavioralStoreError(
+        BEHAVIORAL_STORE_ERROR_CODES.INVALID_INPUT,
+        "evidence kind is invalid"
+      );
+    }
     const stored = {
       ...input,
       sourceFrameIds: stringList(input.sourceFrameIds, "sourceFrameIds"),
