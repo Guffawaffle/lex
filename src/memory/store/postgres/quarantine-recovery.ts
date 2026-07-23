@@ -213,11 +213,15 @@ function canonicalize(value: unknown): unknown {
     return Object.fromEntries(
       Object.entries(value as Readonly<Record<string, unknown>>)
         .filter(([, nested]) => nested !== undefined)
-        .sort(([left], [right]) => left.localeCompare(right))
+        .sort(([left], [right]) => stableStringCompare(left, right))
         .map(([key, nested]) => [key, canonicalize(nested)])
     );
   }
   return value;
+}
+
+function stableStringCompare(left: string, right: string): number {
+  return left < right ? -1 : left > right ? 1 : 0;
 }
 
 export function canonicalQuarantineRecoveryJson(value: unknown): string {
@@ -279,8 +283,8 @@ function freezeRow(row: QuarantinedFrameEvidenceV1): QuarantinedFrameEvidenceV1 
 
 function compareRows(left: QuarantinedFrameEvidenceV1, right: QuarantinedFrameEvidenceV1): number {
   return (
-    left.frameId.localeCompare(right.frameId) ||
-    left.contentDigest.localeCompare(right.contentDigest)
+    stableStringCompare(left.frameId, right.frameId) ||
+    stableStringCompare(left.contentDigest, right.contentDigest)
   );
 }
 
@@ -326,7 +330,7 @@ export function createQuarantineInventory(
 
   const allWarnings = [...digestCounts]
     .filter(([, count]) => count > 1)
-    .sort(([left], [right]) => left.localeCompare(right))
+    .sort(([left], [right]) => stableStringCompare(left, right))
     .map(([contentDigest, affectedRowCount]) =>
       Object.freeze({
         code: "shared-content-digest" as const,
@@ -440,7 +444,9 @@ export function createQuarantineRecoveryManifest(
   }
 
   const decisions = Object.freeze(
-    [...decisionsById.values()].sort((left, right) => left.frameId.localeCompare(right.frameId))
+    [...decisionsById.values()].sort((left, right) =>
+      stableStringCompare(left.frameId, right.frameId)
+    )
   );
   const manifestBody = {
     schemaVersion: QUARANTINE_RECOVERY_CONTRACT_VERSION,

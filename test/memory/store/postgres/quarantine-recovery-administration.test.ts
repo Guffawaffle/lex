@@ -177,12 +177,12 @@ class FakePool {
       normalized.startsWith("SELECT id,") &&
       normalized.includes('FROM "lex_test"."lex_compat_frames"')
     ) {
+      if (normalized.includes("ANY(")) {
+        return result(this.collisionId ? [legacyRow({ id: this.collisionId })] : []);
+      }
       return result([
         legacyRow(this.tamperDestination ? { summary_caption: "changed destination" } : {}),
       ]);
-    }
-    if (normalized.startsWith("SELECT id FROM")) {
-      return result(this.collisionId ? [{ id: this.collisionId }] : []);
     }
     return result([]);
   }
@@ -255,6 +255,13 @@ describe("PostgreSQL quarantine recovery administration", () => {
 
     pool.collisionId = row.frameId;
     await assert.rejects(() => admin.plan(manifest), /destination contains one or more/);
+    const collisionQuery = pool.queries.find(
+      ({ sql }) => sql.includes("lex_compat_frames") && sql.includes("ANY(")
+    );
+    assert.ok(collisionQuery);
+    assert.match(collisionQuery.sql, /summary_caption/);
+    assert.match(collisionQuery.sql, /status_snapshot/);
+    assert.match(collisionQuery.sql, /user_id/);
   });
 
   test("keeps apply dry by default and transactionally verifies an explicit copy", async () => {

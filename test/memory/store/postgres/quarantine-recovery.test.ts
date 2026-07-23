@@ -13,6 +13,7 @@ import {
   QUARANTINE_RECOVERY_COMPATIBILITY_ACKNOWLEDGEMENT,
   QUARANTINE_RECOVERY_ERROR_CODES,
   QuarantineRecoveryError,
+  canonicalQuarantineRecoveryJson,
   createQuarantineInventory,
   createQuarantineRecoveryManifest,
   planQuarantineRecovery,
@@ -92,6 +93,10 @@ function expectRecoveryError(code: string, operation: () => unknown): void {
 }
 
 describe("PostgreSQL quarantine recovery read-only contract", () => {
+  it("canonicalizes object keys with locale-independent code-unit ordering", () => {
+    assert.equal(canonicalQuarantineRecoveryJson({ ä: 3, a: 2, Z: 1 }), '{"Z":1,"a":2,"ä":3}');
+  });
+
   it("produces deterministic inventory, manifest, and plan IDs independent of input order", () => {
     const firstInventory = inventory();
     const secondInventory = inventory([...firstInventory.rows].reverse());

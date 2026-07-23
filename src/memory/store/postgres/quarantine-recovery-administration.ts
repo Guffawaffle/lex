@@ -58,6 +58,11 @@ const LEGACY_COLUMNS = Object.freeze([
   ["search_vector", "tsvector", "NO"],
 ] as const);
 
+const LEGACY_SELECT_COLUMNS = `id, "timestamp" AS timestamp, branch, jira, module_scope,
+  summary_caption, reference_point, status_snapshot, keywords, atlas_frame_id,
+  feature_flags, permissions, module_attribution, run_id, plan_hash, spend,
+  user_id, superseded_by, merged_from`;
+
 interface ColumnEvidence extends QueryResultRow {
   readonly column_name: string;
   readonly udt_name: string;
@@ -661,10 +666,7 @@ export class BoundPostgresQuarantineRecoveryAdministration {
       fail("UNSUPPORTED_SCHEMA", "PostgreSQL quarantine primary key is unsupported");
     }
     const rows = await client.query<LegacyRow>(
-      `SELECT id, "timestamp" AS timestamp, branch, jira, module_scope,
-         summary_caption, reference_point, status_snapshot, keywords, atlas_frame_id,
-         feature_flags, permissions, module_attribution, run_id, plan_hash, spend,
-         user_id, superseded_by, merged_from
+      `SELECT ${LEGACY_SELECT_COLUMNS}
        FROM ${target.relation(QUARANTINE_RECOVERY_SOURCE_RELATION)}
        ORDER BY id
        LIMIT $1`,
@@ -742,14 +744,10 @@ export class BoundPostgresQuarantineRecoveryAdministration {
     decision: QuarantineRecoveryDecisionV1
   ): Promise<LegacyRow | null> {
     const target = createPostgresSchemaTarget(this.schema);
-    const columns = `id, "timestamp" AS timestamp, branch, jira, module_scope,
-      summary_caption, reference_point, status_snapshot, keywords, atlas_frame_id,
-      feature_flags, permissions, module_attribution, run_id, plan_hash, spend,
-      user_id, superseded_by, merged_from`;
     const result =
       decision.destination === "scoped"
         ? await client.query<LegacyRow>(
-            `SELECT ${columns} FROM ${target.relation("frames")}
+            `SELECT ${LEGACY_SELECT_COLUMNS} FROM ${target.relation("frames")}
              WHERE tenant_id = $1::uuid AND workspace_id = $2::uuid
                AND creator_principal_id = $3::uuid AND scope_version = $4 AND id = $5`,
             [
@@ -761,7 +759,8 @@ export class BoundPostgresQuarantineRecoveryAdministration {
             ]
           )
         : await client.query<LegacyRow>(
-            `SELECT ${columns} FROM ${target.relation("lex_compat_frames")} WHERE id = $1`,
+            `SELECT ${LEGACY_SELECT_COLUMNS}
+             FROM ${target.relation("lex_compat_frames")} WHERE id = $1`,
             [decision.frameId]
           );
     return result.rows[0] ?? null;
@@ -780,31 +779,31 @@ export class BoundPostgresQuarantineRecoveryAdministration {
       .map(({ frameId }) => frameId);
     const collisions: QuarantineDestinationCollisionV1[] = [];
     if (scopedIds.length > 0) {
-      const result = await client.query<{ id: string }>(
-        `SELECT id FROM ${target.relation("frames")}
+      const result = await client.query<LegacyRow>(
+        `SELECT ${LEGACY_SELECT_COLUMNS} FROM ${target.relation("frames")}
          WHERE tenant_id = $1::uuid AND workspace_id = $2::uuid AND id = ANY($3::text[])
          ORDER BY id`,
         [this.authority.tenantId, this.authority.workspaceId, scopedIds]
       );
       collisions.push(
-        ...result.rows.map(({ id }) => ({
+        ...result.rows.map((row) => ({
           destination: "scoped" as const,
-          frameId: id,
-          existingContentDigest: quarantineRecoveryDigest({ destination: "scoped", id }),
+          frameId: row.id,
+          existingContentDigest: rowEvidence(row).contentDigest,
         }))
       );
     }
     if (compatibilityIds.length > 0) {
-      const result = await client.query<{ id: string }>(
-        `SELECT id FROM ${target.relation("lex_compat_frames")}
+      const result = await client.query<LegacyRow>(
+        `SELECT ${LEGACY_SELECT_COLUMNS} FROM ${target.relation("lex_compat_frames")}
          WHERE id = ANY($1::text[]) ORDER BY id`,
         [compatibilityIds]
       );
       collisions.push(
-        ...result.rows.map(({ id }) => ({
+        ...result.rows.map((row) => ({
           destination: "compatibility" as const,
-          frameId: id,
-          existingContentDigest: quarantineRecoveryDigest({ destination: "compatibility", id }),
+          frameId: row.id,
+          existingContentDigest: rowEvidence(row).contentDigest,
         }))
       );
     }
