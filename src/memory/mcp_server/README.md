@@ -444,18 +444,14 @@ if (response.error) {
 npx @smartergpt/lex-mcp
 ```
 
-### Legacy entrypoints (deprecated)
+### Removed legacy entrypoint
 
-> **These are kept for backwards compatibility only.**
-> New setups should use `npx @smartergpt/lex-mcp`.
-
-```bash
-# Via npm script (from lex repo root):
-npm run remember
-
-# Directly (deprecated):
-node dist/memory/mcp_server/frame-mcp.js
-```
+The former `frame-mcp.mjs` source launcher now fails closed. It duplicated the
+JSON-RPC transport owned by `@smartergpt/lex-mcp` and is not a supported launch
+surface. Its `LEX_MCP_LEGACY_ENTRYPOINT_REMOVED` diagnostic gives agents and
+operators a copyable migration while making clear that the refusal does not
+indicate Frame loss or store corruption. Update stale host configuration to use
+the canonical package.
 
 ### Environment Variables:
 - `LEX_WORKSPACE_ROOT` - Workspace/project root directory (overrides auto-detection from script location)
@@ -478,7 +474,8 @@ node dist/memory/mcp_server/frame-mcp.js
 
 ### Example Usage:
 ```bash
-echo '{"method":"tools/list"}' | LEX_DEBUG=1 node dist/memory/mcp_server/frame-mcp.js
+echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' \
+  | LEX_DEBUG=1 npx @smartergpt/lex-mcp
 ```
 
 ## Running the HTTP API Server
@@ -639,7 +636,7 @@ npm test
 
 ```
 src/memory/mcp_server/
-├── frame-mcp.mjs          Entry point (stdio protocol handler)
+├── frame-mcp.mjs          Fail-closed tombstone for the removed legacy launcher
 ├── server.ts              MCPServer class (request routing)
 ├── http-server.ts         HTTP API server setup
 ├── routes/

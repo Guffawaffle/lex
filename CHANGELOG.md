@@ -21,6 +21,9 @@
 ### Patch Changes
 
 - 5fcb3b1: Upgrade sharp and its bundled libvips runtime to remediate high-severity image-processing advisories, and patch the transitive fast-uri parser vulnerability.
+- Retire the duplicate legacy MCP transport and launcher with a fail-closed,
+  agent-readable migration diagnostic that directs hosts to the canonical
+  `@smartergpt/lex-mcp` package without implying Frame-store data loss.
 
 ## 3.0.1
 

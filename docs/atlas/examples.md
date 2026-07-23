@@ -196,15 +196,17 @@ lex frames list --module "services/auth" --limit 10
 
 # Using MCP
 echo '{
+  "jsonrpc": "2.0",
+  "id": 1,
   "method": "tools/call",
   "params": {
-    "name": "lex.list_frames",
+    "name": "frame_list",
     "arguments": {
       "module": "services/auth",
       "limit": 10
     }
   }
-}' | node dist/memory/mcp_server/frame-mcp.js
+}' | npx @smartergpt/lex-mcp
 ```
 
 ---

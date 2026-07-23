@@ -98,6 +98,34 @@ Installed CLI and MCP consumers discover `.lex.config.json` from the caller proj
 }
 ```
 
+## Legacy entrypoint migration
+
+`LEX_MCP_LEGACY_ENTRYPOINT_REMOVED` means the host still launches the removed
+`frame-mcp.mjs` source transport or the deprecated `lex-launcher.sh` wrapper.
+This is an intentional fail-closed migration, not evidence of Frame loss or
+store corruption.
+
+Preserve the existing `LEX_*` environment values and replace only the launch
+command:
+
+```toml
+command = "npx"
+args = ["--yes", "@smartergpt/lex-mcp"]
+```
+
+For JSON-based hosts:
+
+```json
+{
+  "command": "npx",
+  "args": ["--yes", "@smartergpt/lex-mcp"]
+}
+```
+
+Restart or reload the MCP host after updating its configuration. Managed
+environments may pin `@smartergpt/lex-mcp@<approved-version>` and should advance
+that pin through their normal Lex/Lex-MCP compatibility review.
+
 ## Environment Variables
 
 | Variable | Description | Default |

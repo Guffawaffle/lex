@@ -300,7 +300,7 @@ rather than reconstructing them from ambient environment variables.
 
 ## Project status
 
-**Current Version:** `3.0.1`
+**Current Version:** `3.1.0`
 
 Lex 3 adds explicit runtime identity and authority, scope-bound Frame stores, PostgreSQL row-level
 security support, and trusted-host composition while retaining the local SQLite workflow.
