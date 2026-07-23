@@ -1,6 +1,6 @@
 {
   "name": "@smartergpt/lex",
-  "version": "3.1.0",
+  "version": "4.0.0",
   "description": "MIT-licensed memory, policy, and atlas framework with MCP server. For local dev and private automation.",
   "type": "module",
   "main": "dist/index.js",
@@ -184,7 +184,8 @@
     "generate:test-frames": "node scripts/generate-test-frames.mjs",
     "changeset": "changeset",
     "version-packages": "changeset version",
-    "release": "npm run build && changeset publish",
+    "release": "node scripts/manual-publish-boundary.mjs",
+    "release:dry-run": "npm run build && npm publish --dry-run --access public",
     "prepack": "npm run build && npm run check:public-api",
     "prepare": "husky"
   },

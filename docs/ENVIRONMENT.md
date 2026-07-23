@@ -4,7 +4,7 @@ This document covers supported environment configuration for the standalone Lex 
 compatibility FrameStore factory, and the packaged MCP launcher.
 
 Environment variables are convenient local process configuration. They are **not** tenant,
-workspace, principal, or capability authority. A trusted Lex 3 host supplies repository evidence,
+workspace, principal, or capability authority. A trusted Lex host supplies repository evidence,
 authority, backend connections, and scoped store binders explicitly; it does not grant access by
 reconstructing scope from ambient environment variables.
 

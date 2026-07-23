@@ -1,5 +1,10 @@
 # Security Policy — IP Leak Prevention
 
+> **Status: Historical incident-response policy.** This document records a 2025 Lex/LexRunner
+> transition and is not the current Lex security policy or Runner methodology. Current Lex
+> security guidance is [`SECURITY.md`](./SECURITY.md); current contributor gates are in
+> [`CONTRIBUTING.md`](./CONTRIBUTING.md).
+
 ## Overview
 
 This policy establishes rules and automated gates to prevent intellectual property leaks across the Lex and lexrunner repositories. It was created in response to Security Incident 2025-11-12 (see `SECURITY_INCIDENT_20251112.md`).

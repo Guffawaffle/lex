@@ -76,6 +76,28 @@ For a shared PostgreSQL store, configure every surface with the same two variabl
 
 Keep the password in the host environment or secret configuration. A password may alternatively be embedded in `LEX_DATABASE_URL`. PostgreSQL introspection reports a credential-free `postgres-v1` identity, live connection health, schema/server versions, Frame count, and capabilities. Images are reported unsupported on PostgreSQL. `LEX_DB_PATH` remains SQLite-only.
 
+Some MCP hosts pass only explicitly allowlisted parent environment variables. Preserve the
+reviewed `LEX_*` routing values and forward the existing secret by name; never copy its value into
+a tracked configuration. For Codex TOML:
+
+```toml
+[mcp_servers.lex]
+command = "npx"
+args = ["--yes", "@smartergpt/lex-mcp@4.0.0"]
+env_vars = ["LEX_POSTGRES_PASSWORD"]
+
+[mcp_servers.lex.env]
+LEX_WORKSPACE_ROOT = "/absolute/path/to/repository"
+LEX_STORE = "postgres"
+LEX_DATABASE_URL = "postgresql://lex@127.0.0.1:5432/lex"
+```
+
+Restart or reload the MCP host after changing environment pass-through. Confirm the child receives
+the variable without printing its value, then verify the intended workspace and credential-free
+store identity. A PostgreSQL SCRAM “password must be a string” failure after a launcher change
+usually means the child did not receive the separate password; it is not evidence of database
+loss, and it is not permission to delete, recreate, or repair a store.
+
 This environment-selected PostgreSQL path is the compatibility adapter. It can coordinate a
 trusted shared store, but it is not a tenant authorization boundary. Multi-tenant and
 multi-workspace hosts must use explicit runtime authority and a scope-bound PostgreSQL store; see
@@ -110,7 +132,7 @@ command:
 
 ```toml
 command = "npx"
-args = ["--yes", "@smartergpt/lex-mcp"]
+args = ["--yes", "@smartergpt/lex-mcp@4.0.0"]
 ```
 
 For JSON-based hosts:
@@ -118,7 +140,7 @@ For JSON-based hosts:
 ```json
 {
   "command": "npx",
-  "args": ["--yes", "@smartergpt/lex-mcp"]
+  "args": ["--yes", "@smartergpt/lex-mcp@4.0.0"]
 }
 ```
 
@@ -134,6 +156,7 @@ that pin through their normal Lex/Lex-MCP compatibility review.
 | `LEX_STORE` | Frame backend (`sqlite` or `postgres`) | `sqlite` |
 | `LEX_DATABASE_URL` | PostgreSQL URL (required for PostgreSQL) | — |
 | `LEX_POSTGRES_PASSWORD` | Optional separate PostgreSQL password | — |
+| `LEX_POSTGRES_POOL_MAX` | PostgreSQL compatibility pool size | `10` |
 | `LEX_DB_PATH` | SQLite database path | `.smartergpt/lex/memory.db` |
 | `LEX_MEMORY_DB` | Alias for `LEX_DB_PATH` (backwards compat) | — |
 | `LEX_DEBUG` | Enable debug logging | Disabled |

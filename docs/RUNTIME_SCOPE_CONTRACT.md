@@ -29,10 +29,10 @@ import {
 } from "@smartergpt/lex/runtime-scope";
 ```
 
-Lex 3 ships the versioned contract, deterministic resolver, surface-local registry, production
+Lex ships the versioned contract, deterministic resolver, surface-local registry, production
 repository discovery, explicit binding administration, canonical PostgreSQL authority, and one
 injectable CLI/MCP guard. Compatibility hosts remain available for local and migration workflows,
-but a trusted Lex 3 host must supply canonical authority, trusted selection, and a scope-bound
+but a trusted Lex host must supply canonical authority, trusted selection, and a scope-bound
 store together.
 
 ## Boundary
@@ -216,7 +216,7 @@ Normal calls add no scope metadata to agent output. CLI diagnostics use `--diagn
 
 ## Scoped SQLite Frame ownership
 
-`SqliteScopedFrameStoreBackend` persists the Lex 3 scope contract in SQLite
+`SqliteScopedFrameStoreBackend` persists the scope contract in SQLite
 schema v15. SQLite remains a per-workspace deployment: one file has one
 immutable tenant/workspace binding, while every Frame row also records ownership
 contract version, creator principal, and the scope version active at creation.

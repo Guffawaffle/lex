@@ -1,6 +1,6 @@
 # Lex Contract Surface
 
-This document orients application, runner, and tool authors to the contracts Lex 3 actually
+This document orients application, runner, and tool authors to the contracts current Lex
 publishes. It is not a compatibility certification suite. The package export map, runtime
 validators, version constants, JSON Schemas, and focused conformance tests remain the normative
 artifacts.

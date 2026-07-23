@@ -1,741 +1,183 @@
-# Frame MCP Server & HTTP API
+# MCP server internals
 
-**Model Context Protocol server and HTTP API for Frame storage and recall**
+> **Audience:** Lex maintainers
+> **Public consumer setup:** [`README.mcp.md`](../../../README.mcp.md) and
+> [`docs/MCP_CONFIG.md`](../../../docs/MCP_CONFIG.md)
+> **Security boundary:** [`SECURITY.md`](../../../SECURITY.md)
 
-> **⚠️ Tool Naming Update (v2.1.0+):** As of v2.1.0, all MCP tools use the standardized `resource_action` naming convention (e.g., `frame_create`, `frame_search`). Old names (`remember`, `recall`, etc.) still work as deprecated aliases but will be removed in v3.0.0. See [ADR-0009](../../../docs/adr/0009-mcp-tool-naming-convention.md) for details.
+This directory implements Lex's stdio Model Context Protocol server. It is not a second public
+package entrypoint or a consumer import surface. Consumers launch the exact reviewed
+`@smartergpt/lex-mcp` package, which transports the matching `@smartergpt/lex` server.
 
-Provides two interfaces:
-1. **MCP Server** - Exposes Frame memory to AI assistants via stdio
-2. **HTTP API** - RESTful endpoint for programmatic Frame ingestion from external tools
+Source paths, undeclared `dist/` paths, `frame-mcp.mjs`, and `lex-launcher.sh` are not supported
+launch contracts.
 
-## Features
+## Canonical transport
 
-- ✅ MCP protocol over stdio (line-delimited JSON)
-- ✅ HTTP POST /api/frames endpoint for Frame ingestion
-- ✅ Content-hash based deduplication (5-minute timestamp buckets)
-- ✅ API key authentication for HTTP endpoint
-- ✅ SQLite + FTS5 for fuzzy Frame recall
-- ✅ Atlas Frame generation (spatial neighborhood context)
-- ✅ Module ID validation with fuzzy suggestions (THE CRITICAL RULE)
-- ✅ Fourteen MCP tools: `frame_create`, `frame_validate`, `frame_search`, `frame_get`, `frame_list`, `policy_check`, `timeline_show`, `atlas_analyze`, `system_introspect`, `help`, `hints_get`, `contradictions_scan`, `db_stats`, `turncost_calculate`
-- ✅ Backward compatibility: Old tool names (`remember`, `recall`, etc.) work as deprecated aliases
-- ✅ Local-first (no cloud sync, no telemetry)
-- ✅ Comprehensive test suite (integration + alias resolution + performance)
-
-## Tools
-
-### `lex.remember`
-
-Store a new Frame (episodic memory snapshot).
-
-**Required Parameters:**
-- `reference_point` - What you were working on (human-memorable phrase)
-- `summary_caption` - One-line summary of progress
-- `status_snapshot.next_action` - What needs to happen next
-- `module_scope` - Array of module IDs from `lexmap.policy.json` (validated strictly)
-
-**Optional Parameters:**
-- `status_snapshot.blockers` - General blockers
-- `status_snapshot.merge_blockers` - Specific merge blockers
-- `status_snapshot.tests_failing` - Test names that were failing
-- `branch` - Git branch (defaults to "main")
-- `jira` - Ticket ID
-- `keywords` - Search tags
-- `atlas_frame_id` - Reference to existing Atlas Frame
-
-**Example:**
-```json
-{
-  "method": "tools/call",
-  "params": {
-    "name": "lex.remember",
-    "arguments": {
-      "reference_point": "that auth deadlock",
-      "summary_caption": "Auth handshake timeout; Add User button disabled",
-      "status_snapshot": {
-        "next_action": "Reroute user-admin-panel to call user-access-api",
-        "merge_blockers": ["Direct call to auth-core forbidden by policy"],
-        "tests_failing": ["test_add_user_button_enabled"]
-      },
-      "module_scope": ["ui/user-admin-panel", "services/auth-core"],
-      "jira": "TICKET-123",
-      "keywords": ["auth", "timeout", "policy-violation"]
-    }
-  }
-}
-```
-
-### `lex.recall`
-
-Search Frames by reference point, branch, or Jira ticket. Returns Frame + Atlas Frame.
-
-**Parameters (at least one required):**
-- `reference_point` - Fuzzy search on what you were working on
-- `jira` - Exact match on Jira ticket
-- `branch` - Filter by git branch
-- `limit` - Max results (default: 10)
-
-**Example:**
-```json
-{
-  "method": "tools/call",
-  "params": {
-    "name": "lex.recall",
-    "arguments": {
-      "reference_point": "auth",
-      "limit": 5
-    }
-  }
-}
-```
-
-### `lex.list_frames`
-
-List recent Frames with optional filtering.
-
-**Optional Parameters:**
-- `branch` - Filter by git branch
-- `module` - Filter by module ID in module_scope
-- `limit` - Max results (default: 10)
-- `since` - ISO 8601 timestamp (only return Frames after this time)
-
-**Example:**
-```json
-{
-  "method": "tools/call",
-  "params": {
-    "name": "lex.list_frames",
-    "arguments": {
-      "module": "auth/core",
-      "limit": 10
-    }
-  }
-}
-```
-
-### `lex.policy_check`
-
-Validate code against policy rules from `lexmap.policy.json`.
-
-**Optional Parameters:**
-- `path` - Path to check (defaults to current directory)
-- `policyPath` - Path to policy file (defaults to `lexmap.policy.json`)
-- `strict` - Fail on warnings (default: false)
-
-**Example:**
-```json
-{
-  "method": "tools/call",
-  "params": {
-    "name": "lex.policy_check",
-    "arguments": {
-      "policyPath": "./lexmap.policy.json",
-      "strict": false
-    }
-  }
-}
-```
-
-**Response (Success):**
-```json
-{
-  "content": [
-    {
-      "type": "text",
-      "text": "✅ Policy valid: 12 modules defined\n"
-    }
-  ]
-}
-```
-
-**Response (With Warnings):**
-```json
-{
-  "content": [
-    {
-      "type": "text",
-      "text": "✅ Policy valid: 12 modules defined\n\nWarnings:\n  ⚠️  modules.orphan-module: Module has no matching files in src/\n"
-    }
-  ]
-}
-```
-
-**Response (Invalid Policy):**
-```json
-{
-  "content": [
-    {
-      "type": "text",
-      "text": "❌ Policy invalid: 2 error(s) found\n\nErrors:\n  ❌ modules.bad-module: Missing required field 'owns_paths'\n"
-    }
-  ]
-}
-```
-
-### `lex.timeline`
-
-Show visual timeline of Frame evolution for a ticket or branch.
-
-**Required Parameters:**
-- `ticketOrBranch` - Jira ticket ID or branch name to show timeline for
-
-**Optional Parameters:**
-- `since` - Filter frames since this date (ISO 8601 timestamp)
-- `until` - Filter frames until this date (ISO 8601 timestamp)
-- `format` - Output format: `text` or `json` (default: `text`). HTML format not supported in MCP.
-
-**Example:**
-```json
-{
-  "method": "tools/call",
-  "params": {
-    "name": "lex.timeline",
-    "arguments": {
-      "ticketOrBranch": "TICKET-123",
-      "since": "2025-01-01T00:00:00Z",
-      "format": "text"
-    }
-  }
-}
-```
-
-**Response:**
-Returns a visual timeline showing:
-- Frame evolution over time
-- Module scope changes (additions/removals)
-- Blocker introduction and resolution tracking
-- Status updates
-
-### `lex.code_atlas`
-
-Analyze code structure and dependencies across modules.
-
-**Optional Parameters:**
-- `seedModules` - Array of module IDs to analyze
-- `foldRadius` - Neighborhood depth (default: 1)
-
-**Example:**
-```json
-{
-  "method": "tools/call",
-  "params": {
-    "name": "lex.code_atlas",
-    "arguments": {
-      "seedModules": ["auth/core", "ui/dashboard"],
-      "foldRadius": 2
-    }
-  }
-}
-```
-
-**Response:**
-Returns code structure visualization with dependency graphs and module relationships.
-
-### `lex.introspect`
-
-Discover the current state of Lex for agent self-discovery.
-
-**Optional Parameters:**
-- `format` - Output format: `full` (default) or `compact` for small-context agents
-
-**Example (Full Format):**
-```json
-{
-  "method": "tools/call",
-  "params": {
-    "name": "lex.introspect",
-    "arguments": {}
-  }
-}
-```
-
-**Response (Full Format):**
-```json
-{
-  "content": [
-    {
-      "type": "text",
-      "text": "🔍 Lex Introspection\n\n📦 Version: 2.1.0\n\n📋 Policy:\n  Modules: 14\n  Module IDs: cli, memory/frames, memory/mcp, ...\n\n📊 State:\n  Frames: 42\n  Latest Frame: 2025-12-17T10:30:00.000Z\n  Branch: main\n\n⚙️  Capabilities:\n  Encryption: ✅\n  Images: ✅\n\n🚨 Error Codes (17):\n  VALIDATION (7, 0 retryable):\n    VALIDATION_REQUIRED_FIELD, VALIDATION_INVALID_FORMAT, ...\n  STORAGE (5, 4 retryable):\n    STORAGE_WRITE_FAILED, STORAGE_READ_FAILED, ...\n  ..."
-    }
-  ],
-  "data": {
-    "schemaVersion": "1.0.0",
-    "version": "2.1.0",
-    "policy": {
-      "modules": ["cli", "memory/frames", "memory/mcp", ...],
-      "moduleCount": 14
-    },
-    "state": {
-      "frameCount": 42,
-      "latestFrame": "2025-12-17T10:30:00.000Z",
-      "currentBranch": "main"
-    },
-    "capabilities": {
-      "encryption": true,
-      "images": true
-    },
-    "errorCodes": ["INTERNAL_ERROR", "INTERNAL_UNKNOWN_METHOD", ...],
-    "errorCodeMetadata": {
-      "VALIDATION_REQUIRED_FIELD": { "category": "validation", "retryable": false },
-      "STORAGE_WRITE_FAILED": { "category": "storage", "retryable": true },
-      ...
-    }
-  }
-}
-```
-
-**Example (Compact Format):**
-```json
-{
-  "method": "tools/call",
-  "params": {
-    "name": "lex.introspect",
-    "arguments": { "format": "compact" }
-  }
-}
-```
-
-**Response (Compact Format):**
-```json
-{
-  "content": [
-    {
-      "type": "text",
-      "text": "{\n  \"v\": \"2.1.0\",\n  \"caps\": [\"enc\", \"img\"],\n  \"state\": { \"frames\": 42, \"branch\": \"main\" },\n  \"mods\": 14,\n  \"errs\": [\"VAL_REQ_FIE\", \"VAL_INV_FOR\", \"VAL_INV_ID\", ...]\n}"
-    }
-  ],
-  "data": {
-    "v": "2.1.0",
-    "caps": ["enc", "img"],
-    "state": { "frames": 42, "branch": "main" },
-    "mods": 14,
-    "errs": ["VAL_REQ_FIE", "VAL_INV_FOR", "VAL_INV_ID", ...]
-  }
-}
-```
-
-The compact format is optimized for agents with limited token windows:
-- Short field names (`v`, `caps`, `mods`, `errs`)
-- Module count instead of full array
-- Error code abbreviations: 3-part scheme using first, second, and last word parts (e.g., VALIDATION_REQUIRED_FIELD → VAL_REQ_FIE)
-- Capability abbreviations (`enc` for encryption, `img` for images)
-
-### Error Code Discovery
-
-The `introspect` tool returns all available error codes with metadata for autonomous error handling:
+The supported transport is stdio JSON-RPC through `@smartergpt/lex-mcp`:
 
 ```json
 {
-  "errorCodes": ["VALIDATION_REQUIRED_FIELD", "STORAGE_WRITE_FAILED", ...],
-  "errorCodeMetadata": {
-    "VALIDATION_REQUIRED_FIELD": {
-      "category": "validation",
-      "retryable": false
-    },
-    "STORAGE_WRITE_FAILED": {
-      "category": "storage",
-      "retryable": true
-    }
-  }
+  "command": "npx",
+  "args": ["--yes", "@smartergpt/lex-mcp@4.0.0"]
 }
 ```
 
-**Categories:**
-- `validation` - Input/parameter errors (never retryable)
-- `storage` - Database/storage errors (may be retryable)
-- `policy` - Policy configuration errors (not retryable)
-- `internal` - Internal server errors (may be retryable)
+Pin the version selected by the active release manifest. Preserve the reviewed workspace, store,
+and secret-pass-through configuration when changing the command.
 
-**Retryability:**
-Agents can use the `retryable` hint to decide whether to retry an operation:
-- `false` - Don't retry (validation errors, missing resources)
-- `true` - Safe to retry with backoff (transient storage/network issues)
+The server writes protocol messages to stdout and diagnostics to stderr. A successful
+`notifications/initialized` notification is silent. Protocol acceptance sends `initialize`, the
+notification, and `tools/list` before any store-backed call.
 
-**Usage Example:**
-```typescript
-const introspection = await mcpClient.call('lex.introspect', {});
-const errorMeta = introspection.data.errorCodeMetadata;
+## Canonical tool surface
 
-// Later, when handling an error:
-if (response.error) {
-  const meta = errorMeta[response.error.code];
-  if (meta.retryable) {
-    // Implement exponential backoff retry
-    await retry(operation);
-  } else {
-    // Fix the input and try again
-    console.error('Non-retryable error:', response.error.message);
-  }
-}
+[`tools.ts`](./tools.ts) is the advertised tool definition and
+[`server.ts`](./server.ts) is the dispatch implementation. `tools/list` currently advertises
+exactly fourteen canonical `resource_action` names:
+
+| Tool | Purpose |
+| --- | --- |
+| `frame_create` | Validate and store a deliberate Frame |
+| `frame_validate` | Validate Frame input without storing it |
+| `frame_search` | Search Frames using the selected store |
+| `frame_get` | Retrieve one Frame by ID |
+| `frame_list` | List recent Frames with bounded filters |
+| `policy_check` | Check paths or changes against repository policy |
+| `timeline_show` | Return a chronological work timeline |
+| `atlas_analyze` | Analyze bounded code-neighborhood context |
+| `system_introspect` | Report runtime capabilities and credential-free store identity |
+| `help` | Return task-oriented tool guidance |
+| `hints_get` | Return focused usage hints |
+| `db_stats` | Return supported store statistics |
+| `turncost_calculate` | Calculate bounded turn-cost estimates |
+| `contradictions_scan` | Find conflicting Frame claims |
+
+Accepted legacy aliases are compatibility inputs only. They are not advertised tools and must not
+appear as the preferred name in current consumer documentation. Alias mappings and capability
+coverage live in [`../../shared/runtime-scope/capabilities.ts`](../../shared/runtime-scope/capabilities.ts).
+
+Any tool addition, removal, or rename must update together:
+
+- `tools.ts`;
+- `server.ts` dispatch and help metadata;
+- runtime-scope capability mapping;
+- focused MCP protocol and authorization tests;
+- `README.mcp.md` and `docs/MCP_CONFIG.md`; and
+- packed-consumer acceptance.
+
+## Runtime and authority boundary
+
+The compatibility server may select a local SQLite or unscoped PostgreSQL adapter from reviewed
+`LEX_*` process configuration. Those variables are trusted-host configuration, not tenant or
+workspace authority.
+
+A trusted multi-workspace host must inject:
+
+```text
+trusted runtime selection + repository evidence
+        ↓
+canonical authority and workspace binding
+        ↓
+AuthorizedScope
+        ↓
+scope-bound FrameStore
 ```
 
-## Error Codes (1.0.0 Contract)
-
-MCP tool responses use structured error codes for machine-readable error handling.
-Orchestrators can branch on these codes without parsing error messages.
-
-### Error Response Format
-
-```json
-{
-  "error": {
-    "code": "VALIDATION_INVALID_MODULE_ID",
-    "message": "Invalid module IDs: auth/typo. Did you mean: auth/core?",
-    "metadata": {
-      "invalidIds": ["auth/typo"],
-      "suggestions": ["auth/core"],
-      "availableModules": ["auth/core", "auth/password", "ui/dashboard"]
-    }
-  }
-}
-```
-
-### Error Code Reference
-
-| Code | Category | Retryable | Description |
-|------|----------|-----------|-------------|
-| `VALIDATION_REQUIRED_FIELD` | validation | ❌ | Required field is missing |
-| `VALIDATION_INVALID_FORMAT` | validation | ❌ | Field has invalid format or type |
-| `VALIDATION_INVALID_MODULE_ID` | validation | ❌ | Module ID not in policy |
-| `VALIDATION_EMPTY_MODULE_SCOPE` | validation | ❌ | module_scope array is empty |
-| `VALIDATION_INVALID_STATUS` | validation | ❌ | status_snapshot structure is invalid |
-| `VALIDATION_INVALID_IMAGE` | validation | ❌ | Image data is malformed |
-| `VALIDATION_INVALID_PATH` | validation | ❌ | Path provided does not exist or is inaccessible |
-| `STORAGE_WRITE_FAILED` | storage | ✅ | Failed to save frame |
-| `STORAGE_READ_FAILED` | storage | ✅ | Failed to read from database |
-| `STORAGE_DELETE_FAILED` | storage | ✅ | Failed to delete from database |
-| `STORAGE_IMAGE_FAILED` | storage | ✅ | Failed to store image attachment |
-| `STORAGE_FRAME_NOT_FOUND` | storage | ❌ | Frame with given ID was not found |
-| `POLICY_NOT_FOUND` | policy | ❌ | Policy file not found |
-| `POLICY_INVALID` | policy | ❌ | Policy file has invalid structure |
-| `INTERNAL_UNKNOWN_TOOL` | internal | ❌ | Unknown tool name requested |
-| `INTERNAL_UNKNOWN_METHOD` | internal | ❌ | Unknown MCP method requested |
-| `INTERNAL_ERROR` | internal | ✅ | Unexpected internal error |
-
-### Handling Errors in Code
-
-```typescript
-import { MCPErrorCode } from '@smartergpt/lex/mcp'; // Future export
-
-const response = await mcpClient.call('lex.remember', args);
-
-if (response.error) {
-  switch (response.error.code) {
-    case 'VALIDATION_INVALID_MODULE_ID':
-      // Show user the suggestions from metadata
-      const { suggestions } = response.error.metadata;
-      console.log(`Did you mean: ${suggestions.join(', ')}?`);
-      break;
-    case 'VALIDATION_REQUIRED_FIELD':
-      // Highlight missing fields
-      const { missingFields } = response.error.metadata;
-      console.log(`Missing: ${missingFields.join(', ')}`);
-      break;
-    default:
-      console.error(response.error.message);
-  }
-}
-```
-
-## Running the MCP Server
-
-### Canonical: via npx (recommended)
-```bash
-npx @smartergpt/lex-mcp
-```
-
-### Removed legacy entrypoint
-
-The former `frame-mcp.mjs` source launcher now fails closed. It duplicated the
-JSON-RPC transport owned by `@smartergpt/lex-mcp` and is not a supported launch
-surface. Its `LEX_MCP_LEGACY_ENTRYPOINT_REMOVED` diagnostic gives agents and
-operators a copyable migration while making clear that the refusal does not
-indicate Frame loss or store corruption. Update stale host configuration to use
-the canonical package.
-
-### Environment Variables:
-- `LEX_WORKSPACE_ROOT` - Workspace/project root directory (overrides auto-detection from script location)
-- `LEX_DB_PATH` - Path to SQLite database (canonical; default: `<workspace>/.smartergpt/lex/memory.db`)
-- `LEX_MEMORY_DB` - Alias for `LEX_DB_PATH` (backwards compatibility)
-- `LEX_POLICY_PATH` - Explicit path to policy file (overrides auto-detection)
-- `LEX_DEFAULT_BRANCH` - Override git branch detection
-- `LEX_DEBUG` - Enable debug logging
-
-**Policy Resolution (in order of priority):**
-1. `LEX_POLICY_PATH` environment variable (explicit override)
-2. `LEX_WORKSPACE_ROOT` (if set) or auto-detected workspace root: `.smartergpt/lex/lexmap.policy.json` (working file)
-3. `LEX_WORKSPACE_ROOT` (if set) or auto-detected workspace root: `policy/policy_spec/lexmap.policy.json` (example)
-4. Operate without policy enforcement (allows any module IDs)
-
-**Database Path Resolution (in order of priority):**
-1. `LEX_DB_PATH` (canonical) or `LEX_MEMORY_DB` (compat alias) environment variable
-2. `LEX_WORKSPACE_ROOT` (if set) or auto-detected workspace root: `.smartergpt/lex/memory.db`
-3. Home directory fallback: `~/.smartergpt/lex/memory.db`
-
-### Example Usage:
-```bash
-echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' \
-  | LEX_DEBUG=1 npx @smartergpt/lex-mcp
-```
-
-## Running the HTTP API Server
-
-### Basic Setup:
-
-```typescript
-import { createDatabase } from "lex/memory/store";
-import { startHttpServer } from "lex/memory/mcp_server/http-server";
-
-const db = createDatabase("/path/to/frames.db");
-
-await startHttpServer(db, {
-  port: 3000,
-  apiKey: process.env.LEX_API_KEY,
-});
-```
-
-### HTTP Endpoints:
-
-#### POST /api/frames
-Create a new Frame. Returns `201 Created` with Frame ID on success.
-
-**Authentication:** Requires `Authorization: Bearer <api-key>` header
-
-**Request Body:**
-```json
-{
-  "reference_point": "auth handshake timeout",
-  "summary_caption": "Fixed timeout in auth service",
-  "module_scope": ["services/auth", "lib/networking"],
-  "status_snapshot": {
-    "next_action": "Deploy to staging",
-    "blockers": ["Waiting for QA approval"]
-  },
-  "branch": "feature/auth-fix",
-  "jira": "TICKET-123"
-}
-```
-
-**Response (201):**
-```json
-{
-  "id": "frame-1699564800-abc123",
-  "status": "created"
-}
-```
-
-**Error Responses:**
-- `400 Bad Request` - Validation failed (missing required fields, invalid types)
-- `401 Unauthorized` - Missing or invalid API key
-- `409 Conflict` - Duplicate frame (same content hash)
-- `500 Internal Server Error` - Database or server error
-
-See [API_ERRORS.md](../../../docs/API_ERRORS.md) for complete error documentation.
-
-#### GET /health
-Health check endpoint. Returns `200 OK` with `{"status":"ok"}`.
-
-### Environment Variables:
-- `LEX_API_KEY` - API key for authentication (required for security)
-- `LEX_DB_PATH` - Path to SQLite database (default: `.smartergpt/lex/memory.db`)
-- `LEX_API_PORT` - Server port (default: `3000`)
-
-### Example: Starting the Server
-
-```bash
-export LEX_API_KEY="your-secure-api-key"
-export LEX_API_PORT=3000
-node -e "
-  import('./dist/memory/store/index.js').then(store => {
-    import('./dist/memory/mcp_server/http-server.js').then(server => {
-      const db = store.createDatabase();
-      server.startHttpServer(db, {
-        port: process.env.LEX_API_PORT,
-        apiKey: process.env.LEX_API_KEY
-      });
-    });
-  });
-"
-```
-
-### Usage Examples:
-
-See [API_USAGE.md](../../../docs/API_USAGE.md) for comprehensive examples including:
-- curl commands
-- JavaScript/TypeScript examples
-- Python examples
-- Batch ingestion
-- Error handling
-- LexRunner integration
-
-## Integration with AI Assistants
-
-### Claude Desktop
-
-Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
-
-```json
-{
-  "mcpServers": {
-    "lex": {
-      "command": "npx",
-      "args": ["@smartergpt/lex-mcp"],
-      "env": {
-        "LEX_WORKSPACE_ROOT": "/path/to/your/project"
-      }
-    }
-  }
-}
-```
-
-### VS Code / GitHub Copilot
-
-Add to `.vscode/mcp.json`:
-
-```json
-{
-  "servers": {
-    "lex": {
-      "command": "npx",
-      "args": ["@smartergpt/lex-mcp"],
-      "env": {
-        "LEX_WORKSPACE_ROOT": "${workspaceFolder}"
-      }
-    }
-  }
-}
-```
-
-## Testing
-
-```bash
-# From root directory
-npm test
-```
-
-**Test Coverage:**
-- **Integration tests** (`src/memory/integration.test.ts`) - Full MCP protocol flow
-  - MCP protocol (tools/list)
-  - Frame creation with validation
-  - Frame recall (fuzzy search, empty results)
-  - Frame listing with filters
-  - Error handling (unknown methods and tools)
-- **Alias resolution tests** - Module validation flow
-  - Exact matches (baseline)
-  - Typo correction with suggestions
-  - Substring/shorthand rejection
-  - Ambiguous match handling
-  - Performance validation
-- **Performance benchmarks** - Validation performance
-  - Exact match path performance (<0.5ms)
-  - Fuzzy match path performance (<2ms)
-  - Policy size scaling tests
-  - Memory overhead measurements
-
-## Architecture
-
-```
-src/memory/mcp_server/
-├── frame-mcp.mjs          Fail-closed tombstone for the removed legacy launcher
-├── server.ts              MCPServer class (request routing)
-├── http-server.ts         HTTP API server setup
-├── routes/
-│   └── frames.ts          POST /api/frames endpoint implementation
-├── tools.ts               MCP tool definitions
-├── ../store/              FrameStore (SQLite + FTS5)
-└── ../../shared/atlas/    Atlas Frame generation
-```
-
-## Atlas Frame
-
-Every recall/list response includes an Atlas Frame - the spatial neighborhood around the Frame's modules:
-
-- **Seed modules** - The modules touched in this work session
-- **Fold radius** - How many hops expanded (default: 1)
-- **Modules** - All modules in the neighborhood with policy metadata
-- **Edges** - Allowed/forbidden calls between modules
-
-Currently a stub implementation (returns seed modules only). Full policy graph integration pending.
-
-## Module ID Validation (THE CRITICAL RULE)
-
-Every string in `module_scope` MUST be a module ID that exists in `lexmap.policy.json`. This prevents vocabulary drift between memory and policy subsystems.
-
-### How Validation Works
-
-1. When you call `lex.remember` with `module_scope: ["auth-core"]`
-2. The server validates each ID against the loaded policy
-3. If validation fails, you get a helpful error with suggestions:
-
-```json
-{
-  "error": {
-    "message": "Invalid module IDs in module_scope:\n  • Module 'auth-core' not found in policy. Did you mean 'services/auth-core'?\n\nAvailable modules: indexer, ts, php, mcp, services/auth-core",
-    "code": "INTERNAL_ERROR"
-  }
-}
-```
-
-4. You correct the typo and retry with the exact module ID
-
-### Fuzzy Matching & Suggestions
-
-The validator uses Levenshtein distance to suggest similar module names:
-
-- **Edit distance ≤ 10** → Suggest up to 3 closest matches
-- **No close matches** → Show list of all available modules
-- **Exact match** → Validation passes instantly (<0.5ms)
-
-### Example Validation Scenarios
-
-#### Scenario 1: Exact Match (Success)
-```json
-{
-  "module_scope": ["services/auth-core", "ui/main-panel"]
-}
-```
-✅ Validation passes, Frame stored
-
-#### Scenario 2: Typo (Helpful Error)
-```json
-{
-  "module_scope": ["servcies/auth-core"]
-}
-```
-❌ Error: "Module 'servcies/auth-core' not found. Did you mean 'services/auth-core'?"
-
-#### Scenario 3: Shorthand Not Allowed (Yet)
-```json
-{
-  "module_scope": ["auth"]
-}
-```
-❌ Error: "Module 'auth' not found."
-
-> **Future:** Explicit alias tables will support `auth` → `services/auth-core` mappings. See `src/shared/aliases/README.md`.
-
-### Performance
-
-- **Exact match:** ~0.5ms (O(1) hash table lookup)
-- **Fuzzy suggestions:** ~2ms (only on validation failure)
-- **Policy cache:** ~10KB in memory
-
-### Strict Mode (CI)
-
-For CI pipelines, set `LEX_STRICT_MODE=1` to disable fuzzy suggestions:
-
-```bash
-export LEX_STRICT_MODE=1
-npm test
-```
-
-In strict mode:
-- Only exact matches pass
-- No fuzzy matching or suggestions
-- Exit code 1 on any validation failure
-
-This prevents "close enough" matches from sneaking into production.
-
-## License
-
-MIT
+Authorization completes before tool dispatch. Unknown operations fail closed rather than
+receiving a default capability. Normal handlers receive only a bound store view; migration,
+repair, rebind, and recovery remain separately authorized.
+
+The normative contracts are:
+
+- [`docs/RUNTIME_SCOPE_CONTRACT.md`](../../../docs/RUNTIME_SCOPE_CONTRACT.md);
+- [`src/memory/store/CONTRACT.md`](../store/CONTRACT.md);
+- [`docs/POSTGRES_AUTHORITY.md`](../../../docs/POSTGRES_AUTHORITY.md); and
+- [`docs/POSTGRES_SCOPE_SECURITY.md`](../../../docs/POSTGRES_SCOPE_SECURITY.md).
+
+## Store configuration
+
+The complete compatibility environment contract is
+[`docs/ENVIRONMENT.md`](../../../docs/ENVIRONMENT.md). Important selections include:
+
+| Variable | Role |
+| --- | --- |
+| `LEX_WORKSPACE_ROOT` | Explicit caller repository root |
+| `LEX_STORE` | Compatibility backend: `sqlite` or `postgres` |
+| `LEX_DB_PATH` | Exact SQLite store path |
+| `LEX_DATABASE_URL` | PostgreSQL compatibility endpoint; may contain credentials |
+| `LEX_POSTGRES_PASSWORD` | Separately injected PostgreSQL password |
+| `LEX_POSTGRES_POOL_MAX` | PostgreSQL compatibility pool size |
+
+Some hosts filter inherited environment variables. Forward
+`LEX_POSTGRES_PASSWORD` through the host's secret/environment allowlist without storing or logging
+its value, then restart the MCP host. A SCRAM “password must be a string” failure indicates absent
+or invalid authentication input; it is not evidence of database loss and does not authorize store
+repair or deletion.
+
+MCP migration acceptance must not discover, query, or mutate an existing project or user database.
+Use protocol-only initialization/tool-list checks first. Store-specific checks use an
+operator-selected target and the hard read-only path described in the
+[`Lex 4.0 migration guide`](../../../docs/releases/lex-4.0-migration.md).
+
+## Removed launcher
+
+[`frame-mcp.mjs`](./frame-mcp.mjs) is a fail-closed tombstone. It emits
+`LEX_MCP_LEGACY_ENTRYPOINT_REMOVED` because the former source transport duplicated canonical
+server behavior and could bypass current initialization, cleanup, authority, and tool-surface
+contracts.
+
+Recovery is configuration-only:
+
+1. preserve the reviewed `LEX_*` values;
+2. replace only the command and arguments with exact `@smartergpt/lex-mcp`;
+3. preserve secret pass-through by variable name;
+4. restart the MCP host; and
+5. perform protocol-only acceptance before a store-backed call.
+
+The repository-level `lex-launcher.sh` follows the same fail-closed contract. Do not restore or
+extend either launcher.
+
+## Unsupported HTTP implementation
+
+Historical HTTP source may remain in this directory for internal compatibility and tests. It is
+not a declared package export, supported deployment, or peer to the stdio MCP transport. Do not
+advertise its endpoints, authentication model, or direct source imports as Lex 4 consumer API.
+
+Any proposal to restore an HTTP surface requires a separate reviewed public API, authentication,
+authorization, deployment, threat-model, and SemVer decision.
+
+## Maintainer map
+
+| Path | Responsibility |
+| --- | --- |
+| `index.ts` | Publicly exported MCP server assembly |
+| `server.ts` | Protocol handling, dispatch, help, and lifecycle |
+| `tools.ts` | Canonical advertised tool definitions |
+| `frame-mcp.mjs` | Removed-launcher tombstone |
+| `http-server.ts` | Unsupported historical/internal HTTP implementation |
+| `types.ts` | MCP-local types |
+
+Do not add a new executable entrypoint merely for local convenience. Exercise the package wrapper
+or the repository's existing protocol harness so development and consumer behavior remain the
+same.
+
+## Verification
+
+During implementation, run touched and adjacent MCP, runtime-scope, store, and documentation
+tests. At the final release candidate, run the repository's exhaustive gate and packed-consumer
+acceptance.
+
+At minimum, MCP changes must prove:
+
+- package build and public API checks;
+- initialization and notification silence;
+- exact fourteen-tool discovery;
+- canonical and supported-alias dispatch behavior;
+- pre-dispatch authority denial;
+- cancellation and process cleanup;
+- no protocol corruption from diagnostics;
+- isolated SQLite and PostgreSQL behavior where affected; and
+- the removed launcher fails with its stable diagnostic and an actionable recovery path.
+
+The release checklist is [`RELEASE.md`](../../../RELEASE.md).

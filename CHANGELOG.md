@@ -1,10 +1,19 @@
 # Changelog
 
-## 3.1.0
+## 4.0.0
+
+Lex 4.0 participates in the Ecosystem 3.1 release train. The package-major version records the
+breaking Node.js support-floor change honestly; Ecosystem 3.1 is a compatibility-set identifier,
+not a lockstep package version.
+
+[Migration and recovery guide](./docs/releases/lex-4.0-migration.md)
+
+### Major Changes
+
+- 561f075: Raise the supported Node.js runtime floor to Node 24 and remove the unproven `<25` upper bound.
 
 ### Minor Changes
 
-- 561f075: Raise the supported Node.js runtime floor to Node 24 and remove the unproven `<25` upper bound.
 - 39c1b59: Add the four-type KnowledgeFrame v1 contract, exact-path Markdown compilation, isolated coherent
   snapshot storage, bounded read-only context, provenance explanation, and structured CLI/provider
   operations.

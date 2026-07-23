@@ -1,5 +1,12 @@
 # Lex Troubleshooting Guide
 
+> **Status: Historical contributor snapshot.** This file contains pre-Lex-4 package paths and
+> checkout-only commands. Do not use it as current consumer guidance. Start with
+> [`README.md`](./README.md), [`docs/FAQ.md`](./docs/FAQ.md), the
+> [public API](./docs/PUBLIC_API.md), and the
+> [Lex 4 migration guide](./docs/releases/lex-4.0-migration.md). Maintainers may preserve this file
+> as evidence while its remaining unique diagnostics are moved to current owners.
+
 This guide helps you diagnose and fix common issues with Lex.
 
 ---
@@ -609,4 +616,3 @@ If you're still having issues:
 
 - [TypeScript Project References](https://www.typescriptlang.org/docs/handbook/project-references.html)
 - [Package.json Subpath Exports](https://nodejs.org/api/packages.html#subpath-exports)
-

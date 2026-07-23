@@ -1,4 +1,7 @@
-f# Canon Architecture
+# Canon Architecture
+
+> **Status: Superseded duplicate.** Current canon ownership and build instructions live in
+> [`canon/README.md`](../canon/README.md). Do not copy cleanup commands from this historical page.
 
 ## Overview
 

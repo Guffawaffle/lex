@@ -11,7 +11,7 @@
 
 import { readFileSync, existsSync } from "fs";
 import { execSync } from "child_process";
-import { join, dirname } from "path";
+import { join, dirname, resolve } from "path";
 import { fileURLToPath } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -99,6 +99,194 @@ if (readme.includes(`**Current Version:** \`${currentVersion}\``)) {
   }
 }
 
+section("Release Migration Contract");
+const changelog = readFile("CHANGELOG.md");
+const releaseChecklist = readFile("RELEASE.md");
+const ecosystemReleaseGuide = readFile("docs/releases/ecosystem-3.1.md");
+const ecosystemManifest = JSON.parse(readFile("releases/ecosystem-3.1.json"));
+const registryManifest = JSON.parse(readFile("server.json"));
+const currentMajorMinor = currentVersion.split(".").slice(0, 2).join(".");
+const migrationGuidePath = `docs/releases/lex-${currentMajorMinor}-migration.md`;
+const migrationGuide = readFile(migrationGuidePath);
+const documentationInventoryPath = "docs/releases/ecosystem-3.1-documentation-inventory.md";
+const documentationInventory = readFile(documentationInventoryPath);
+const mcpConfiguration = readFile("docs/MCP_CONFIG.md");
+const internalMcpReadme = readFile("src/memory/mcp_server/README.md");
+const manualPublishBoundary = readFile("scripts/manual-publish-boundary.mjs");
+
+if (changelog?.includes(`## ${currentVersion}`)) {
+  pass(`CHANGELOG.md identifies ${currentVersion} as the current candidate`);
+} else {
+  error(`CHANGELOG.md must contain a current ## ${currentVersion} release heading`);
+}
+
+const lexComponent = ecosystemManifest.components?.find((component) => component.id === "lex");
+const lexMcpComponent = ecosystemManifest.components?.find(
+  (component) => component.id === "lex-mcp"
+);
+if (
+  lexComponent?.package?.targetVersion === currentVersion &&
+  lexMcpComponent?.package?.targetVersion === currentVersion
+) {
+  pass(`Ecosystem manifest aligns Lex and Lex-MCP at ${currentVersion}`);
+} else {
+  error(`Ecosystem manifest must align Lex and Lex-MCP targets at ${currentVersion}`);
+}
+
+if (
+  registryManifest.version === currentVersion &&
+  registryManifest.packages?.[0]?.version === currentVersion
+) {
+  pass(`server.json aligns the Registry entry and wrapper at ${currentVersion}`);
+} else {
+  error(`server.json and its wrapper package must both identify ${currentVersion}`);
+}
+
+const registryEnvironment = new Map(
+  (registryManifest.packages?.[0]?.environmentVariables ?? []).map((entry) => [entry.name, entry])
+);
+for (const variable of [
+  "LEX_WORKSPACE_ROOT",
+  "LEX_STORE",
+  "LEX_DB_PATH",
+  "LEX_DATABASE_URL",
+  "LEX_POSTGRES_PASSWORD",
+  "LEX_POSTGRES_POOL_MAX",
+]) {
+  if (registryEnvironment.has(variable)) pass(`server.json documents ${variable}`);
+  else error(`server.json must document ${variable}`);
+}
+for (const secret of ["LEX_DATABASE_URL", "LEX_POSTGRES_PASSWORD"]) {
+  if (registryEnvironment.get(secret)?.isSecret === true) {
+    pass(`server.json treats ${secret} as secret`);
+  } else {
+    error(`server.json must treat ${secret} as secret`);
+  }
+}
+
+for (const [path, content, required] of [
+  ["README.md", readme, migrationGuidePath],
+  ["CHANGELOG.md", changelog, migrationGuidePath],
+  ["RELEASE.md", releaseChecklist, migrationGuidePath],
+  [
+    "docs/releases/ecosystem-3.1.md",
+    ecosystemReleaseGuide,
+    `./lex-${currentMajorMinor}-migration.md`,
+  ],
+]) {
+  if (content?.includes(required)) pass(`${path} links the current migration contract`);
+  else error(`${path} must link ${migrationGuidePath}`);
+}
+
+for (const required of [
+  `@smartergpt/lex@${currentVersion}`,
+  `@smartergpt/lex-mcp@${currentVersion}`,
+  "LEX_MCP_LEGACY_ENTRYPOINT_REMOVED",
+  "LEX_POSTGRES_PASSWORD",
+  'env_vars = ["LEX_POSTGRES_PASSWORD"]',
+  "Human-only publication boundary",
+  "Failure and recovery matrix",
+  "Windows build fails because `chmod` is unavailable",
+  "SCRAM says the password must be a string",
+  "Workspace, branch, or credential-free store identity is unexpected",
+  "Quarantined legacy Frames exist",
+  "A dependent lock still resolves Lex 3.0.1",
+  "Lex is public but its tag, Lex-MCP, GitHub release, or Registry entry is incomplete",
+  "Native Windows or another downstream packed consumer fails",
+]) {
+  if (migrationGuide?.includes(required)) pass(`${migrationGuidePath} documents ${required}`);
+  else error(`${migrationGuidePath} must document ${required}`);
+}
+
+if (
+  releaseChecklist?.includes("human maintainer") &&
+  releaseChecklist.includes("npm publish --access public") &&
+  !releaseChecklist.includes("triggers automated npm publish")
+) {
+  pass("RELEASE.md preserves the human-only npm publication gate");
+} else {
+  error("RELEASE.md must describe manual npm publication and reject obsolete automation claims");
+}
+
+if (
+  packageJson.scripts?.release === "node scripts/manual-publish-boundary.mjs" &&
+  packageJson.scripts?.["release:dry-run"]?.includes("npm publish --dry-run") &&
+  manualPublishBoundary?.includes("LEX_NPM_PUBLISH_REQUIRES_HUMAN") &&
+  manualPublishBoundary.includes("npm publish --access public")
+) {
+  pass("Package scripts hard-stop automated publication and preserve an agent-safe dry run");
+} else {
+  error("Package scripts must separate the human publish boundary from the agent-safe dry run");
+}
+
+if (
+  documentationInventory?.includes("Current normative owners") &&
+  documentationInventory.includes("Historical material: preserve facts") &&
+  documentationInventory.includes("Deletion candidates")
+) {
+  pass(`${documentationInventoryPath} records delete-first ownership and history boundaries`);
+} else {
+  error(`${documentationInventoryPath} must inventory owners, history, and deletion candidates`);
+}
+
+if (
+  mcpConfiguration?.includes(`@smartergpt/lex-mcp@${currentVersion}`) &&
+  mcpConfiguration.includes('env_vars = ["LEX_POSTGRES_PASSWORD"]') &&
+  mcpConfiguration.includes("LEX_MCP_LEGACY_ENTRYPOINT_REMOVED")
+) {
+  pass("MCP configuration documents the exact launcher, secret pass-through, and removed path");
+} else {
+  error("MCP configuration must document the exact launcher and bounded migration recovery");
+}
+
+for (const [path, content] of [
+  ["README.md", readme],
+  ["README.mcp.md", readFile("README.mcp.md")],
+  ["RELEASE.md", releaseChecklist],
+  ["docs/MCP_CONFIG.md", mcpConfiguration],
+  ["src/memory/mcp_server/README.md", internalMcpReadme],
+]) {
+  for (const pattern of [
+    /(?:^|\n)\s*node\s+(?:\.\/)?src\/memory\/mcp_server\/frame-mcp\.mjs\b/m,
+    /(?:^|\n)\s*(?:bash\s+)?(?:\.\/)?lex-launcher\.sh\b/m,
+  ]) {
+    if (pattern.test(content ?? "")) {
+      error(`${path} contains a runnable removed MCP entrypoint`);
+    }
+  }
+  if (/from\s+["']lex\//.test(content ?? "")) {
+    error(`${path} contains an undeclared legacy lex/* consumer import`);
+  }
+}
+pass("Current entry documents do not expose a runnable removed MCP entrypoint");
+
+for (const path of [
+  "README.md",
+  "RELEASE.md",
+  migrationGuidePath,
+  "docs/releases/ecosystem-3.1.md",
+  documentationInventoryPath,
+  "src/memory/mcp_server/README.md",
+]) {
+  const content = readFile(path);
+  for (const match of content?.matchAll(/\[[^\]]+\]\(([^)]+)\)/g) ?? []) {
+    const target = match[1];
+    if (
+      target.startsWith("http://") ||
+      target.startsWith("https://") ||
+      target.startsWith("#") ||
+      target.startsWith("mailto:")
+    ) {
+      continue;
+    }
+    const fileTarget = target.split("#", 1)[0];
+    if (!fileTarget) continue;
+    const absoluteTarget = resolve(dirname(join(ROOT, path)), fileTarget);
+    if (existsSync(absoluteTarget)) pass(`${path} local link resolves: ${target}`);
+    else error(`${path} has a missing local link: ${target}`);
+  }
+}
+
 // Check if CLI is available for later validation
 cliAvailable = checkCliAvailable();
 if (!cliAvailable) {
@@ -150,6 +338,11 @@ if (toolsFile) {
       error(`MCP tool "${name}" has namespace prefix (VS Code adds this automatically)`);
     } else {
       pass(`MCP tool "${name}" follows naming conventions`);
+    }
+    if (internalMcpReadme?.includes(`\`${name}\``)) {
+      pass(`MCP maintainer guide lists canonical tool "${name}"`);
+    } else {
+      error(`MCP maintainer guide must list canonical tool "${name}"`);
     }
   }
 
@@ -351,9 +544,9 @@ for (const [path, content] of [
 }
 
 if (
-  storeContractGuide?.includes("trusted hosts do not select a backend from ambient environment")
+  storeContractGuide?.includes("Trusted hosts do not select a backend from ambient environment")
 ) {
-  pass("Store guide keeps ambient environment out of Lex 3.0 trusted composition");
+  pass("Store guide keeps ambient environment out of trusted-host composition");
 } else {
   error(
     "Store guide must distinguish trusted composition from the environment-selected 2.x factory"

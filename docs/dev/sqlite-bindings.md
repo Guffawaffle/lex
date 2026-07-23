@@ -83,9 +83,15 @@ npm run check-sqlite  # verify it works
 ### Health check passes but tests still fail
 
 The issue may be elsewhere. Check:
-1. Is the database file corrupted? Delete `.smartergpt/lex/lex.db` and retry
-2. Are there permission issues? Check file ownership
-3. Is disk space available?
+
+1. Confirm the exact selected store with credential-free introspection; do not guess from a
+   conventional filename.
+2. Stop writers and establish a recoverable backup or quarantine copy before any repair.
+3. Reproduce binding and schema checks against a disposable database first.
+4. Inspect schema, permissions, disk space, and concurrent-process evidence without deleting the
+   selected project or user store.
+5. Perform a destructive recovery only when an operator approves the exact target and rollback
+   path.
 
 ### Building from source fails
 

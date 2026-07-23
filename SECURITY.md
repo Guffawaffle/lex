@@ -5,7 +5,7 @@ logs, and diagnostics as potentially sensitive development artifacts.
 
 ## Supported release line
 
-Security fixes target the current `3.x` release line. Earlier release lines are not actively
+Security fixes target the current `4.x` release line. Earlier release lines are not actively
 maintained. Reproduce a report on the newest published version when practical.
 
 ## Report a vulnerability
@@ -81,7 +81,7 @@ Standalone CLI and compatibility store factories can select paths and backends w
 variables. Those variables are process configuration for a trusted local operator. They do not
 prove a tenant, workspace, principal, or capability grant.
 
-A trusted Lex 3 host must compose these objects explicitly:
+A trusted Lex host must compose these objects explicitly:
 
 ```text
 trusted selection + repository evidence

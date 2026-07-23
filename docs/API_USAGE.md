@@ -14,7 +14,7 @@ Use policy when an agent should be able to answer questions such as:
 - What nearby modules should accompany a recalled Frame?
 
 Policy is not a permission system and does not authorize filesystem or database access. In a
-trusted Lex 3 host, tenant and workspace authorization belongs to runtime authority and a
+trusted Lex host, tenant and workspace authorization belongs to runtime authority and a
 scope-bound store.
 
 ## Create or choose a policy
