@@ -92,6 +92,26 @@ coexist with the scoped/RLS domain in one PostgreSQL schema, but it never reads 
 assigns ownership to scoped or quarantined records. Its backend identity includes the compatibility
 contract version.
 
+### PostgreSQL quarantine recovery
+
+Legacy rows preserved by the PostgreSQL v2 scoped migration remain unowned until an operator
+makes an explicit administrative decision. The public quarantine-recovery contract separates the
+read-only preparation stages from the later write boundary:
+
+1. trusted database inspection canonicalizes every complete legacy row and supplies only its ID
+   and SHA-256 digest to `createQuarantineInventory`;
+2. `createQuarantineRecoveryManifest` requires exactly one decision for every inventoried row,
+   either canonical scoped ownership or the exact acknowledgement that a compatibility copy is
+   not a tenant boundary; and
+3. `planQuarantineRecovery` rebinds the manifest to a fresh inventory, requires `frame:admin`, and
+   rejects stale sources, incomplete decisions, duplicates, or destination collisions while
+   guaranteeing `persistentWriteCount: 0`.
+
+Normal artifacts contain no Frame bodies, legacy user IDs, connection strings, or ambient
+authority selectors. Runtime binders and standard MCP tools do not expose this contract. Database
+inventory, transactional apply, verification, cleanup, and recovery belong exclusively to the
+separately constructed PostgreSQL administration service.
+
 Trusted MCP does not currently expose attachment creation through scoped stores. Until a
 scope-bound attachment service exists, trusted tool schemas and help omit `images`, direct
 `images` and `image_ids` inputs fail validation, and scoped SQLite advertises `images: false`.

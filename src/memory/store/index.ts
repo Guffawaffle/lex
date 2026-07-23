@@ -136,6 +136,16 @@ export {
   planPostgresFrameStoreMigration,
   POSTGRES_COMPATIBILITY_FRAME_STORE_SCHEMA_VERSION,
   POSTGRES_FRAME_STORE_SCHEMA_VERSION,
+  QUARANTINE_RECOVERY_ADMIN_CAPABILITY,
+  QUARANTINE_RECOVERY_COMPATIBILITY_ACKNOWLEDGEMENT,
+  QUARANTINE_RECOVERY_CONTRACT_VERSION,
+  QUARANTINE_RECOVERY_ERROR_CODES,
+  QuarantineRecoveryError,
+  canonicalQuarantineRecoveryJson,
+  createQuarantineInventory,
+  createQuarantineRecoveryManifest,
+  planQuarantineRecovery,
+  quarantineRecoveryDigest,
 } from "./postgres/index.js";
 export type {
   PostgresFrameStoreAccessMode,
@@ -143,6 +153,20 @@ export type {
   PostgresFrameStoreOptions,
   PostgresScopedFrameStoreOptions,
   PostgresBehavioralStoreOptionsV1,
+  CompatibilityQuarantineRecoveryDecisionV1,
+  QuarantinedFrameEvidenceV1,
+  QuarantineDestinationCollisionV1,
+  QuarantineInventoryV1,
+  QuarantineInventoryWarningV1,
+  QuarantineRecoveryAuthorityV1,
+  QuarantineRecoveryDecisionV1,
+  QuarantineRecoveryErrorCode,
+  QuarantineRecoveryManifestInputV1,
+  QuarantineRecoveryManifestV1,
+  QuarantineRecoveryPlanInputV1,
+  QuarantineRecoveryPlanV1,
+  QuarantineSourceEvidenceV1,
+  ScopedQuarantineRecoveryDecisionV1,
 } from "./postgres/index.js";
 
 // Memory-based store implementations for testing
