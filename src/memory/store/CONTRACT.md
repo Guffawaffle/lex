@@ -105,7 +105,10 @@ read-only preparation stages from the later write boundary:
    not a tenant boundary; and
 3. `planQuarantineRecovery` rebinds the manifest to a fresh inventory, requires `frame:admin`, and
    rejects stale sources, incomplete decisions, duplicates, or destination collisions while
-   guaranteeing `persistentWriteCount: 0`.
+   guaranteeing `persistentWriteCount: 0`; and
+4. the separately bound PostgreSQL administration service keeps apply dry by default, performs
+   explicit writes transactionally with exact verification and durable receipts, preserves the
+   source until a receipt-bound cleanup, and reconciles lost client receipts through `recover`.
 
 Normal artifacts contain no Frame bodies, legacy user IDs, connection strings, or ambient
 authority selectors. Runtime binders and standard MCP tools do not expose this contract. Database

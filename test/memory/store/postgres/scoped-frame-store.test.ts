@@ -560,6 +560,10 @@ describe("PostgreSQL FrameStore administration", () => {
     );
     assert.match(
       migrationSql,
+      /CONSTRAINT frame_store_recovery_assignments_destination_digest_sha256/
+    );
+    assert.match(
+      migrationSql,
       /REVOKE ALL ON TABLE "lex_test"\."lex_frame_store_recovery_operations" FROM PUBLIC/
     );
     assert.match(

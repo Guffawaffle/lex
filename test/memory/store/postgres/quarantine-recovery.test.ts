@@ -116,13 +116,13 @@ describe("PostgreSQL quarantine recovery read-only contract", () => {
       currentInventory: firstInventory,
       manifest: firstManifest,
       authority,
-      targetSchema: "lex",
+      targetRef: digest("target"),
     });
     const secondPlan = planQuarantineRecovery({
       currentInventory: secondInventory,
       manifest: secondManifest,
       authority,
-      targetSchema: "lex",
+      targetRef: digest("target"),
       destinationCollisions: [],
     });
     assert.deepEqual(secondPlan, firstPlan);
@@ -231,7 +231,7 @@ describe("PostgreSQL quarantine recovery read-only contract", () => {
         scopeVersion: "v1",
         capabilities: [QUARANTINE_RECOVERY_ADMIN_CAPABILITY],
       },
-      targetSchema: "lex",
+      targetRef: digest("target"),
     };
 
     expectRecoveryError(QUARANTINE_RECOVERY_ERROR_CODES.STALE_INVENTORY, () =>
@@ -307,7 +307,7 @@ describe("PostgreSQL quarantine recovery read-only contract", () => {
         scopeVersion: "v1",
         capabilities: [QUARANTINE_RECOVERY_ADMIN_CAPABILITY, "ambient:ignored" as CapabilityId],
       },
-      targetSchema: "lex",
+      targetRef: digest("target"),
     });
 
     const artifacts = JSON.stringify({ source, recoveryManifest, plan });

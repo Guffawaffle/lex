@@ -4,4 +4,5 @@
 
 Add the deterministic, redacted PostgreSQL quarantine inventory, ownership manifest, and
 zero-write recovery planning contract, plus an admin-only v4 recovery ledger and separately bound
-PostgreSQL administration service for preserved legacy Frames.
+PostgreSQL service for transactional copy verification, receipt recovery, and explicit cleanup of
+preserved legacy Frames.

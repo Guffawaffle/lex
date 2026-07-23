@@ -316,6 +316,7 @@ function postgresFrameStoreMigrations(
         row_digest TEXT NOT NULL,
         decision JSONB NOT NULL,
         target_ref TEXT NOT NULL,
+        destination_digest TEXT NOT NULL,
         state TEXT NOT NULL,
         created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -336,6 +337,8 @@ function postgresFrameStoreMigrations(
           CHECK (row_digest ~ '^sha256:[0-9a-f]{64}$'),
         CONSTRAINT frame_store_recovery_assignments_target_ref_sha256
           CHECK (target_ref ~ '^sha256:[0-9a-f]{64}$'),
+        CONSTRAINT frame_store_recovery_assignments_destination_digest_sha256
+          CHECK (destination_digest ~ '^sha256:[0-9a-f]{64}$'),
         CONSTRAINT frame_store_recovery_assignments_decision_object
           CHECK (jsonb_typeof(decision) = 'object'),
         CONSTRAINT frame_store_recovery_assignments_state

@@ -133,7 +133,7 @@ same database and schema name, but they use separate physical contracts:
 | Contract | Relations | Migration ledger | Current version |
 |---|---|---|---:|
 | Unscoped compatibility | `lex_compat_frames` and `lex_compat_*` support objects | `lex_compat_frame_store_migrations` | 2 |
-| Scope-bound/RLS | `frames` and scoped support objects | `lex_frame_store_migrations` | 3 |
+| Scope-bound/RLS | `frames`, scoped support objects, and admin-only recovery evidence | `lex_frame_store_migrations` | 4 |
 
 The compatibility adapter therefore neither bypasses RLS on the scoped relation nor interprets
 scoped ownership as unscoped data. Its credential-free backend identity includes this physical
@@ -155,6 +155,23 @@ changing the source relation. It adopts only a source with no tenant ownership c
 scoped relation—and any quarantined legacy rows—are never adopted automatically because doing so
 would invent tenant/workspace ownership. Moving those records requires an explicit administrative
 inventory and ownership decision.
+
+`PostgresQuarantineRecoveryAdministration` is the separately constructed, privileged recovery
+boundary. Binding requires an active `frame:admin` scope before any pool checkout. Inventory and
+plan use repeatable-read, read-only transactions; normal artifacts contain row IDs and digests but
+not Frame bodies, legacy user IDs, schema names, or connection data. A manifest must decide every
+inventoried row exactly once. Scoped decisions must exactly match the bound administration scope,
+while compatibility decisions require the versioned acknowledgement that the destination is not a
+tenant boundary.
+
+`apply(manifest)` is a zero-write plan unless `{ write: true }` is explicit. Write mode serializes
+with migration and recovery advisory locks, re-inventories the preserved source, rejects every
+collision, uses plain inserts, verifies full logical round trips and scoped ownership, and commits
+the copy with a compact receipt in the v4 recovery ledger. It does not delete quarantine rows.
+`cleanup(recoveryId)` is likewise read-only by default; explicit write mode re-verifies unchanged
+source digests and destinations before deleting only receipt-bound source rows. `recover` reads the
+durable ledger and reports the next action without guessing from paths, environment, or legacy IDs.
+The ordinary runtime binder and standard MCP server expose none of these administration methods.
 
 PostgreSQL read-only mode is an application-level no-write contract rather than a replacement for
 database permissions.

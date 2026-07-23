@@ -28,6 +28,8 @@ export const QUARANTINE_RECOVERY_ERROR_CODES = Object.freeze({
   AUTHORITY_MISSING: "LEX_QUARANTINE_RECOVERY_AUTHORITY_MISSING",
   DESTINATION_COLLISION: "LEX_QUARANTINE_RECOVERY_DESTINATION_COLLISION",
   ADMINISTRATION_CLOSED: "LEX_QUARANTINE_RECOVERY_ADMINISTRATION_CLOSED",
+  RECOVERY_NOT_FOUND: "LEX_QUARANTINE_RECOVERY_NOT_FOUND",
+  RECOVERY_ALREADY_CLEANED: "LEX_QUARANTINE_RECOVERY_ALREADY_CLEANED",
 });
 
 export type QuarantineRecoveryErrorCode =
@@ -151,13 +153,58 @@ export interface QuarantineRecoveryPlanV1 {
   readonly manifestId: string;
   readonly manifestDigest: ContentDigest;
   readonly inventoryDigest: ContentDigest;
-  readonly targetSchema: string;
+  readonly targetRef: ContentDigest;
   readonly sourceRowCount: number;
   readonly scopedAssignmentCount: number;
   readonly compatibilityCopyCount: number;
   /** This helper is validation only and has no database handle or mutation path. */
   readonly persistentWriteCount: 0;
   readonly nextAction: "apply-with-explicit-write-boundary";
+}
+
+export interface QuarantineRecoveryApplyReceiptV1 {
+  readonly schemaVersion: typeof QUARANTINE_RECOVERY_CONTRACT_VERSION;
+  readonly operation: "postgres-quarantine-recovery-apply";
+  readonly state: "verified";
+  readonly recoveryId: string;
+  readonly manifestDigest: ContentDigest;
+  readonly inventoryDigest: ContentDigest;
+  readonly targetRef: ContentDigest;
+  readonly copiedRowCount: number;
+  readonly scopedAssignmentCount: number;
+  readonly compatibilityCopyCount: number;
+  readonly sourcePreserved: true;
+  readonly receiptDigest: ContentDigest;
+  readonly nextAction: "cleanup-with-explicit-write-boundary";
+}
+
+export interface QuarantineRecoveryApplyOptionsV1 {
+  readonly write?: boolean;
+}
+
+export interface QuarantineRecoveryCleanupOptionsV1 {
+  readonly write?: boolean;
+}
+
+export interface QuarantineRecoveryCleanupReceiptV1 {
+  readonly schemaVersion: typeof QUARANTINE_RECOVERY_CONTRACT_VERSION;
+  readonly operation: "postgres-quarantine-recovery-cleanup";
+  readonly state: "cleaned";
+  readonly recoveryId: string;
+  readonly removedSourceRowCount: number;
+  readonly destinationVerified: true;
+  readonly receiptDigest: ContentDigest;
+  readonly nextAction: "none";
+}
+
+export interface QuarantineRecoveryStateV1 {
+  readonly schemaVersion: typeof QUARANTINE_RECOVERY_CONTRACT_VERSION;
+  readonly operation: "postgres-quarantine-recovery-state";
+  readonly recoveryId: string;
+  readonly state: "not-found" | "verified" | "cleaned";
+  readonly copiedRowCount: number;
+  readonly sourcePreserved: boolean;
+  readonly nextAction: "apply" | "cleanup-with-explicit-write-boundary" | "none";
 }
 
 function canonicalize(value: unknown): unknown {
@@ -480,8 +527,8 @@ export function planQuarantineRecovery(
       );
     }
   }
-  if (!isPostgresSchema(input.targetSchema)) {
-    fail(QUARANTINE_RECOVERY_ERROR_CODES.INVALID_INPUT, "Recovery target schema is invalid");
+  if (!isDigest(input.targetRef)) {
+    fail(QUARANTINE_RECOVERY_ERROR_CODES.INVALID_INPUT, "Recovery target reference is invalid");
   }
   const collisions = input.destinationCollisions ?? [];
   const collisionKeys = new Set<string>();
@@ -516,17 +563,13 @@ export function planQuarantineRecovery(
     ({ destination }) => destination === "scoped"
   ).length;
   const compatibilityCopyCount = input.manifest.decisions.length - scopedAssignmentCount;
-  const targetRef = quarantineRecoveryDigest({
-    kind: "postgres-recovery-target-v1",
-    schema: input.targetSchema,
-  });
   const planBody = {
     schemaVersion: QUARANTINE_RECOVERY_CONTRACT_VERSION,
     state: "ready" as const,
     manifestId: input.manifest.manifestId,
     manifestDigest: input.manifest.manifestDigest,
     inventoryDigest: input.currentInventory.inventoryDigest,
-    targetRef,
+    targetRef: input.targetRef,
     sourceRowCount: input.currentInventory.rowCount,
     scopedAssignmentCount,
     compatibilityCopyCount,
