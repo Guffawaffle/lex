@@ -82,11 +82,7 @@ describe("MCP Server - Idempotency (AX-008)", () => {
       const frameId2 = response2.data.frame_id;
 
       // Should return the SAME frame_id (proving idempotency)
-      assert.strictEqual(
-        frameId2,
-        frameId1,
-        "Duplicate request_id should return same frame_id"
-      );
+      assert.strictEqual(frameId2, frameId1, "Duplicate request_id should return same frame_id");
 
       // Content should also match
       assert.strictEqual(

@@ -98,8 +98,7 @@ export function validateFrontmatter(data: unknown): CanonicalInstructionFrontmat
 export function safeParseFrontmatter(
   data: unknown
 ):
-  | { success: true; data: CanonicalInstructionFrontmatter }
-  | { success: false; error: z.ZodError } {
+  { success: true; data: CanonicalInstructionFrontmatter } | { success: false; error: z.ZodError } {
   const result = CanonicalInstructionFrontmatterSchema.safeParse(data);
   if (result.success) {
     return { success: true, data: result.data };

@@ -12,11 +12,7 @@ import { MergedScanResult, FileData } from "../merge/types.js";
  * Types of policy violations that can be detected
  */
 export type ViolationType =
-  | "forbidden_caller"
-  | "missing_allowed_caller"
-  | "feature_flag"
-  | "permission"
-  | "kill_pattern";
+  "forbidden_caller" | "missing_allowed_caller" | "feature_flag" | "permission" | "kill_pattern";
 
 /**
  * A single policy violation

@@ -16,14 +16,7 @@ export interface ProjectDetection {
 }
 
 export type ProjectType =
-  | "nodejs"
-  | "python"
-  | "rust"
-  | "go"
-  | "java"
-  | "dotnet"
-  | "ruby"
-  | "unknown";
+  "nodejs" | "python" | "rust" | "go" | "java" | "dotnet" | "ruby" | "unknown";
 
 /**
  * Detect project type(s) and frameworks in the given directory
