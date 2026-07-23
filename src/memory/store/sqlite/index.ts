@@ -10,6 +10,10 @@ export { SqliteFrameStore } from "./frame-store.js";
 export type { SqliteFrameStoreAccessMode, SqliteFrameStoreOptions } from "./frame-store.js";
 export { SqliteCodeAtlasStore } from "./code-atlas-store.js";
 export { SqliteScopedFrameStoreBackend } from "./scoped-frame-store.js";
+export {
+  SqliteBehavioralStoreBackend,
+  SQLITE_BEHAVIORAL_STORE_SCHEMA_VERSION,
+} from "./behavioral-store.js";
 export type { SqliteScopedFrameStoreOptions } from "./scoped-frame-store.js";
 export {
   SCOPED_SQLITE_SCHEMA_VERSION,

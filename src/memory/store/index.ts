@@ -52,10 +52,48 @@ export type {
 } from "./scoped-frame-store.js";
 export type { CodeAtlasStore } from "./code-atlas-store.js";
 
+export {
+  BEHAVIORAL_STORE_CONTRACT_VERSION,
+  BEHAVIORAL_STORE_CAPABILITIES,
+  BEHAVIORAL_STORE_ERROR_CODES,
+  BehavioralStoreError,
+  behavioralContentDigest,
+  canonicalBehavioralJson,
+} from "./behavioral-store.js";
+export type {
+  BehavioralStoreCapability,
+  BehavioralStoreErrorCode,
+  BehavioralStoreBindingV1,
+  BehavioralRuleSeverityV1,
+  BehavioralRuleLayerV1,
+  BehavioralApplicabilityV1,
+  BehavioralConfidencePriorV1,
+  PersonaRevisionInputV1,
+  RuleRevisionInputV1,
+  BehavioralDetailedProvenanceV1,
+  PersonaRevisionV1,
+  RuleRevisionV1,
+  BehavioralBaselineRevisionV1,
+  BehavioralSnapshotQueryV1,
+  BehavioralSnapshotV1,
+  BehavioralEvidenceKindV1,
+  BehavioralEvidenceInputV1,
+  BehavioralPromotionInputV1,
+  BehavioralRevisionWriteV1,
+  BehavioralWriteOperationV1,
+  BehavioralWriteReceiptV1,
+  ScopedBehavioralReadStore,
+  ScopedBehavioralWriteStore,
+  BehavioralStoreBinder,
+  BehavioralStoreBackendOptionsV1,
+} from "./behavioral-store.js";
+
 // SqliteFrameStore - production-ready FrameStore implementation
 export {
   SqliteFrameStore,
   SqliteScopedFrameStoreBackend,
+  SqliteBehavioralStoreBackend,
+  SQLITE_BEHAVIORAL_STORE_SCHEMA_VERSION,
   SCOPED_SQLITE_SCHEMA_VERSION,
   LEGACY_SQLITE_SCHEMA_VERSION,
   SCOPED_SQLITE_ERROR_CODES,
@@ -91,6 +129,9 @@ export {
   PostgresFrameStoreAdministration,
   PostgresFrameStore,
   PostgresScopedFrameStoreBackend,
+  openPostgresBehavioralStore,
+  postgresBehavioralBackendIdentity,
+  POSTGRES_BEHAVIORAL_STORE_SCHEMA_VERSION,
   migratePostgresFrameStore,
   planPostgresFrameStoreMigration,
   POSTGRES_COMPATIBILITY_FRAME_STORE_SCHEMA_VERSION,
@@ -101,6 +142,7 @@ export type {
   PostgresFrameStoreMigrationPlan,
   PostgresFrameStoreOptions,
   PostgresScopedFrameStoreOptions,
+  PostgresBehavioralStoreOptionsV1,
 } from "./postgres/index.js";
 
 // Memory-based store implementations for testing

@@ -29,7 +29,7 @@ and compiles imports for every declaration path.
 | `@smartergpt/lex/atlas/schemas` | Atlas persistence schemas |
 | `@smartergpt/lex/module-ids` | Module identifier validation |
 | `@smartergpt/lex/aliases` | Module alias resolution |
-| `@smartergpt/lex/store` | Legacy and scope-bound FrameStore adapters |
+| `@smartergpt/lex/store` | Legacy FrameStore and authorized scoped persistence adapters |
 | `@smartergpt/lex/dedup` | Frame duplicate detection |
 | `@smartergpt/lex/similarity` | Frame similarity scoring |
 | `@smartergpt/lex/consolidation` | Frame consolidation operations |
@@ -60,3 +60,7 @@ Lex 3.0 CLI and MCP hosts bind `AuthorizedScope` to `ScopedFrameStore`. Normal c
 that bound view. `FrameStoreAdmin` is a separately authorized boundary for migration, repair, and
 recovery. See [Store Contracts](./STORE_CONTRACTS.md), [Runtime Scope](./RUNTIME_SCOPE_CONTRACT.md),
 and [PostgreSQL Scope Security](./POSTGRES_SCOPE_SECURITY.md).
+
+The same package path exposes the behavioral contract through separate read/write views. LexSona
+receives scoped data, immutable revisions, and deterministic receipts; it never receives a SQLite
+or PostgreSQL handle. See [Scoped Behavioral Store](./BEHAVIORAL_STORE.md).
