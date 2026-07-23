@@ -5,7 +5,7 @@ import {
   type PostgresSchemaTargetV1,
 } from "../../../shared/runtime-scope/postgres-schema.js";
 
-export const POSTGRES_FRAME_STORE_SCHEMA_VERSION = 3;
+export const POSTGRES_FRAME_STORE_SCHEMA_VERSION = 4;
 
 export interface PostgresFrameStoreMigrationPlan {
   readonly currentVersion: number;
@@ -23,6 +23,8 @@ function postgresFrameStoreMigrations(
   const frames = target.relation("frames");
   const migrations = target.relation("lex_frame_store_migrations");
   const quarantine = target.relation("lex_frame_store_unowned_frames_v1");
+  const recoveryOperations = target.relation("lex_frame_store_recovery_operations");
+  const recoveryAssignments = target.relation("lex_frame_store_recovery_assignments");
   const updateSearchVector = target.function("lex_update_frame_search_vector");
   const runtimeScopeIsValid = target.function("lex_runtime_scope_is_valid");
   const runtimeScopeMatches = target.function("lex_runtime_scope_matches");
@@ -254,6 +256,111 @@ function postgresFrameStoreMigrations(
           CHECK (jsonb_typeof(frame_metadata) = 'object'),
         ADD CONSTRAINT frames_metadata_version
           CHECK (frame_metadata ->> 'schemaVersion' = '1');
+    `,
+    },
+    {
+      version: 4,
+      sql: `
+      CREATE TABLE ${recoveryOperations} (
+        recovery_id TEXT PRIMARY KEY,
+        manifest_digest TEXT NOT NULL,
+        inventory_digest TEXT NOT NULL,
+        state TEXT NOT NULL,
+        manifest JSONB NOT NULL,
+        selected_row_count INTEGER NOT NULL,
+        copied_row_count INTEGER NOT NULL,
+        redacted_receipt JSONB NOT NULL,
+        receipt_digest TEXT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        verified_at TIMESTAMPTZ NOT NULL,
+        cleaned_at TIMESTAMPTZ,
+        CONSTRAINT frame_store_recovery_operations_recovery_id_nonempty
+          CHECK (length(recovery_id) > 0),
+        CONSTRAINT frame_store_recovery_operations_manifest_digest_sha256
+          CHECK (manifest_digest ~ '^sha256:[0-9a-f]{64}$'),
+        CONSTRAINT frame_store_recovery_operations_inventory_digest_sha256
+          CHECK (inventory_digest ~ '^sha256:[0-9a-f]{64}$'),
+        CONSTRAINT frame_store_recovery_operations_receipt_digest_sha256
+          CHECK (receipt_digest ~ '^sha256:[0-9a-f]{64}$'),
+        CONSTRAINT frame_store_recovery_operations_state
+          CHECK (state IN ('verified', 'cleaned')),
+        CONSTRAINT frame_store_recovery_operations_manifest_object
+          CHECK (jsonb_typeof(manifest) = 'object'),
+        CONSTRAINT frame_store_recovery_operations_receipt_object
+          CHECK (jsonb_typeof(redacted_receipt) = 'object'),
+        CONSTRAINT frame_store_recovery_operations_counts_exact
+          CHECK (
+            selected_row_count >= 0
+            AND copied_row_count = selected_row_count
+          ),
+        CONSTRAINT frame_store_recovery_operations_timestamps
+          CHECK (
+            updated_at >= created_at
+            AND verified_at >= created_at
+            AND (cleaned_at IS NULL OR cleaned_at >= verified_at)
+          ),
+        CONSTRAINT frame_store_recovery_operations_state_evidence
+          CHECK (
+            (state = 'verified' AND cleaned_at IS NULL)
+            OR (state = 'cleaned' AND cleaned_at IS NOT NULL)
+          )
+      );
+
+      CREATE INDEX lex_frame_store_recovery_operations_state
+        ON ${recoveryOperations} (state, verified_at, recovery_id);
+
+      CREATE TABLE ${recoveryAssignments} (
+        recovery_id TEXT NOT NULL,
+        frame_id TEXT NOT NULL,
+        row_digest TEXT NOT NULL,
+        decision JSONB NOT NULL,
+        target_ref TEXT NOT NULL,
+        destination_digest TEXT NOT NULL,
+        state TEXT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        verified_at TIMESTAMPTZ NOT NULL,
+        cleaned_at TIMESTAMPTZ,
+        CONSTRAINT frame_store_recovery_assignments_pkey
+          PRIMARY KEY (recovery_id, frame_id),
+        CONSTRAINT frame_store_recovery_assignments_frame_id_unique
+          UNIQUE (frame_id),
+        CONSTRAINT frame_store_recovery_assignments_operation_fkey
+          FOREIGN KEY (recovery_id)
+          REFERENCES ${recoveryOperations} (recovery_id)
+          ON UPDATE RESTRICT
+          ON DELETE RESTRICT,
+        CONSTRAINT frame_store_recovery_assignments_frame_id_nonempty
+          CHECK (length(frame_id) > 0),
+        CONSTRAINT frame_store_recovery_assignments_row_digest_sha256
+          CHECK (row_digest ~ '^sha256:[0-9a-f]{64}$'),
+        CONSTRAINT frame_store_recovery_assignments_target_ref_sha256
+          CHECK (target_ref ~ '^sha256:[0-9a-f]{64}$'),
+        CONSTRAINT frame_store_recovery_assignments_destination_digest_sha256
+          CHECK (destination_digest ~ '^sha256:[0-9a-f]{64}$'),
+        CONSTRAINT frame_store_recovery_assignments_decision_object
+          CHECK (jsonb_typeof(decision) = 'object'),
+        CONSTRAINT frame_store_recovery_assignments_state
+          CHECK (state IN ('verified', 'cleaned')),
+        CONSTRAINT frame_store_recovery_assignments_timestamps
+          CHECK (
+            updated_at >= created_at
+            AND verified_at >= created_at
+            AND (cleaned_at IS NULL OR cleaned_at >= verified_at)
+          ),
+        CONSTRAINT frame_store_recovery_assignments_state_evidence
+          CHECK (
+            (state = 'verified' AND cleaned_at IS NULL)
+            OR (state = 'cleaned' AND cleaned_at IS NOT NULL)
+          )
+      );
+
+      CREATE INDEX lex_frame_store_recovery_assignments_recovery_state
+        ON ${recoveryAssignments} (recovery_id, state, frame_id);
+
+      REVOKE ALL ON TABLE ${recoveryOperations} FROM PUBLIC;
+      REVOKE ALL ON TABLE ${recoveryAssignments} FROM PUBLIC;
     `,
     },
   ];

@@ -482,13 +482,39 @@ describe("PostgreSQL FrameStore administration", () => {
     const plan = await planPostgresFrameStoreMigration(client, SCHEMA);
     assert.deepEqual(plan, {
       currentVersion: 1,
-      targetVersion: 3,
-      pendingVersions: [2, 3],
+      targetVersion: 4,
+      pendingVersions: [2, 3, 4],
       unownedFrameCount: 7,
       quarantineTableConflict: false,
     });
     assert.equal(
       queries.some(({ sql }) => /^(?:BEGIN|CREATE|ALTER|INSERT|DELETE)/.test(sql)),
+      false
+    );
+  });
+
+  test("dry-run reports only the recovery-ledger migration from schema v3", async () => {
+    const queries: RecordedQuery[] = [];
+    const client = {
+      query: async (sql: string) => {
+        const normalized = sql.replace(/\s+/g, " ").trim();
+        queries.push({ sql: normalized, values: [] });
+        if (normalized.includes("to_regclass($1)"))
+          return result([{ exists: "lex_frame_store_migrations" }]);
+        if (normalized.includes("MAX(version)")) return result([{ version: 3 }]);
+        return result([]);
+      },
+    } as unknown as PoolClient;
+
+    assert.deepEqual(await planPostgresFrameStoreMigration(client, SCHEMA), {
+      currentVersion: 3,
+      targetVersion: 4,
+      pendingVersions: [4],
+      unownedFrameCount: 0,
+      quarantineTableConflict: false,
+    });
+    assert.equal(
+      queries.some(({ sql }) => sql.includes("COUNT(*)")),
       false
     );
   });
@@ -521,6 +547,29 @@ describe("PostgreSQL FrameStore administration", () => {
     assert.match(migrationSql, /creator_principal_id::text = current_setting/);
     assert.match(migrationSql, /CREATE TRIGGER frames_ownership_immutable/);
     assert.match(migrationSql, /REVOKE ALL ON TABLE "lex_test"\."frames" FROM PUBLIC/);
+    assert.match(migrationSql, /CREATE TABLE "lex_test"\."lex_frame_store_recovery_operations"/);
+    assert.match(migrationSql, /CREATE TABLE "lex_test"\."lex_frame_store_recovery_assignments"/);
+    assert.match(
+      migrationSql,
+      /FOREIGN KEY \(recovery_id\) REFERENCES "lex_test"\."lex_frame_store_recovery_operations" \(recovery_id\)/
+    );
+    assert.match(migrationSql, /CHECK \(state IN \('verified', 'cleaned'\)\)/);
+    assert.match(
+      migrationSql,
+      /CONSTRAINT frame_store_recovery_assignments_frame_id_unique UNIQUE \(frame_id\)/
+    );
+    assert.match(
+      migrationSql,
+      /CONSTRAINT frame_store_recovery_assignments_destination_digest_sha256/
+    );
+    assert.match(
+      migrationSql,
+      /REVOKE ALL ON TABLE "lex_test"\."lex_frame_store_recovery_operations" FROM PUBLIC/
+    );
+    assert.match(
+      migrationSql,
+      /REVOKE ALL ON TABLE "lex_test"\."lex_frame_store_recovery_assignments" FROM PUBLIC/
+    );
   });
 
   test("dry-run reports a conflicting pre-existing quarantine table", async () => {

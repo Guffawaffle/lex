@@ -93,11 +93,20 @@ Schema v1 Frames do not contain trustworthy tenant, workspace, or creator owners
 therefore never guesses it. Within the migration transaction it copies those rows to the
 admin-only `lex_frame_store_unowned_frames_v1` quarantine, empties the runtime table, installs
 non-null ownership columns and the `(tenant_id, workspace_id, id)` primary key, and enables forced
-RLS. Quarantined rows cannot re-enter normal storage until a separately designed administrative
-ownership-establishment workflow exists.
+RLS. Quarantined rows cannot re-enter normal storage without the separately bound, explicit
+`PostgresQuarantineRecoveryAdministration` workflow.
 
-The current serving schema is v3. Schema v3 follows the ownership migration and adds the complete
-Frame metadata required for exact durable Frame v7 round trips.
+The current serving schema is v4. Schema v3 follows the ownership migration and adds the complete
+Frame metadata required for exact durable Frame v7 round trips. Schema v4 adds admin-only recovery
+operation and assignment ledgers, revokes them from `PUBLIC`, and permits only durable `verified`
+or `cleaned` states because apply and cleanup are individually transactional.
+
+Recovery never interprets `user_id`, paths, environment, repository names, or the current runtime
+directory as ownership. A bound `frame:admin` scope can assign rows only to its exact canonical
+tenant/workspace/principal/scope-version tuple. Compatibility copies require an explicit versioned
+acknowledgement. Apply preserves the quarantine source after verifying exact destination content;
+cleanup is a later explicit write transaction bound to unchanged source and destination evidence.
+Standard MCP and normal scoped runtime stores do not expose the recovery service or its pool.
 
 Use `PostgresFrameStoreAdministration.planMigration()` to report the current version, pending
 versions, and quarantine count without starting a transaction or mutating schema. Migration itself
@@ -107,7 +116,8 @@ uses one transaction and an advisory transaction lock; any failure rolls the com
 
 Deterministic fake-pool tests cover every normal operation, explicit predicates, capability and
 scope rejection, alternating scopes, commit/rollback cleanup, unsafe runtime roles, migration
-dry-run, quarantine, and policy SQL without credentials.
+dry-run, quarantine, recovery ledger, lock ordering, transactional copy/rollback, and cleanup SQL
+without credentials.
 
 The live suite is opt-in and requires distinct pre-provisioned admin and runtime connections:
 
@@ -119,7 +129,8 @@ node --import tsx --test \
 ```
 
 It creates an isolated schema, uses a single-client runtime pool to alternate colliding Frames
-across tenants/workspaces, proves missing/malformed settings see no rows, and verifies the runtime
-role cannot disable RLS or drop policy. The URLs are read only by that explicitly invoked test;
+across tenants/workspaces, proves missing/malformed settings see no rows, exercises scoped and
+compatibility quarantine recovery with explicit cleanup, and verifies the runtime role cannot
+disable RLS or drop policy. The URLs are read only by that explicitly invoked test;
 normal adapter construction takes an explicit connection/pool and does not discover credentials
 from environment variables.

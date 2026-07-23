@@ -4,9 +4,13 @@ import { randomBytes } from "node:crypto";
 import { Pool } from "pg";
 import {
   FRAME_STORE_CAPABILITIES,
+  POSTGRES_FRAME_STORE_SCHEMA_VERSION,
   PostgresFrameStore,
   PostgresFrameStoreAdministration,
+  PostgresQuarantineRecoveryAdministration,
   PostgresScopedFrameStoreBackend,
+  QUARANTINE_RECOVERY_COMPATIBILITY_ACKNOWLEDGEMENT,
+  createQuarantineRecoveryManifest,
 } from "@app/memory/store/index.js";
 import {
   RUNTIME_SCOPE_CONTRACT_VERSION,
@@ -99,6 +103,7 @@ integration("PostgreSQL scoped FrameStore live RLS", () => {
     administration = new PostgresFrameStoreAdministration(scopedAdminPool, { schema });
     await administration.migrate();
     compatibilityStore = new PostgresFrameStore(scopedAdminPool, { schema });
+    await compatibilityStore.getFrameCount();
 
     runtimePool = new Pool({
       connectionString: scopedUrl(runtimeUrl as string),
@@ -143,10 +148,10 @@ integration("PostgreSQL scoped FrameStore live RLS", () => {
       status_snapshot: { next_action: "verify scoped isolation" },
     };
     await compatibilityStore.saveFrame(compatibilityFrame);
-    assert.deepEqual(
-      await compatibilityStore.getFrameById(compatibilityFrame.id),
-      compatibilityFrame
-    );
+    const storedCompatibility = await compatibilityStore.getFrameById(compatibilityFrame.id);
+    assert.equal(storedCompatibility?.id, compatibilityFrame.id);
+    assert.equal(storedCompatibility?.summary_caption, compatibilityFrame.summary_caption);
+    assert.deepEqual(storedCompatibility?.status_snapshot, compatibilityFrame.status_snapshot);
 
     const scoped = backend.bind(
       scope(
@@ -167,6 +172,91 @@ integration("PostgreSQL scoped FrameStore live RLS", () => {
     );
     assert.ok(relations.rows[0]?.scoped);
     assert.ok(relations.rows[0]?.compatibility);
+  });
+
+  test("recovers quarantined rows explicitly and preserves source until verified cleanup", async () => {
+    const quarantine = `${quoteIdentifier(schema)}.lex_frame_store_unowned_frames_v1`;
+    const insertLegacy = async (id: string, userId: string) =>
+      adminPool.query(
+        `INSERT INTO ${quarantine} (
+           id, "timestamp", branch, module_scope, summary_caption, reference_point,
+           status_snapshot, user_id
+         ) VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8)`,
+        [
+          id,
+          "2026-07-18T03:00:00.000Z",
+          "legacy-main",
+          ["memory/store/postgres"],
+          `Recovered ${id}`,
+          "explicit quarantine recovery",
+          JSON.stringify({ next_action: "verify recovery" }),
+          userId,
+        ]
+      );
+    await insertLegacy("recovery-scoped", "legacy-user-scoped");
+    await insertLegacy("recovery-compatibility", "legacy-user-compatibility");
+
+    const adminScope = scope(
+      "01900000-0000-7000-8000-000000000001",
+      "01900000-0000-7000-8000-000000000101",
+      "01900000-0000-7000-8000-000000000201",
+      [FRAME_STORE_CAPABILITIES.ADMIN]
+    );
+    const recoveryBackend = new PostgresQuarantineRecoveryAdministration(scopedAdminPool, {
+      schema,
+    });
+    const recovery = recoveryBackend.bind(adminScope);
+    const inventory = await recovery.inventory();
+    const rows = new Map(inventory.rows.map((row) => [row.frameId, row]));
+    const scopedRow = rows.get("recovery-scoped");
+    const compatibilityRow = rows.get("recovery-compatibility");
+    assert.ok(scopedRow);
+    assert.ok(compatibilityRow);
+    const manifest = createQuarantineRecoveryManifest(inventory, {
+      inventoryId: inventory.inventoryId,
+      inventoryDigest: inventory.inventoryDigest,
+      decisions: [
+        {
+          destination: "scoped",
+          frameId: scopedRow.frameId,
+          sourceContentDigest: scopedRow.contentDigest,
+          tenantId: adminScope.tenantId,
+          workspaceId: adminScope.workspaceId,
+          creatorPrincipalId: adminScope.principalId,
+          scopeVersion: adminScope.scopeVersion,
+        },
+        {
+          destination: "compatibility",
+          frameId: compatibilityRow.frameId,
+          sourceContentDigest: compatibilityRow.contentDigest,
+          acknowledgement: QUARANTINE_RECOVERY_COMPATIBILITY_ACKNOWLEDGEMENT,
+        },
+      ],
+    });
+
+    const dryRun = await recovery.apply(manifest);
+    assert.equal("persistentWriteCount" in dryRun && dryRun.persistentWriteCount, 0);
+    const receipt = await recovery.apply(manifest, { write: true });
+    assert.equal(receipt.state, "verified");
+    assert.equal("sourcePreserved" in receipt && receipt.sourcePreserved, true);
+    assert.equal((await recovery.inventory()).rowCount, 2);
+
+    const scoped = backend.bind(
+      scope(adminScope.tenantId, adminScope.workspaceId, adminScope.principalId)
+    );
+    const recoveredScoped = await scoped.getFrameById("recovery-scoped");
+    assert.equal(recoveredScoped?.summary_caption, "Recovered recovery-scoped");
+    assert.equal("userId" in (recoveredScoped ?? {}), false);
+    assert.equal((await scoped.searchFrames({ query: "explicit quarantine" })).length, 1);
+    const recoveredCompatibility = await compatibilityStore.getFrameById("recovery-compatibility");
+    assert.equal(recoveredCompatibility?.userId, "legacy-user-compatibility");
+
+    const cleanup = await recovery.cleanup(manifest.manifestId, { write: true });
+    assert.equal(cleanup.state, "cleaned");
+    assert.equal((await recovery.inventory()).rowCount, 0);
+    assert.equal((await recovery.recover(manifest.manifestId)).state, "cleaned");
+    await recovery.close();
+    await recoveryBackend.close();
   });
 
   test("isolates collisions while rapidly alternating tenants and workspaces on one client", async () => {
@@ -317,7 +407,7 @@ integration("PostgreSQL scoped FrameStore live RLS", () => {
     }
   });
 
-  test("explicit predicates preserve isolation independently from RLS", async () => {
+  test("runtime boundary refuses to rely on explicit predicates without forced RLS", async () => {
     await scopedAdminPool.query(
       `ALTER TABLE ${quoteIdentifier(schema)}.frames NO FORCE ROW LEVEL SECURITY`
     );
@@ -332,20 +422,9 @@ integration("PostgreSQL scoped FrameStore live RLS", () => {
           "01900000-0000-7000-8000-000000000201"
         )
       );
-      const workspaceB = backend.bind(
-        scope(
-          "01900000-0000-7000-8000-000000000001",
-          "01900000-0000-7000-8000-000000000102",
-          "01900000-0000-7000-8000-000000000202"
-        )
-      );
-      assert.equal(
-        (await workspaceA.getFrameById("shared-frame-id"))?.summary_caption,
-        "tenant A / workspace A"
-      );
-      assert.equal(
-        (await workspaceB.getFrameById("shared-frame-id"))?.summary_caption,
-        "tenant A / workspace B"
+      await assert.rejects(
+        () => workspaceA.getFrameById("shared-frame-id"),
+        /enabled and forced row-level security/
       );
     } finally {
       await scopedAdminPool.query(
@@ -380,6 +459,6 @@ integration("PostgreSQL scoped FrameStore live RLS", () => {
       `SELECT MAX(version) AS version
          FROM ${quoteIdentifier(schema)}.lex_frame_store_migrations`
     );
-    assert.equal(canonical.rows[0]?.version, 3);
+    assert.equal(canonical.rows[0]?.version, POSTGRES_FRAME_STORE_SCHEMA_VERSION);
   });
 });
