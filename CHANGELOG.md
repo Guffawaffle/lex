@@ -1,5 +1,27 @@
 # Changelog
 
+## 3.1.0
+
+### Minor Changes
+
+- 561f075: Raise the supported Node.js runtime floor to Node 24 and remove the unproven `<25` upper bound.
+- 39c1b59: Add the four-type KnowledgeFrame v1 contract, exact-path Markdown compilation, isolated coherent
+  snapshot storage, bounded read-only context, provenance explanation, and structured CLI/provider
+  operations.
+- 315deed: Add the authorized, backend-neutral LexSona behavioral store with immutable persona and rule
+  revisions, deterministic write receipts, scoped SQLite persistence, and PostgreSQL forced-RLS
+  support.
+- 925c0e5: Add the schema-validated Ecosystem 3.1 compatibility manifest and coupled cross-repository release
+  SOP.
+- bf0927b: Add the deterministic, redacted PostgreSQL quarantine inventory, ownership manifest, and
+  zero-write recovery planning contract, plus an admin-only v4 recovery ledger and separately bound
+  PostgreSQL service for transactional copy verification, receipt recovery, and explicit cleanup of
+  preserved legacy Frames.
+
+### Patch Changes
+
+- 5fcb3b1: Upgrade sharp and its bundled libvips runtime to remediate high-severity image-processing advisories, and patch the transitive fast-uri parser vulnerability.
+
 ## 3.0.1
 
 ### Patch Changes
