@@ -10,7 +10,7 @@ Create `.vscode/mcp.json` in your project:
     "lex": {
       "type": "stdio",
       "command": "npx",
-      "args": ["@smartergpt/lex-mcp"],
+      "args": ["--yes", "@smartergpt/lex-mcp@4.0.0"],
       "env": {
         "LEX_WORKSPACE_ROOT": "${workspaceFolder}",
         "LEX_STORE": "sqlite"
@@ -29,7 +29,7 @@ Add to `~/.config/Claude/claude_desktop_config.json` (Linux) or `~/Library/Appli
   "mcpServers": {
     "lex": {
       "command": "npx",
-      "args": ["@smartergpt/lex-mcp"],
+      "args": ["--yes", "@smartergpt/lex-mcp@4.0.0"],
       "env": {
         "LEX_WORKSPACE_ROOT": "/path/to/your/project",
         "LEX_STORE": "sqlite"
@@ -49,7 +49,7 @@ When several repositories should share continuity, configure every Lex launch pa
     "lex": {
       "type": "stdio",
       "command": "npx",
-      "args": ["@smartergpt/lex-mcp"],
+      "args": ["--yes", "@smartergpt/lex-mcp@4.0.0"],
       "env": {
         "LEX_WORKSPACE_ROOT": "D:\\dev\\stfc-mod",
         "LEX_STORE": "sqlite",
@@ -186,5 +186,5 @@ Once configured, the following MCP tools are available:
 
 ```bash
 # Test the MCP server directly
-echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | npx @smartergpt/lex-mcp
+echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | npx --yes @smartergpt/lex-mcp@4.0.0
 ```

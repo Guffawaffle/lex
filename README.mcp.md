@@ -18,7 +18,7 @@ Add this to `.vscode/mcp.json`:
   "servers": {
     "lex": {
       "command": "npx",
-      "args": ["@smartergpt/lex-mcp"],
+      "args": ["--yes", "@smartergpt/lex-mcp@4.0.0"],
       "env": {
         "LEX_WORKSPACE_ROOT": "${workspaceFolder}",
         "LEX_STORE": "sqlite"
@@ -37,7 +37,7 @@ Add this to `claude_desktop_config.json`, replacing the project path with an abs
   "mcpServers": {
     "lex": {
       "command": "npx",
-      "args": ["@smartergpt/lex-mcp"],
+      "args": ["--yes", "@smartergpt/lex-mcp@4.0.0"],
       "env": {
         "LEX_WORKSPACE_ROOT": "/absolute/path/to/project",
         "LEX_STORE": "sqlite"
@@ -47,8 +47,9 @@ Add this to `claude_desktop_config.json`, replacing the project path with an abs
 }
 ```
 
-`npx` may fetch and execute the package when it is not already cached. Pin or install the package
-according to your normal supply-chain policy.
+`npx` may fetch and execute the package when it is not already cached. The exact version prevents
+an implicit upgrade, while `--yes` prevents an interactive install prompt from hanging the MCP
+host. Advance or locally install the package according to your normal supply-chain policy.
 
 ### Smoke test
 

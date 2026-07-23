@@ -111,8 +111,15 @@ const migrationGuide = readFile(migrationGuidePath);
 const documentationInventoryPath = "docs/releases/ecosystem-3.1-documentation-inventory.md";
 const documentationInventory = readFile(documentationInventoryPath);
 const mcpConfiguration = readFile("docs/MCP_CONFIG.md");
+const publicMcpReadme = readFile("README.mcp.md");
 const internalMcpReadme = readFile("src/memory/mcp_server/README.md");
+const atlasExamples = readFile("docs/atlas/examples.md");
+const legacyMcpTombstone = readFile("src/memory/mcp_server/frame-mcp.mjs");
+const legacyLauncher = readFile("lex-launcher.sh");
 const manualPublishBoundary = readFile("scripts/manual-publish-boundary.mjs");
+const exactMcpPackage = `@smartergpt/lex-mcp@${currentVersion}`;
+const exactMcpArgs = `["--yes", "${exactMcpPackage}"]`;
+const exactMcpCommand = `npx --yes ${exactMcpPackage}`;
 
 if (changelog?.includes(`## ${currentVersion}`)) {
   pass(`CHANGELOG.md identifies ${currentVersion} as the current candidate`);
@@ -230,13 +237,28 @@ if (
 }
 
 if (
-  mcpConfiguration?.includes(`@smartergpt/lex-mcp@${currentVersion}`) &&
+  mcpConfiguration?.includes(exactMcpPackage) &&
   mcpConfiguration.includes('env_vars = ["LEX_POSTGRES_PASSWORD"]') &&
   mcpConfiguration.includes("LEX_MCP_LEGACY_ENTRYPOINT_REMOVED")
 ) {
   pass("MCP configuration documents the exact launcher, secret pass-through, and removed path");
 } else {
   error("MCP configuration must document the exact launcher and bounded migration recovery");
+}
+
+for (const [path, content, required] of [
+  ["README.mcp.md", publicMcpReadme, exactMcpArgs],
+  ["docs/MCP_CONFIG.md", mcpConfiguration, exactMcpArgs],
+  ["src/memory/mcp_server/README.md", internalMcpReadme, exactMcpArgs],
+  ["src/memory/mcp_server/frame-mcp.mjs", legacyMcpTombstone, exactMcpArgs],
+  ["lex-launcher.sh", legacyLauncher, exactMcpCommand],
+  ["docs/atlas/examples.md", atlasExamples, exactMcpCommand],
+]) {
+  if (content?.includes(required)) {
+    pass(`${path} uses exact non-interactive Lex-MCP recovery`);
+  } else {
+    error(`${path} must use ${required}`);
+  }
 }
 
 for (const [path, content] of [
