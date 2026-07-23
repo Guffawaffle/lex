@@ -75,9 +75,7 @@ export function compactFrame(frame: Frame): CompactFrame {
 
   // Only include non-empty arrays
   if (frame.status_snapshot.blockers && frame.status_snapshot.blockers.length > 0) {
-    compact.blockers = frame.status_snapshot.blockers.map((b) =>
-      truncateText(b, MAX_TEXT_LENGTH)
-    );
+    compact.blockers = frame.status_snapshot.blockers.map((b) => truncateText(b, MAX_TEXT_LENGTH));
     if (frame.status_snapshot.blockers.some((b) => b.length > MAX_TEXT_LENGTH)) {
       wasTruncated = true;
     }

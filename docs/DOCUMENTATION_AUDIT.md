@@ -1,5 +1,9 @@
 # Documentation Audit Summary
 
+> **Status: Historical audit receipt.** The accuracy statements below apply only to the recorded
+> 2.1.0 audit. Current ownership and Lex 4 cleanup status are tracked in the
+> [Ecosystem 3.1 documentation inventory](./releases/ecosystem-3.1-documentation-inventory.md).
+
 **Date**: 2024-12-28  
 **Version Audited**: 2.1.0  
 **Status**: ✅ Complete

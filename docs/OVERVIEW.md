@@ -1,5 +1,10 @@
 # Lex Overview
 
+> **Status: Superseded product snapshot.** This file retains historical narrative and package
+> examples that are not current consumer contracts. Use the [root README](../README.md), the
+> [contract surface](./CONTRACT_SURFACE.md), and the [public API](./PUBLIC_API.md). Do not copy
+> `lex/*` imports from this snapshot.
+
 > Subsystems: Lex includes two core capabilities that work together:
 > - **Memory Layer** — the work-memory system that provides Frames and recall
 > - **Policy Layer** — the architecture policy + module vocabulary used for explainable reasoning

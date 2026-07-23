@@ -1,6 +1,9 @@
 # Lex Adoption Guide
 
-> **Note:** This guide is being updated for Lex 1.0.0. Some commands and paths may have changed. See the [Quick Start](../QUICK_START.md) for the most current installation instructions.
+> **Status: Superseded adoption snapshot.** Its slash commands, host-specific paths, and duplicated
+> setup procedures are not Lex 4 guidance. Use the [Quick Start](../QUICK_START.md),
+> [agent evaluation](./agent-evaluation.md), [MCP setup](../README.mcp.md), and
+> [Lex 4 migration guide](./releases/lex-4.0-migration.md).
 
 This guide walks you through rolling out Lex in your workflow—step by step, no fluff, no surprises.
 

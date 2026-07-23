@@ -1,5 +1,10 @@
 # Architecture & Design Decisions
 
+> **Status: Historical architecture snapshot.** Dated roadmaps and package-layout examples below
+> are retained as design history, not current certification. Current boundaries live in the
+> [contract surface](./CONTRACT_SURFACE.md), [public API](./PUBLIC_API.md), and
+> [runtime scope contract](./RUNTIME_SCOPE_CONTRACT.md).
+
 This document explains key architectural choices in Lex, including dependency rationale, design philosophy, and future evolution plans.
 
 ---

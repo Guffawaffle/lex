@@ -1,5 +1,9 @@
 # API Error Codes
 
+> **Status: Unsupported historical HTTP surface.** These codes describe an internal ingestion
+> implementation, not the Lex 4 CLI or MCP contract. Current public errors are documented in
+> [AX Error Codes](./AX_ERROR_CODES.md) and [CLI Output](./CLI_OUTPUT.md).
+
 This document describes the error codes returned by the Frame Ingestion API.
 
 ## Error Response Format

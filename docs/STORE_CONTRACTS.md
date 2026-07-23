@@ -57,7 +57,7 @@ as blanket-immutable. Frame payloads have no normative `parent_id` or lifecycle-
 SQLite via `SqliteFrameStore` remains the default OSS implementation. PostgreSQL via
 `PostgresFrameStore` is an explicit opt-in for shared cross-host storage. The transitional 2.x
 `createFrameStore()` factory selects those unscoped adapters from `LEX_STORE=sqlite|postgres`.
-Lex 3.0 trusted hosts do not select a backend from ambient environment variables: trusted
+Trusted hosts do not select a backend from ambient environment variables: trusted
 composition supplies the authorized `ScopedFrameStoreBinder` after scope resolution.
 
 Trusted MCP attachment input is intentionally unavailable until Lex has a scope-bound attachment
@@ -127,7 +127,7 @@ that read and replace serialize that merge with an immediate transaction or row 
 partial updates cannot erase unrelated fields.
 
 The following behavior describes the transitional unscoped 2.x adapter. It must not be wired to
-Lex 3.0 trusted CLI/MCP dispatch. The compatibility and scope-bound PostgreSQL stores may use the
+trusted CLI/MCP dispatch. The compatibility and scope-bound PostgreSQL stores may use the
 same database and schema name, but they use separate physical contracts:
 
 | Contract | Relations | Migration ledger | Current version |

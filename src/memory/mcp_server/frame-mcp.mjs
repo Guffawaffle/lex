@@ -1,107 +1,26 @@
 #!/usr/bin/env node
-// @deprecated — Use `npx @smartergpt/lex-mcp` instead.
-// This file is a legacy entrypoint kept for backwards compatibility.
-// The canonical MCP entry point is the @smartergpt/lex-mcp npm package.
-//
-// Frame MCP Server Entry Point
-// Refactored to use TypeScript implementation from server.ts
+// This source-only compatibility path was deprecated in Lex 2.7 and removed
+// after its duplicate JSON-RPC transport was found to violate notification and
+// error-envelope semantics. Keeping a fail-closed tombstone prevents stale host
+// configuration from silently reviving the unsafe transport.
+console.error(`[LEX_MCP_LEGACY_ENTRYPOINT_REMOVED]
+Lex intentionally refused to start the removed frame-mcp.mjs transport.
 
-import { MCPServer } from "../../../dist/memory/mcp_server/server.js";
-import { join, dirname } from "path";
-import { fileURLToPath } from "url";
+Agent action:
+  Preserve the existing Lex environment and replace only the MCP command:
+  command = "npx"
+  args = ["--yes", "@smartergpt/lex-mcp@4.0.0"]
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
+  JSON hosts use:
+  "command": "npx",
+  "args": ["--yes", "@smartergpt/lex-mcp@4.0.0"]
 
-// Workspace root is three directories up from this script (src/memory/mcp_server -> src/memory -> src -> root)
-// Can be overridden with LEX_WORKSPACE_ROOT environment variable
-const repoRoot = process.env.LEX_WORKSPACE_ROOT || join(__dirname, "../../..");
+  Restart or reload the MCP host after changing its configuration.
 
-// Set LEX_WORKSPACE_ROOT for child processes/modules if not already set
-if (!process.env.LEX_WORKSPACE_ROOT) {
-  process.env.LEX_WORKSPACE_ROOT = repoRoot;
-}
+Operator explanation:
+  This is a fail-closed safety migration, not a Frame-store or data-loss error.
+  The duplicate legacy transport was removed; @smartergpt/lex-mcp is the
+  canonical, protocol-tested stdio launcher.
 
-// Configuration
-const config = {
-  dbPath: process.env.LEX_MEMORY_DB || join(repoRoot, "lex-memory.db"),
-  repoRoot: repoRoot,
-};
-
-// Initialize MCP server
-let mcpServer;
-try {
-  mcpServer = new MCPServer(config.dbPath, config.repoRoot);
-  if (process.env.LEX_DEBUG) {
-    console.error(`[LEX] Memory MCP server initialized: ${config.dbPath}`);
-    console.error(`[LEX] Repository root: ${config.repoRoot}`);
-  }
-} catch (error) {
-  console.error(`[LEX] Failed to initialize MCP server: ${error.message}`);
-  process.exit(1);
-}
-
-// MCP stdio protocol handler
-process.stdin.setEncoding("utf8");
-let buffer = "";
-
-process.stdin.on("data", async (chunk) => {
-  buffer += chunk;
-  const lines = buffer.split("\n");
-  buffer = lines.pop() || "";
-
-  for (const line of lines) {
-    if (!line.trim()) continue;
-
-    let request;
-    try {
-      request = JSON.parse(line);
-      const response = await mcpServer.handleRequest(request);
-
-      // MCP protocol response format
-      if (response.error) {
-        // Error response
-        console.log(
-          JSON.stringify({
-            jsonrpc: "2.0",
-            id: request.id,
-            error: response.error,
-          })
-        );
-      } else {
-        // Success response - wrap in result
-        console.log(
-          JSON.stringify({
-            jsonrpc: "2.0",
-            id: request.id,
-            result: response,
-          })
-        );
-      }
-    } catch (error) {
-      console.log(
-        JSON.stringify({
-          jsonrpc: "2.0",
-          id: request?.id || null,
-          error: {
-            message: error.message,
-            code: error.code || "PARSE_ERROR",
-          },
-        })
-      );
-    }
-  }
-}); // Graceful shutdown
-let shuttingDown = false;
-async function shutdown() {
-  if (shuttingDown) return;
-  shuttingDown = true;
-  if (mcpServer) await mcpServer.close();
-  process.exit(0);
-}
-
-process.on("SIGINT", () => void shutdown());
-process.on("SIGTERM", () => void shutdown());
-
-if (process.env.LEX_DEBUG) {
-  console.error("[LEX] Memory MCP server ready (stdio mode)");
-}
+Reference: docs/MCP_CONFIG.md#legacy-entrypoint-migration`);
+process.exitCode = 1;

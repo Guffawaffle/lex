@@ -40,11 +40,16 @@ git commit -m "chore: version packages for release"
 # 5. Push the branch, open a PR, and merge it to main
 git push -u origin HEAD
 
-# 6. Tag the merged release commit
+# 6. Run final release and packed-consumer gates
 git checkout main
 git pull
-git tag -s v0.X.Y -m "Release v0.X.Y"
-git push origin v0.X.Y
+
+# 7. The authenticated human publishes from this exact clean commit
+npm publish --access public
+
+# 8. After required ecosystem packages exist, create and push the signed tag
+git tag -s vX.Y.Z -m "Release vX.Y.Z"
+git push origin vX.Y.Z
 ```
 
 If a queued changeset was accidentally carried into the release tag but its
@@ -54,41 +59,43 @@ detects this state while allowing changesets created after the current tag.
 
 ### 3. Publishing
 
-When the signed tag is pushed, GitHub Actions will:
-- Validate the tag
-- Build and test
-- Create GitHub release
-
-npm publishing remains manual because the account requires interactive 2FA:
+npm publishing remains manual because the account requires interactive 2FA. Agents must stop after
+the dry run and print the command for the authenticated maintainer:
 
 ```bash
 npm publish --access public
 ```
 
+After the required exact npm packages exist, the signed tag triggers validation, build/test, the
+GitHub release, and the protected MCP Registry path described in `RELEASE.md`.
+
 ## Changeset Examples
 
 ### Feature (minor)
+
 ```md
 ---
-'lex': minor
+'@smartergpt/lex': minor
 ---
 
 Add new frame visualization command
 ```
 
 ### Bug fix (patch)
+
 ```md
 ---
-'lex': patch
+'@smartergpt/lex': patch
 ---
 
 Fix SQLite connection leak in frame queries
 ```
 
 ### Breaking change (major)
+
 ```md
 ---
-'lex': major
+'@smartergpt/lex': major
 ---
 
 BREAKING: Change policy file format to YAML
@@ -99,4 +106,4 @@ BREAKING: Change policy file format to YAML
 - Always create a changeset when making user-facing changes
 - Use semantic versioning correctly (major/minor/patch)
 - Write clear, user-focused summaries
-- Reference the single 'lex' package (not lex/* subpackages)
+- Reference the single `@smartergpt/lex` package, not historical `lex/*` subpackages

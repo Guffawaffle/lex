@@ -4,9 +4,17 @@ Ecosystem 3.1 is a compatibility release train across the Lex toolset. It is not
 version. Each repository selects semver from its own reviewed user-visible delta, while the release
 manifest records the exact set proven to work together.
 
+Lex selects package version 4.0.0 because the Node 20-to-24 support-floor change is breaking under
+Lex's public compatibility policy. Lex-MCP preserves exact major/version alignment with Lex.
+Neither package version renames the Ecosystem 3.1 train.
+
 The canonical machine-readable draft is [`releases/ecosystem-3.1.json`](../../releases/ecosystem-3.1.json).
 Its schema is
 [`canon/schemas/ecosystem-release-v1.schema.json`](../../canon/schemas/ecosystem-release-v1.schema.json).
+Lex consumers migrate through the
+[Lex 4.0 migration and recovery guide](./lex-4.0-migration.md). The
+[delete-first documentation inventory](./ecosystem-3.1-documentation-inventory.md) records current
+owners, historical boundaries, and bounded follow-up cleanup.
 
 Validate the draft at any time:
 
@@ -62,6 +70,11 @@ Lex #779 authorized store ──────┘              ↓
 Lex #775 separately completes the supported operator path for quarantined legacy Frames. The
 release cannot describe scoped migration as operationally complete while that preserved data has no
 explicit inspect/plan/apply recovery path.
+
+Lex #792 is likewise release-blocking. It owns the package-specific SemVer decision, one canonical
+human-and-agent migration and recovery contract, a delete-first audit of current documentation, and
+executable documentation gates. The train cannot publish, tag, or seal while that issue remains
+unresolved.
 
 ## Release-manifest states
 

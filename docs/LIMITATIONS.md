@@ -84,7 +84,7 @@ Frames are durable evidence, not current truth. Branches move, decisions change,
 can contain mistaken or adversarial instructions. Consumers must treat Frame bodies as untrusted
 history and verify important claims against current sources.
 
-## Compatibility adapters are not the trusted Lex 3 boundary
+## Compatibility adapters are not the trusted-host boundary
 
 Lex retains unscoped 2.x store adapters and environment-driven composition for migration and local
 compatibility. Trusted hosts must not reconstruct tenant/workspace authority from ambient

@@ -7,8 +7,8 @@
  * manifest all identify the same version and namespace.
  *
  * Usage:
- *   node scripts/verify-mcp-registry-contract.mjs --version 3.0.0
- *   node scripts/verify-mcp-registry-contract.mjs --version 3.0.0 \
+ *   node scripts/verify-mcp-registry-contract.mjs --version 4.0.0
+ *   node scripts/verify-mcp-registry-contract.mjs --version 4.0.0 \
  *     --schema /tmp/server.schema.json --core-metadata /tmp/lex.json \
  *     --wrapper-metadata /tmp/lex-mcp.json
  */
@@ -59,6 +59,9 @@ if (!expectedVersion) {
 const lexPackage = readJson(resolve(rootDir, "package.json"));
 const manifest = readJson(resolve(rootDir, "server.json"));
 const registryPackage = manifest.packages?.[0];
+const registryEnvironment = new Map(
+  (registryPackage?.environmentVariables ?? []).map((entry) => [entry.name, entry])
+);
 
 console.log(`Verifying MCP Registry release contract for v${expectedVersion}`);
 
@@ -75,6 +78,25 @@ assert(
 );
 assert(registryPackage?.transport?.type === "stdio", "server.json declares stdio transport");
 assert(registryPackage?.runtimes?.includes("node"), "server.json declares the Node runtime");
+
+for (const variable of [
+  "LEX_WORKSPACE_ROOT",
+  "LEX_STORE",
+  "LEX_DB_PATH",
+  "LEX_DATABASE_URL",
+  "LEX_POSTGRES_PASSWORD",
+  "LEX_POSTGRES_POOL_MAX",
+]) {
+  assert(registryEnvironment.has(variable), `server.json documents ${variable}`);
+}
+assert(
+  registryEnvironment.get("LEX_DATABASE_URL")?.isSecret === true,
+  "server.json treats LEX_DATABASE_URL as potentially secret"
+);
+assert(
+  registryEnvironment.get("LEX_POSTGRES_PASSWORD")?.isSecret === true,
+  "server.json treats LEX_POSTGRES_PASSWORD as secret"
+);
 
 if (schemaPath) {
   const schema = readJson(resolve(schemaPath));

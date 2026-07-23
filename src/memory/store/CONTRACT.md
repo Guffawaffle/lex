@@ -5,7 +5,7 @@
 > **Scope Contract Version:** `FRAME_STORE_SCOPE_CONTRACT_VERSION = 1`
 
 This document describes the implemented persistence contract. The exported unscoped `FrameStore`
-and physical adapters remain available for 2.x migration compatibility, but Lex 3.0 trusted CLI,
+and physical adapters remain available for 2.x migration compatibility, but trusted CLI,
 MCP, and SDK hosts use `ScopedFrameStore` for normal operations.
 
 ## Version domains
@@ -58,7 +58,7 @@ Frames are not blanket-immutable:
 - `purgeSuperseded` removes records marked with `superseded_by`;
 - SQLite/PostgreSQL ownership columns are never caller-controlled Frame fields.
 
-## Lex 3.0 scope-bound contract
+## Scope-bound contract
 
 ```typescript
 const store = backend.bind(authorizedScope);

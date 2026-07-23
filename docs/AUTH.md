@@ -1,5 +1,10 @@
 # OAuth2/JWT Authentication Guide
 
+> **Status: Unsupported historical HTTP design.** Lex 4 exposes no supported HTTP/OAuth deployment
+> or the source imports shown below. The supported MCP transport is stdio and trusts its launcher;
+> see [`SECURITY.md`](../SECURITY.md) and [MCP configuration](./MCP_CONFIG.md). Do not deploy or copy
+> this guide as current API documentation.
+
 This guide explains how to configure and use OAuth2/JWT authentication in Lex for multi-user deployments.
 
 ## Table of Contents

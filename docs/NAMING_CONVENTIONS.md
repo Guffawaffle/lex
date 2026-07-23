@@ -1,10 +1,13 @@
 # Lex Ecosystem Naming Conventions
 
-> **Status:** Canonical specification
+> **Status:** Derived ecosystem guide
 > **Scope:** Lex, LexSona, LexRunner
 > **Last Updated:** 2025-12-16
 
-This document defines the naming conventions for all tools, commands, and identifiers across the Lex ecosystem. It is the single source of truth.
+This document explains naming conventions across the Lex ecosystem. Executable package exports,
+CLI help, and each server's MCP `tools/list` output are authoritative. Lex's canonical tool
+definitions live in [`src/memory/mcp_server/tools.ts`](../src/memory/mcp_server/tools.ts); accepted
+aliases are compatibility inputs, not preferred discoverable names.
 
 ---
 

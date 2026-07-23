@@ -7,12 +7,12 @@
     "url": "https://github.com/Guffawaffle/lex",
     "source": "github"
   },
-  "version": "3.0.1",
+  "version": "4.0.0",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "@smartergpt/lex-mcp",
-      "version": "3.0.1",
+      "version": "4.0.0",
       "transport": {
         "type": "stdio"
       },
@@ -21,6 +21,13 @@
         {
           "name": "LEX_WORKSPACE_ROOT",
           "description": "Project root directory for Lex runtime discovery. Defaults to current working directory.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        },
+        {
+          "name": "LEX_STORE",
+          "description": "Frame-store backend: sqlite or postgres. Defaults to sqlite unless LEX_DATABASE_URL selects PostgreSQL.",
           "isRequired": false,
           "format": "string",
           "isSecret": false
@@ -35,6 +42,27 @@
         {
           "name": "LEX_MEMORY_DB",
           "description": "Alias for LEX_DB_PATH (backwards compatibility). Same behavior.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        },
+        {
+          "name": "LEX_DATABASE_URL",
+          "description": "PostgreSQL connection URL for the compatibility adapter. Treat as secret because it may contain credentials.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": true
+        },
+        {
+          "name": "LEX_POSTGRES_PASSWORD",
+          "description": "PostgreSQL password supplied separately when LEX_DATABASE_URL omits one.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": true
+        },
+        {
+          "name": "LEX_POSTGRES_POOL_MAX",
+          "description": "Maximum PostgreSQL compatibility-adapter pool size. Defaults to 10.",
           "isRequired": false,
           "format": "string",
           "isSecret": false

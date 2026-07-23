@@ -54,10 +54,10 @@ behavior in their source contracts. Consumers should not infer full behavioral s
 path availability alone; promoting or breaking those experimental symbols still requires an
 explicit contract decision and release note.
 
-## Lex 3.0 storage boundary
+## Trusted storage boundary
 
 `@smartergpt/lex/store` keeps the unscoped 2.x adapters for migration compatibility, but trusted
-Lex 3.0 CLI and MCP hosts bind `AuthorizedScope` to `ScopedFrameStore`. Normal code receives only
+CLI and MCP hosts bind `AuthorizedScope` to `ScopedFrameStore`. Normal code receives only
 that bound view. `FrameStoreAdmin` is a separately authorized boundary for migration, repair, and
 recovery. See [Store Contracts](./STORE_CONTRACTS.md), [Runtime Scope](./RUNTIME_SCOPE_CONTRACT.md),
 and [PostgreSQL Scope Security](./POSTGRES_SCOPE_SECURITY.md).

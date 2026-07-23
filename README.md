@@ -115,8 +115,8 @@ Ready to test the claim? Store one non-sensitive checkpoint, start a fresh sessi
 it can continue without having the work explained again.
 
 Requires Node.js 24 or newer. Lex does not impose an unproven upper bound. Existing users should
-review the [Node 24 migration](docs/releases/node-24-migration.md), including the native SQLite
-rebuild step.
+follow the [Lex 4.0 migration and recovery guide](docs/releases/lex-4.0-migration.md), including the
+native SQLite rebuild step.
 
 This approved pilot writes one Frame to the local SQLite store under `.smartergpt/lex/`. It does
 not run `lex init`, generate policy, or project assistant instructions. Use a disposable branch,
@@ -293,19 +293,22 @@ WSL users should install Lex natively inside WSL rather than allowing a Windows 
 
 Common local compatibility configuration includes `LEX_DB_PATH`, `LEX_POLICY_PATH`,
 `LEX_LOG_LEVEL`, `LEX_LOG_PRETTY`, `LEX_GIT_MODE`, and `LEX_DB_KEY`. PostgreSQL selection uses
-`LEX_STORE` and `LEX_DATABASE_URL`. Trusted Lex 3 hosts compose scope and authority explicitly
+`LEX_STORE` and `LEX_DATABASE_URL`. Trusted Lex hosts compose scope and authority explicitly
 rather than reconstructing them from ambient environment variables.
 
 [Complete environment reference](./docs/ENVIRONMENT.md)
 
 ## Project status
 
-**Current Version:** `3.0.1`
+**Current Version:** `4.0.0`
 
-Lex 3 adds explicit runtime identity and authority, scope-bound Frame stores, PostgreSQL row-level
-security support, and trusted-host composition while retaining the local SQLite workflow.
+Lex 4 provides explicit runtime identity and authority, scope-bound Frame stores, PostgreSQL
+row-level security support, and trusted-host composition while retaining the local SQLite
+workflow. Lex 4 requires Node 24 or newer and is released as part of the
+[Ecosystem 3.1 compatibility train](./docs/releases/ecosystem-3.1.md).
 
-See the [changelog](./CHANGELOG.md) for release history and the
+See the [Lex 4 migration and recovery guide](./docs/releases/lex-4.0-migration.md), the
+[changelog](./CHANGELOG.md) for release history, and the
 [Lex 3 PostgreSQL isolation canary](./docs/LEX3_POSTGRES_DOGFOOD.md) for the live end-to-end
 two-tenant/five-workspace acceptance path.
 

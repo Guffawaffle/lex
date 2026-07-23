@@ -25,7 +25,11 @@ describe("Turn Cost Command", () => {
     };
   }
 
-  function createTestDatabase(dbPath: string, frameCount: number = 0, withSpend: boolean = false): void {
+  function createTestDatabase(
+    dbPath: string,
+    frameCount: number = 0,
+    withSpend: boolean = false
+  ): void {
     const db = createDatabase(dbPath);
 
     // Add test frames
@@ -122,10 +126,14 @@ describe("Turn Cost Command", () => {
     createTestDatabase(dbPath, 48, false); // 48 frames over 48 hours
 
     // Test 7 day period (should include all 48 frames)
-    const result7d = execFileSync(process.execPath, [lexBin, "turncost", "--json", "--period", "7d"], {
-      env: getTestEnv(dbPath),
-      encoding: "utf-8",
-    });
+    const result7d = execFileSync(
+      process.execPath,
+      [lexBin, "turncost", "--json", "--period", "7d"],
+      {
+        env: getTestEnv(dbPath),
+        encoding: "utf-8",
+      }
+    );
 
     const output7d = JSON.parse(result7d);
     assert.strictEqual(output7d.success, true);
@@ -135,13 +143,13 @@ describe("Turn Cost Command", () => {
 
   test("should filter by time period correctly", () => {
     const dbPath = join(testDir, "time-filter.db");
-    
+
     // Create database with frames over 72 hours
     const db = createDatabase(dbPath);
     for (let i = 0; i < 72; i++) {
       const date = new Date();
       date.setHours(date.getHours() - i);
-      
+
       const frame: Frame = {
         id: `frame-${i}`,
         timestamp: date.toISOString(),
@@ -156,22 +164,34 @@ describe("Turn Cost Command", () => {
     db.close();
 
     // Test 24h period - should get approximately 24 frames
-    const result24h = execFileSync(process.execPath, [lexBin, "turncost", "--json", "--period", "24h"], {
-      env: getTestEnv(dbPath),
-      encoding: "utf-8",
-    });
+    const result24h = execFileSync(
+      process.execPath,
+      [lexBin, "turncost", "--json", "--period", "24h"],
+      {
+        env: getTestEnv(dbPath),
+        encoding: "utf-8",
+      }
+    );
     const output24h = JSON.parse(result24h);
-    assert.ok(output24h.turnCost.frames >= 23 && output24h.turnCost.frames <= 25, 
-      `Expected ~24 frames for 24h period, got ${output24h.turnCost.frames}`);
+    assert.ok(
+      output24h.turnCost.frames >= 23 && output24h.turnCost.frames <= 25,
+      `Expected ~24 frames for 24h period, got ${output24h.turnCost.frames}`
+    );
 
     // Test 48h period - should get approximately 48 frames
-    const result48h = execFileSync(process.execPath, [lexBin, "turncost", "--json", "--period", "48h"], {
-      env: getTestEnv(dbPath),
-      encoding: "utf-8",
-    });
+    const result48h = execFileSync(
+      process.execPath,
+      [lexBin, "turncost", "--json", "--period", "48h"],
+      {
+        env: getTestEnv(dbPath),
+        encoding: "utf-8",
+      }
+    );
     const output48h = JSON.parse(result48h);
-    assert.ok(output48h.turnCost.frames >= 47 && output48h.turnCost.frames <= 49,
-      `Expected ~48 frames for 48h period, got ${output48h.turnCost.frames}`);
+    assert.ok(
+      output48h.turnCost.frames >= 47 && output48h.turnCost.frames <= 49,
+      `Expected ~48 frames for 48h period, got ${output48h.turnCost.frames}`
+    );
   });
 
   test("should output valid JSON with --json flag", () => {
@@ -229,13 +249,13 @@ describe("Turn Cost Command", () => {
 
   test("should calculate metrics for 7 day period", () => {
     const dbPath = join(testDir, "7days.db");
-    
+
     // Create frames spread over 10 days
     const db = createDatabase(dbPath);
     for (let i = 0; i < 10; i++) {
       const date = new Date();
       date.setDate(date.getDate() - i);
-      
+
       const frame: Frame = {
         id: `frame-${i}`,
         timestamp: date.toISOString(),
@@ -249,16 +269,22 @@ describe("Turn Cost Command", () => {
     }
     db.close();
 
-    const result = execFileSync(process.execPath, [lexBin, "turncost", "--json", "--period", "7d"], {
-      env: getTestEnv(dbPath),
-      encoding: "utf-8",
-    });
+    const result = execFileSync(
+      process.execPath,
+      [lexBin, "turncost", "--json", "--period", "7d"],
+      {
+        env: getTestEnv(dbPath),
+        encoding: "utf-8",
+      }
+    );
 
     const output = JSON.parse(result);
     assert.strictEqual(output.success, true);
     // Should include frames from last 7 days (days 0-6, so 7 frames)
-    assert.ok(output.turnCost.frames >= 7 && output.turnCost.frames <= 8,
-      `Expected 7-8 frames for 7d period, got ${output.turnCost.frames}`);
+    assert.ok(
+      output.turnCost.frames >= 7 && output.turnCost.frames <= 8,
+      `Expected 7-8 frames for 7d period, got ${output.turnCost.frames}`
+    );
   });
 
   test("should handle database with no spend data", () => {
