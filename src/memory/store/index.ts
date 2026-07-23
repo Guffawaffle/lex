@@ -146,6 +146,8 @@ export {
   createQuarantineRecoveryManifest,
   planQuarantineRecovery,
   quarantineRecoveryDigest,
+  BoundPostgresQuarantineRecoveryAdministration,
+  PostgresQuarantineRecoveryAdministration,
 } from "./postgres/index.js";
 export type {
   PostgresFrameStoreAccessMode,
@@ -167,6 +169,7 @@ export type {
   QuarantineRecoveryPlanV1,
   QuarantineSourceEvidenceV1,
   ScopedQuarantineRecoveryDecisionV1,
+  PostgresQuarantineRecoveryAdministrationOptions,
 } from "./postgres/index.js";
 
 // Memory-based store implementations for testing

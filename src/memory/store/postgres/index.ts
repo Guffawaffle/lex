@@ -53,3 +53,8 @@ export type {
   QuarantineSourceEvidenceV1,
   ScopedQuarantineRecoveryDecisionV1,
 } from "./quarantine-recovery.js";
+export {
+  BoundPostgresQuarantineRecoveryAdministration,
+  PostgresQuarantineRecoveryAdministration,
+} from "./quarantine-recovery-administration.js";
+export type { PostgresQuarantineRecoveryAdministrationOptions } from "./quarantine-recovery-administration.js";

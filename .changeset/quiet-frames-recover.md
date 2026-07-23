@@ -3,4 +3,5 @@
 ---
 
 Add the deterministic, redacted PostgreSQL quarantine inventory, ownership manifest, and
-zero-write recovery planning contract for explicitly assigning preserved legacy Frames.
+zero-write recovery planning contract, plus an admin-only v4 recovery ledger and separately bound
+PostgreSQL administration service for preserved legacy Frames.

@@ -36,7 +36,7 @@ function inventory(
   ]
 ): QuarantineInventoryV1 {
   return createQuarantineInventory({
-    frameStoreSchemaVersion: 3,
+    frameStoreSchemaVersion: 4,
     quarantineSchemaVersion: 1,
     schema: "lex",
     relation: "lex_frame_store_unowned_frames_v1",
@@ -134,7 +134,7 @@ describe("PostgreSQL quarantine recovery read-only contract", () => {
   it("fails closed for unknown schemas and duplicate source identities", () => {
     expectRecoveryError(QUARANTINE_RECOVERY_ERROR_CODES.UNSUPPORTED_SCHEMA, () =>
       createQuarantineInventory({
-        frameStoreSchemaVersion: 4,
+        frameStoreSchemaVersion: 5,
         quarantineSchemaVersion: 1,
         schema: "lex",
         relation: "lex_frame_store_unowned_frames_v1",
@@ -279,7 +279,7 @@ describe("PostgreSQL quarantine recovery read-only contract", () => {
   it("keeps bodies and ambient authority out of all normal artifacts", () => {
     const secret = "TOP-SECRET-FRAME-BODY";
     const source = createQuarantineInventory({
-      frameStoreSchemaVersion: 3,
+      frameStoreSchemaVersion: 4,
       quarantineSchemaVersion: 1,
       schema: "lex",
       relation: "lex_frame_store_unowned_frames_v1",

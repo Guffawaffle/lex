@@ -20,7 +20,7 @@ These values are independent and must not be substituted for one another:
 | Legacy/unowned SQLite | `DATABASE_SCHEMA_VERSION = 14` | Last physical schema accepted by the unscoped adapter |
 | Scope-owned SQLite | `SCOPED_SQLITE_SCHEMA_VERSION = 15` | Per-workspace physical schema with immutable ownership |
 | Unscoped compatibility PostgreSQL | `POSTGRES_COMPATIBILITY_FRAME_STORE_SCHEMA_VERSION = 2` | Dedicated `lex_compat_*` relations without tenant authorization |
-| Scope-owned PostgreSQL | `POSTGRES_FRAME_STORE_SCHEMA_VERSION = 3` | Explicit qualified schema with forced RLS |
+| Scope-owned PostgreSQL | `POSTGRES_FRAME_STORE_SCHEMA_VERSION = 4` | Explicit qualified schema with forced RLS and admin-only quarantine recovery evidence |
 | Behavioral public contract | `BEHAVIORAL_STORE_CONTRACT_VERSION = 1` | Backend-neutral persona/rule revisions, evidence, and receipts |
 | Behavioral SQLite | `SQLITE_BEHAVIORAL_STORE_SCHEMA_VERSION = 1` | Dedicated exact-scope behavioral relations |
 | Behavioral PostgreSQL | `POSTGRES_BEHAVIORAL_STORE_SCHEMA_VERSION = 1` | Dedicated exact-scope relations with forced RLS |
