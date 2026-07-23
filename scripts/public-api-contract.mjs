@@ -113,6 +113,15 @@ export const PUBLIC_EXPORT_CONTRACT = Object.freeze([
     purpose: "Behavioral-memory integration",
     anchors: ["LEXSONA_DEFAULTS", "getRules"],
   },
+  {
+    subpath: "./knowledge",
+    purpose: "KnowledgeFrame contract and deterministic Markdown compiler",
+    anchors: [
+      "KNOWLEDGE_FRAME_SCHEMA_VERSION",
+      "KnowledgeFrameV1Schema",
+      "compileKnowledgeSnapshot",
+    ],
+  },
   { subpath: "./mcp-server", purpose: "Embeddable MCP server", anchors: ["MCPServer"] },
   {
     subpath: "./schemas/cli-output.v1.schema.json",

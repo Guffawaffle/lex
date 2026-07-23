@@ -27,6 +27,30 @@ export const InstructionsSchema = z.object({
 
 export type Instructions = z.infer<typeof InstructionsSchema>;
 
+const REPO_RELATIVE_SOURCE_PATH =
+  /^(?!\/)(?![a-z]:\/)(?!.*(?:^|\/)\.\.(?:\/|$))(?!.*[*?\[\]{}!]).+\.md$/i;
+
+/** Exact, repo-relative Markdown sources explicitly opted into knowledge compilation. */
+export const KnowledgeSchema = z.object({
+  sources: z
+    .array(
+      z
+        .string()
+        .min(1)
+        .max(512)
+        .transform((value) => value.replaceAll("\\", "/"))
+        .refine((value) => REPO_RELATIVE_SOURCE_PATH.test(value), {
+          message: "must be an exact repo-relative Markdown path without traversal or glob syntax",
+        })
+    )
+    .max(256)
+    .refine((sources) => new Set(sources).size === sources.length, {
+      message: "must not contain duplicate source paths",
+    }),
+});
+
+export type KnowledgeConfig = z.infer<typeof KnowledgeSchema>;
+
 /**
  * LexYaml schema - Root configuration for lex.yaml
  *
@@ -36,6 +60,7 @@ export type Instructions = z.infer<typeof InstructionsSchema>;
 export const LexYamlSchema = z.object({
   version: z.literal(1),
   instructions: InstructionsSchema.optional(),
+  knowledge: KnowledgeSchema.optional(),
 });
 
 export type LexYaml = z.infer<typeof LexYamlSchema>;

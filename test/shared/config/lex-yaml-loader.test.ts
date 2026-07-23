@@ -38,6 +38,9 @@ instructions:
   projections:
     copilot: true
     cursor: false
+knowledge:
+  sources:
+    - docs/architecture.md
 `
       );
 
@@ -49,6 +52,7 @@ instructions:
       assert.equal(result.config?.version, 1);
       assert.equal(result.config?.instructions?.canonical, "custom/path/lex.md");
       assert.equal(result.config?.instructions?.projections?.cursor, false);
+      assert.deepEqual(result.config?.knowledge?.sources, ["docs/architecture.md"]);
     });
 
     it("loads config from .smartergpt/lex.yaml when root not found", () => {

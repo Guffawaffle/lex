@@ -8,6 +8,12 @@
 
 version: 1
 
+# Optional exact-path allowlist for Markdown KnowledgeFrames. Lex never scans
+# unlisted files and never rewrites these canonical sources.
+knowledge:
+  sources:
+    - docs/architecture.md
+
 # Instructions Configuration
 # --------------------------
 # Controls how AI assistant instructions are generated and projected.

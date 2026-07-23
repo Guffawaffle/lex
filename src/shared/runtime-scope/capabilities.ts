@@ -41,6 +41,10 @@ export type TrustedCliOperation =
   | "instructions:init"
   | "instructions:generate"
   | "instructions:check"
+  | "knowledge:check"
+  | "knowledge:index"
+  | "knowledge:context"
+  | "knowledge:explain"
   | "code-atlas"
   | "turncost"
   | "dedupe"
@@ -84,6 +88,10 @@ const CLI_CAPABILITIES: Readonly<Record<TrustedCliOperation, readonly Capability
     "instructions:init": Object.freeze([]),
     "instructions:generate": Object.freeze([]),
     "instructions:check": Object.freeze([]),
+    "knowledge:check": Object.freeze([]),
+    "knowledge:index": Object.freeze([]),
+    "knowledge:context": Object.freeze([]),
+    "knowledge:explain": Object.freeze([]),
     "code-atlas": Object.freeze([]),
     turncost: Object.freeze([RUNTIME_OPERATION_CAPABILITIES.FRAME_READ]),
     dedupe: Object.freeze([
@@ -116,7 +124,16 @@ export const TRUSTED_CLI_CONTROL_OPERATIONS = Object.freeze([
 
 const CLI_GLOBAL_OPTIONS_WITH_VALUE = new Set(["--diagnostic-level"]);
 const CLI_GLOBAL_OPTIONS = new Set(["--json", "--verbose", "--diagnostic"]);
-const CLI_GROUPS = new Set(["frames", "db", "policy", "instructions", "epic", "wave", "workspace"]);
+const CLI_GROUPS = new Set([
+  "frames",
+  "db",
+  "policy",
+  "instructions",
+  "knowledge",
+  "epic",
+  "wave",
+  "workspace",
+]);
 
 export class UnknownTrustedOperationError extends Error {
   constructor(
