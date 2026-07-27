@@ -31,6 +31,10 @@ export const CONFIG_ERROR_CODES = {
 export const POLICY_ERROR_CODES = {
   /** No policy file found in any search path */
   POLICY_NOT_FOUND: "POLICY_NOT_FOUND",
+  /** A policy output already exists and overwrite was not explicit */
+  POLICY_ALREADY_EXISTS: "POLICY_ALREADY_EXISTS",
+  /** A constrained policy source directory resolves outside the repository */
+  POLICY_SOURCE_DIR_OUTSIDE_ROOT: "POLICY_SOURCE_DIR_OUTSIDE_ROOT",
   /** Policy file exists but has invalid JSON */
   POLICY_PARSE_ERROR: "POLICY_PARSE_ERROR",
   /** Policy file fails schema validation */
