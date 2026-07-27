@@ -37,6 +37,7 @@ export type TrustedCliOperation =
   | "db:encrypt"
   | "db:stats"
   | "policy:check"
+  | "policy:generate"
   | "policy:add-module"
   | "instructions:init"
   | "instructions:generate"
@@ -84,6 +85,7 @@ const CLI_CAPABILITIES: Readonly<Record<TrustedCliOperation, readonly Capability
     "db:encrypt": Object.freeze([RUNTIME_OPERATION_CAPABILITIES.FRAME_ADMIN]),
     "db:stats": Object.freeze([RUNTIME_OPERATION_CAPABILITIES.FRAME_READ]),
     "policy:check": Object.freeze([]),
+    "policy:generate": Object.freeze([]),
     "policy:add-module": Object.freeze([]),
     "instructions:init": Object.freeze([]),
     "instructions:generate": Object.freeze([]),

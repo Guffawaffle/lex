@@ -50,6 +50,7 @@ describe("trusted operation capability drift gates", () => {
     assert.deepEqual(capabilitiesForCliInvocation(["node", "lex", "--help"]), []);
     assert.deepEqual(capabilitiesForCliInvocation(["node", "lex", "--version"]), []);
     assert.deepEqual(capabilitiesForCliOperation("policy:check"), []);
+    assert.deepEqual(capabilitiesForCliOperation("policy:generate"), []);
     assert.deepEqual(capabilitiesForCliOperation("remember"), [
       RUNTIME_OPERATION_CAPABILITIES.FRAME_READ,
       RUNTIME_OPERATION_CAPABILITIES.FRAME_WRITE,

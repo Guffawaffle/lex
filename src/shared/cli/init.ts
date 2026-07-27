@@ -24,6 +24,7 @@ export interface InitOptions {
   store?: string; // Explicit FrameStore backend for initialization
   promptsDir?: string; // Optional: custom prompts directory
   policy?: boolean; // Generate seed policy from directory structure
+  srcDir?: string; // Optional constrained discovery root for policy generation
   instructions?: boolean; // Create canonical instructions file (default: true)
   mcp?: boolean; // Generate .vscode/mcp.json for MCP server configuration
   yes?: boolean; // Non-interactive mode (skip prompts)
@@ -205,7 +206,7 @@ export async function init(options: InitOptions = {}): Promise<InitResult> {
     if (!fs.existsSync(policyPath) || options.force) {
       if (options.policy) {
         // Generate seed policy from directory structure
-        const modules = discoverModules({ rootDir: baseDir });
+        const modules = discoverModules({ rootDir: baseDir, srcDir: options.srcDir });
         modulesDiscovered = modules.length;
 
         if (modules.length > 0) {

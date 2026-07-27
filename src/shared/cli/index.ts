@@ -35,6 +35,7 @@ import {
 } from "./db.js";
 import { policyCheck, type PolicyCheckOptions } from "./policy-check.js";
 import { policyAddModule, type PolicyAddModuleOptions } from "./policy-add-module.js";
+import { policyGenerate, type PolicyGenerateOptions } from "./policy-generate.js";
 import { codeAtlas, type CodeAtlasOptions } from "./code-atlas.js";
 import {
   instructionsInit,
@@ -126,7 +127,8 @@ export function createProgram(programOptions: CreateProgramOptionsV1 = {}): Comm
     .description("Initialize .smartergpt/ workspace with prompts, policy, and instructions")
     .option("--force", "Overwrite existing files")
     .option("--store <backend>", "Storage backend for initialization (sqlite or postgres)")
-    .option("--policy", "Generate seed policy from src/ directory structure")
+    .option("--policy", "Generate a structural seed policy from repository code")
+    .option("--src-dir <dir>", "Constrain policy discovery to a repository-relative directory")
     .option("--prompts-dir <path>", "Custom prompts directory (default: .smartergpt/prompts)")
     .option("--no-instructions", "Skip creating canonical instructions file")
     .option("--mcp", "Generate .vscode/mcp.json for MCP server configuration")
@@ -138,6 +140,7 @@ export function createProgram(programOptions: CreateProgramOptionsV1 = {}): Comm
         force: cmdOptions.force || false,
         store: cmdOptions.store,
         policy: cmdOptions.policy || false,
+        srcDir: cmdOptions.srcDir,
         json: globalOptions.json || false,
         promptsDir: cmdOptions.promptsDir,
         instructions: cmdOptions.instructions,
@@ -531,6 +534,26 @@ export function createProgram(programOptions: CreateProgramOptionsV1 = {}): Comm
 
   // lex policy command group
   const policyCommand = program.command("policy").description("Policy file operations");
+
+  // lex policy generate
+  policyCommand
+    .command("generate")
+    .description("Generate a deterministic structural policy for a mixed-language repository")
+    .option("--root <path>", "Repository root (default: current directory)")
+    .option("--src-dir <dir>", "Constrain discovery to a repository-relative directory")
+    .option("--output <path>", "Output path (default: .smartergpt/lex/lexmap.policy.json)")
+    .option("--force", "Overwrite an existing output file")
+    .action(async (cmdOptions) => {
+      const globalOptions = program.opts();
+      const options: PolicyGenerateOptions = {
+        rootDir: cmdOptions.root,
+        srcDir: cmdOptions.srcDir,
+        policyPath: cmdOptions.output,
+        force: cmdOptions.force || false,
+        json: globalOptions.json || false,
+      };
+      await policyGenerate(options);
+    });
 
   // lex policy check
   policyCommand

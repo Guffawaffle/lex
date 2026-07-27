@@ -93,9 +93,9 @@ test("init: with --policy flag generates seed policy from src/ directory", async
       "Should have correct description"
     );
     assert.deepStrictEqual(
-      policyContent.modules["memory/store"].match,
-      ["src/memory/store/**"],
-      "Should have correct match pattern"
+      policyContent.modules["memory/store"].owns_paths,
+      ["src/memory/store/*"],
+      "Should have canonical direct-directory ownership"
     );
   } finally {
     process.chdir(originalCwd);
@@ -240,6 +240,59 @@ test("init: --policy supports JavaScript files", async () => {
     const policyContent = JSON.parse(readFileSync(policyPath, "utf-8"));
 
     assert.ok(policyContent.modules["utils"], "Should have utils module");
+  } finally {
+    process.chdir(originalCwd);
+    cleanup();
+  }
+});
+
+test("init: --policy discovers nested C++ source roots", async () => {
+  setupTest();
+  const originalCwd = process.cwd();
+
+  try {
+    process.chdir(testDir);
+    mkdirSync(join(testDir, "mods/src/patches"), { recursive: true });
+    mkdirSync(join(testDir, "mods/include/patches"), { recursive: true });
+    writeFileSync(join(testDir, "mods/src/patches/patch.cc"), "// implementation");
+    writeFileSync(join(testDir, "mods/include/patches/patch.hpp"), "// interface");
+
+    const result = await init({ policy: true, json: true });
+    const policyPath = join(testDir, ".smartergpt/lex/lexmap.policy.json");
+    const policyContent = JSON.parse(readFileSync(policyPath, "utf-8"));
+
+    assert.strictEqual(result.modulesDiscovered, 1);
+    assert.deepStrictEqual(policyContent.modules["mods/patches"].owns_paths, [
+      "mods/include/patches/*",
+      "mods/src/patches/*",
+    ]);
+  } finally {
+    process.chdir(originalCwd);
+    cleanup();
+  }
+});
+
+test("init: --policy forwards constrained --src-dir discovery", async () => {
+  setupTest();
+  const originalCwd = process.cwd();
+
+  try {
+    process.chdir(testDir);
+    mkdirSync(join(testDir, "packages/native/src/core"), { recursive: true });
+    mkdirSync(join(testDir, "elsewhere/src/ignored"), { recursive: true });
+    writeFileSync(join(testDir, "packages/native/src/core/main.cpp"), "// native");
+    writeFileSync(join(testDir, "elsewhere/src/ignored/main.cpp"), "// ignored");
+
+    const result = await init({
+      policy: true,
+      srcDir: "packages/native/src",
+      json: true,
+    });
+    const policyPath = join(testDir, ".smartergpt/lex/lexmap.policy.json");
+    const policyContent = JSON.parse(readFileSync(policyPath, "utf-8"));
+
+    assert.strictEqual(result.modulesDiscovered, 1);
+    assert.deepStrictEqual(Object.keys(policyContent.modules), ["core"]);
   } finally {
     process.chdir(originalCwd);
     cleanup();

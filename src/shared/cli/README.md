@@ -17,10 +17,13 @@ lex init
 # PostgreSQL-only initialization (does not create or open memory.db)
 lex init --store postgres --yes
 
-# Generate seed policy from directory structure
+# Generate a deterministic structural policy
 lex init --policy
-# Scans src/ for TypeScript/JavaScript modules
+# Scans first-party code directories across the repository
 # Generates .smartergpt/lex/lexmap.policy.json with discovered modules
+
+# Constrain discovery for a legacy layout
+lex init --policy --src-dir packages/server/src
 
 # Force overwrite existing workspace
 lex init --force --policy
@@ -30,9 +33,10 @@ lex init --force --policy
 1. Create `.smartergpt/` workspace directory
 2. Copy canon prompts to `.smartergpt/prompts/`
 3. If `--policy` flag is set:
-   - Scan `src/` directory for TypeScript/JavaScript files
-   - Generate module IDs from directory paths (e.g., `src/memory/store/` → `memory/store`)
-   - Create policy file with discovered modules and match patterns
+   - Scan first-party TypeScript, JavaScript, Python, C/C++, Objective-C++, Swift, and protobuf directories
+   - Exclude dependency, cache, generated-output, and build roots
+   - Pair equivalent `src/` and `include/` directories under stable module IDs
+   - Create canonical, non-overlapping `owns_paths` entries
 4. Otherwise, copy example policy or create minimal policy
 5. Select SQLite by default, or PostgreSQL from `--store`, `LEX_STORE`, or a configured `LEX_DATABASE_URL`
 6. Non-destructive and idempotent: create missing bootstrap files and preserve existing files unless `--force`
@@ -40,7 +44,8 @@ lex init --force --policy
 **Options:**
 - `--force` — Overwrite existing files
 - `--store <backend>` — Select `sqlite` or `postgres` for initialization
-- `--policy` — Generate seed policy from src/ directory structure
+- `--policy` — Generate a deterministic structural policy
+- `--src-dir <dir>` — Constrain structural discovery to one repository-relative subtree
 - `--prompts-dir <path>` — Custom prompts directory (default: .smartergpt/prompts)
 
 ### `lex remember`
@@ -271,6 +276,22 @@ lex policy check --match --src-dir lib
 
 **Status:** ✅ Implemented
 
+### `lex policy generate`
+
+Generate the same deterministic structural policy independently of workspace
+initialization.
+
+```bash
+lex policy generate
+lex policy generate --root /path/to/repo --output policy.json
+lex policy generate --src-dir packages/native/src
+lex policy generate --force
+```
+
+The default output is `.smartergpt/lex/lexmap.policy.json`. Existing output is
+preserved unless `--force` is explicit. Module IDs and `owns_paths` are sorted,
+path-normalized, timestamp-free, and byte-stable for an unchanged tree.
+
 **Commands available:**
 - ✅ `lex init` — Initialize workspace with prompts and policy (with `--policy` for auto-generation)
 - ✅ `lex remember` — Capture work session frames
@@ -278,6 +299,7 @@ lex policy check --match --src-dir lib
 - ✅ `lex check` — Enforce policy in CI
 - ✅ `lex timeline` — Visualize frame evolution
 - ✅ `lex policy check` — Validate policy file syntax and module-codebase mapping
+- ✅ `lex policy generate` — Generate scanner-compatible structural ownership
 
 **Depends on:**
 - ✅ `memory/frames/`, `memory/store/`, `memory/recall` implementations
