@@ -57,6 +57,11 @@ After restarting the MCP client, ask it to call `system_introspect`, then `frame
 limit. Introspection should identify the selected workspace and store. Listing an empty store is a
 valid result.
 
+Introspection also reports the shared Frame write contract and scope health. If policy is
+unavailable or no policy-backed module applies, use the explicit fallback
+`{"module_scope":["workspace/unscoped"]}`. Empty scope is still invalid; `frame_validate` returns
+that exact payload as structured remediation.
+
 ## Tools
 
 | Tool | Purpose |

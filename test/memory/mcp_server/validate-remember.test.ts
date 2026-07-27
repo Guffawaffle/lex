@@ -120,6 +120,10 @@ describe("MCP Server - validate_remember", () => {
         response.content[0].text.includes("module_scope"),
         "Should mention missing module_scope"
       );
+      assert.ok(
+        response.content[0].text.includes('{"module_scope":["workspace/unscoped"]}'),
+        "Should provide the exact fallback payload for missing scope"
+      );
     } finally {
       await teardown();
     }
@@ -150,6 +154,20 @@ describe("MCP Server - validate_remember", () => {
         response.content[0].text.includes("module_scope must be a non-empty array"),
         "Should mention empty module_scope"
       );
+      assert.ok(
+        response.content[0].text.includes('{"module_scope":["workspace/unscoped"]}'),
+        "Should name the exact fallback payload"
+      );
+      const data = response.data as Record<string, unknown>;
+      const errors = data.errors as Array<Record<string, unknown>>;
+      const scopeError = errors.find((error) => error.field === "module_scope");
+      const remediation = scopeError?.remediation as Record<string, unknown>;
+      assert.deepStrictEqual(remediation.input, {
+        module_scope: ["workspace/unscoped"],
+      });
+      const contract = data.frameWriteContract as Record<string, unknown>;
+      const fallback = contract.fallback as Record<string, unknown>;
+      assert.strictEqual(fallback.moduleId, "workspace/unscoped");
     } finally {
       await teardown();
     }
@@ -245,6 +263,65 @@ describe("MCP Server - validate_remember", () => {
         response.content[0].text.includes("✅ Validation passed"),
         "Should confirm validation passed"
       );
+    } finally {
+      await teardown();
+    }
+  });
+
+  test("canonical unscoped fallback validates and round-trips fallback attribution", async () => {
+    const srv = setup(true);
+    try {
+      const args = {
+        reference_point: "policy fallback",
+        summary_caption: "No policy-backed module applies",
+        status_snapshot: { next_action: "Refine the policy later" },
+        module_scope: ["workspace/unscoped"],
+      };
+
+      const validation = await srv.handleRequest({
+        method: "tools/call",
+        params: {
+          name: "frame_validate",
+          arguments: args,
+        },
+      });
+      assert.ok(validation.content[0].text.includes("✅ Validation passed"));
+      assert.deepStrictEqual(validation.data?.moduleAttribution, {
+        mode: "fallback",
+        confidence: "low",
+        evidence: ["explicit-unscoped-fallback", "mcp:module_scope"],
+      });
+
+      const created = await srv.handleRequest({
+        method: "tools/call",
+        params: {
+          name: "frame_create",
+          arguments: args,
+        },
+      });
+      assert.ok(created.data?.frame_id);
+      assert.deepStrictEqual(created.data?.module_attribution, {
+        mode: "fallback",
+        confidence: "low",
+        evidence: ["explicit-unscoped-fallback", "mcp:module_scope"],
+      });
+
+      const retrieved = await srv.handleRequest({
+        method: "tools/call",
+        params: {
+          name: "frame_get",
+          arguments: {
+            frame_id: created.data?.frame_id,
+            include_atlas: false,
+          },
+        },
+      });
+      assert.deepStrictEqual(retrieved.data?.module_scope, ["workspace/unscoped"]);
+      assert.deepStrictEqual(retrieved.data?.module_attribution, {
+        mode: "fallback",
+        confidence: "low",
+        evidence: ["explicit-unscoped-fallback", "mcp:module_scope"],
+      });
     } finally {
       await teardown();
     }

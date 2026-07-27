@@ -8,6 +8,7 @@
 import { test, describe } from "node:test";
 import assert from "node:assert";
 import { MCPServer } from "@app/memory/mcp_server/server.js";
+import { createFrameStore } from "@app/memory/store/index.js";
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
@@ -494,6 +495,155 @@ describe("MCP Server - Introspect Tool", () => {
       assert.match(database.identity as string, /^path-v1:[a-f0-9]{16}$/);
     } finally {
       await configuredServer.close();
+      rmSync(workspaceRoot, { recursive: true, force: true });
+    }
+  });
+
+  test("introspect exposes the exact fallback contract when policy is unavailable", async () => {
+    const workspaceRoot = mkdtempSync(join(tmpdir(), "lex-introspect-no-policy-"));
+    const noPolicyServer = new MCPServer({
+      dbPath: join(workspaceRoot, "frames.db"),
+      repoRoot: workspaceRoot,
+    });
+    try {
+      const response = await noPolicyServer.handleRequest({
+        method: "tools/call",
+        params: {
+          name: "system_introspect",
+          arguments: {},
+        },
+      });
+      const data = response.data as Record<string, unknown>;
+      const writeContract = data.frameWriteContract as Record<string, unknown>;
+      const contractPolicy = writeContract.policy as Record<string, unknown>;
+      const fallback = writeContract.fallback as Record<string, unknown>;
+      const scopeHealth = data.scopeHealth as Record<string, unknown>;
+      const policyHealth = scopeHealth.policy as Record<string, unknown>;
+
+      assert.strictEqual(contractPolicy.state, "unavailable");
+      assert.strictEqual(contractPolicy.moduleCount, 0);
+      assert.strictEqual(fallback.moduleId, "workspace/unscoped");
+      assert.deepStrictEqual(fallback.input, {
+        module_scope: ["workspace/unscoped"],
+      });
+      assert.strictEqual(policyHealth.state, "unavailable");
+      assert.strictEqual(policyHealth.moduleCount, 0);
+    } finally {
+      await noPolicyServer.close();
+      rmSync(workspaceRoot, { recursive: true, force: true });
+    }
+  });
+
+  test("introspect exposes the shared write contract and bounded scope health", async () => {
+    const workspaceRoot = mkdtempSync(join(tmpdir(), "lex-introspect-scope-health-"));
+    const dbPath = join(workspaceRoot, "frames.db");
+    const seedStore = createFrameStore(dbPath);
+    const paginationFrames = Array.from({ length: 501 }, (_, index) => ({
+      id: `frame-current-${index}`,
+      timestamp: new Date(Date.parse("2026-07-28T00:00:00.000Z") + index * 1000).toISOString(),
+      branch: "main",
+      module_scope: ["current/module"],
+      summary_caption: "Current policy module",
+      reference_point: `scope health pagination ${index}`,
+      status_snapshot: { next_action: "Continue" },
+    }));
+    await seedStore.saveFrames([
+      ...paginationFrames,
+      {
+        id: "frame-unscoped",
+        timestamp: "2026-07-27T00:00:00.000Z",
+        branch: "main",
+        module_scope: ["workspace/unscoped"],
+        summary_caption: "Explicit fallback",
+        reference_point: "scope health fallback",
+        status_snapshot: { next_action: "Define a policy module when warranted" },
+      },
+      {
+        id: "frame-drift",
+        timestamp: "2026-07-27T00:01:00.000Z",
+        branch: "main",
+        module_scope: ["retired/module"],
+        summary_caption: "Historical policy drift",
+        reference_point: "scope health drift",
+        status_snapshot: { next_action: "Map the retired module" },
+      },
+      {
+        id: "frame-many-drift",
+        timestamp: "2026-07-27T00:01:30.000Z",
+        branch: "main",
+        module_scope: Array.from(
+          { length: 12 },
+          (_, index) => `drift/module-${String(index).padStart(2, "0")}`
+        ),
+        summary_caption: "Bounded policy drift",
+        reference_point: "scope health bounded drift",
+        status_snapshot: { next_action: "Keep the summary bounded" },
+      },
+      {
+        id: "frame-current",
+        timestamp: "2026-07-27T00:02:00.000Z",
+        branch: "main",
+        module_scope: ["current/module"],
+        summary_caption: "Current policy module",
+        reference_point: "scope health current",
+        status_snapshot: { next_action: "Continue" },
+      },
+    ]);
+    await seedStore.close();
+
+    const policyDir = join(workspaceRoot, ".smartergpt", "lex");
+    mkdirSync(policyDir, { recursive: true });
+    writeFileSync(
+      join(policyDir, "lexmap.policy.json"),
+      JSON.stringify({
+        modules: {
+          "current/module": {
+            owns_paths: ["src/current/**"],
+          },
+        },
+      })
+    );
+
+    const scopedServer = new MCPServer({ dbPath, repoRoot: workspaceRoot });
+    try {
+      const response = await scopedServer.handleRequest({
+        method: "tools/call",
+        params: {
+          name: "system_introspect",
+          arguments: {},
+        },
+      });
+      const data = response.data as Record<string, unknown>;
+      assert.strictEqual(data.schemaVersion, "1.1.0");
+
+      const writeContract = data.frameWriteContract as Record<string, unknown>;
+      const contractPolicy = writeContract.policy as Record<string, unknown>;
+      const fallback = writeContract.fallback as Record<string, unknown>;
+      assert.strictEqual(contractPolicy.state, "loaded");
+      assert.strictEqual(contractPolicy.moduleCount, 1);
+      assert.strictEqual(fallback.moduleId, "workspace/unscoped");
+      assert.deepStrictEqual(fallback.input, {
+        module_scope: ["workspace/unscoped"],
+      });
+
+      const scopeHealth = data.scopeHealth as Record<string, unknown>;
+      const policy = scopeHealth.policy as Record<string, unknown>;
+      const frames = scopeHealth.frames as Record<string, unknown>;
+      const drift = frames.drift as Record<string, unknown>;
+      assert.strictEqual(policy.state, "loaded");
+      assert.strictEqual(policy.moduleCount, 1);
+      assert.strictEqual(frames.unscopedCount, 1);
+      assert.strictEqual(drift.state, "evaluated");
+      assert.strictEqual(drift.frameCount, 2);
+      assert.strictEqual(drift.moduleIdCount, 13);
+      assert.strictEqual((drift.modules as unknown[]).length, 10);
+      assert.strictEqual(drift.truncated, true);
+      assert.deepStrictEqual((drift.modules as unknown[])[0], {
+        moduleId: "drift/module-00",
+        frameCount: 1,
+      });
+    } finally {
+      await scopedServer.close();
       rmSync(workspaceRoot, { recursive: true, force: true });
     }
   });

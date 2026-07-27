@@ -37,6 +37,9 @@ export interface FrameWriteContract {
     available: true;
     moduleId: typeof UNSCOPED_MODULE_ID;
     argument: "--modules unscoped";
+    mcpInput: {
+      module_scope: [typeof UNSCOPED_MODULE_ID];
+    };
   };
   suggestions: ModuleSuggestion[];
   compact: string;
@@ -170,11 +173,22 @@ export function buildFrameWriteContract(options: ContractOptions): FrameWriteCon
       available: true,
       moduleId: UNSCOPED_MODULE_ID,
       argument: "--modules unscoped",
+      mcpInput: {
+        module_scope: [UNSCOPED_MODULE_ID],
+      },
     },
     suggestions,
     compact: policyLoaded
       ? "Frame write contract: summary + modules required; use --modules auto or explicit policy IDs; next/reference-point recommended."
       : `Frame write contract: summary + modules required; policy unavailable; use --modules auto or --modules unscoped (${UNSCOPED_MODULE_ID}); next/reference-point recommended.`,
+  };
+}
+
+export function createFallbackModuleAttribution(source?: string): ModuleAttribution {
+  return {
+    mode: "fallback",
+    confidence: "low",
+    evidence: ["explicit-unscoped-fallback", ...(source ? [source] : [])].slice(0, MAX_EVIDENCE),
   };
 }
 
@@ -191,11 +205,13 @@ export function resolveModuleAttribution(
   if (requestsFallback || (requestsAuto && contract.policy.state === "unavailable")) {
     return {
       modules: [UNSCOPED_MODULE_ID],
-      attribution: {
-        mode: "fallback",
-        confidence: "low",
-        evidence: [requestsFallback ? "explicit-unscoped-fallback" : "policy-unavailable"],
-      },
+      attribution: requestsFallback
+        ? createFallbackModuleAttribution()
+        : {
+            mode: "fallback",
+            confidence: "low",
+            evidence: ["policy-unavailable"],
+          },
     };
   }
 
