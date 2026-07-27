@@ -52,6 +52,10 @@ Tests that **require** git operations are:
 
 ### Running Tests
 
+The canonical `npm test` command uses a Node-based test discovery script, so it behaves the same
+from PowerShell, Command Prompt, and POSIX shells. Default-suite quarantines are declared explicitly
+in `scripts/run-tests.mjs`; keep every opt-in or quarantined test listed there when adding files.
+
 ```bash
 # Standard tests (safe, no git commands)
 npm test
