@@ -22,7 +22,7 @@ If the intent is out of scope, Integrate does **not** silently widen—it escala
 
 Let:
 - $\vec{I}$ = `PerceivedIntent` from Perceive
-- $\mathcal{L}$ = Lex state (Frames, Atlas, Receipts)
+- $\mathcal{L}$ = Lex state (Frames, derived context, Receipts)
 - $\mathcal{S}$ = LexSona rules (house rules, permissions)
 - $\mathcal{C}$ = Active version contract (if bound)
 

@@ -860,7 +860,7 @@ function applyMigrationV4(db: Database.Database): void {
 }
 
 /**
- * Migration V5: Add code_units table for Code Atlas
+ * Migration V5: Add code_units table for the experimental Code Index
  *
  * Stores CodeUnit records for code discovery and indexing.
  * Schema aligned with src/atlas/schemas/code-unit.ts (CA-001).
@@ -919,12 +919,12 @@ function applyMigrationV5(db: Database.Database): void {
 }
 
 /**
- * Migration V6: Add code_atlas_runs table for Code Atlas provenance records
+ * Migration V6: Add code_atlas_runs table for Code Index provenance records
  *
  * Schema aligned with CodeAtlasRun type from src/atlas/schemas/code-atlas-run.ts
  */
 function applyMigrationV6(db: Database.Database): void {
-  // Create code_atlas_runs table for Code Atlas extraction provenance
+  // Create code_atlas_runs table for Code Index extraction provenance
   db.exec(`
     CREATE TABLE IF NOT EXISTS code_atlas_runs (
       run_id TEXT PRIMARY KEY,

@@ -1,15 +1,14 @@
 /**
- * Atlas Rebuild - Deterministic graph construction from Frames
+ * Frame Graph rebuild - deterministic graph construction from Frames
  *
- * Rebuilds the Atlas graph structure deterministically when new Frames are ingested.
- * Atlas represents the knowledge graph connecting work sessions (Frames) based on
- * module scope overlap and temporal proximity.
+ * Rebuilds a historical Frame Graph deterministically when Frames are ingested.
+ * Public symbols retain legacy Atlas compatibility names.
  */
 
 import type { Frame } from "../types/frame.js";
 
 /**
- * Atlas node representing a Frame in the knowledge graph
+ * Legacy AtlasNode name for a Frame Graph node
  */
 export interface AtlasNode {
   frameId: string;
@@ -19,7 +18,7 @@ export interface AtlasNode {
 }
 
 /**
- * Atlas edge representing relationship between two Frames
+ * Legacy AtlasEdge name for a Frame Graph relationship
  */
 export interface AtlasEdge {
   from: string; // Frame ID
@@ -29,7 +28,7 @@ export interface AtlasEdge {
 }
 
 /**
- * Atlas graph structure - the complete knowledge graph of Frames
+ * Legacy Atlas name for the complete historical Frame Graph
  */
 export interface Atlas {
   nodes: AtlasNode[];
@@ -42,7 +41,7 @@ export interface Atlas {
 }
 
 /**
- * Rebuild Atlas graph from a collection of Frames
+ * Rebuild a Frame Graph from a collection of Frames
  *
  * Algorithm:
  * 1. Sort Frames by ID for deterministic ordering
@@ -51,12 +50,12 @@ export interface Atlas {
  *    - Module scope overlap (shared modules)
  *    - Temporal proximity (frames close in time)
  *    - Branch relationships (same branch)
- * 4. Return deterministic Atlas structure
+ * 4. Return the deterministic Frame Graph through the legacy Atlas shape
  *
- * Deterministic guarantee: Same input Frames (regardless of order) → Identical Atlas
+ * Deterministic guarantee: same input Frames (regardless of order) → identical Frame Graph
  *
- * @param frames - Array of Frames to build Atlas from
- * @returns Atlas graph structure
+ * @param frames - Array of Frames from which to build the Frame Graph
+ * @returns Frame Graph through the legacy Atlas shape
  */
 export function rebuildAtlas(frames: Frame[]): Atlas {
   // Sort frames by ID for deterministic ordering

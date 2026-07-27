@@ -81,8 +81,8 @@ lex recall "that auth deadlock"
 **Implementation:**
 1. Search `memory/store/` for Frame matching input (exact ticket ID or fuzzy `reference_point`)
 2. Retrieve Frame metadata
-3. Call `shared/atlas/` to export fold-radius neighborhood for Frame's `module_scope`
-4. Return both Frame (temporal) + Atlas Frame (spatial)
+3. Call the Policy Neighborhood compatibility code in `shared/atlas/` for the Frame's `module_scope`
+4. Return both Frame (temporal) + optional Policy Neighborhood (spatial)
 5. Optionally render as JSON, markdown, or visual card
 
 **Output example:**
@@ -96,7 +96,7 @@ Next action: Reroute through user-access-api
 Blockers:
   - Direct call to auth-core forbidden by policy
 
-Atlas Frame (fold radius 1):
+Policy Neighborhood (legacy `AtlasFrame`, fold radius 1):
   Modules touched:
     - ui/user-admin-panel [beta_user_admin]
     - services/auth-core

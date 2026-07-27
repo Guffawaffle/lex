@@ -585,7 +585,7 @@ export class MCPServer {
       if (!context.policy) {
         throw new MCPError(
           MCPErrorCode.POLICY_NOT_FOUND,
-          "Atlas enrichment is unavailable because this workspace has no policy."
+          "Policy Neighborhood enrichment is unavailable because this workspace has no policy."
         );
       }
       return generateAtlasFrameFromPolicy(moduleScope, context.policy);
@@ -1103,13 +1103,13 @@ export class MCPServer {
       await frameStore.saveFrame(frame);
     }
 
-    // Generate Atlas Frame for the module scope (skip if no policy available)
+    // Generate Policy Neighborhood context (skip if no policy is available)
     let atlasOutput = "";
     try {
       const atlasFrame = this.atlasFrameForContext(canonicalModuleScope, context);
       atlasOutput = formatAtlasFrame(atlasFrame);
     } catch {
-      // Atlas frame generation requires policy — skip gracefully
+      // Policy Neighborhood generation requires policy — skip gracefully
       if (process.env.LEX_DEBUG) {
         logger.error(`[LEX] Skipping atlas frame generation (no policy available)`);
       }
@@ -1398,7 +1398,7 @@ export class MCPServer {
   }
 
   /**
-   * Handle mcp_lex_frame_recall tool - search Frames with Atlas Frame
+   * Handle mcp_lex_frame_recall tool with optional Policy Neighborhood context
    */
   private async handleRecall(
     args: Record<string, unknown>,
@@ -1523,7 +1523,7 @@ export class MCPServer {
       };
     }
 
-    // Format results with Atlas Frame for each (full format)
+    // Format results with a Policy Neighborhood for each (full format)
     const results = frames
       .map((f: Frame, idx: number) => {
         const nextAction = f.status_snapshot?.next_action || "None specified";
@@ -1531,7 +1531,7 @@ export class MCPServer {
         const mergeBlockers = f.status_snapshot?.merge_blockers || [];
         const testsFailing = f.status_snapshot?.tests_failing || [];
 
-        // Generate Atlas Frame for this Frame's modules (skip if no policy)
+        // Generate a Policy Neighborhood for this Frame's modules (skip without policy)
         let atlasOutput = "";
         try {
           const atlasFrame = this.atlasFrameForContext(f.module_scope, context);
@@ -1636,7 +1636,7 @@ export class MCPServer {
       `${frame.keywords ? `🏷️  Keywords: ${frame.keywords.join(", ")}\n` : ""}` +
       `${frame.atlas_frame_id ? `🗺️  Atlas: ${frame.atlas_frame_id}\n` : ""}`;
 
-    // Include Atlas Frame if requested (skip if no policy)
+    // Include Policy Neighborhood context if requested (skip without policy)
     if (include_atlas) {
       try {
         const atlasFrame = this.atlasFrameForContext(frame.module_scope, context);
@@ -1761,7 +1761,7 @@ export class MCPServer {
       };
     }
 
-    // Format results with Atlas Frame for each (full format)
+    // Format results with Policy Neighborhood context for each (full format)
     const results = frames
       .map((f: Frame, idx: number) => {
         let atlasOutput = "";
@@ -2161,7 +2161,7 @@ export class MCPServer {
       if (!result.success || !result.output) {
         throw new MCPError(
           MCPErrorCode.INTERNAL_ERROR,
-          `Code atlas generation failed: ${result.error ?? "unknown error"}`,
+          `Code Index generation failed: ${result.error ?? "unknown error"}`,
           { path: repoPath }
         );
       }
@@ -2170,7 +2170,7 @@ export class MCPServer {
 
       // Format the output for MCP response
       const summary =
-        `🗺️  Code Atlas Generated\n` +
+        `🗺️  Code Index Generated\n` +
         `📍 Repository: ${run.repoId}\n` +
         `📁 Files scanned: ${run.filesScanned.length}${
           run.truncated ? ` (truncated from ${run.filesRequested.length})` : ""
@@ -2217,7 +2217,7 @@ export class MCPServer {
         ],
       };
     } catch (error: unknown) {
-      // Handle errors from code atlas generation
+      // Handle errors from Code Index generation
       if (error instanceof MCPError) {
         throw error;
       }
@@ -2225,7 +2225,7 @@ export class MCPServer {
       const errorMessage = error instanceof Error ? error.message : String(error);
       throw new MCPError(
         MCPErrorCode.INTERNAL_ERROR,
-        `Failed to generate code atlas: ${errorMessage}`,
+        `Failed to generate Code Index: ${errorMessage}`,
         { path: requestPath, error: errorMessage }
       );
     }
@@ -2764,7 +2764,7 @@ export class MCPServer {
       },
       frame_search: {
         description:
-          "Search Frames by reference point, branch, or Jira ticket. Returns matching Frames with Atlas neighborhoods.",
+          "Search Frames by reference point, branch, or Jira ticket. Returns matching Frames with optional Policy Neighborhoods.",
         requiredFields: [],
         optionalFields: ["reference_point", "jira", "branch", "limit"],
         examples: [
@@ -2810,7 +2810,7 @@ export class MCPServer {
             input: { frame_id: "frame-abc123" },
           },
           {
-            description: "Get frame without Atlas neighborhood",
+            description: "Get frame without Policy Neighborhood context",
             input: { frame_id: "frame-abc123", include_atlas: false },
           },
         ],
@@ -3106,7 +3106,7 @@ export class MCPServer {
         description: "Understand code structure and dependencies",
         steps: [
           "Use `system_introspect` to see available modules",
-          "Use `atlas_analyze` to visualize dependencies",
+          "Use legacy-named `atlas_analyze` to extract the experimental Code Index",
           "Use `policy_check` to validate boundaries",
         ],
         tools: ["system_introspect", "atlas_analyze", "policy_check"],

@@ -1,8 +1,8 @@
 /**
- * Atlas Frame Export - Spatial neighborhood extraction from policy graph
+ * Legacy Atlas compatibility barrel
  *
- * This module provides the core functionality for extracting policy-aware
- * spatial neighborhoods using the fold radius algorithm.
+ * This module currently combines Policy Neighborhood, Frame Graph, and Code Index
+ * surfaces. New code should use those conceptual names while preserving these exports.
  */
 
 // Export types
@@ -21,7 +21,7 @@ export { buildPolicyGraph, getNeighbors } from "./graph.js";
 // Export fold radius algorithm
 export { computeFoldRadius } from "./fold-radius.js";
 
-// Export Atlas Frame generation
+// Export Policy Neighborhood generation through legacy AtlasFrame names
 export { generateAtlasFrame } from "./atlas-frame.js";
 
 // Export cache utilities
@@ -37,7 +37,7 @@ export {
 // Export auto-tuning utilities
 export { estimateTokens, autoTuneRadius, estimateTokensBeforeGeneration } from "./auto-tune.js";
 
-// Export Atlas rebuild queue (LEX-108: Batch Operations)
+// Export Frame Graph rebuild queue through legacy Atlas names (LEX-108)
 export {
   AtlasRebuildQueue,
   createAtlasRebuildQueue,
@@ -45,7 +45,7 @@ export {
   type AtlasRebuildQueueConfig,
 } from "./queue.js";
 
-// Export Atlas rebuild trigger API (LEX-108: Batch Operations)
+// Export Frame Graph rebuild trigger API through legacy Atlas names (LEX-108)
 export {
   AtlasRebuildManager,
   initAtlasRebuildManager,
@@ -59,11 +59,11 @@ export {
   type AtlasRebuildManagerConfig,
 } from "./trigger.js";
 
-// Export Atlas rebuild and validation utilities
+// Export Frame Graph rebuild and validation utilities
 export { rebuildAtlas, type Atlas, type AtlasNode } from "./rebuild.js";
 export { validateAtlas, checkReachability, type ValidationResult } from "./validate.js";
 
-// Export Code Atlas schemas (Layer 0)
+// Export Code Index schemas through legacy Code Atlas names (Layer 0)
 export {
   CodeUnitSchema,
   CodeUnitKindSchema,

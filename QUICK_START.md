@@ -3,7 +3,7 @@
 This guide proves one thing: whether a durable checkpoint helps a later agent session continue
 without making you reconstruct the work.
 
-The pilot uses local SQLite. It does not require MCP, policy, Atlas, PostgreSQL, instruction
+The pilot uses local SQLite. It does not require MCP, policy, Policy Neighborhoods, PostgreSQL, instruction
 projection, AXF, LexRunner, or LexSona.
 
 ## Before you begin
@@ -137,7 +137,7 @@ Once the local handoff is useful, add one capability at a time:
 | Agent session bootstrap | [Agent Continuity](./docs/AGENT_CONTINUITY.md) |
 | MCP client access | [MCP Server](./README.mcp.md) |
 | Repository module boundaries | [Policy usage](./docs/API_USAGE.md) |
-| Nearby module context | [Atlas](./docs/atlas/README.md) |
+| Nearby module context | [Policy Neighborhood](./docs/atlas/README.md) |
 | Canonical assistant instructions | [Instructions](./docs/INSTRUCTIONS.md) |
 | Shared cross-host storage | [Store Contracts](./docs/STORE_CONTRACTS.md) and [PostgreSQL Scope Security](./docs/POSTGRES_SCOPE_SECURITY.md) |
 | Trusted tenant/workspace scope | [Runtime Scope](./docs/RUNTIME_SCOPE_CONTRACT.md) |

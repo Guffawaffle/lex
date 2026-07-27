@@ -39,7 +39,7 @@ export const PUBLIC_EXPORT_CONTRACT = Object.freeze([
   },
   {
     subpath: "./atlas",
-    purpose: "Atlas generation and graph operations",
+    purpose: "Legacy compatibility barrel for Policy Neighborhood, Frame Graph, and Code Index",
     anchors: ["generateAtlasFrame", "buildPolicyGraph"],
   },
   {
@@ -49,7 +49,7 @@ export const PUBLIC_EXPORT_CONTRACT = Object.freeze([
   },
   {
     subpath: "./atlas/schemas",
-    purpose: "Atlas persistence schemas",
+    purpose: "Code Index run and policy-seed schemas",
     anchors: ["CodeAtlasRunSchema", "parseCodeAtlasRun"],
   },
   {

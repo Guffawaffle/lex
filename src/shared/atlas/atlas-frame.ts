@@ -1,8 +1,9 @@
 /**
- * Atlas Frame - Spatial neighborhood extraction from policy graph
+ * Policy Neighborhood - spatial neighborhood extraction from a policy graph
  *
  * Computes the "map page" around a set of modules with fold radius.
  * Implements full policy graph traversal with N-hop neighborhood extraction.
+ * Public symbols retain AtlasFrame compatibility names.
  */
 
 import { loadPolicy } from "../policy/loader.js";
@@ -38,7 +39,7 @@ export interface AtlasEdge {
 }
 
 /**
- * Generate Atlas Frame for a set of seed modules
+ * Generate a Policy Neighborhood for a set of seed modules
  *
  * Implements full fold radius algorithm with policy graph traversal:
  * - Loads policy graph from lexmap.policy.json
@@ -57,7 +58,7 @@ export interface AtlasEdge {
  * @param seedModules - Module IDs from Frame.module_scope
  * @param foldRadius - How many hops to expand (default: 1)
  * @param policyPath - Optional custom policy path
- * @returns Atlas Frame with neighborhood context
+ * @returns Policy Neighborhood through the AtlasFrame compatibility shape
  */
 export function generateAtlasFrame(
   seedModules: string[],
@@ -69,7 +70,7 @@ export function generateAtlasFrame(
 }
 
 /**
- * Generate an Atlas Frame from an already authorized policy snapshot.
+ * Generate a Policy Neighborhood from an already authorized policy snapshot.
  * Trusted multi-workspace hosts use this form so policy resolution remains
  * request-local and cannot fall back to process environment or cwd.
  */
@@ -154,7 +155,7 @@ export function generateAtlasFrameFromPolicy(
 }
 
 /**
- * Format Atlas Frame for display in MCP response
+ * Format a Policy Neighborhood using the legacy Atlas Frame response label
  */
 export function formatAtlasFrame(atlasFrame: AtlasFrame): string {
   const { seed_modules, fold_radius, modules, edges } = atlasFrame;

@@ -1,7 +1,7 @@
 /**
- * Code Atlas Schemas Export
+ * Code Index schema exports through legacy Code Atlas names
  *
- * Layer 0: Schema definitions for Code Atlas
+ * Layer 0: schema definitions for the experimental Code Index
  */
 
 export {

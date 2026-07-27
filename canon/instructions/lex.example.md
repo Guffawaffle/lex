@@ -14,7 +14,7 @@ Lex provides memory and policy management for AI-assisted development:
 
 - **Memory:** Stores and retrieves episodic context about work sessions
 - **Policy:** Enforces module ownership and dependency rules
-- **Atlas:** Maps code structure for navigation and understanding
+- **Policy Neighborhood:** Adds bounded, policy-backed nearby-module context during recall
 
 ## Key Files
 

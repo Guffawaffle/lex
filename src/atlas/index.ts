@@ -1,5 +1,5 @@
 /**
- * Atlas Schemas - Code Atlas schema definitions and validation
+ * Code Index schemas through legacy Code Atlas names
  */
 
 export type { CodeAtlasRun, Limits } from "./schemas/code-atlas-run.js";

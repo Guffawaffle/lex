@@ -84,7 +84,7 @@ lex/
 │   └── shared/               # Shared utilities
 │       ├── types/            # Core TypeScript types
 │       ├── policy/           # Policy loading
-│       ├── atlas/            # Atlas frame generation
+│       ├── atlas/            # Policy Neighborhood + Frame Graph compatibility code
 │       ├── aliases/          # Module ID alias resolution
 │       ├── module_ids/       # Module ID validation
 │       └── cli/              # CLI commands and entry point

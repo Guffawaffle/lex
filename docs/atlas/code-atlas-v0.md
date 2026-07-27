@@ -1,5 +1,11 @@
 # Code Atlas v0 Specification
 
+> **Compatibility note:** This versioned historical specification combines what current
+> terminology calls **Code Index** extraction and **Policy Neighborhood** recall. Its
+> `code-atlas-v0`, `CodeAtlasRun`, and `AtlasFrame` spellings remain serialization/API
+> compatibility names. It does not specify the historical **Frame Graph**. See the
+> [terminology map](../ATLAS_TERMINOLOGY.md).
+
 **Version:** code-atlas-v0  
 **Status:** Implemented  
 **Last Updated:** November 2025
@@ -521,9 +527,10 @@ console.log(`Used radius ${result.radiusUsed} (${result.tokensUsed} tokens)`);
 
 ## Integration
 
-### With LexRunner
+### With LexRunner (Policy Neighborhood experiment)
 
-LexRunner orchestration can use Code Atlas for policy-aware task distribution:
+LexRunner may consume a Policy Neighborhood during task-packet construction. This is an
+experiment, not a current production Code Index consumer:
 
 ```typescript
 // Generate Atlas Frame for merge conflict context
@@ -539,9 +546,10 @@ if (forbiddenEdges.length > 0) {
 }
 ```
 
-### Policy Seeding
+### Policy generation and legacy seed evidence
 
-Atlas can seed initial policy from directory structure:
+Deterministic mixed-language policy generation is a separate subsystem. The `lex init --policy`
+surface produces repository policy; Code Index `PolicySeed` remains experimental evidence:
 
 ```bash
 # Generate seed policy

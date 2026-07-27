@@ -1,7 +1,7 @@
 {
   "name": "@smartergpt/lex",
   "version": "4.0.0",
-  "description": "MIT-licensed memory, policy, and atlas framework with MCP server. For local dev and private automation.",
+  "description": "MIT-licensed memory, policy, and continuity framework with MCP server. For local dev and private automation.",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

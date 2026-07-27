@@ -1,5 +1,5 @@
 /**
- * CLI Command: lex code-atlas
+ * CLI command for the experimental Code Index (legacy `lex code-atlas` name)
  *
  * Extract code units from a repository using static analysis.
  * Outputs CodeAtlasOutput JSON with run metadata and extracted code units.
@@ -38,7 +38,7 @@ function policySeedToYaml(seed: PolicySeed): string {
   };
 
   const lines: string[] = [
-    "# Policy Seed - Auto-generated from Code Atlas",
+    "# Policy Seed - Auto-generated from the experimental Code Index",
     "# This is a SEED for human refinement, not a final policy.",
     "# Review and customize before using.",
     "",
@@ -608,7 +608,7 @@ export async function codeAtlas(options: CodeAtlasOptions = {}): Promise<CodeAtl
   }
 
   if (options.trustedProjectRoot && (options.out || options.policySeed)) {
-    const errorMsg = "Trusted in-process Code Atlas does not permit filesystem output options.";
+    const errorMsg = "Trusted in-process Code Index does not permit filesystem output options.";
     if (emitOutput) output.error(errorMsg);
     return { success: false, error: errorMsg };
   }
@@ -751,7 +751,7 @@ export async function codeAtlas(options: CodeAtlasOptions = {}): Promise<CodeAtl
           durationSeconds: parseFloat(duration),
         });
       } else if (emitOutput) {
-        output.success(`\n✅ Code Atlas extraction complete`);
+        output.success(`\n✅ Code Index extraction complete`);
         output.info(`Output written to: ${outPath}`);
         output.info(
           `Files scanned: ${filesToScan.length}${truncated ? ` (limited from ${allFiles.length})` : ""}`
@@ -772,7 +772,7 @@ export async function codeAtlas(options: CodeAtlasOptions = {}): Promise<CodeAtl
         output.raw(JSON.stringify(atlasOutput, null, 2));
       } else if (emitOutput) {
         // Human-readable summary first, then JSON
-        output.success(`\n✅ Code Atlas extraction complete`);
+        output.success(`\n✅ Code Index extraction complete`);
         output.info(
           `Files scanned: ${filesToScan.length}${truncated ? ` (limited from ${allFiles.length})` : ""}`
         );
@@ -793,7 +793,7 @@ export async function codeAtlas(options: CodeAtlasOptions = {}): Promise<CodeAtl
     if (emitOutput && options.json) {
       output.json({ success: false, error: errorMsg });
     } else if (emitOutput) {
-      output.error(`\n❌ Code Atlas extraction failed: ${errorMsg}`);
+      output.error(`\n❌ Code Index extraction failed: ${errorMsg}`);
     }
     return { success: false, error: errorMsg };
   }

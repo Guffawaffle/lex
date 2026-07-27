@@ -342,7 +342,7 @@ The rule: **If it's not worth explaining to a teammate, don't capture it.**
 | **Phase 3** | Make Frames searchable | Always tag with ticket ID, summary, and next action |
 | **Phase 4** | Add policy-aware reasoning | Wire LexMap so `module_scope` is populated |
 | **Phase 5** | Automate recall | Teach your assistant to call `/recall <ticket>` |
-| **Phase 6** | Enable Mind Palace (optional) | Add reference points and Atlas Frames for natural recall |
+| **Phase 6** | Enable Mind Palace (optional) | Add reference points and Policy Neighborhoods for natural recall |
 
 By Phase 5, you should be able to:
 
@@ -353,7 +353,7 @@ By Phase 5, you should be able to:
 By Phase 6 (Mind Palace), you can also:
 
 - Recall by natural phrasing: "Where did I leave off with the payment webhook?"
-- Get structural context via Atlas Frames (module neighborhoods + policy boundaries)
+- Get structural context via Policy Neighborhoods (module neighborhoods + policy boundaries)
 - Use fold radius to control context expansion
 
 That's the value of Lex.
@@ -364,13 +364,14 @@ That's the value of Lex.
 
 ### Goal
 
-Upgrade to reference point-based recall with Atlas Frames for even faster, more intuitive context retrieval.
+Upgrade to reference point-based recall with Policy Neighborhoods for even faster, more intuitive
+context retrieval.
 
 ### What is Mind Palace?
 
 Mind Palace extends Lex with:
 - **Reference points** - human-memorable anchor phrases ("Add User button still disabled")
-- **Atlas Frames** - structural snapshots of relevant module neighborhoods
+- **Policy Neighborhoods** - bounded views of relevant policy modules
 - **Fold radius** - controlled context expansion to prevent token bloat
 
 This enables questions like:
@@ -422,7 +423,7 @@ Edit your `lexmap.policy.json` to include coordinates for each module:
 
 ### Step 2: Verify LexMap Adjacency Export
 
-Test that LexMap can generate Atlas Frames:
+Test that policy can generate Policy Neighborhoods:
 
 ```bash
 lexmap export-adjacency \
@@ -491,11 +492,12 @@ Or ask your assistant:
 
 You should get back:
 - The Frame (summary, next_action, timestamp)
-- The Atlas Frame (module neighborhood, policy boundaries)
+- The Policy Neighborhood (module neighborhood, policy boundaries)
 
-### Step 6: Verify Atlas Frame Was Generated
+### Step 6: Verify the Policy Neighborhood was generated
 
-Check the response includes an Atlas Frame:
+Check the response includes a Policy Neighborhood. Current CLI text may still label the
+compatibility shape `Atlas Frame`:
 
 ```json
 {
@@ -568,7 +570,7 @@ lex recall TICKET-456
 lex recall "timeout"
 ```
 
-All should return the same Frame + Atlas Frame.
+All should return the same Frame plus equivalent Policy Neighborhood context.
 
 ### Adjusting Fold Radius
 
@@ -608,7 +610,7 @@ Start with radius 1 (default). Only increase if needed.
 - Check that the assistant has access to the `lex` MCP server
 - Try calling it manually via MCP to verify it works: `mcp call lex frame_search TICKET-123` (or use deprecated alias `recall`)
 
-### "Atlas Frames aren't being generated"
+### “Policy Neighborhoods are not being generated”
 
 - Verify LexMap is configured and accessible: `lexmap version`
 - Check that your `lexmap.policy.json` includes coordinates for modules
@@ -622,17 +624,17 @@ Start with radius 1 (default). Only increase if needed.
 - Verify normalization: `lex debug-normalize "payment webhook"`
 - Fall back to ticket ID if fuzzy matching fails: `/recall TICKET-456`
 
-### "Atlas Frame shows stale modules"
+### “Policy Neighborhood shows stale modules”
 
 - Your policy may have changed since the Frame was captured
-- Atlas Frames snapshot policy **at capture time**
-- Re-capture the Frame to get updated Atlas Frame: `lex remember --jira TICKET-456 --reference-point "..." --summary "..."`
+- Policy Neighborhoods use the policy resolved for the recall operation
+- Fix or select the intended policy, then recall the Frame again
 
 ---
 
 ## Next Steps
 
-- Read [Mind Palace Guide](./MIND_PALACE.md) to learn about reference points and Atlas Frames
+- Read [Mind Palace Guide](./MIND_PALACE.md) to learn about reference points and Policy Neighborhoods
 - Read [Mind Palace Architecture](./MIND_PALACE_ARCHITECTURE.md) for implementation details
 - Read [Architecture Loop](./ARCHITECTURE_LOOP.md) to understand the full explainability story
 - Read [FAQ](./FAQ.md) for privacy, security, and compliance questions

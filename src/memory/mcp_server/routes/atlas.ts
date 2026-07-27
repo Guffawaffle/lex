@@ -1,5 +1,5 @@
 /**
- * Atlas API Routes
+ * Code Index API routes through the legacy /api/atlas path
  *
  * HTTP API endpoints for ingesting and querying code units and atlas runs.
  * Part of Code Atlas Epic (CA-006, CA-007) - Layer 2: API
@@ -215,7 +215,7 @@ export function createAtlasRouter(db: Database.Database): Router {
           unitsSkipped: result.unitsSkipped,
           durationMs,
         },
-        "Atlas data ingested"
+        "Code Index data ingested"
       );
 
       const response: AtlasIngestResponse = {
@@ -228,7 +228,7 @@ export function createAtlasRouter(db: Database.Database): Router {
       res.status(201).json(response);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      logger.error({ error: errorMessage }, "Atlas ingest failed");
+      logger.error({ error: errorMessage }, "Code Index ingest failed");
 
       const errorResponse: AtlasApiErrorResponse = {
         error: "internal_error",
@@ -415,7 +415,7 @@ export function createAtlasRouter(db: Database.Database): Router {
       if (!run) {
         return res.status(404).json({
           error: "NOT_FOUND",
-          message: `Atlas run with id '${runId}' not found`,
+          message: `Code Index run with id '${runId}' not found`,
           code: 404,
         } as AtlasApiErrorResponse);
       }

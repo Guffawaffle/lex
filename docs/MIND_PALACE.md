@@ -2,7 +2,9 @@
 
 ## Overview
 
-The **Mind Palace** system extends Lex's Frame-based memory with **reference points** and **Atlas Frames** to enable human-like recall without replaying full history or re-indexing entire codebases.
+The **Mind Palace** system extends Lex's Frame-based memory with **reference points** and optional
+**Policy Neighborhoods** to enable human-like recall without replaying full history or re-indexing
+entire codebases.
 
 Instead of searching through all past work, you recall a **reference point** ("that auth bug when the Add User button was disabled") and the system expands only the relevant adjacent context.
 
@@ -25,16 +27,18 @@ Reference points are:
 - **Situation-specific** - tied to a concrete problem or feature
 - **Stable** - don't change as you iterate on the problem
 
-### 2. Atlas Frames
+### 2. Policy Neighborhoods
 
-An **Atlas Frame** is a structural snapshot of the module neighborhood relevant to your work. It captures:
+A **Policy Neighborhood** is a bounded view of the policy modules relevant to your work. It
+captures:
 
 - **Module coordinates** - spatial positions from LexMap policy
 - **Adjacency graph** - which modules can/cannot talk to each other
 - **Policy boundaries** - allowed vs forbidden edges
 - **Fold radius** - controlled context expansion (typically 1-hop from reference module)
 
-Together, reference points and Atlas Frames enable **instant, policy-aware context recall** without token-heavy re-indexing.
+Together, reference points and Policy Neighborhoods enable **instant, policy-aware context
+recall** without token-heavy re-indexing.
 
 ## How Reference Points Work
 
@@ -80,7 +84,7 @@ Or simply tell your assistant:
 
 The system:
 1. Finds the most recent Frame matching that reference point (fuzzy match)
-2. Retrieves the associated Atlas Frame
+2. Generates the current Policy Neighborhood when policy is available
 3. Returns both with full context
 
 ## Using `/recall` Effectively
@@ -109,7 +113,7 @@ The system:
 When you recall, the system returns:
 
 1. **Frame metadata** - what you were doing, next action, blockers
-2. **Atlas Frame** - visual map of relevant modules and boundaries
+2. **Policy Neighborhood** - visual map of relevant modules and boundaries
 3. **Policy context** - which edges are allowed/forbidden
 4. **Timeline** - when you captured this, which branch
 
@@ -170,9 +174,10 @@ Your assistant can now answer:
 
 > "You left off in `ui/user-admin-panel`. The Add User button is still disabled because that module was calling `services/auth-core` directly, which is forbidden by policy. The allowed path is through `services/user-access-api`. Your next action was to reroute through that API. Here's the visual map of those modules and their boundaries."
 
-## Understanding Atlas Frames
+## Understanding Policy Neighborhoods
 
-An Atlas Frame is **not** a full architecture diagram. It's a **controlled slice** of the structural context that matters for your recall.
+A Policy Neighborhood is **not** a full architecture diagram. It is a **controlled slice** of the
+structural context that matters for your recall.
 
 ### Fold Radius
 
@@ -199,12 +204,13 @@ NOT included:
 
 ### Policy Boundaries
 
-Atlas Frames show **allowed** and **forbidden** edges:
+Policy Neighborhoods show **allowed** and **forbidden** edges:
 
 - ✅ **Allowed edge**: You can call this module according to policy
 - ❌ **Forbidden edge**: Policy blocks this call (useful for explaining blockers)
 
-This is the key insight: the Atlas Frame doesn't just show structure, it shows **why something is blocked**.
+This is the key insight: the Policy Neighborhood does not just show structure, it shows **why
+something is blocked**.
 
 ### Coordinates and Layers
 
@@ -328,7 +334,9 @@ You:
 lex recall "Add User button"
 ```
 
-Even if you don't remember the exact details, the reference point anchors you. The Atlas Frame shows which modules were involved, and you can see if the current bug is hitting the same policy boundary.
+Even if you do not remember the exact details, the reference point anchors you. The Policy
+Neighborhood shows which modules were involved, and you can see if the current bug is hitting the
+same policy boundary.
 
 ### Workflow 4: Policy-Aware Reasoning
 
@@ -340,12 +348,12 @@ Even if you don't remember the exact details, the reference point anchors you. T
 
 **System returns:**
 - Frame showing you already tried that path
-- Atlas Frame showing `ui/user-admin-panel → services/auth-core` is forbidden
+- Policy Neighborhood showing `ui/user-admin-panel → services/auth-core` is forbidden
 - Policy says you must go through `user-access-api`
 
 **Assistant:** "Ah, I see the policy boundary. That edge is forbidden. The correct path is through user-access-api. Let me suggest that instead."
 
-The Atlas Frame prevents policy violations by making boundaries visible.
+The Policy Neighborhood helps prevent policy violations by making boundaries visible.
 
 ## Tips for Mind Palace Success
 
@@ -412,7 +420,8 @@ Mind Palace is not:
 
 ### Token Efficiency vs Completeness
 
-Atlas Frames deliberately **exclude** distant modules to save tokens. If you need fuller context, use LexMap's full policy export.
+Policy Neighborhoods deliberately **exclude** distant modules to save tokens. If you need fuller
+context, use the full policy export.
 
 The trade-off:
 - ✅ **Efficient recall** - get exactly the context that matters
@@ -426,11 +435,15 @@ Reference point recall uses fuzzy matching:
 
 Be specific enough to avoid false matches.
 
-### Stale Atlas Frames
+### Stale Policy Neighborhood inputs
 
-Atlas Frames snapshot policy **at capture time**. If policy changes, old Atlas Frames may be outdated.
+Policy Neighborhoods are generated from the policy available at recall time. A persisted
+`atlas_frame_id` is a legacy opaque reference and does not prove that its policy snapshot is
+current.
 
-Best practice: When policy changes significantly, recapture Frames for active work.
+Best practice: recall again after a policy change. Recapturing a Frame is neither required nor
+sufficient to refresh recall-time enrichment. Update a Frame only when its policy-backed
+`module_scope` IDs themselves were renamed or removed.
 
 ## Integration with Existing Lex Features
 
@@ -456,9 +469,12 @@ Reference points are added to existing Frame metadata:
 
 THE CRITICAL RULE still applies:
 
-> Every module name in `module_scope` MUST match the module IDs defined in LexMap's `lexmap.policy.json`.
+> Every policy-backed module name in `module_scope` MUST match a module ID defined in LexMap's
+> `lexmap.policy.json`.
 
-Atlas Frames rely on this rule. If module IDs drift, Atlas Frames break.
+When no policy-backed module applies, the write contract permits the exact singleton fallback
+`["workspace/unscoped"]`. It cannot be mixed with policy-backed IDs. Policy Neighborhoods rely on
+valid policy-backed IDs; if those IDs drift, neighborhood enrichment fails.
 
 ### LexMap Integration
 
@@ -467,18 +483,19 @@ Mind Palace requires LexMap for:
 - Adjacency graphs
 - Policy boundaries
 
-Without LexMap, you still get basic recall (via keywords/tickets), but **no Atlas Frames**.
+Without policy, you still get core recall via keywords and metadata, but no Policy Neighborhood.
 
 ## Privacy and Data Storage
 
 Mind Palace follows Lex's local-first principles:
 
 - **Reference points** - stored in local database (e.g. `/srv/lex-brain/thoughts.db`)
-- **Atlas Frames** - stored alongside Frames, same local database
+- **Policy Neighborhoods** - generated from authorized policy; not durable Frame data by default
 - **No upload by default** - everything stays on your machine
 - **Intentional capture** - you control when reference points are created
 
-If you enable optional sync (e.g. to your own S3 bucket), reference points and Atlas Frames are included in the backup.
+If you back up or migrate Frames, legacy `atlas_frame_id` values round-trip as opaque compatibility
+data. The policy used to generate a neighborhood must be managed separately.
 
 ## Next Steps
 

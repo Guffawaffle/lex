@@ -200,9 +200,9 @@ lex recall --list
 lex recall --list 20
 ```
 
-### Atlas Frame Configuration
+### Policy Neighborhood configuration
 
-**Fold Radius**: Controls how many "hops" away from module scope to include in Atlas Frame
+**Fold Radius**: Controls how many policy-graph hops away from module scope to include
 
 ```bash
 # Default radius (1 hop)

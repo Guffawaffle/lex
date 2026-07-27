@@ -182,7 +182,7 @@ export const FrameSchema = z.object({
   /** Searchable keywords for recall */
   keywords: z.array(z.string()).optional(),
 
-  /** CodeAtlas reference */
+  /** Opaque reference to a legacy Policy Neighborhood snapshot */
   atlas_frame_id: z.string().optional(),
 
   /** Active feature flags */

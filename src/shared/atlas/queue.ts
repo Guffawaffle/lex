@@ -1,8 +1,9 @@
 /**
- * Atlas Rebuild Queue - Async rebuild infrastructure
+ * Frame Graph rebuild queue - async rebuild infrastructure
  *
- * Provides event-driven Atlas rebuild with debouncing to handle
+ * Provides event-driven Frame Graph rebuild with debouncing to handle
  * rapid Frame ingestion without blocking operations.
+ * Public symbols retain legacy Atlas compatibility names.
  *
  * Features:
  * - Event-driven: Frame ingestion triggers rebuild via callbacks
@@ -16,7 +17,7 @@ import { rebuildAtlas, type Atlas } from "./rebuild.js";
 import { validateAtlas } from "./validate.js";
 
 /**
- * Callback functions for Atlas rebuild events
+ * Callback functions for Frame Graph rebuild events
  */
 export interface AtlasRebuildCallbacks {
   onFrameIngested?: (frame: Frame) => void;
@@ -32,7 +33,7 @@ export interface AtlasRebuildQueueConfig {
   /** Debounce interval in milliseconds (default: 5000 = 5s) */
   debounceMs?: number;
 
-  /** Whether to validate Atlas after rebuild (default: true) */
+  /** Whether to validate the Frame Graph after rebuild (default: true) */
   validateAfterRebuild?: boolean;
 
   /** Callback to fetch all frames for rebuild */
@@ -43,9 +44,9 @@ export interface AtlasRebuildQueueConfig {
 }
 
 /**
- * Atlas Rebuild Queue
+ * Frame Graph rebuild queue through a legacy class name
  *
- * Manages async Atlas rebuilds triggered by Frame ingestion events.
+ * Manages async Frame Graph rebuilds triggered by Frame ingestion events.
  * Implements debouncing to batch rapid Frame ingestions.
  *
  * Usage:
@@ -122,7 +123,7 @@ export class AtlasRebuildQueue {
       // Fetch all frames
       const frames = await Promise.resolve(this.config.fetchFrames());
 
-      // Rebuild Atlas
+      // Rebuild the Frame Graph
       const atlas = rebuildAtlas(frames);
 
       // Validate if configured
@@ -169,14 +170,14 @@ export class AtlasRebuildQueue {
 }
 
 /**
- * Create a simple Atlas rebuild queue
+ * Create a simple Frame Graph rebuild queue
  *
  * Convenience factory function for creating a queue with sensible defaults.
  *
  * @param fetchFrames - Function to fetch all frames
  * @param debounceMs - Debounce interval in milliseconds (default: 5000)
  * @param callbacks - Event callbacks
- * @returns Atlas rebuild queue
+ * @returns Frame Graph rebuild queue through the legacy AtlasRebuildQueue shape
  */
 export function createAtlasRebuildQueue(
   fetchFrames: () => Promise<Frame[]> | Frame[],

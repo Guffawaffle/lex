@@ -156,7 +156,7 @@ export function computeFoldRadius(
     }
   }
 
-  // Create Atlas Frame
+  // Create the Policy Neighborhood compatibility value
   const atlasFrame: AtlasFrame = {
     atlas_timestamp: new Date().toISOString(),
     seed_modules: seedModules,

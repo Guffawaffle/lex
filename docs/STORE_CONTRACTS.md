@@ -176,10 +176,10 @@ The ordinary runtime binder and standard MCP server expose none of these adminis
 PostgreSQL read-only mode is an application-level no-write contract rather than a replacement for
 database permissions.
 
-## CodeAtlasStore (@experimental)
+## Code Index store (`CodeAtlasStore`, @experimental)
 
-Experimental interface for Code Atlas data. It does not yet carry the stability guarantees of the
-Frame and scope-bound store contracts.
+Experimental interface for Code Index data. The type keeps its legacy compatibility name and does
+not yet carry the stability guarantees of the Frame and scope-bound store contracts.
 
 ## Extension Points
 
@@ -189,4 +189,4 @@ for testing).
 ## See Also
 
 - `src/memory/store/frame-store.ts` — Interface definition
-- `src/memory/store/code-atlas-store.ts` — Experimental Atlas interface
+- `src/memory/store/code-atlas-store.ts` — Experimental Code Index interface

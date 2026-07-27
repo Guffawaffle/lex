@@ -39,12 +39,13 @@ export interface BatchOptions {
 
   /**
    * Optional callback to trigger after successful batch ingestion.
-   * This is commonly used to schedule Atlas rebuilds after external writes.
+   * This is commonly used to schedule Frame Graph rebuilds after external writes.
    * The callback receives the batch result and is only called on success.
    *
    * @example
    * ```typescript
    * import { insertFramesBatch } from '@smartergpt/lex/memory';
+   * // Legacy compatibility name for the Frame Graph rebuild trigger:
    * import { triggerAtlasRebuild } from '@smartergpt/lex/atlas';
    *
    * const result = await insertFramesBatch(store, frames, {

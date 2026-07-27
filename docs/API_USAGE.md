@@ -117,7 +117,7 @@ publish its internal HTTP ingestion server as a supported package entry point.
 ## Where policy fits
 
 ```text
-repository paths ──→ module IDs ──→ Frame attribution and Atlas neighborhoods
+repository paths ──→ module IDs ──→ Frame attribution and Policy Neighborhoods
                               └──→ scanner facts checked against boundaries
 ```
 
@@ -126,7 +126,8 @@ workspace. Keep those decisions separate.
 
 ## See also
 
-- [Atlas guide](./atlas/README.md)
+- [Policy Neighborhood and Code Index guide](./atlas/README.md)
+- [Atlas terminology map](./ATLAS_TERMINOLOGY.md)
 - [Runtime scope contract](./RUNTIME_SCOPE_CONTRACT.md)
 - [Public package API](./PUBLIC_API.md)
 - [Contract surface](./CONTRACT_SURFACE.md)

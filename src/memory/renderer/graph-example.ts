@@ -6,7 +6,7 @@ import { join } from "path";
 
 const logger = getLogger("memory:renderer:graph-example");
 
-// Create example Atlas Frame based on the test policy
+// Create an example Policy Neighborhood based on the test policy
 const exampleAtlasFrame: AtlasFrame = {
   atlas_timestamp: new Date().toISOString(),
   seed_modules: ["ui/admin-panel"],

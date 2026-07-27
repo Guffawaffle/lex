@@ -1,5 +1,5 @@
 /**
- * CodeAtlasStore — persistence contract for Code Atlas data
+ * CodeAtlasStore — legacy-named persistence contract for Code Index data
  *
  * @experimental
  * This interface is EXPERIMENTAL for 1.0.0. It may change in 1.0.x or 1.1
@@ -11,7 +11,7 @@ import type { CodeAtlasRun } from "../../atlas/schemas/code-atlas-run.js";
 
 /**
  * @experimental
- * CodeAtlasStore — persistence contract for Code Atlas data.
+ * CodeAtlasStore — legacy-named persistence contract for Code Index data.
  *
  * This interface is EXPERIMENTAL for 1.0.0. It may change in 1.0.x or 1.1
  * without semver breakage guarantees.

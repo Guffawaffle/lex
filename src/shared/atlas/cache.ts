@@ -1,7 +1,7 @@
 /**
- * Atlas Frame Caching
+ * Policy Neighborhood caching through legacy AtlasFrame names
  *
- * Caches computed Atlas Frames by (module_scope, radius) key to avoid
+ * Caches computed Policy Neighborhoods by (module_scope, radius) key to avoid
  * redundant graph traversals. Tracks cache hits/misses for performance monitoring.
  */
 
@@ -24,7 +24,7 @@ export interface CacheStats {
 }
 
 /**
- * In-memory cache for Atlas Frames
+ * In-memory cache for Policy Neighborhoods
  *
  * Uses LRU eviction when cache size exceeds maxSize.
  * Cache keys are based on sorted module_scope + radius for consistency.
@@ -41,7 +41,7 @@ export class AtlasFrameCache {
   };
 
   /**
-   * Create a new Atlas Frame cache
+   * Create a new Policy Neighborhood cache
    *
    * @param maxSize - Maximum number of entries to cache (default: 100)
    */
@@ -61,7 +61,7 @@ export class AtlasFrameCache {
   }
 
   /**
-   * Get cached Atlas Frame if available
+   * Get a cached Policy Neighborhood if available
    *
    * @param moduleScope - Module IDs to look up
    * @param radius - Fold radius
@@ -84,11 +84,11 @@ export class AtlasFrameCache {
   }
 
   /**
-   * Store Atlas Frame in cache
+   * Store a Policy Neighborhood in cache
    *
    * @param moduleScope - Module IDs
    * @param radius - Fold radius
-   * @param frame - Computed Atlas Frame
+   * @param frame - Computed Policy Neighborhood
    */
   set(moduleScope: string[], radius: number, frame: AtlasFrame): void {
     const key = this.getCacheKey(moduleScope, radius);
@@ -177,7 +177,7 @@ export class AtlasFrameCache {
 /**
  * Global cache instance
  *
- * Shared across all Atlas Frame generation calls.
+ * Shared across all Policy Neighborhood generation calls.
  * Can be disabled by setting enableCache = false.
  */
 let globalCache: AtlasFrameCache | null = new AtlasFrameCache();

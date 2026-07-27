@@ -29,7 +29,7 @@ Lex is a durable context and repository-policy layer for coding agents:
   branches or tickets, and module scope.
 - Recall retrieves prior checkpoints.
 - Context produces bounded, prompt-safe, read-only agent bootstrap material.
-- Optional policy and Atlas features add repository boundaries and nearby module context.
+- Optional policy and Policy Neighborhood features add repository boundaries and nearby context.
 - SQLite is the default local store. PostgreSQL and trusted tenant/workspace authority are advanced,
   explicit deployment choices.
 
@@ -73,7 +73,7 @@ Evaluate capabilities independently:
 | One meaningful checkpoint survives sessions | Frame remember/recall with local SQLite |
 | Bounded session-start context | `lex context` |
 | Repository module boundaries | Policy |
-| Nearby dependency/dependent context | Atlas |
+| Nearby dependency/dependent context | Policy Neighborhood |
 | Host-specific assistant instruction projection | Instructions |
 | MCP client access | Lex-MCP |
 | Shared cross-host or tenant-scoped storage | PostgreSQL and trusted runtime scope |

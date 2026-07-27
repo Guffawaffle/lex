@@ -194,7 +194,7 @@ lex --json context --branch main --limit 5
 | Small session-start context | Read-only `lex context` | [Agent Continuity](./docs/AGENT_CONTINUITY.md) |
 | MCP access from an assistant | `@smartergpt/lex-mcp` | [MCP setup](./README.mcp.md) |
 | Repository boundaries | Policy checks | [Policy usage](./docs/API_USAGE.md) |
-| Nearby module context | Atlas | [Atlas guide](./docs/atlas/README.md) |
+| Nearby module context | Policy Neighborhood | [Context guide](./docs/atlas/README.md) |
 | Canonical assistant instructions | Instructions projection | [Instructions](./docs/INSTRUCTIONS.md) |
 | Typed Markdown project knowledge | Derived KnowledgeFrame snapshots | [KnowledgeFrames](./docs/KNOWLEDGE_FRAMES.md) |
 | Shared cross-host storage | PostgreSQL | [Store contracts](./docs/STORE_CONTRACTS.md) and [scope security](./docs/POSTGRES_SCOPE_SECURITY.md) |
@@ -239,7 +239,7 @@ their explicit package relationships:
 
 | Project | Responsibility | Relationship |
 |---|---|---|
-| **Lex** | Durable work context, repository policy, Atlas, instructions, and scoped Frame storage | Core library and CLI |
+| **Lex** | Durable work context, repository policy, optional neighborhood context, instructions, and scoped Frame storage | Core library and CLI |
 | [**AXF**](https://github.com/Guffawaffle/axf) | Inspectable workspace capabilities and their execution boundaries | Independently usable; composes with Lex |
 | [**LexRunner**](https://github.com/Guffawaffle/lexrunner) | Fanout, attempts, worker/workspace coordination, verification, and merge-weave | Consumes Lex for continuity |
 | [**Lex-MCP**](https://github.com/Guffawaffle/lex-mcp) | Thin MCP transport for Lex capabilities | Pins the matching Lex release |

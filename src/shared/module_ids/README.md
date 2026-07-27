@@ -21,7 +21,7 @@ When you `/recall TICKET-123`, the system:
 1. Retrieves the Frame from `memory/store/`
 2. Extracts `module_scope` from the Frame
 3. Calls `shared/atlas/` to get the fold-radius neighborhood from policy
-4. Returns both Frame (temporal) + Atlas Frame (spatial)
+4. Returns both the Frame (temporal) and optional Policy Neighborhood (spatial)
 
 If `module_scope` references a module that doesn't exist in policy, step 3 fails.
 

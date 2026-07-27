@@ -75,5 +75,5 @@ For the full story—told from a model's perspective—read the essay:
 ## Related Reading
 
 - [Lex Architecture](../ARCHITECTURE.md) — How Lex structures memory and policy
-- [Frames & Atlas](../research/) — The episodic memory model underlying receipts
+- [Frames and derived context](../research/) — The episodic memory model underlying receipts
 - [Policy Files](../specs/) — How boundaries are encoded in Lex

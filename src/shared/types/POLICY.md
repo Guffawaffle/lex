@@ -16,7 +16,7 @@ Each module has a unique ID (e.g., `"ui/user-admin-panel"`, `"services/auth-core
 ### Optional fields (policy boundaries)
 
 - **`coords`** (array of 2 numbers): Spatial coordinates for visual layout (e.g., `[0, 2]`)
-  - Used by `shared/atlas/` to render Atlas Frames with proper positioning
+  - Used by `shared/atlas/` to render Policy Neighborhoods with proper positioning
 
 - **`allowed_callers`** (array of strings): Module IDs that are allowed to call this module
   - Empty array `[]` means no one can call this (e.g., UI components should not be called by backend)

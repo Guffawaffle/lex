@@ -209,7 +209,7 @@ Each rendered memory card includes:
 5. **Keywords** (if present)
 
 6. **Optional Fields**
-   - Atlas Frame ID (if present)
+   - Legacy Policy Neighborhood reference (if present)
    - Raw context (logs, diffs, etc.)
 
 ## Default Dimensions

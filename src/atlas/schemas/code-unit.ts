@@ -1,5 +1,5 @@
 /**
- * CodeUnit Schema - Atomic unit of the Code Atlas
+ * CodeUnit schema - atomic unit of the experimental Code Index
  *
  * Zod schema with TypeScript type exports for code discovery and indexing.
  * Part of Code Atlas Epic (CA-001) - Layer 0: Schema

@@ -89,7 +89,7 @@ interface BatchOptions {
 
   /**
    * Optional callback to trigger after successful batch ingestion.
-   * This is commonly used to schedule Atlas rebuilds after external writes.
+   * This is commonly used to schedule Frame Graph rebuilds after external writes.
    * The callback receives the batch result and is only called on success.
    */
   onSuccess?: (result: BatchIngestionResult) => void | Promise<void>;
@@ -334,9 +334,10 @@ const result = await insertFramesBatch(store, validatedFrames, {
 });
 ```
 
-### 5. Trigger Atlas Rebuild After Batch Ingestion (L-EXE-004)
+### 5. Trigger a Frame Graph rebuild after batch ingestion (L-EXE-004)
 
-Use the `onSuccess` callback to schedule Atlas rebuilds after successful batch writes:
+Use the `onSuccess` callback to schedule Frame Graph rebuilds after successful batch writes. The
+current public function retains its legacy `triggerAtlasRebuild` name:
 
 ```typescript
 import { insertFramesBatch } from '@smartergpt/lex/memory';
@@ -344,9 +345,9 @@ import { triggerAtlasRebuild } from '@smartergpt/lex/atlas';
 
 const result = await insertFramesBatch(store, frames, {
   onSuccess: async (batchResult) => {
-    console.log(`Batch ingested ${batchResult.count} frames, triggering Atlas rebuild...`);
+    console.log(`Batch ingested ${batchResult.count} frames, triggering Frame Graph rebuild...`);
     
-    // Schedule Atlas rebuild (non-blocking, debounced)
+    // Schedule Frame Graph rebuild (non-blocking, debounced)
     await triggerAtlasRebuild();
   }
 });
@@ -361,11 +362,11 @@ const result = await insertFramesBatch(store, frames, {
 **When to use:**
 - After bulk Frame imports that should update derived views
 - When external orchestrators need to trigger downstream processing
-- For high-volume data ingestion that requires periodic Atlas updates
+- For high-volume data ingestion that requires periodic Frame Graph updates
 
 **When NOT to use:**
 - For individual Frame writes (use `notifyFrameIngested()` instead)
-- When Atlas rebuild should happen independently of Frame writes
+- When Frame Graph rebuild should happen independently of Frame writes
 
 ### 6. Always Close the Store
 
@@ -396,12 +397,14 @@ try {
 - `validateFramePayload()`: Standalone validation (no persistence)
 - `insertFramesBatch()`: Combines validation + persistence in one call
 
-### vs. Atlas Rebuild APIs
+### vs. Frame Graph rebuild APIs
 
-Batch ingestion writes Frames to storage. Atlas rebuilding creates derived views from those Frames:
+Batch ingestion writes Frames to storage. Frame Graph rebuilding creates a derived view from those
+Frames:
 
 - **Writing Frames**: Use `insertFramesBatch()` to persist Frame data
-- **Rebuilding Atlas**: Use `triggerAtlasRebuild()` to update derived views from Frames
+- **Rebuilding the Frame Graph**: Use legacy-named `triggerAtlasRebuild()` to update the derived
+  relationships
 - **Integration**: Use `onSuccess` callback to automatically trigger rebuilds after batch writes
 
 **Key distinction:**
@@ -409,7 +412,7 @@ Batch ingestion writes Frames to storage. Atlas rebuilding creates derived views
 // Writing Frames (primary data)
 const result = await insertFramesBatch(store, frames);
 
-// Rebuilding Atlas (derived views from all Frames in store)
+// Rebuilding the Frame Graph (derived view from all Frames in store)
 await triggerAtlasRebuild();
 
 // Combined: Write Frames + trigger rebuild
@@ -420,7 +423,8 @@ const result = await insertFramesBatch(store, frames, {
 });
 ```
 
-See the [Atlas Rebuild documentation](./ATLAS_REBUILD.md) for details on rebuild scheduling and debouncing.
+See the [terminology map](./ATLAS_TERMINOLOGY.md) for the Frame Graph ownership and compatibility
+boundary.
 
 ## Migration Guide
 
