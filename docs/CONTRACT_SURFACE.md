@@ -17,10 +17,15 @@ paths, and historical `lex/...` imports are internal. See the exact
 | Frames | `@smartergpt/lex/types` | Frame Schema v7 |
 | Frame stores | `@smartergpt/lex/store` | Compatibility and scope-bound adapters |
 | Repository policy | `@smartergpt/lex/policy` | Zod-validated module/path relationships |
-| Atlas | `@smartergpt/lex/atlas` | Policy neighborhoods and experimental extraction surfaces |
+| Policy Neighborhood | `@smartergpt/lex/atlas` (compatibility path) | Optional bounded policy context |
+| Code Index | `code-atlas`, `atlas_analyze`, and `@smartergpt/lex/atlas/*` compatibility surfaces | Experimental source/symbol extraction |
+| Frame Graph | `@smartergpt/lex/atlas` (compatibility path) | Derived historical Frame relationships; no production caller identified |
 | CLI events | `@smartergpt/lex/cli-output` plus published schema | `CliEvent` v1 |
 | MCP | `@smartergpt/lex/mcp-server` | Embeddable server and deterministic tool schemas |
 | Instructions | CLI plus `lex.yaml`/marker contracts | Canonical source projected into host files |
+
+The three legacy Atlas-named families are inventoried separately in the
+[terminology and compatibility map](./ATLAS_TERMINOLOGY.md).
 
 ## Trusted runtime scope
 
@@ -119,7 +124,7 @@ tenant authority. See [Lex MCP](../README.mcp.md).
 
 ## Experimental surfaces
 
-Code Atlas persistence and `@smartergpt/lex/lexsona` expose useful integration points but retain
+Code Index persistence and `@smartergpt/lex/lexsona` expose useful integration points but retain
 explicit experimental status in their source contracts. Their declared package entry points are
 real and supported as import paths; experimental behavior inside them may require an explicit
 stabilization decision before external consumers should rely on it broadly.
@@ -157,7 +162,7 @@ A Lex-aware runner or tool should:
 [LexRunner](https://github.com/Guffawaffle/lexrunner) is the source-available orchestration engine
 used alongside Lex for fanout, attempts, verification, workspace coordination, and merge-weave.
 It consumes Lex contracts but does not define them, and it is not required for the Lex CLI,
-SQLite, policy, Atlas, instruction, or MCP workflows.
+SQLite, policy, Policy Neighborhood, Code Index, Frame Graph, instruction, or MCP workflows.
 
 If a published contract is ambiguous, file an issue with the package version, public entry point,
 expected invariant, and a minimal consumer example.

@@ -54,7 +54,7 @@ Every non-interactive Frame write needs a summary and one module strategy:
 
 Inference considers changed paths, intent terms, the current branch, and recent Frames. The stored
 `module_attribution` receipt records `explicit`, `inferred`, or `fallback`, its confidence, and
-bounded evidence. The fallback uses the canonical `workspace/unscoped` Atlas anchor.
+bounded evidence. The fallback uses the canonical `workspace/unscoped` policy-context anchor.
 
 `--skip-policy` skips ontology validation only; it does not make required fields optional.
 

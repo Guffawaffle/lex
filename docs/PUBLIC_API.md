@@ -24,9 +24,9 @@ and compiles imports for every declaration path.
 | `@smartergpt/lex/runtime-scope` | Trusted identity, authority, binding, and diagnostics |
 | `@smartergpt/lex/errors` | AXError schemas, codes, and hints |
 | `@smartergpt/lex/policy` | Policy loading and validation |
-| `@smartergpt/lex/atlas` | Atlas generation and graph operations |
+| `@smartergpt/lex/atlas` | Legacy compatibility barrel for Policy Neighborhood, Frame Graph, and Code Index |
 | `@smartergpt/lex/atlas/code-unit` | Code-unit schemas and validation |
-| `@smartergpt/lex/atlas/schemas` | Atlas persistence schemas |
+| `@smartergpt/lex/atlas/schemas` | Code Index run and policy-seed schemas |
 | `@smartergpt/lex/module-ids` | Module identifier validation |
 | `@smartergpt/lex/aliases` | Module alias resolution |
 | `@smartergpt/lex/store` | Legacy FrameStore and authorized scoped persistence adapters |
@@ -49,10 +49,14 @@ and compiles imports for every declaration path.
 | `@smartergpt/lex/schemas/profile.schema.json` | Lex profile JSON Schema |
 
 The export path itself is stable once declared. Individual symbols may carry a narrower explicit
-status: `@smartergpt/lex/lexsona` and Code Atlas persistence currently identify experimental
+status: `@smartergpt/lex/lexsona` and Code Index persistence currently identify experimental
 behavior in their source contracts. Consumers should not infer full behavioral stabilization from
 path availability alone; promoting or breaking those experimental symbols still requires an
 explicit contract decision and release note.
+
+The `atlas` package path is a compatibility umbrella, not one subsystem. Its current symbol
+families and migration order are classified in the
+[Atlas terminology map](./ATLAS_TERMINOLOGY.md).
 
 ## Trusted storage boundary
 

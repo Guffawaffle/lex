@@ -1,5 +1,5 @@
 /**
- * Graph rendering for Atlas Frames
+ * Graph rendering for Policy Neighborhoods through legacy AtlasFrame shapes
  * Generates SVG visualizations showing module nodes, dependency edges,
  * and visual indicators for allowed vs forbidden connections.
  */
@@ -119,7 +119,7 @@ function calculateNodeRadius(module: AtlasModule, edges: AtlasEdge[]): number {
 }
 
 /**
- * Render Atlas Frame as SVG graph
+ * Render a Policy Neighborhood as an SVG graph
  */
 export function renderAtlasFrameGraph(
   atlasFrame: AtlasFrame,

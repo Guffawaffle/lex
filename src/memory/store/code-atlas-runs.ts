@@ -1,5 +1,5 @@
 /**
- * Code Atlas Runs storage queries
+ * Code Index run storage queries through legacy CodeAtlasRun names
  *
  * CRUD operations for CodeAtlasRun provenance records.
  */

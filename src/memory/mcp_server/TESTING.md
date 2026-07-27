@@ -111,7 +111,7 @@ Based on the issue requirements:
 | Metric | Before (Exact Only) | After (With Fuzzy) | Target |
 |--------|---------------------|-------------------|--------|
 | Validation time | ~0.5ms | ~0.5ms (exact path) | <5% regression |
-| Atlas Frame generation | ~10ms | ~10ms (unchanged) | <5% regression |
+| Policy Neighborhood generation | ~10ms | ~10ms (unchanged) | <5% regression |
 | Memory overhead | None | ~10KB (policy cache) | <50KB |
 | Fuzzy fallback | N/A | ~2ms worst case | <5ms |
 

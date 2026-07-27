@@ -1,5 +1,5 @@
 /**
- * Type definitions for Atlas Frame and Policy Graph
+ * Legacy AtlasFrame type definitions for Policy Neighborhoods and policy graphs
  *
  * These types represent the spatial neighborhood extraction from policy graphs.
  */
@@ -40,7 +40,7 @@ export interface Graph {
 }
 
 /**
- * Module data in Atlas Frame output
+ * Module data in Policy Neighborhood output
  */
 export interface AtlasModuleData {
   id: string;
@@ -53,7 +53,7 @@ export interface AtlasModuleData {
 }
 
 /**
- * Edge data in Atlas Frame output
+ * Edge data in Policy Neighborhood output
  */
 export interface AtlasEdge {
   from: string;
@@ -63,7 +63,7 @@ export interface AtlasEdge {
 }
 
 /**
- * Atlas Frame - spatial neighborhood around seed modules
+ * Policy Neighborhood compatibility shape around seed modules
  */
 export interface AtlasFrame {
   atlas_timestamp: string; // ISO 8601

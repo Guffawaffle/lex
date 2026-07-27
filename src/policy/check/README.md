@@ -127,7 +127,8 @@ Detects anti-patterns that are scheduled for removal.
 
 ### Text Format (Default)
 
-Human-readable output with Atlas Frame context showing relevant policy neighborhood.
+Human-readable output with Policy Neighborhood context. The current output label remains
+`Atlas Frame` for compatibility.
 
 ```
 ❌ Found 2 violation(s):
@@ -191,9 +192,10 @@ Formatted report suitable for PR comments and documentation.
   - Module ui/admin-panel calls services/auth-core but is forbidden
 ```
 
-## Atlas Frame Context
+## Policy Neighborhood context
 
-Each violation report includes Atlas Frame context, showing the relevant policy neighborhood around the violating module. This helps developers understand:
+Each violation report includes bounded Policy Neighborhood context around the violating module.
+This helps developers understand:
 
 - Which modules are involved
 - What the policy relationships are
@@ -249,4 +251,4 @@ The test suite includes 19 test cases covering:
 
 - Depends on: `src/shared/types/` (TypeScript type definitions)
 - Depends on: `src/policy/merge/` (Scanner merge output types)
-- Depends on: `src/shared/atlas/` (Atlas Frame generation)
+- Depends on: `src/shared/atlas/` (Policy Neighborhood generation)

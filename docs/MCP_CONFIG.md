@@ -167,12 +167,15 @@ that pin through their normal Lex/Lex-MCP compatibility review.
 
 Once configured, the following MCP tools are available:
 
+Legacy compatibility names are classified in the
+[Atlas terminology ownership map](./ATLAS_TERMINOLOGY.md).
+
 - `frame_create` - Store a deliberate Frame
 - `frame_search` - Search past Frames
 - `frame_get` - Retrieve a specific frame
 - `frame_list` - List recent frames
 - `frame_validate` - Validate frame input
-- `atlas_analyze` - Analyze code dependencies
+- `atlas_analyze` - Compatibility name for experimental Code Index dependency analysis
 - `timeline_show` - Show work timeline
 - `hints_get` - Get hint details
 - `help` - Get usage guidance

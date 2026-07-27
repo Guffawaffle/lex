@@ -79,7 +79,7 @@
       "exposes": ["computeFoldRadius", "generateAtlasFrame"],
       "allowed_callers": ["memory/mcp", "cli"],
       "forbidden_callers": ["policy/scanners"],
-      "notes": "Atlas Frame generation - fold-radius spatial neighborhood extraction"
+      "notes": "Policy Neighborhood generation through legacy AtlasFrame APIs"
     },
     "shared/module_ids": {
       "coords": [1, 3],

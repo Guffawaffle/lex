@@ -83,8 +83,8 @@ lex remember --branch custom-branch ...
 
 When you `/recall` a Frame, the system:
 1. Retrieves the Frame from `store/`
-2. Calls `shared/atlas/` to get the fold-radius neighborhood for `module_scope`
-3. Returns both the Frame (temporal anchor) and Atlas Frame (spatial anchor)
+2. Calls the Policy Neighborhood compatibility code in `shared/atlas/` for `module_scope`
+3. Returns both the Frame (temporal anchor) and optional Policy Neighborhood (spatial anchor)
 4. Optionally renders a visual memory card with embedded images
 
 This gives context with receipts: "here's what you were doing + here's the policy boundaries that were blocking you."
@@ -147,7 +147,7 @@ When you create a Frame with `/remember`, the system:
 Without strict validation, vocabulary drift occurs:
 - Frame says `["auth-core"]`
 - Policy defines `"services/auth-core"`
-- `/recall` fails because Atlas Frame can't find the module in the policy graph
+- Policy Neighborhood enrichment fails because the module is absent from the policy graph
 
 Validation enforces a **single source of truth** for module naming.
 

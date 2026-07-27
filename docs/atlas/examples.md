@@ -1,6 +1,10 @@
-# Code Atlas Examples
+# Code Index and Policy Neighborhood examples
 
-Practical examples for using Code Atlas in various scenarios.
+The extraction examples use the experimental Code Index through legacy `code-atlas` names. The
+recall examples use Policy Neighborhoods through legacy `AtlasFrame` APIs. They are independent;
+see the [terminology map](../ATLAS_TERMINOLOGY.md).
+
+Practical examples for Code Index extraction and Policy Neighborhood recall.
 
 ---
 
@@ -9,8 +13,8 @@ Practical examples for using Code Atlas in various scenarios.
 1. [Extract Local Repository](#1-extract-local-repository)
 2. [Ingest via HTTP API](#2-ingest-via-http-api)
 3. [Query Code Units](#3-query-code-units)
-4. [Generate Atlas Frame](#4-generate-atlas-frame)
-5. [Policy-Aware Recall](#5-policy-aware-recall)
+4. [Generate a Policy Neighborhood](#4-generate-a-policy-neighborhood)
+5. [Recall with a Policy Neighborhood](#5-recall-with-a-policy-neighborhood)
 6. [Auto-Tune Token Limits](#6-auto-tune-token-limits)
 7. [Integration with LexRunner](#7-integration-with-lexrunner)
 
@@ -211,14 +215,14 @@ echo '{
 
 ---
 
-## 4. Generate Atlas Frame
+## 4. Generate a Policy Neighborhood
 
 ### Basic Generation
 
 ```typescript
 import { generateAtlasFrame } from '@smartergpt/lex/shared/atlas';
 
-// Generate Atlas Frame with 1-hop radius
+// Generate a Policy Neighborhood with 1-hop radius
 const atlasFrame = generateAtlasFrame(
   ['ui/user-admin-panel'],  // seed modules
   1                          // fold radius
@@ -282,15 +286,15 @@ console.log(JSON.stringify(atlasFrame, null, 2));
 
 ---
 
-## 5. Policy-Aware Recall
+## 5. Recall with a Policy Neighborhood
 
-### CLI Recall with Atlas Context
+### CLI recall with Policy Neighborhood context
 
 ```bash
 # Basic recall (1-hop radius by default)
 lex recall "auth middleware"
 
-# Output includes Atlas Frame:
+# Compatibility output includes the legacy Atlas Frame label:
 # 📌 Found 1 frame matching 'auth middleware'
 # 
 # Reference: implementing auth middleware
@@ -334,14 +338,14 @@ const frames = await searchFrames(db, {
 if (frames.length > 0) {
   const frame = frames[0];
   
-  // Generate Atlas Frame for the recalled frame
+  // Generate a Policy Neighborhood for the recalled Frame
   const atlasFrame = generateAtlasFrame(
     frame.moduleScope,
     1  // fold radius
   );
   
   console.log('Recalled frame:', frame.referencePoint);
-  console.log('Atlas neighborhood:', atlasFrame.modules.map(m => m.id));
+  console.log('Policy Neighborhood:', atlasFrame.modules.map(m => m.id));
   
   // Check for forbidden edges
   const forbidden = atlasFrame.edges.filter(e => !e.allowed);
@@ -387,7 +391,7 @@ const result = autoTuneRadius(
 
 console.log(`Final radius: ${result.radiusUsed}`);
 console.log(`Tokens used: ${result.tokensUsed}`);
-console.log(`Atlas Frame:`, result.atlasFrame);
+console.log(`Policy Neighborhood:`, result.atlasFrame);
 
 // Manual token estimation
 const frame = generateAtlasFrame(['services/auth'], 2);
@@ -416,7 +420,11 @@ console.log(`Actual tokens: ${actualTokens}`);
 
 ---
 
-## 7. Integration with LexRunner
+## 7. Experimental LexRunner Policy Neighborhood integration
+
+These examples are design sketches, not evidence of a production consumer. The bounded task-packet
+experiment is tracked in
+[Guffawaffle/lexrunner#858](https://github.com/Guffawaffle/lexrunner/issues/858).
 
 ### Merge Conflict Resolution
 
@@ -429,7 +437,7 @@ interface ConflictContext {
 }
 
 async function analyzeConflict(conflict: ConflictContext) {
-  // Generate Atlas Frame for conflicting modules
+  // Generate a Policy Neighborhood for conflicting modules
   const atlasFrame = generateAtlasFrame(conflict.modules, 1);
   
   // Check for policy violations
@@ -550,7 +558,7 @@ async function completeWorkflow() {
     
     console.log(`✅ Frame captured: ${frameId}`);
     
-    // 2. Recall with Atlas context
+    // 2. Recall with Policy Neighborhood context
     const frames = await searchFrames(db, {
       referencePoint: 'payment webhook',
     });
@@ -558,14 +566,14 @@ async function completeWorkflow() {
     if (frames.length > 0) {
       const frame = frames[0];
       
-      // 3. Generate auto-tuned Atlas Frame
+      // 3. Generate an auto-tuned Policy Neighborhood
       const result = autoTuneRadius(
         (r) => generateAtlasFrame(frame.moduleScope, r),
         2,     // Start with radius 2
         3000   // Fit in 3000 tokens
       );
       
-      console.log(`\n📊 Atlas Frame (radius: ${result.radiusUsed})`);
+      console.log(`\n📊 Policy Neighborhood (radius: ${result.radiusUsed})`);
       console.log(`   Tokens: ${result.tokensUsed}`);
       console.log(`   Modules: ${result.atlasFrame.modules.length}`);
       console.log(`   Edges: ${result.atlasFrame.edges.length}`);
@@ -593,7 +601,8 @@ completeWorkflow().catch(console.error);
 
 ## See Also
 
-- [Quick Start](./README.md) — Get started with Code Atlas
+- [Compatibility guide](./README.md) — Choose Policy Neighborhood or Code Index
+- [Terminology map](../ATLAS_TERMINOLOGY.md) — Understand legacy Atlas names
 - [Full Specification](./code-atlas-v0.md) — Schema and algorithm details
 - [API Reference](./api-reference.md) — Endpoint documentation
 - [CLI Reference](../CLI_OUTPUT.md) — Command-line options

@@ -109,7 +109,7 @@ export const Frame = z.object({
   reference_point: z.string(), // Human-memorable anchor phrase
   status_snapshot: FrameStatusSnapshot,
   keywords: z.array(z.string()).optional(),
-  atlas_frame_id: z.string().optional(), // Link to Atlas Frame (spatial neighborhood)
+  atlas_frame_id: z.string().optional(), // Legacy Policy Neighborhood snapshot reference
   feature_flags: z.array(z.string()).optional(),
   permissions: z.array(z.string()).optional(),
   module_attribution: ModuleAttribution.optional(),

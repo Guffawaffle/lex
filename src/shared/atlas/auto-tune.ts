@@ -1,19 +1,19 @@
 /**
- * Token Estimation for Atlas Frames
+ * Token estimation for Policy Neighborhoods through legacy AtlasFrame shapes
  *
- * Estimates the token count of an Atlas Frame for LLM context window management.
+ * Estimates Policy Neighborhood size for LLM context-window management.
  * Uses simple heuristics based on JSON serialization size.
  */
 
 import type { AtlasFrame } from "./types.js";
 
 /**
- * Estimate the number of tokens in an Atlas Frame
+ * Estimate the number of tokens in a Policy Neighborhood
  *
  * Uses a simple heuristic: 1 token ≈ 4 characters in JSON
  * This is approximate but sufficient for auto-tuning decisions.
  *
- * @param atlasFrame - The Atlas Frame to estimate
+ * @param atlasFrame - Policy Neighborhood in the legacy AtlasFrame shape
  * @returns Estimated token count
  */
 export function estimateTokens(atlasFrame: AtlasFrame): number {
@@ -27,13 +27,13 @@ export function estimateTokens(atlasFrame: AtlasFrame): number {
  * Auto-tune fold radius to fit within token limit
  *
  * Starts with the requested radius and reduces it if the resulting
- * Atlas Frame exceeds the token limit. Stops at radius 0 (seed only).
+ * Policy Neighborhood exceeds the token limit. Stops at radius 0 (seed only).
  *
- * @param generateFn - Function that generates an Atlas Frame for a given radius
+ * @param generateFn - Function that generates a Policy Neighborhood for a radius
  * @param initialRadius - Starting radius to try
  * @param maxTokens - Maximum token count allowed
  * @param onAdjustment - Optional callback when radius is adjusted
- * @returns Object with the final Atlas Frame and radius used
+ * @returns Object with the final Policy Neighborhood and radius used
  */
 export function autoTuneRadius(
   generateFn: (radius: number) => AtlasFrame,

@@ -14,7 +14,7 @@ recalled.
 
 ## Context budgets are approximate
 
-`lex context --max-tokens` and Atlas auto-tuning use deterministic estimates, not a target model's
+`lex context --max-tokens` and Policy Neighborhood auto-tuning use deterministic estimates, not a target model's
 exact tokenizer. The budget is a practical bound for selecting and formatting context, not a
 guarantee that every model will count the result identically.
 
@@ -66,17 +66,19 @@ policy maintenance.
 
 ## Scanner coverage is partial
 
-The built-in Code Atlas extractor focuses on TypeScript/JavaScript and Python source. Policy
+The built-in Code Index extractor (legacy `code-atlas` command) focuses on TypeScript/JavaScript
+and Python source. Policy
 scanner support is language-specific; Python and PHP examples exist, while Java, C#, Go, Rust, and
 other ecosystems require additional scanner work or external fact generation.
 
 Static scanners emit structural evidence. They cannot fully model runtime dispatch, generated
 code, reflection, or every framework convention.
 
-## Code Atlas persistence remains experimental
+## Code Index persistence remains experimental
 
-The `CodeAtlasStore` extension surface is experimental. Its API may change before it receives the
-same stability guarantees as the Frame and scoped-store contracts.
+The legacy-named `CodeAtlasStore` extension surface is experimental. Its API may change before it
+receives the same stability guarantees as the Frame and scoped-store contracts. See the
+[terminology map](./ATLAS_TERMINOLOGY.md).
 
 ## Historical Frames can become stale or hostile
 

@@ -64,7 +64,7 @@ Old Frames still have `module_scope: ["services/user-access-api"]`. This ID no l
 
 **Impact:**
 - ✅ Frames are still searchable by keyword, ticket ID, reference point
-- ❌ Atlas Frame generation might fail (module not in current policy)
+- ❌ Policy Neighborhood generation might fail (module not in current policy)
 - ❌ Policy-aware queries won't work for those Frames
 
 **When to use:** Short-term refactors, or when you don't need policy reasoning on old work.
@@ -88,7 +88,7 @@ Add an alias to map old → new:
 
 **Impact:**
 - ✅ Old Frames now resolve to current module
-- ✅ Atlas Frame generation works
+- ✅ Policy Neighborhood generation works
 - ✅ Policy-aware queries work
 - ✅ No Frame data modification needed
 - ⚠️  Users typing old name get deprecation warning

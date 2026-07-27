@@ -64,7 +64,7 @@ Never store credentials, tokens, private keys, or other secrets in Frames.
 ## What is the difference between `recall` and `context`?
 
 `lex recall` retrieves Frames for a person or program to inspect. It supports compact summaries,
-listing, and Atlas-related controls.
+listing, and optional Policy Neighborhood controls.
 
 `lex context` is the bounded session-bootstrap surface. It selects a small set of relevant Frames,
 reports provenance and warnings, and enforces an approximate output budget. It uses hard read-only
@@ -89,18 +89,22 @@ describes. Choose one strategy:
 ## What does repository policy add?
 
 Policy maps stable module IDs to owned paths and allowed or forbidden relationships. Lex can use
-that vocabulary for Frame attribution, Atlas neighborhoods, and static boundary checks.
+that vocabulary for Frame attribution, Policy Neighborhoods, and static boundary checks.
 
 Policy is optional and is not an access-control system. See the [Repository Policy Guide](./API_USAGE.md).
 
-## What is Atlas?
+## What does the legacy “Atlas” name cover?
 
-Atlas turns policy relationships into a bounded neighborhood around the modules relevant to a
-Frame. It helps an agent see nearby architectural context without loading an entire repository
-graph. If no readable policy exists, core Frame recall still works without Atlas enrichment.
+Lex now distinguishes three systems that historically shared the Atlas name:
 
-Code Atlas extraction is a separate, experimental source-indexing surface. See the
-[Atlas guide](./atlas/README.md).
+- **Policy Neighborhood** turns policy relationships into bounded nearby-module context for a
+  recalled Frame. Core recall still works when policy is unavailable.
+- **Code Index** is experimental source/symbol extraction and provenance.
+- **Frame Graph** derives relationships among historical Frames and has no first-party production
+  caller today.
+
+See the [terminology and compatibility map](./ATLAS_TERMINOLOGY.md) and the
+[Policy Neighborhood and Code Index guide](./atlas/README.md).
 
 ## Do I need MCP?
 

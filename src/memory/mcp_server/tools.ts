@@ -2,7 +2,7 @@
  * MCP Tools for Frame Memory
  *
  * Defines the tools exposed via Model Context Protocol for AI assistants.
- * Each tool can search, create, or list Frames with Atlas Frame neighborhoods.
+ * Frame tools can include an optional Policy Neighborhood through legacy AtlasFrame fields.
  */
 
 export interface MCPTool {
@@ -71,7 +71,7 @@ export const MCP_TOOLS: MCPTool[] = [
         },
         atlas_frame_id: {
           type: "string",
-          description: "Reference to Atlas Frame (fold radius snapshot)",
+          description: "Legacy reference to a Policy Neighborhood snapshot",
         },
         images: {
           type: "array",
@@ -149,7 +149,7 @@ export const MCP_TOOLS: MCPTool[] = [
         },
         atlas_frame_id: {
           type: "string",
-          description: "Reference to Atlas Frame (fold radius snapshot)",
+          description: "Legacy reference to a Policy Neighborhood snapshot",
         },
         images: {
           type: "array",
@@ -175,7 +175,7 @@ export const MCP_TOOLS: MCPTool[] = [
   {
     name: "frame_search",
     description:
-      "Search Frames by reference point, branch, or Jira ticket. Returns Frame + Atlas Frame neighborhood. Alias: recall (deprecated)",
+      "Search Frames by reference point, branch, or Jira ticket. Returns a Frame plus optional Policy Neighborhood. Alias: recall (deprecated)",
     inputSchema: {
       type: "object",
       properties: {
@@ -226,7 +226,7 @@ export const MCP_TOOLS: MCPTool[] = [
         },
         include_atlas: {
           type: "boolean",
-          description: "Include Atlas Frame neighborhood in response (default: true)",
+          description: "Include Policy Neighborhood context (legacy field; default: true)",
           default: true,
         },
         format: {
@@ -241,7 +241,7 @@ export const MCP_TOOLS: MCPTool[] = [
   {
     name: "frame_list",
     description:
-      "List recent Frames, optionally filtered by branch or module. Returns Frame + Atlas Frame for each result. Alias: list_frames (deprecated)",
+      "List recent Frames, optionally filtered by branch or module. Returns each Frame plus optional Policy Neighborhood. Alias: list_frames (deprecated)",
     inputSchema: {
       type: "object",
       properties: {
@@ -329,8 +329,7 @@ export const MCP_TOOLS: MCPTool[] = [
   },
   {
     name: "atlas_analyze",
-    description:
-      "Analyze code structure and dependencies across modules. Alias: code_atlas (deprecated)",
+    description: "Extract the experimental Code Index. Legacy name; alias: code_atlas (deprecated)",
     inputSchema: {
       type: "object",
       properties: {

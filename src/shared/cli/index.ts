@@ -207,11 +207,11 @@ export function createProgram(programOptions: CreateProgramOptionsV1 = {}): Comm
     )
     .option("-q, --query <text>", "Search query (alternative to positional argument)")
     .option("--list [limit]", "List recent frames (optionally limit to N results)", parseInt)
-    .option("--fold-radius <number>", "Fold radius for Atlas Frame neighborhood", parseInt)
+    .option("--fold-radius <number>", "Fold radius for Policy Neighborhood context", parseInt)
     .option("--auto-radius", "Auto-tune radius based on token limits")
     .option(
       "--max-tokens <number>",
-      "Maximum tokens for Atlas Frame (use with --auto-radius)",
+      "Maximum tokens for Policy Neighborhood context (use with --auto-radius)",
       parseInt
     )
     .option("--cache-stats", "Show cache statistics")

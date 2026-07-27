@@ -107,13 +107,13 @@ function formatAsText(violations: Violation[], policy?: Policy): string {
   for (const [moduleId, moduleViolations] of Object.entries(byModule)) {
     output += `📦 Module: ${moduleId}\n`;
 
-    // Include Atlas Frame context with error handling
+    // Include Policy Neighborhood context with error handling
     try {
       const atlasFrame = generateAtlasFrame([moduleId], 1);
       const atlasContext = formatAtlasFrame(atlasFrame);
       output += atlasContext;
     } catch {
-      // If Atlas Frame generation fails, continue without it
+      // If Policy Neighborhood generation fails, continue without it
       output += `\n⚠️  Atlas Frame context unavailable\n`;
     }
 
@@ -187,7 +187,7 @@ function formatAsMarkdown(violations: Violation[], policy?: Policy): string {
   for (const [moduleId, moduleViolations] of Object.entries(byModule)) {
     output += `### 📦 Module: \`${moduleId}\`\n\n`;
 
-    // Include Atlas Frame context with error handling
+    // Include Policy Neighborhood context with error handling
     try {
       const atlasFrame = generateAtlasFrame([moduleId], 1);
       output += "**Atlas Frame Context:**\n";

@@ -1,5 +1,5 @@
 /**
- * Policy Seed Generator - Generate seed policy from Code Atlas data
+ * Experimental policy-seed evidence generated from Code Index data
  *
  * Part of Code Atlas Epic (CA-010) - Layer 4: Policy Integration (Stretch Goal)
  *

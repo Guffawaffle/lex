@@ -1,5 +1,5 @@
 /**
- * PolicySeed Schema - Seed policy module definitions from Code Atlas data
+ * PolicySeed schema - experimental seed module definitions from Code Index data
  *
  * Part of Code Atlas Epic (CA-010) - Layer 4: Policy Integration (Stretch Goal)
  *

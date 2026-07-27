@@ -1,7 +1,7 @@
 /**
  * CLI Command: lex recall
  *
- * Searches Frames via query, returns Frame + Atlas Frame with pretty output.
+ * Searches Frames and returns optional Policy Neighborhood context through legacy AtlasFrame data.
  */
 
 import type { Frame } from "../types/frame.js";
@@ -37,7 +37,7 @@ export interface RecallOptions {
 
 /**
  * Execute the 'lex recall' command
- * Searches for Frames and displays results with Atlas Frame context, or lists recent frames
+ * Searches for Frames and displays results with optional Policy Neighborhood context.
  *
  * @param query - Search query string (optional when using --list)
  * @param options - Command options
@@ -170,7 +170,7 @@ export async function recall(
           const compactResult = compactFrameList(frames);
           json(compactResult);
         } else {
-          // For search mode, include frames and their Atlas Frames
+          // For search mode, include Frames and their Policy Neighborhoods
           const results = [];
           for (const frame of frames) {
             const atlasResult = await generateAtlasFrameWithAutoTune(frame, options);
@@ -216,7 +216,7 @@ export async function recall(
           output.info("");
         }
       } else {
-        // Search mode: show full frame details with Atlas
+        // Search mode: show full Frame details with Policy Neighborhood context
         for (let i = 0; i < frames.length; i++) {
           if (i > 0) {
             output.info("\n" + "─".repeat(80) + "\n");
@@ -252,7 +252,7 @@ export async function recall(
 }
 
 /**
- * Display a Frame with Atlas Frame context
+ * Display a Frame with Policy Neighborhood context
  */
 async function displayFrame(frame: Frame, options: RecallOptions): Promise<void> {
   output.info(`\n📋 Frame: ${frame.jira || frame.id}`);
@@ -288,7 +288,7 @@ async function displayFrame(frame: Frame, options: RecallOptions): Promise<void>
     output.info(`\n   Keywords: ${frame.keywords.join(", ")}`);
   }
 
-  // Generate Atlas Frame with auto-tuning if enabled
+  // Generate the Policy Neighborhood with auto-tuning if enabled
   const atlasResult = await generateAtlasFrameWithAutoTune(frame, options);
 
   if (atlasResult.autoTuned) {
@@ -337,7 +337,7 @@ async function displayFrame(frame: Frame, options: RecallOptions): Promise<void>
 }
 
 /**
- * Generate Atlas Frame with auto-tuning support
+ * Generate a Policy Neighborhood with auto-tuning support
  */
 async function generateAtlasFrameWithAutoTune(
   frame: Frame,
@@ -402,7 +402,7 @@ async function generateAtlasFrameWithAutoTune(
       autoTuned: false,
     };
   } catch (error) {
-    // If Atlas Frame generation fails, continue without it
+    // If Policy Neighborhood generation fails, continue without it
     const warning = formatAtlasWarning(error);
     output.warn(warning.message, warning.data, warning.code, warning.hint);
     return {
@@ -423,7 +423,7 @@ function formatAtlasWarning(error: unknown): {
 } {
   if (isAXErrorException(error) && error.axError.code === "POLICY_NOT_FOUND") {
     return {
-      message: "Atlas policy unavailable; returning recall results without Atlas context",
+      message: "Policy unavailable; returning recall results without Policy Neighborhood context",
       code: "ATLAS_POLICY_NOT_FOUND",
       data: error.axError,
       hint: "Create .smartergpt/lex/lexmap.policy.json in the caller workspace or set LEX_POLICY_PATH.",
@@ -432,7 +432,7 @@ function formatAtlasWarning(error: unknown): {
 
   const message = error instanceof Error ? error.message : String(error);
   return {
-    message: "Could not generate Atlas Frame; returning recall results without Atlas context",
+    message: "Could not generate Policy Neighborhood; returning recall results without enrichment",
     code: "ATLAS_GEN_FAILED",
     data: { message },
     hint: message,

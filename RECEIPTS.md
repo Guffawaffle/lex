@@ -353,4 +353,4 @@ But the **default is local-only**.
 
 - [FAQ.md](./docs/FAQ.md) - Common questions about Frames and receipts
 - [ARCHITECTURE_LOOP.md](./docs/ARCHITECTURE_LOOP.md) - How LexBrain + LexMap enable policy-aware reasoning
-- [MIND_PALACE.md](./docs/MIND_PALACE.md) - Advanced recall with reference points and Atlas Frames
+- [MIND_PALACE.md](./docs/MIND_PALACE.md) - Advanced recall with reference points and Policy Neighborhoods

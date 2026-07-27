@@ -191,7 +191,7 @@ A developer or agent can:
 1. **Discover** Lex from the MCP registry
 2. **Execute** with one command (`npx @smartergpt/lex-mcp`)
 3. **Trust** outputs (clear provenance + constraints)
-4. **Use** Frames + Atlas + policy checks to reduce drift
+4. **Use** Frames + Policy Neighborhoods + policy checks to reduce drift
 
 For fanout specifically:
 

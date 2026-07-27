@@ -82,7 +82,7 @@ export interface PolicyModule {
 
   /**
    * Spatial coordinates for visual layout [x, y]
-   * Used by shared/atlas/ to render Atlas Frames with proper positioning
+   * Used by shared/atlas/ to render Policy Neighborhoods with proper positioning
    */
   coords?: [number, number];
 

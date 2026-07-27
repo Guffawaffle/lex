@@ -124,7 +124,7 @@ The merged output feeds into the policy checker (`policy/check/`), which:
 3. Checks `allowed_callers` vs. actual dependencies
 4. Reports policy violations
 
-### With Atlas Frames
+### With Policy Neighborhoods
 
 Module edges can be used to:
 - Generate architectural diagrams

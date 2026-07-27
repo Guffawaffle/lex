@@ -1,8 +1,11 @@
-# Fold Radius & Atlas Frame Export
+# Policy Neighborhood compatibility implementation
 
 **Spatial neighborhood extraction from policy graph**
 
 This module computes the "map page" around a set of modules — the minimal policy-aware context needed to understand what's happening in a Frame.
+Its public types and functions retain `AtlasFrame` compatibility names. The separate rebuild
+implementation later in this file is a historical **Frame Graph**, not policy context. See the
+[terminology map](../../../docs/ATLAS_TERMINOLOGY.md).
 
 ## Problem
 
@@ -18,7 +21,8 @@ That's **fold radius = 1**.
 ### Core Functions
 
 #### `generateAtlasFrame(seedModules, foldRadius, policyPath?)`
-Main entry point for generating an Atlas Frame. Loads the policy graph, performs BFS traversal to extract the N-hop neighborhood, generates coordinates, and returns a complete Atlas Frame with modules and edges.
+Main entry point for generating a Policy Neighborhood. It loads the policy graph, performs BFS
+traversal, generates coordinates, and returns the legacy `AtlasFrame` compatibility shape.
 
 **Parameters:**
 - `seedModules: string[]` - Module IDs from Frame.module_scope  
@@ -68,7 +72,7 @@ Implements a force-directed graph layout algorithm to assign 2D coordinates to m
 - **`fold_radius`** (number, default 1): How many hops to expand from seed modules
 - **`policy`** (object): The full `lexmap.policy.json` loaded in memory
 
-## Output: Atlas Frame
+## Output: Policy Neighborhood (`AtlasFrame` compatibility shape)
 
 ```json
 {
@@ -152,7 +156,7 @@ Tested with 100+ module policies, performs acceptably (< 1 second for typical qu
 ## Integration
 
 Called by:
-- **`memory/mcp_server`** — when returning a Frame via `/recall`, also exports Atlas Frame for `module_scope`
+- **`memory/mcp_server`** — when returning a Frame via `/recall`, also exports a Policy Neighborhood for `module_scope`
 - **`policy/check`** (future) — when showing a violation, export the neighborhood around the offending edge
 
 ## Testing
@@ -160,7 +164,7 @@ Called by:
 Run tests with:
 ```bash
 cd shared/atlas
-node atlas-frame.test.mjs  # Atlas Frame generation tests (16 tests)
+node atlas-frame.test.mjs  # Policy Neighborhood generation tests (16 tests)
 node cache.test.mjs        # Cache functionality tests (8 tests)
 node auto-tune.test.mjs    # Auto-tuning tests (12 tests)
 ```
@@ -182,7 +186,8 @@ All 36 tests passing (16 + 8 + 12).
 
 ## Caching
 
-Atlas Frames are automatically cached by `(module_scope, radius)` key to avoid redundant graph traversals.
+Policy Neighborhoods are automatically cached by `(module_scope, radius)` key through the
+legacy-named `AtlasFrameCache`.
 
 **Features:**
 - **LRU Eviction**: When cache is full, least recently used entries are evicted
@@ -218,7 +223,7 @@ lex recall TICKET-123 --cache-stats
 Automatically adjust fold radius to fit within token limits for LLM context windows.
 
 **Features:**
-- **Token Estimation**: Estimates tokens in Atlas Frame (1 token ≈ 4 chars JSON)
+- **Token Estimation**: Estimates Policy Neighborhood tokens (1 token ≈ 4 chars JSON)
 - **Adaptive Radius**: Starts at requested radius, reduces until fits in limit
 - **Logging**: Reports adjustments when radius is reduced
 
@@ -252,10 +257,10 @@ lex recall TICKET-123 --fold-radius 3 --auto-radius --max-tokens 3000
 
 ## Future work
 
-- ~~Cache Atlas Frames by `(module_scope, fold_radius)` key to avoid recomputation~~ ✅ **Implemented**
+- ~~Cache Policy Neighborhoods by `(module_scope, fold_radius)` key~~ ✅ **Implemented**
 - ~~Support variable fold radius (radius 2 for deeper context, radius 0 for just seed modules)~~ ✅ **Implemented**
 - ~~Auto-tune radius based on context window limits~~ ✅ **Implemented**
-- Render Atlas Frame as visual graph (SVG/Canvas) for memory card inclusion
+- Render a Policy Neighborhood as SVG/Canvas for memory-card inclusion
 - Optimize coordinate generation for very large graphs (> 100 modules)
 - Support different layout algorithms (hierarchical, circular, etc.)
 
@@ -310,9 +315,11 @@ The fold radius algorithm is now complete with:
 
 ---
 
-# Atlas Rebuild System (Frame Knowledge Graph)
+# Frame Graph compatibility implementation
 
-The Atlas rebuild system constructs a knowledge graph from work session snapshots (Frames), connecting them based on module scope overlap, temporal proximity, and branch relationships.
+The Frame Graph rebuild system constructs a derived graph from work session snapshots (Frames),
+connecting them based on module scope overlap, temporal proximity, and branch relationships.
+Its exported APIs currently retain `Atlas` rebuild names.
 
 ## Components
 
@@ -320,10 +327,10 @@ The Atlas rebuild system constructs a knowledge graph from work session snapshot
 Core rebuild logic with deterministic graph construction.
 
 **Key Function:**
-- `rebuildAtlas(frames: Frame[]): Atlas` - Rebuilds the complete Atlas graph from Frames
-- **Determinism Guarantee**: Same input Frames → Identical Atlas structure (regardless of input order)
+- `rebuildAtlas(frames: Frame[]): Atlas` - Rebuilds the Frame Graph through legacy names
+- **Determinism Guarantee**: Same input Frames → identical Frame Graph regardless of input order
 
-**Atlas Structure:**
+**Legacy `Atlas` shape:**
 ```typescript
 interface Atlas {
   nodes: AtlasNode[];  // Frame nodes with module_scope
@@ -343,7 +350,7 @@ interface Atlas {
 - Edge created if total weight > 0.1 (10% threshold)
 
 ### `validate.ts`
-Integrity validation for Atlas graphs.
+Integrity validation for Frame Graph values.
 
 **Key Functions:**
 - `validateAtlas(atlas: Atlas): ValidationResult` - Validates graph integrity
@@ -423,7 +430,7 @@ The rebuild algorithm ensures identical output for identical input:
 4. No timestamps or random values in graph structure
 5. All operations order-independent
 
-**Verified by tests:** Same Frames in different order → Identical Atlas ✅
+**Verified by tests:** Same Frames in different order → Identical Frame Graph ✅
 
 ## Integration Example
 
@@ -458,12 +465,12 @@ async function insertFrameWithAtlasUpdate(frame) {
 ## Future Enhancements
 
 Possible improvements (not part of current scope):
-- Persistent Atlas storage (SQLite or JSON files)
+- Persistent Frame Graph storage (SQLite or JSON files)
 - Incremental updates (add/remove single Frame without full rebuild)
 - Graph analytics (centrality, clustering, communities)
-- Time-based graph slicing (Atlas at specific point in time)
+- Time-based Frame Graph slicing
 - Export formats (GraphML, DOT, JSON-LD)
-- Web UI for Atlas visualization
+- Web UI for Frame Graph visualization
 
 ---
 

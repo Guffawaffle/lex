@@ -2,7 +2,7 @@
  * Graph Algorithms for Policy Graph Traversal
  *
  * Provides BFS/DFS traversal with hop limiting for fold radius computation.
- * Used by Atlas Frame generation to extract module neighborhoods.
+ * Used by Policy Neighborhood generation to extract nearby policy modules.
  */
 
 import type { Policy, PolicyModule } from "../types/policy.js";

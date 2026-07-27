@@ -1,7 +1,8 @@
 /**
- * Atlas Integrity Validation
+ * Frame Graph integrity validation
  *
- * Validates the structural integrity of Atlas graphs to ensure:
+ * Validates the structural integrity of historical Frame Graphs.
+ * Public symbols retain legacy Atlas compatibility names.
  * - No orphaned nodes (all nodes reachable from at least one other node or are roots)
  * - No dangling edges (all edge endpoints exist in node set)
  * - Edge weights within valid range [0, 1]
@@ -21,14 +22,14 @@ export interface ValidationResult {
 }
 
 /**
- * Validate Atlas integrity
+ * Validate Frame Graph integrity
  *
  * Performs comprehensive validation checks:
  * 1. No dangling edges (all edge endpoints exist in node set)
  * 2. No orphaned nodes (every node is reachable from at least one other node, or is a root)
  * 3. Edge weights within valid range [0, 1]
  *
- * @param atlas - Atlas graph to validate
+ * @param atlas - Frame Graph in the legacy Atlas shape
  * @returns Validation result with errors and warnings
  */
 export function validateAtlas(atlas: Atlas): ValidationResult {
@@ -102,12 +103,12 @@ export function validateAtlas(atlas: Atlas): ValidationResult {
 }
 
 /**
- * Check if all nodes in Atlas are reachable from at least one root node
+ * Check whether all Frame Graph nodes are reachable from at least one root
  *
  * A root node is a node with no incoming edges (only outgoing edges or isolated).
  * This performs a graph traversal to ensure no nodes are unreachable from the root set.
  *
- * @param atlas - Atlas graph to check
+ * @param atlas - Frame Graph in the legacy Atlas shape
  * @returns True if all nodes are reachable from roots, false otherwise
  */
 export function checkReachability(atlas: Atlas): boolean {

@@ -1,8 +1,9 @@
 /**
- * Atlas Rebuild Trigger API
+ * Frame Graph rebuild trigger API
  *
- * Provides external API for triggering Atlas rebuilds and receiving notifications.
+ * Provides an API for triggering Frame Graph rebuilds and receiving notifications.
  * This is the public interface for LexRunner and other external callers.
+ * Public symbols retain legacy Atlas compatibility names.
  *
  * Features:
  * - triggerAtlasRebuild(): Promise-based trigger that resolves on completion
@@ -17,14 +18,14 @@ import { rebuildAtlas, type Atlas } from "./rebuild.js";
 import { validateAtlas, type ValidationResult } from "./validate.js";
 
 /**
- * Result of an Atlas rebuild operation
+ * Result of a Frame Graph rebuild operation
  */
 export interface RebuildResult {
   /** Whether the rebuild completed successfully */
   success: boolean;
-  /** The rebuilt Atlas (only present on success) */
+  /** The rebuilt Frame Graph under its legacy Atlas property/type */
   atlas?: Atlas;
-  /** Validation result from Atlas integrity check */
+  /** Validation result from the Frame Graph integrity check */
   validation?: ValidationResult;
   /** Error message (only present on failure) */
   error?: string;
@@ -47,16 +48,16 @@ export type RebuildCallback = (result: RebuildResult) => void;
 export interface AtlasRebuildManagerConfig {
   /** Debounce interval in milliseconds (default: 1000 = 1s) */
   debounceMs?: number;
-  /** Whether to validate Atlas after rebuild (default: true) */
+  /** Whether to validate the Frame Graph after rebuild (default: true) */
   validateAfterRebuild?: boolean;
   /** Callback to fetch all frames for rebuild */
   fetchFrames: () => Promise<Frame[]> | Frame[];
 }
 
 /**
- * Atlas Rebuild Manager
+ * Frame Graph rebuild manager through a legacy class name
  *
- * Singleton manager for Atlas rebuilds with Promise-based trigger API,
+ * Singleton manager for Frame Graph rebuilds with Promise-based trigger API,
  * callback registration, and rate-limiting via debounce.
  *
  * Usage:
@@ -98,7 +99,7 @@ export class AtlasRebuildManager {
   }
 
   /**
-   * Trigger an Atlas rebuild
+   * Trigger a Frame Graph rebuild
    *
    * If a rebuild is already in progress or pending, this call will join
    * the existing operation and receive the same result. Multiple rapid
@@ -145,7 +146,7 @@ export class AtlasRebuildManager {
       const frames = await Promise.resolve(this.config.fetchFrames());
       frameCount = frames.length;
 
-      // Rebuild Atlas
+      // Rebuild the Frame Graph
       const atlas = rebuildAtlas(frames);
 
       // Validate if configured
@@ -283,7 +284,7 @@ export class AtlasRebuildManager {
 let globalManager: AtlasRebuildManager | null = null;
 
 /**
- * Initialize the global Atlas rebuild manager
+ * Initialize the global Frame Graph rebuild manager
  *
  * Must be called before using triggerAtlasRebuild() or onRebuildComplete().
  *
@@ -299,7 +300,7 @@ export function initAtlasRebuildManager(config: AtlasRebuildManagerConfig): Atla
 }
 
 /**
- * Get the global Atlas rebuild manager
+ * Get the global Frame Graph rebuild manager
  *
  * @throws Error if manager has not been initialized
  */
@@ -311,7 +312,7 @@ export function getAtlasRebuildManager(): AtlasRebuildManager {
 }
 
 /**
- * Trigger an Atlas rebuild using the global manager
+ * Trigger a Frame Graph rebuild using the global manager
  *
  * Convenience function that delegates to the global manager.
  *

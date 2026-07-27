@@ -1,7 +1,7 @@
 /**
- * CodeAtlasRun Schema - Provenance record for Code Atlas extraction runs
+ * CodeAtlasRun schema - provenance record for Code Index extraction runs
  *
- * This schema defines the structure for tracking Code Atlas extraction runs,
+ * This compatibility schema tracks Code Index extraction runs,
  * including metadata about what was scanned, limits applied, and the strategy used.
  */
 

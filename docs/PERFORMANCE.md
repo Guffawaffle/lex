@@ -99,7 +99,7 @@ Current test execution times:
 | **Memory Store** | 32 tests | ~360ms | 95% |
 | **Database Encryption** | 13 tests | ~550ms | 100% |
 | **Policy Enforcement** | 18 tests | ~200ms | 92% |
-| **Atlas Generation** | 15 tests | ~150ms | 88% |
+| **Policy Neighborhood generation** | 15 tests | ~150ms | 88% |
 | **Total** | 123+ tests | ~2.5s | 89.2% |
 
 ---

@@ -45,7 +45,7 @@ exactly fourteen canonical `resource_action` names:
 | `frame_list` | List recent Frames with bounded filters |
 | `policy_check` | Check paths or changes against repository policy |
 | `timeline_show` | Return a chronological work timeline |
-| `atlas_analyze` | Analyze bounded code-neighborhood context |
+| `atlas_analyze` | Build the experimental Code Index (legacy tool name) |
 | `system_introspect` | Report runtime capabilities and credential-free store identity |
 | `help` | Return task-oriented tool guidance |
 | `hints_get` | Return focused usage hints |
@@ -71,6 +71,11 @@ exact fallback payload as structured remediation; it is never silently rewritten
 Accepted legacy aliases are compatibility inputs only. They are not advertised tools and must not
 appear as the preferred name in current consumer documentation. Alias mappings and capability
 coverage live in [`../../shared/runtime-scope/capabilities.ts`](../../shared/runtime-scope/capabilities.ts).
+
+`atlas_analyze` itself is a legacy-named Code Index command. It does not generate the
+policy-backed Policy Neighborhood returned with Frame recall and does not rebuild the historical
+Frame Graph. See the
+[`Atlas` terminology map](../../../docs/ATLAS_TERMINOLOGY.md).
 
 Any tool addition, removal, or rename must update together:
 

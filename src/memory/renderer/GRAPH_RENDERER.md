@@ -1,6 +1,7 @@
-# Graph Renderer for Atlas Frames
+# Graph Renderer for Policy Neighborhoods
 
-Visual rendering of Atlas Frames as interactive SVG/Canvas graphs showing module dependencies and policy constraints.
+Visual rendering of Policy Neighborhood compatibility shapes (`AtlasFrame`) as interactive
+SVG/Canvas graphs showing module dependencies and policy constraints.
 
 ## Features
 
@@ -42,7 +43,7 @@ Visual rendering of Atlas Frames as interactive SVG/Canvas graphs showing module
 import { renderAtlasFrameGraph, exportGraphAsPNG } from './graph.js';
 import { generateAtlasFrame } from '../../shared/atlas/atlas-frame.js';
 
-// Generate an Atlas Frame
+// Generate a Policy Neighborhood through the legacy API
 const atlasFrame = generateAtlasFrame(['ui/admin-panel'], 1);
 
 // Render as SVG
@@ -143,7 +144,8 @@ Tests cover:
 
 ## Integration with Memory Cards
 
-The graph renderer integrates with the memory card system to provide visual Atlas Frame representations:
+The graph renderer integrates with the memory card system to provide visual Policy Neighborhood
+representations:
 
 ```typescript
 import { renderMemoryCard } from './card.js';
@@ -161,7 +163,7 @@ const frame = {
   },
 };
 
-// Generate Atlas Frame for the module scope
+// Generate a Policy Neighborhood for the module scope
 const atlasFrame = generateAtlasFrame(frame.module_scope, 1);
 
 // Render memory card with embedded graph
@@ -172,10 +174,10 @@ const card = await renderMemoryCard(frame, atlasFrame);
 
 ### `renderAtlasFrameGraph(atlasFrame, options?): string`
 
-Renders an Atlas Frame as SVG.
+Renders a Policy Neighborhood (`AtlasFrame`) as SVG.
 
 **Parameters**:
-- `atlasFrame: AtlasFrame` - The Atlas Frame to render
+- `atlasFrame: AtlasFrame` - The Policy Neighborhood compatibility value to render
 - `options?: GraphRenderOptions` - Rendering options
 
 **Returns**: SVG markup as string

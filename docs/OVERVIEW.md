@@ -289,7 +289,7 @@ lex/
 │   │   └── scanners/    # Language-specific code scanners
 │   └── shared/          # Cross-cutting utilities
 │       ├── aliases/     # Module ID aliasing and resolution
-│       ├── atlas/       # Fold-radius graph computation
+│       ├── atlas/       # Policy Neighborhood + Frame Graph compatibility code
 │       ├── cli/         # CLI commands
 │       ├── git/         # Git integration utilities
 │       ├── module_ids/  # Module ID validation
@@ -358,8 +358,9 @@ The memory card renderer doesn't have to be pretty; it has to be legible and con
 ## Next Steps
 
 - Read the [Adoption Guide](./ADOPTION_GUIDE.md) to roll out Lex in phases
-- Read the [Mind Palace Guide](./MIND_PALACE.md) to learn about reference points and Atlas Frames
-- Read the [Code Atlas Documentation](./atlas/README.md) for spatial memory and code intelligence
+- Read the [Mind Palace Guide](./MIND_PALACE.md) to learn about reference points and Policy Neighborhoods
+- Read the [Policy Neighborhood and Code Index guide](./atlas/README.md)
+- Read the [Atlas terminology map](./ATLAS_TERMINOLOGY.md) for compatibility ownership
 - Read the [Architecture Loop](./ARCHITECTURE_LOOP.md) to understand the full explainability story
 - Read the [FAQ](./FAQ.md) for privacy, security, and compliance questions
 - Read [Contributing](../CONTRIBUTING.md) to extend Lex safely

@@ -1,4 +1,4 @@
-# Code Atlas API Reference
+# Code Index API Reference
 
 **Version:** v0  
 **Base URL:** `http://localhost:3000` (default)
@@ -7,12 +7,16 @@
 
 ## Overview
 
-Code Atlas provides two API interfaces:
+The experimental Code Index provides two API interfaces whose routes, tools, and types retain
+legacy Atlas names:
 
 1. **MCP (Model Context Protocol)** — For AI assistant integration via stdio
 2. **HTTP REST API** — For programmatic access from external tools
 
 Both interfaces use the same underlying storage and validation logic.
+
+Policy Neighborhood enrichment on Frame recall is separate, and the historical Frame Graph has no
+HTTP or MCP endpoint. See the [terminology map](../ATLAS_TERMINOLOGY.md).
 
 ---
 
@@ -42,11 +46,11 @@ MCP over stdio does not require authentication (runs locally).
 
 ## HTTP Endpoints
 
-### Create Frame with Atlas Context
+### Create Frame with Policy Neighborhood context
 
 `POST /api/frames`
 
-Creates a new Frame with module scope for Atlas Frame generation.
+Creates a new Frame with module scope for optional Policy Neighborhood generation.
 
 **Request:**
 ```json
@@ -126,7 +130,7 @@ curl http://localhost:3000/health
 
 ### lex.remember
 
-Store a new Frame with Atlas context.
+Store a new Frame with optional Policy Neighborhood context.
 
 **Request:**
 ```json
@@ -162,9 +166,10 @@ Store a new Frame with Atlas context.
 }
 ```
 
-### lex.recall
+### lex.recall with Policy Neighborhood context
 
-Search Frames and return with Atlas Frame context.
+Search Frames and return optional Policy Neighborhood context. The current response label remains
+`Atlas Frame` for compatibility.
 
 **Request:**
 ```json
@@ -319,7 +324,7 @@ if (result.success) {
 }
 ```
 
-### Atlas Frame Generation
+### Policy Neighborhood generation
 
 ```typescript
 import { 
@@ -331,7 +336,7 @@ import {
   estimateTokens
 } from '@smartergpt/lex/shared/atlas';
 
-// Generate Atlas Frame
+// Generate a Policy Neighborhood through the legacy function name
 const frame = generateAtlasFrame(
   ['services/auth', 'api/middleware'],  // seed modules
   1,                                     // fold radius

@@ -2,7 +2,7 @@
 
 Use Lex from an MCP-capable agent without teaching the agent shell commands. The server exposes
 the same deliberate Frame workflow as the CLI: remember what mattered, find it later, and keep
-repository policy and Atlas context available when they are useful.
+repository policy and Policy Neighborhood context available when they are useful.
 
 Lex MCP is optional. Use the CLI if your agent already has a reliable shell; add MCP when your
 client benefits from typed tools and discoverable schemas.
@@ -73,7 +73,7 @@ that exact payload as structured remediation.
 | `frame_validate` | Validate Frame input without storing it |
 | `policy_check` | Check scanned code facts against repository policy |
 | `timeline_show` | Show Frame evolution for a ticket or branch |
-| `atlas_analyze` | Analyze code structure and dependencies |
+| `atlas_analyze` | Build the experimental Code Index (legacy tool name) |
 | `system_introspect` | Report active capabilities, workspace, and store state |
 | `help` | Return tool usage and examples |
 | `hints_get` | Retrieve stable recovery hints |
@@ -84,6 +84,9 @@ that exact payload as structured remediation.
 Old tool names such as `remember` and `recall` remain compatibility aliases. New integrations
 should use the names above. See
 [ADR-0009](./docs/adr/0009-mcp-tool-naming-convention.md).
+
+`atlas_analyze` is a legacy-named Code Index surface; it is not Policy Neighborhood enrichment or
+the historical Frame Graph. See the [terminology map](./docs/ATLAS_TERMINOLOGY.md).
 
 ## Storage and trust models
 

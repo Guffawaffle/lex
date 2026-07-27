@@ -152,7 +152,7 @@ closeDb();
 | reference_point | TEXT NOT NULL | Human-memorable anchor phrase |
 | status_snapshot | TEXT NOT NULL | JSON object with next_action, blockers |
 | keywords | TEXT | JSON array of keywords |
-| atlas_frame_id | TEXT | Link to Atlas Frame |
+| atlas_frame_id | TEXT | Opaque legacy Policy Neighborhood reference |
 | feature_flags | TEXT | JSON array of feature flags |
 | permissions | TEXT | JSON array of permissions |
 
@@ -161,7 +161,7 @@ closeDb();
 - `idx_frames_timestamp` - Descending timestamp for recent frames
 - `idx_frames_branch` - Branch queries
 - `idx_frames_jira` - Jira/ticket queries
-- `idx_frames_atlas_frame_id` - Atlas Frame links
+- `idx_frames_atlas_frame_id` - Legacy Policy Neighborhood references
 
 ### FTS5 Virtual Table
 

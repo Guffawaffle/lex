@@ -19,7 +19,7 @@ export { FRAME_SCHEMA_VERSION, validateFrameMetadata } from "./shared/types/fram
 export type { Policy, PolicyModule, PolicyEdge } from "./shared/types/policy.js";
 export { validatePolicyModule } from "./shared/types/policy.js";
 
-// Atlas types - spatial neighborhood for context generation
+// Policy Neighborhood types through legacy AtlasFrame names
 export type { AtlasFrame, AtlasModuleData, AtlasEdge } from "./shared/atlas/types.js";
 
 // Validation types - module ID validation results
@@ -80,7 +80,7 @@ export type {
 } from "./memory/batch.js";
 
 // =============================================================================
-// POLICY & ATLAS HELPERS (1.0.0 Contract)
+// POLICY AND LEGACY ATLAS COMPATIBILITY HELPERS (1.0.0 Contract)
 // =============================================================================
 
 // Policy loading with precedence rules
@@ -90,11 +90,11 @@ export { loadPolicy, clearPolicyCache } from "./shared/policy/loader.js";
 export { validateModuleIds } from "./shared/module_ids/validator.js";
 export { resolveModuleId } from "./shared/aliases/resolver.js";
 
-// Atlas Frame generation for token-efficient context
+// Policy Neighborhood generation for token-efficient context
 export { generateAtlasFrame } from "./shared/atlas/atlas-frame.js";
 export { autoTuneRadius, estimateTokens } from "./shared/atlas/auto-tune.js";
 
-// Atlas rebuild trigger API (LEX-108: Batch Operations)
+// Frame Graph rebuild trigger API through legacy Atlas names (LEX-108)
 export {
   triggerAtlasRebuild,
   onRebuildComplete,

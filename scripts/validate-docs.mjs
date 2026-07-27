@@ -343,6 +343,67 @@ if (!foundLexbrain) {
   pass('No outdated "lexbrain" references found');
 }
 
+section("Atlas Terminology Ownership");
+const atlasTerminology = readFile("docs/ATLAS_TERMINOLOGY.md");
+for (const required of [
+  "### Policy Neighborhood",
+  "### Code Index",
+  "### Frame Graph",
+  "@smartergpt/lex/atlas",
+  "`lex code-atlas`",
+  "`atlas_analyze`",
+  "`POST /api/atlas/ingest`",
+  "`atlas_frame_id`",
+  "`src/shared/atlas/rebuild.ts`",
+  "issues/733",
+  "issues/804",
+  "lexrunner/issues/858",
+  "issues/806",
+  "issues/807",
+  "issues/808",
+]) {
+  if (atlasTerminology?.includes(required)) {
+    pass(`Atlas terminology map classifies ${required}`);
+  } else {
+    error(`docs/ATLAS_TERMINOLOGY.md must classify ${required}`);
+  }
+}
+
+for (const [path, content] of [
+  ["README.mcp.md", publicMcpReadme],
+  ["docs/MCP_CONFIG.md", readFile("docs/MCP_CONFIG.md")],
+  ["docs/FAQ.md", readFile("docs/FAQ.md")],
+  ["docs/CONTRACT_SURFACE.md", readFile("docs/CONTRACT_SURFACE.md")],
+  ["docs/PUBLIC_API.md", readFile("docs/PUBLIC_API.md")],
+  ["docs/atlas/README.md", readFile("docs/atlas/README.md")],
+]) {
+  if (content?.includes("ATLAS_TERMINOLOGY.md")) {
+    pass(`${path} links the Atlas terminology map`);
+  } else {
+    error(`${path} must link docs/ATLAS_TERMINOLOGY.md`);
+  }
+}
+
+if (
+  registryManifest.description.includes("Policy Neighborhoods") &&
+  !/\bAtlas\b/.test(registryManifest.description)
+) {
+  pass("server.json uses owned Policy Neighborhood terminology");
+} else {
+  error("server.json must use owned terminology instead of an unqualified Atlas label");
+}
+
+const mcpConfig = readFile("docs/MCP_CONFIG.md");
+if (
+  mcpConfig?.includes(
+    "`atlas_analyze` - Compatibility name for experimental Code Index dependency analysis"
+  )
+) {
+  pass("docs/MCP_CONFIG.md classifies atlas_analyze as Code Index compatibility");
+} else {
+  error("docs/MCP_CONFIG.md must classify atlas_analyze as Code Index compatibility");
+}
+
 // Check MCP tool naming conventions
 section("MCP Tool Naming Conventions");
 const toolsFile = readFile("src/memory/mcp_server/tools.ts");
