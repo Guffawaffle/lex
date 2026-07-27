@@ -47,6 +47,16 @@ function write(path: string, content: string): void {
   writeFileSync(path, content, "utf8");
 }
 
+function runFixtureGit(root: string, args: readonly string[]): string {
+  const result = spawnSync("git", [...args], {
+    cwd: root,
+    encoding: "utf8",
+    windowsHide: true,
+  });
+  assert.equal(result.status, 0, result.stderr);
+  return result.stdout.trim();
+}
+
 function workspace(
   title = "Initial observation",
   body?: string
@@ -197,16 +207,21 @@ describe("Knowledge workspace operations", () => {
   test("derives dirty source paths from one workspace status snapshot", () => {
     const fixture = workspace();
     write(join(fixture.root, "docs", "other.md"), "ordinary markdown");
-    for (const args of [
-      ["init"],
-      ["config", "user.email", "test@example.com"],
-      ["config", "user.name", "Test"],
-      ["add", "."],
-      ["commit", "-m", "fixture"],
-    ]) {
-      const result = spawnSync("git", args, { cwd: fixture.root, encoding: "utf8" });
-      assert.equal(result.status, 0, result.stderr);
-    }
+    runFixtureGit(fixture.root, ["init"]);
+    runFixtureGit(fixture.root, ["add", "."]);
+    // Build a baseline through plumbing so this default-suite test never invokes signing or hooks.
+    const tree = runFixtureGit(fixture.root, ["write-tree"]);
+    const commit = runFixtureGit(fixture.root, [
+      "-c",
+      "user.email=test@example.com",
+      "-c",
+      "user.name=Test",
+      "commit-tree",
+      tree,
+      "-m",
+      "fixture",
+    ]);
+    runFixtureGit(fixture.root, ["update-ref", "HEAD", commit]);
     write(fixture.sourcePath, markdown("Dirty observation"));
     write(join(fixture.root, "docs", "other.md"), "unrelated dirty markdown");
 
