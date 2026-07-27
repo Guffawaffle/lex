@@ -53,6 +53,21 @@ exactly fourteen canonical `resource_action` names:
 | `turncost_calculate` | Calculate bounded turn-cost estimates |
 | `contradictions_scan` | Find conflicting Frame claims |
 
+## Frame write fallback and scope health
+
+`frame_create` and `frame_validate` require a non-empty `module_scope`. When no policy-backed
+module applies, callers must send the canonical fallback explicitly:
+
+```json
+{ "module_scope": ["workspace/unscoped"] }
+```
+
+Fallback Frames retain `module_attribution.mode = "fallback"` when stored and retrieved.
+`system_introspect` exposes the same structured write contract plus scope health: policy
+availability and source, policy module count, unscoped Frame count, and a bounded summary of
+Frame module IDs absent from the loaded policy. An empty scope remains invalid and returns the
+exact fallback payload as structured remediation; it is never silently rewritten.
+
 Accepted legacy aliases are compatibility inputs only. They are not advertised tools and must not
 appear as the preferred name in current consumer documentation. Alias mappings and capability
 coverage live in [`../../shared/runtime-scope/capabilities.ts`](../../shared/runtime-scope/capabilities.ts).

@@ -53,7 +53,8 @@ export const MCP_TOOLS: MCPTool[] = [
         module_scope: {
           type: "array",
           items: { type: "string" },
-          description: 'Module IDs from lexmap.policy.json (e.g., ["auth/core", "auth/password"])',
+          description:
+            'Module IDs from lexmap.policy.json. If no policy-backed module applies, use the exact fallback ["workspace/unscoped"].',
         },
         branch: {
           type: "string",
@@ -130,7 +131,8 @@ export const MCP_TOOLS: MCPTool[] = [
         module_scope: {
           type: "array",
           items: { type: "string" },
-          description: 'Module IDs from lexmap.policy.json (e.g., ["auth/core", "auth/password"])',
+          description:
+            'Module IDs from lexmap.policy.json. If no policy-backed module applies, use the exact fallback ["workspace/unscoped"].',
         },
         branch: {
           type: "string",

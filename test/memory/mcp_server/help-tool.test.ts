@@ -152,6 +152,17 @@ describe("Help MCP Tool (AX #577)", () => {
         assert.ok(requiredFields.includes("summary_caption"));
         assert.ok(requiredFields.includes("status_snapshot"));
         assert.ok(requiredFields.includes("module_scope"));
+
+        const writeContract = data.frameWriteContract as Record<string, unknown>;
+        const fallback = writeContract.fallback as Record<string, unknown>;
+        assert.strictEqual(fallback.moduleId, "workspace/unscoped");
+        assert.deepStrictEqual(fallback.input, {
+          module_scope: ["workspace/unscoped"],
+        });
+        assert.ok(
+          response.content[0].text.includes('{"module_scope":["workspace/unscoped"]}'),
+          "Help should render the exact fallback payload"
+        );
       } finally {
         await teardown();
       }

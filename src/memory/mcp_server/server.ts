@@ -79,6 +79,13 @@ import {
   type TrustedRuntimeScopeBootstrapResultV1,
   type TrustedRuntimeScopeEntrypointGuardV1,
 } from "../../shared/runtime-scope/index.js";
+import {
+  buildFrameWriteContract,
+  createFallbackModuleAttribution,
+  UNSCOPED_MODULE_ID,
+  type FrameWriteContract,
+  type ModuleAttribution,
+} from "../../shared/cli/frame-write-contract.js";
 
 const logger = getLogger("memory:mcp_server:server");
 
@@ -101,6 +108,92 @@ function getPackageVersion(): string {
  * Increase this value if you have very large frame stores.
  */
 const MAX_FILTER_FETCH_LIMIT = 1000;
+const SCOPE_HEALTH_PAGE_SIZE = 500;
+const SCOPE_HEALTH_SUMMARY_LIMIT = 10;
+const MCP_FRAME_REQUIRED_FIELDS = [
+  "reference_point",
+  "summary_caption",
+  "status_snapshot",
+  "module_scope",
+] as const;
+const MCP_FRAME_RECOMMENDED_FIELDS = ["branch", "jira", "keywords"] as const;
+
+interface MCPFrameWriteContract {
+  requiredFields: readonly string[];
+  recommendedFields: readonly string[];
+  policy: FrameWriteContract["policy"];
+  inference: {
+    available: boolean;
+    mode: "suggestions-only";
+  };
+  fallback: {
+    available: true;
+    moduleId: typeof UNSCOPED_MODULE_ID;
+    input: {
+      module_scope: [typeof UNSCOPED_MODULE_ID];
+    };
+  };
+  suggestions: FrameWriteContract["suggestions"];
+}
+
+interface ScopeHealth {
+  policy: {
+    state: "loaded" | "unavailable";
+    source: string;
+    path: string | null;
+    moduleCount: number;
+  };
+  frames: {
+    state: "available" | "unavailable";
+    unscopedCount: number;
+    drift: {
+      state: "evaluated" | "not-evaluated";
+      frameCount: number;
+      moduleIdCount: number;
+      modules: Array<{ moduleId: string; frameCount: number }>;
+      summaryLimit: number;
+      truncated: boolean;
+    };
+  };
+}
+
+function toMCPFrameWriteContract(contract: FrameWriteContract): MCPFrameWriteContract {
+  return {
+    requiredFields: MCP_FRAME_REQUIRED_FIELDS,
+    recommendedFields: MCP_FRAME_RECOMMENDED_FIELDS,
+    policy: contract.policy,
+    inference: {
+      available: contract.inference.available,
+      mode: "suggestions-only",
+    },
+    fallback: {
+      available: true,
+      moduleId: contract.fallback.moduleId,
+      input: {
+        module_scope: [contract.fallback.moduleId],
+      },
+    },
+    suggestions: contract.suggestions,
+  };
+}
+
+function isCanonicalUnscopedScope(moduleScope: unknown): moduleScope is string[] {
+  return (
+    Array.isArray(moduleScope) && moduleScope.length === 1 && moduleScope[0] === UNSCOPED_MODULE_ID
+  );
+}
+
+function fallbackRemediation(): {
+  message: string;
+  input: { module_scope: [typeof UNSCOPED_MODULE_ID] };
+} {
+  return {
+    message: `Use the canonical fallback exactly as shown when no policy-backed module applies: {"module_scope":["${UNSCOPED_MODULE_ID}"]}`,
+    input: {
+      module_scope: [UNSCOPED_MODULE_ID],
+    },
+  };
+}
 
 interface RememberArgs {
   reference_point: string;
@@ -877,14 +970,18 @@ export class MCPServer {
       throw new MCPError(
         MCPErrorCode.VALIDATION_REQUIRED_FIELD,
         `Missing required fields: ${missing.join(", ")}`,
-        { missingFields: missing }
+        {
+          missingFields: missing,
+          ...(missing.includes("module_scope") ? { remediation: fallbackRemediation() } : {}),
+        }
       );
     }
 
     if (!Array.isArray(module_scope) || module_scope.length === 0) {
       throw new MCPError(
         MCPErrorCode.VALIDATION_EMPTY_MODULE_SCOPE,
-        "module_scope must be a non-empty array of module IDs"
+        "module_scope must be a non-empty array of module IDs",
+        { remediation: fallbackRemediation() }
       );
     }
 
@@ -898,7 +995,15 @@ export class MCPServer {
 
     // THE CRITICAL RULE: Resolve aliases and validate module IDs against policy (if available)
     let canonicalModuleScope = module_scope;
-    if (context.policy) {
+    const fallbackScope = isCanonicalUnscopedScope(module_scope);
+    const moduleAttribution: ModuleAttribution = fallbackScope
+      ? createFallbackModuleAttribution("mcp:module_scope")
+      : {
+          mode: "explicit",
+          confidence: "high",
+          evidence: ["mcp:module_scope"],
+        };
+    if (context.policy && !fallbackScope) {
       const validationResult = await validateModuleIds(module_scope, context.policy);
 
       if (!validationResult.valid && validationResult.errors) {
@@ -953,6 +1058,7 @@ export class MCPServer {
       keywords: keywords || undefined,
       atlas_frame_id: atlas_frame_id || undefined,
       image_ids: [] as string[],
+      module_attribution: moduleAttribution,
     };
 
     // Process image attachments if provided
@@ -1016,6 +1122,8 @@ export class MCPServer {
       success: true,
       frame_id: frameId,
       created_at: timestamp,
+      module_scope: canonicalModuleScope,
+      module_attribution: moduleAttribution,
     };
 
     // Include atlas_frame_id if one was provided or stored
@@ -1065,15 +1173,27 @@ export class MCPServer {
       summary_caption,
       status_snapshot,
       module_scope,
-      branch: _branch,
+      branch,
       jira,
       keywords: _keywords,
       atlas_frame_id: _atlas_frame_id,
       images,
     } = args as unknown as RememberArgs;
 
-    const errors: Array<{ field: string; code: string; message: string; suggestions?: string[] }> =
-      [];
+    const frameWriteContract = this.buildMCPFrameWriteContract(
+      context,
+      [],
+      [reference_point, summary_caption, status_snapshot?.next_action].filter(Boolean).join(" "),
+      branch
+    );
+    const remediation = fallbackRemediation();
+    const errors: Array<{
+      field: string;
+      code: string;
+      message: string;
+      suggestions?: string[];
+      remediation?: ReturnType<typeof fallbackRemediation>;
+    }> = [];
     const warnings: Array<{ field: string; message: string }> = [];
 
     // Validate required fields
@@ -1109,12 +1229,14 @@ export class MCPServer {
         field: "module_scope",
         code: MCPErrorCode.VALIDATION_REQUIRED_FIELD,
         message: "module_scope is required",
+        remediation,
       });
     } else if (!Array.isArray(module_scope) || module_scope.length === 0) {
       errors.push({
         field: "module_scope",
         code: MCPErrorCode.VALIDATION_EMPTY_MODULE_SCOPE,
         message: "module_scope must be a non-empty array of module IDs",
+        remediation,
       });
     }
 
@@ -1130,7 +1252,13 @@ export class MCPServer {
     }
 
     // Validate module IDs against policy (if available and module_scope is valid)
-    if (context.policy && module_scope && Array.isArray(module_scope) && module_scope.length > 0) {
+    if (
+      context.policy &&
+      module_scope &&
+      Array.isArray(module_scope) &&
+      module_scope.length > 0 &&
+      !isCanonicalUnscopedScope(module_scope)
+    ) {
       try {
         const validationResult = await validateModuleIds(module_scope, context.policy);
 
@@ -1154,7 +1282,12 @@ export class MCPServer {
           message: `Module validation failed: ${errorMessage}`,
         });
       }
-    } else if (!context.policy && module_scope && Array.isArray(module_scope)) {
+    } else if (
+      !context.policy &&
+      module_scope &&
+      Array.isArray(module_scope) &&
+      module_scope.length > 0
+    ) {
       // No policy loaded - add a warning
       warnings.push({
         field: "module_scope",
@@ -1194,6 +1327,23 @@ export class MCPServer {
 
     // Build response
     const valid = errors.length === 0;
+    const moduleAttribution: ModuleAttribution | null =
+      Array.isArray(module_scope) && module_scope.length > 0
+        ? isCanonicalUnscopedScope(module_scope)
+          ? createFallbackModuleAttribution("mcp:module_scope")
+          : {
+              mode: "explicit",
+              confidence: "high",
+              evidence: ["mcp:module_scope"],
+            }
+        : null;
+    const responseData = {
+      valid,
+      errors,
+      warnings,
+      frameWriteContract,
+      moduleAttribution,
+    };
 
     if (valid) {
       // Success response with warnings if any
@@ -1212,6 +1362,7 @@ export class MCPServer {
             text,
           },
         ],
+        data: responseData,
       };
     } else {
       // Error response with structured errors
@@ -1221,6 +1372,9 @@ export class MCPServer {
         text += `  - ${error.field}: ${error.message}\n`;
         if (error.suggestions && error.suggestions.length > 0) {
           text += `    Suggestions: ${error.suggestions.join(", ")}\n`;
+        }
+        if (error.remediation) {
+          text += `    Remediation: ${error.remediation.message}\n`;
         }
       }
 
@@ -1238,6 +1392,7 @@ export class MCPServer {
             text,
           },
         ],
+        data: responseData,
       };
     }
   }
@@ -1502,6 +1657,8 @@ export class MCPServer {
       data: {
         frame_id: frame.id,
         timestamp: frame.timestamp,
+        module_scope: frame.module_scope,
+        module_attribution: frame.module_attribution ?? null,
       },
     };
   }
@@ -2074,6 +2231,127 @@ export class MCPServer {
     }
   }
 
+  private buildMCPFrameWriteContract(
+    context: MCPDispatchWorkspaceContext,
+    recentFrames: Frame[] = [],
+    query?: string,
+    branch: string | undefined = context.sourceRevision?.branch
+  ): MCPFrameWriteContract {
+    const contract = buildFrameWriteContract({
+      policy: context.policy,
+      projectRoot: context.projectRoot ?? context.configResolution.workspaceRoot.path,
+      branch,
+      query,
+      recentFrames,
+    });
+    return toMCPFrameWriteContract(contract);
+  }
+
+  private async inspectScopeHealth(
+    frameStore: FrameStore,
+    context: MCPDispatchWorkspaceContext,
+    storeHealthy: boolean
+  ): Promise<{ scopeHealth: ScopeHealth; recentFrames: Frame[] }> {
+    const policyModules = new Set(Object.keys(context.policy?.modules ?? {}));
+    const policyHealth: ScopeHealth["policy"] = {
+      state: context.policy ? "loaded" : "unavailable",
+      source: context.policyResolution?.source ?? "not-found",
+      path: context.policyResolution?.path ?? null,
+      moduleCount: policyModules.size,
+    };
+
+    if (!storeHealthy) {
+      return {
+        scopeHealth: {
+          policy: policyHealth,
+          frames: {
+            state: "unavailable",
+            unscopedCount: 0,
+            drift: {
+              state: "not-evaluated",
+              frameCount: 0,
+              moduleIdCount: 0,
+              modules: [],
+              summaryLimit: SCOPE_HEALTH_SUMMARY_LIMIT,
+              truncated: false,
+            },
+          },
+        },
+        recentFrames: [],
+      };
+    }
+
+    let cursor: string | undefined;
+    let unscopedCount = 0;
+    let driftedFrameCount = 0;
+    const unknownModules = new Map<string, number>();
+    const seenCursors = new Set<string>();
+    const recentFrames: Frame[] = [];
+
+    do {
+      const result = await frameStore.listFrames({
+        limit: SCOPE_HEALTH_PAGE_SIZE,
+        cursor,
+      });
+      recentFrames.push(...result.frames.slice(0, Math.max(0, 10 - recentFrames.length)));
+
+      for (const frame of result.frames) {
+        const moduleIds = new Set(frame.module_scope);
+        if (moduleIds.has(UNSCOPED_MODULE_ID)) {
+          unscopedCount += 1;
+        }
+        if (!context.policy) continue;
+
+        const unknownForFrame = [...moduleIds].filter(
+          (moduleId) => moduleId !== UNSCOPED_MODULE_ID && !policyModules.has(moduleId)
+        );
+        if (unknownForFrame.length > 0) {
+          driftedFrameCount += 1;
+        }
+        for (const moduleId of unknownForFrame) {
+          unknownModules.set(moduleId, (unknownModules.get(moduleId) ?? 0) + 1);
+        }
+      }
+
+      const nextCursor = result.page.nextCursor ?? undefined;
+      if (!nextCursor) break;
+      if (seenCursors.has(nextCursor)) {
+        throw new Error("FrameStore pagination repeated a cursor during scope-health inspection.");
+      }
+      seenCursors.add(nextCursor);
+      cursor = nextCursor;
+    } while (cursor);
+
+    const sortedUnknownModules = [...unknownModules.entries()]
+      .sort(([leftId, leftCount], [rightId, rightCount]) => {
+        return rightCount - leftCount || leftId.localeCompare(rightId);
+      })
+      .map(([moduleId, frameCount]) => ({ moduleId, frameCount }));
+
+    return {
+      scopeHealth: {
+        policy: policyHealth,
+        frames: {
+          state: "available",
+          unscopedCount,
+          drift: {
+            state: context.policy ? "evaluated" : "not-evaluated",
+            frameCount: context.policy ? driftedFrameCount : 0,
+            moduleIdCount: context.policy ? sortedUnknownModules.length : 0,
+            modules: context.policy
+              ? sortedUnknownModules.slice(0, SCOPE_HEALTH_SUMMARY_LIMIT)
+              : [],
+            summaryLimit: SCOPE_HEALTH_SUMMARY_LIMIT,
+            truncated: context.policy
+              ? sortedUnknownModules.length > SCOPE_HEALTH_SUMMARY_LIMIT
+              : false,
+          },
+        },
+      },
+      recentFrames,
+    };
+  }
+
   /**
    * Handle introspect tool - discover current Lex state
    */
@@ -2098,11 +2376,13 @@ export class MCPServer {
 
       // Get state information through a backend-neutral health probe.
       const storeHealth = await frameStore.getHealth();
-      const result = storeHealth.healthy
-        ? await frameStore.listFrames({ limit: 1 })
-        : { frames: [] };
       const frameCount = storeHealth.healthy ? await this.getFrameCount(frameStore) : 0;
-      const latestFrame = result.frames.length > 0 ? result.frames[0].timestamp : null;
+      const { scopeHealth, recentFrames } = await this.inspectScopeHealth(
+        frameStore,
+        context,
+        storeHealth.healthy
+      );
+      const latestFrame = recentFrames.length > 0 ? recentFrames[0].timestamp : null;
 
       // Get current branch (if available)
       let currentBranch = "unknown";
@@ -2125,6 +2405,12 @@ export class MCPServer {
           // If we can't get branch, keep "unknown"
         }
       }
+      const frameWriteContract = this.buildMCPFrameWriteContract(
+        context,
+        recentFrames,
+        undefined,
+        currentBranch
+      );
 
       const workspaceResolution = {
         path: context.configResolution.workspaceRoot.path,
@@ -2198,7 +2484,7 @@ export class MCPServer {
       }
 
       // Schema version for contract stability
-      const schemaVersion = "1.0.0";
+      const schemaVersion = "1.1.0";
 
       if (format === "compact") {
         // Compact format for small-context agents
@@ -2212,6 +2498,8 @@ export class MCPServer {
           },
           ctx: runtimeResolution,
           mods: policyData ? policyData.moduleCount : 0,
+          frameWriteContract,
+          scopeHealth,
           // Abbreviate error codes and re-sort (abbreviation changes alphabetical order)
           errs: errorCodes.map((code) => this.abbreviateErrorCode(code)).sort(),
           warnings,
@@ -2242,6 +2530,8 @@ export class MCPServer {
                 moduleCount: policyData.moduleCount,
               }
             : null,
+          frameWriteContract,
+          scopeHealth,
           state: {
             frameCount,
             latestFrame,
@@ -2266,6 +2556,23 @@ export class MCPServer {
         } else {
           text += `📋 Policy: Not loaded\n\n`;
         }
+
+        text += `✍️  Frame Write Contract:\n`;
+        text += `  Required MCP fields: ${frameWriteContract.requiredFields.join(", ")}\n`;
+        text += `  Fallback module: ${frameWriteContract.fallback.moduleId}\n`;
+        text += `  Fallback input: ${JSON.stringify(frameWriteContract.fallback.input)}\n\n`;
+
+        text += `🩺 Scope Health:\n`;
+        text += `  Policy: ${scopeHealth.policy.state} (${scopeHealth.policy.source})\n`;
+        text += `  Unscoped Frames: ${scopeHealth.frames.unscopedCount}\n`;
+        text += `  Policy-drift Frames: ${scopeHealth.frames.drift.frameCount}\n`;
+        text += `  Unknown Module IDs: ${scopeHealth.frames.drift.moduleIdCount}\n`;
+        if (scopeHealth.frames.drift.modules.length > 0) {
+          text += `  Drift Summary: ${scopeHealth.frames.drift.modules
+            .map((item) => `${item.moduleId} (${item.frameCount})`)
+            .join(", ")}\n`;
+        }
+        text += "\n";
 
         text += `📊 State:\n`;
         text += `  Frames: ${frameCount}\n`;
@@ -2841,6 +3148,17 @@ export class MCPServer {
           description: workflows[w]?.description || w,
         })),
       };
+      const hasFrameWriteContract = tool === "frame_create" || tool === "frame_validate";
+      if (hasFrameWriteContract) {
+        response.frameWriteContract = {
+          requiredFields: MCP_FRAME_REQUIRED_FIELDS,
+          policyState: "discover-via-system_introspect",
+          fallback: {
+            moduleId: UNSCOPED_MODULE_ID,
+            input: fallbackRemediation().input,
+          },
+        };
+      }
 
       if (examples) {
         if (format === "micro" && helpData.microExamples) {
@@ -2881,6 +3199,16 @@ export class MCPServer {
         "## Workflows",
         helpData.workflows.map((w) => `  - ${w}: ${workflows[w]?.description || ""}`).join("\n")
       );
+
+      if (hasFrameWriteContract) {
+        textOutput.push(
+          "",
+          "## Frame Write Fallback",
+          `  Module: ${UNSCOPED_MODULE_ID}`,
+          `  Exact input: ${JSON.stringify(fallbackRemediation().input)}`,
+          "  Use this explicit fallback only when no policy-backed module applies."
+        );
+      }
 
       if (examples) {
         if (format === "micro" && helpData.microExamples) {
@@ -2930,6 +3258,14 @@ export class MCPServer {
               requiredFields: data.requiredFields,
               relatedTools: data.relatedTools,
             };
+            if (name === "frame_create" || name === "frame_validate") {
+              toolData.frameWriteContract = {
+                fallback: {
+                  moduleId: UNSCOPED_MODULE_ID,
+                  input: fallbackRemediation().input,
+                },
+              };
+            }
             if (examples && data.examples.length > 0) {
               toolData.examples = data.examples;
             }

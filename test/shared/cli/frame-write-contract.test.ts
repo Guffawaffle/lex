@@ -17,6 +17,9 @@ test("policy-less module auto uses the canonical unscoped fallback", () => {
     assert.deepStrictEqual(result.modules, ["workspace/unscoped"]);
     assert.strictEqual(result.attribution.mode, "fallback");
     assert.strictEqual(contract.policy.state, "unavailable");
+    assert.deepStrictEqual(contract.fallback.mcpInput, {
+      module_scope: ["workspace/unscoped"],
+    });
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
