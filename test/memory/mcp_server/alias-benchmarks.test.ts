@@ -24,6 +24,13 @@ import assert from "node:assert";
 // @ts-ignore
 import { validateModuleIds } from "@app/shared/module_ids/validator.js";
 
+// V8 coverage instrumentation adds measurable overhead to micro-benchmarks.
+// Production-path runs retain the original limits; coverage runs exercise the
+// same work with enough headroom to avoid measuring instrumentation as product cost.
+const coverageTimingMultiplier = process.env.NODE_V8_COVERAGE ? 3 : 1;
+const timingBudget = (productionLimitMs: number): number =>
+  productionLimitMs * coverageTimingMultiplier;
+
 // Mock policy for benchmarking
 const createTestPolicy = (moduleCount: number) => {
   const modules: Record<string, any> = {};
@@ -138,9 +145,10 @@ describe("Alias Resolution Performance Benchmarks", () => {
 
       // Fast path should complete in under 0.5ms per validation
       // (negligible overhead for non-hot-path operation)
+      const maxAverageMs = timingBudget(0.5);
       assert.ok(
-        fastPathTime < 0.5,
-        `Exact match validation took ${fastPathTime.toFixed(3)}ms, expected <0.5ms`
+        fastPathTime < maxAverageMs,
+        `Exact match validation took ${fastPathTime.toFixed(3)}ms, expected <${maxAverageMs.toFixed(1)}ms`
       );
     });
   });
@@ -155,7 +163,11 @@ describe("Alias Resolution Performance Benchmarks", () => {
         }
       );
 
-      assert.ok(avgTime < 0.5, `Exact match took ${avgTime.toFixed(3)}ms, expected <0.5ms`);
+      const maxAverageMs = timingBudget(0.5);
+      assert.ok(
+        avgTime < maxAverageMs,
+        `Exact match took ${avgTime.toFixed(3)}ms, expected <${maxAverageMs.toFixed(1)}ms`
+      );
     });
 
     test("should scale with policy size (O(1) hash lookup)", async () => {
@@ -209,9 +221,10 @@ describe("Alias Resolution Performance Benchmarks", () => {
         );
       });
 
+      const maxAverageMs = timingBudget(1.0);
       assert.ok(
-        avgTime < 1.0,
-        `Multiple exact matches took ${avgTime.toFixed(3)}ms, expected <1.0ms`
+        avgTime < maxAverageMs,
+        `Multiple exact matches took ${avgTime.toFixed(3)}ms, expected <${maxAverageMs.toFixed(1)}ms`
       );
     });
   });
@@ -224,7 +237,11 @@ describe("Alias Resolution Performance Benchmarks", () => {
 
       console.log(`  Note: Result is invalid, but fuzzy matching provides suggestions`);
 
-      assert.ok(avgTime < 2.0, `Fuzzy matching took ${avgTime.toFixed(3)}ms, expected <2.0ms`);
+      const maxAverageMs = timingBudget(2.0);
+      assert.ok(
+        avgTime < maxAverageMs,
+        `Fuzzy matching took ${avgTime.toFixed(3)}ms, expected <${maxAverageMs.toFixed(1)}ms`
+      );
     });
 
     test("should handle completely invalid input (<3ms)", async () => {
@@ -232,9 +249,10 @@ describe("Alias Resolution Performance Benchmarks", () => {
         await validateModuleIds(["nonexistent-module-xyz"], policy10);
       });
 
+      const maxAverageMs = timingBudget(3.0);
       assert.ok(
-        avgTime < 3.0,
-        `Invalid module handling took ${avgTime.toFixed(3)}ms, expected <3.0ms`
+        avgTime < maxAverageMs,
+        `Invalid module handling took ${avgTime.toFixed(3)}ms, expected <${maxAverageMs.toFixed(1)}ms`
       );
     });
 
@@ -249,9 +267,10 @@ describe("Alias Resolution Performance Benchmarks", () => {
 
       // Fuzzy matching needs to check all modules, so O(n)
       // But should still be reasonably fast
+      const maxAverageMs = timingBudget(10.0);
       assert.ok(
-        avgTime < 10.0,
-        `Fuzzy matching with 1000 modules took ${avgTime.toFixed(3)}ms, expected <10ms`
+        avgTime < maxAverageMs,
+        `Fuzzy matching with 1000 modules took ${avgTime.toFixed(3)}ms, expected <${maxAverageMs.toFixed(1)}ms`
       );
     });
   });
@@ -263,7 +282,11 @@ describe("Alias Resolution Performance Benchmarks", () => {
         await validateModuleIds(["policy/scanners", "shared/types", "invalidmodule"], policy100);
       });
 
-      assert.ok(avgTime < 2.0, `Mixed validation took ${avgTime.toFixed(3)}ms, expected <2.0ms`);
+      const maxAverageMs = timingBudget(2.0);
+      assert.ok(
+        avgTime < maxAverageMs,
+        `Mixed validation took ${avgTime.toFixed(3)}ms, expected <${maxAverageMs.toFixed(1)}ms`
+      );
     });
 
     test("should validate empty module scope instantly", async () => {
@@ -271,7 +294,11 @@ describe("Alias Resolution Performance Benchmarks", () => {
         await validateModuleIds([], policy100);
       });
 
-      assert.ok(avgTime < 0.1, `Empty validation took ${avgTime.toFixed(3)}ms, expected <0.1ms`);
+      const maxAverageMs = timingBudget(0.1);
+      assert.ok(
+        avgTime < maxAverageMs,
+        `Empty validation took ${avgTime.toFixed(3)}ms, expected <${maxAverageMs.toFixed(1)}ms`
+      );
     });
   });
 
