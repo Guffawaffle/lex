@@ -63,6 +63,138 @@ test("context prioritizes exact branch matches over global recency", async () =>
 
   assert.strictEqual(result.frames[0]?.id, "matching");
   assert.ok(result.frames[0]?.whySelected.includes("branch-match"));
+  assert.strictEqual(result.selection.query, null);
+  assert.ok(result.frames.every((item) => !item.whySelected.includes("query-match")));
+});
+
+test("context requires all query terms while preserving fuzzy prefix matches", async () => {
+  const store = new MemoryFrameStore([
+    frame(
+      "authentication-refresh",
+      "2026-07-01T00:00:00Z",
+      "feature/context",
+      "Authentication refresh workflow"
+    ),
+    frame(
+      "authentication-only",
+      "2026-07-10T00:00:00Z",
+      "feature/context",
+      "Authentication token rotation"
+    ),
+  ]);
+
+  for (const query of ["auth refresh", "auth* refresh", "#auth refresh"]) {
+    const result = await buildSessionContext(
+      { branch: "feature/context", query, limit: 2, maxTokens: 1200 },
+      store
+    );
+
+    assert.strictEqual(result.selection.query, query);
+    assert.strictEqual(result.selection.candidateCount, 1);
+    assert.strictEqual(result.selection.selectedCount, 1);
+    assert.deepStrictEqual(
+      result.frames.map((item) => item.id),
+      ["authentication-refresh"]
+    );
+    assert.ok(result.frames[0]?.whySelected.includes("query-match"));
+  }
+});
+
+test("context returns an exact match but never falls back for the Milestone 1 shared-token no-match", async () => {
+  const timestamp = "2026-08-21T18-04-37-920Z";
+  const matchingQuery = `milestone-1-roundtrip-${timestamp}`;
+  const absentQuery = `milestone-1-no-match-${timestamp}`;
+  const store = new MemoryFrameStore([
+    frame(
+      matchingQuery,
+      "2026-08-21T18:04:47.176Z",
+      "codex/workspace-reconciliation",
+      "Milestone 1 isolated session handoff"
+    ),
+  ]);
+
+  const matched = await buildSessionContext(
+    {
+      branch: "codex/workspace-reconciliation",
+      query: matchingQuery,
+      maxTokens: 1200,
+    },
+    store
+  );
+  const noMatch = await buildSessionContext(
+    {
+      branch: "codex/workspace-reconciliation",
+      query: absentQuery,
+      maxTokens: 1200,
+    },
+    store
+  );
+
+  assert.strictEqual(matched.selection.candidateCount, 1);
+  assert.strictEqual(matched.selection.selectedCount, 1);
+  assert.strictEqual(matched.frames[0]?.id, matchingQuery);
+  assert.ok(matched.frames[0]?.whySelected.includes("query-match"));
+
+  assert.strictEqual(noMatch.selection.query, absentQuery);
+  assert.strictEqual(noMatch.selection.candidateCount, 0);
+  assert.strictEqual(noMatch.selection.selectedCount, 0);
+  assert.deepStrictEqual(noMatch.frames, []);
+  assert.ok(noMatch.warnings.some((warning) => warning.code === "NO_FRAMES"));
+  assert.ok(!noMatch.warnings.some((warning) => warning.code === "NO_BRANCH_MATCH"));
+});
+
+test("context fails closed for explicit empty and punctuation-only queries", async () => {
+  const store = new MemoryFrameStore([
+    frame("recent", "2026-08-21T18:04:47.176Z", "main", "Recent unrelated Frame"),
+  ]);
+
+  for (const query of ["", "   ", "--- !!!"]) {
+    const result = await buildSessionContext({ branch: "main", query, maxTokens: 1200 }, store);
+
+    assert.strictEqual(
+      result.selection.candidateCount,
+      0,
+      `candidate count for ${JSON.stringify(query)}`
+    );
+    assert.strictEqual(
+      result.selection.selectedCount,
+      0,
+      `selected count for ${JSON.stringify(query)}`
+    );
+    assert.deepStrictEqual(result.frames, [], `frames for ${JSON.stringify(query)}`);
+    assert.ok(
+      result.warnings.some(
+        (warning) => warning.code === "NO_FRAMES" && warning.message.includes("no searchable terms")
+      ),
+      `actionable NO_FRAMES warning for ${JSON.stringify(query)}`
+    );
+    assert.deepStrictEqual(result.selection.strategy, ["query-normalization-reject"]);
+  }
+
+  const empty = await buildSessionContext({ branch: "main", query: "", maxTokens: 1200 }, store);
+  assert.match(renderSessionContextText(empty), /query=""/);
+});
+
+test("context fails closed when normalization would silently drop semantic query terms", async () => {
+  const store = new MemoryFrameStore([
+    frame("alpha", "2026-08-21T18:04:47.176Z", "main", "Alpha migration Frame"),
+  ]);
+
+  for (const query of ["alpha 日本", "café", "alpha 🚀", "C++", "C#", "alpha ©"]) {
+    const result = await buildSessionContext({ branch: "main", query, maxTokens: 1200 }, store);
+
+    assert.strictEqual(result.selection.candidateCount, 0, JSON.stringify(query));
+    assert.strictEqual(result.selection.selectedCount, 0, JSON.stringify(query));
+    assert.deepStrictEqual(result.frames, [], JSON.stringify(query));
+    assert.deepStrictEqual(result.selection.strategy, ["query-normalization-reject"]);
+    assert.ok(
+      result.warnings.some(
+        (warning) =>
+          warning.code === "NO_FRAMES" && warning.message.includes("unsupported search terms")
+      ),
+      `unsupported-term warning for ${JSON.stringify(query)}`
+    );
+  }
 });
 
 test("context text keeps Frame content structurally escaped and labels it untrusted", async () => {

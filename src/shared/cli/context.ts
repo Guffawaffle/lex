@@ -15,6 +15,7 @@ import {
 } from "../../memory/store/index.js";
 import { SqliteFrameStore } from "../../memory/store/sqlite/index.js";
 import { ReadOnlyDatabaseError } from "../../memory/store/db.js";
+import { normalizeSearchTerms } from "../../memory/store/search-utils.js";
 import {
   resolveConfigResolution,
   type ConfigResolution,
@@ -181,6 +182,19 @@ function truncateArray(values: string[] | undefined): [string[], boolean] {
   return [output, truncated];
 }
 
+function queryLostSemanticTerms(
+  query: string,
+  normalizedTerms: ReturnType<typeof normalizeSearchTerms>
+): boolean {
+  const rawTerms =
+    query.match(/[\p{L}\p{N}\p{M}_]+#(?![\p{L}\p{N}\p{M}_])|[\p{L}\p{N}\p{M}_]+|\p{S}+/gu) ?? [];
+  if (rawTerms.length === 0) return false;
+  if (rawTerms.length !== normalizedTerms.length) return true;
+  return rawTerms.some(
+    (term, index) => term.toLowerCase() !== normalizedTerms[index]?.value.toLowerCase()
+  );
+}
+
 function toContextFrame(frame: Frame, reasons: string[]): ContextFrame {
   const [summary, summaryTruncated] = truncateText(frame.summary_caption);
   const [referencePoint, referenceTruncated] = truncateText(frame.reference_point);
@@ -269,7 +283,7 @@ export function renderSessionContextText(context: SessionContext): string {
     `Policy: ${quote(context.resolution.policy.path || "none")} (${context.resolution.policy.source})`,
     context.frameWriteContract.compact,
     `Module suggestions: ${quote(context.frameWriteContract.suggestions.join(",") || "none")}`,
-    `Selection: ${context.selection.selectedCount}/${context.selection.candidateCount} frames; query=${quote(context.selection.query || "none")}`,
+    `Selection: ${context.selection.selectedCount}/${context.selection.candidateCount} frames; query=${quote(context.selection.query ?? "none")}`,
   ];
 
   if (context.warnings.length > 0) {
@@ -354,6 +368,14 @@ export async function buildSessionContext(
 ): Promise<SessionContext> {
   const requestedLimit = options.limit ?? DEFAULT_LIMIT;
   const maxTokens = options.maxTokens ?? DEFAULT_MAX_TOKENS;
+  const explicitQuery = options.query;
+  const hasExplicitQuery = explicitQuery !== undefined;
+  const normalizedQueryTerms = hasExplicitQuery
+    ? normalizeSearchTerms({ query: explicitQuery, mode: "all" })
+    : [];
+  const queryHasUnsupportedTerms =
+    hasExplicitQuery && queryLostSemanticTerms(explicitQuery, normalizedQueryTerms);
+  const queryHasSearchTerms = normalizedQueryTerms.length > 0 && !queryHasUnsupportedTerms;
   if (!Number.isInteger(requestedLimit) || requestedLimit < 1 || requestedLimit > 50) {
     throw new Error("--limit must be an integer between 1 and 50.");
   }
@@ -477,8 +499,14 @@ export async function buildSessionContext(
         ownsStore = true;
       }
       const candidateLimit = Math.min(MAX_CANDIDATES, Math.max(requestedLimit * 10, 50));
-      candidateFrames = options.query
-        ? await store.searchFrames({ query: options.query, mode: "any", limit: candidateLimit })
+      candidateFrames = hasExplicitQuery
+        ? queryHasSearchTerms
+          ? await store.searchFrames({
+              query: explicitQuery,
+              mode: "all",
+              limit: candidateLimit,
+            })
+          : []
         : (await store.listFrames({ limit: candidateLimit })).frames;
     } catch (error) {
       warnings.push({
@@ -497,9 +525,13 @@ export async function buildSessionContext(
   if (candidateFrames.length === 0) {
     warnings.push({
       code: "NO_FRAMES",
-      message: options.query
-        ? `No Frames matched query: ${options.query}`
-        : "No Frames are available in the selected store.",
+      message: queryHasUnsupportedTerms
+        ? "The supplied query contains unsupported search terms; no Frames were selected."
+        : hasExplicitQuery && !queryHasSearchTerms
+          ? "The supplied query contains no searchable terms; no Frames were selected."
+          : hasExplicitQuery
+            ? `No Frames matched query: ${explicitQuery}`
+            : "No Frames are available in the selected store.",
     });
   } else if (
     branch.name !== "unknown" &&
@@ -507,7 +539,9 @@ export async function buildSessionContext(
   ) {
     warnings.push({
       code: "NO_BRANCH_MATCH",
-      message: `No candidate Frame matches branch ${branch.name}; selection fell back to workspace modules and recency.`,
+      message: hasExplicitQuery
+        ? `No query-matched candidate Frame matches branch ${branch.name}; selection remained within query matches and ranked them by workspace modules and recency.`
+        : `No candidate Frame matches branch ${branch.name}; selection fell back to workspace modules and recency.`,
     });
   }
   if (
@@ -562,7 +596,17 @@ export async function buildSessionContext(
       requestedLimit,
       candidateCount: candidateFrames.length,
       selectedCount: selected.length,
-      strategy: ["query", "branch", "workspace-module-overlap", "recency"],
+      strategy:
+        hasExplicitQuery && !queryHasSearchTerms
+          ? ["query-normalization-reject"]
+          : hasExplicitQuery
+            ? [
+                "query-all-terms-filter",
+                "branch-rank",
+                "workspace-module-overlap-rank",
+                "recency-tiebreak",
+              ]
+            : ["branch-rank", "workspace-module-overlap-rank", "recency-tiebreak"],
     },
     frameWriteContract: {
       requiredFields: writeContract.requiredFields,
