@@ -16,6 +16,9 @@ export default [
       "scripts/",
       "examples/",
       "schemas/",
+      // Git-for-Windows can materialize this tracked compatibility symlink as
+      // a one-line path file. Its real target remains linted under src/.
+      "memory/mcp_server/frame-mcp.mjs",
     ],
   },
 
