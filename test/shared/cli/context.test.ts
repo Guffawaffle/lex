@@ -198,6 +198,19 @@ test("context fails closed when normalization would silently drop semantic query
   }
 });
 
+test("context scans long underscore terms without regex backtracking", async () => {
+  const query = "_".repeat(100_000);
+  const result = await buildSessionContext(
+    { branch: "main", query, maxTokens: 60_000 },
+    new MemoryFrameStore([])
+  );
+
+  assert.strictEqual(result.selection.candidateCount, 0);
+  assert.strictEqual(result.selection.selectedCount, 0);
+  assert.deepStrictEqual(result.frames, []);
+  assert.ok(result.warnings.some((warning) => warning.code === "NO_FRAMES"));
+});
+
 test("context text keeps Frame content structurally escaped and labels it untrusted", async () => {
   const malicious = frame(
     "unsafe",

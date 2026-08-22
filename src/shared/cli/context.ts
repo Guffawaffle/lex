@@ -188,8 +188,39 @@ function queryLostSemanticTerms(
   query: string,
   normalizedTerms: ReturnType<typeof normalizeSearchTerms>
 ): boolean {
-  const rawTerms =
-    query.match(/[\p{L}\p{N}\p{M}_]+#(?![\p{L}\p{N}\p{M}_])|[\p{L}\p{N}\p{M}_]+|\p{S}+/gu) ?? [];
+  const rawTerms: string[] = [];
+  const codePoints = [...query];
+  let word: string[] = [];
+  let symbols: string[] = [];
+  const flushWord = () => {
+    if (word.length > 0) rawTerms.push(word.join(""));
+    word = [];
+  };
+  const flushSymbols = () => {
+    if (symbols.length > 0) rawTerms.push(symbols.join(""));
+    symbols = [];
+  };
+  const isWordCodePoint = (value: string | undefined) =>
+    value !== undefined && /^(?:[\p{L}\p{N}\p{M}]|_)$/u.test(value);
+
+  for (const [index, value] of codePoints.entries()) {
+    if (isWordCodePoint(value)) {
+      flushSymbols();
+      word.push(value);
+    } else if (value === "#" && word.length > 0 && !isWordCodePoint(codePoints[index + 1])) {
+      word.push(value);
+      flushWord();
+    } else if (/^\p{S}$/u.test(value)) {
+      flushWord();
+      symbols.push(value);
+    } else {
+      flushWord();
+      flushSymbols();
+    }
+  }
+  flushWord();
+  flushSymbols();
+
   if (rawTerms.length === 0) return false;
   if (rawTerms.length !== normalizedTerms.length) return true;
   return rawTerms.some(
