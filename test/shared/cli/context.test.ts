@@ -63,6 +63,7 @@ test("context prioritizes exact branch matches over global recency", async () =>
 
   assert.strictEqual(result.frames[0]?.id, "matching");
   assert.ok(result.frames[0]?.whySelected.includes("branch-match"));
+  assert.equal(Object.prototype.hasOwnProperty.call(result.frames[0], "provenance"), false);
   assert.strictEqual(result.selection.query, null);
   assert.ok(result.frames.every((item) => !item.whySelected.includes("query-match")));
 });
@@ -312,7 +313,7 @@ test("context opens an existing SQLite store read-only without changing its file
 
     const result = await buildSessionContext({ projectRoot, branch: "main", maxTokens: 1200 });
 
-    assert.strictEqual(result.schemaVersion, "1.1.0");
+    assert.strictEqual(result.schemaVersion, "1.2.0");
     assert.strictEqual(result.resolution.store.accessMode, "read-only");
     assert.strictEqual(result.frames[0]?.id, "sqlite-context");
     assert.ok(!result.warnings.some((warning) => warning.code === "STORE_UNAVAILABLE"));

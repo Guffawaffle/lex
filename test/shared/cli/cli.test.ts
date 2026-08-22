@@ -10,6 +10,10 @@ import { execFileSync, spawnSync } from "node:child_process";
 import { writeFileSync, mkdirSync, existsSync, rmSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
+import {
+  canonicalizeStorePath,
+  createStoreIdentity,
+} from "../../../src/shared/config/store-identity.js";
 
 const testDir = join(tmpdir(), "lex-cli-test-" + Date.now());
 const testDbPath = join(testDir, "frames.db");
@@ -99,6 +103,7 @@ test("CLI: lex remember --help surfaces the required module contract", () => {
     assert.match(output, /auto.*inference/);
     assert.match(output, /unscoped.*fallback/);
     assert.match(output, /required Frame\s+fields still apply/);
+    assert.match(output, /provenance-json/);
   } finally {
     cleanup();
   }
@@ -218,6 +223,92 @@ test("CLI: lex remember with --json outputs JSON", () => {
     assert.ok(event.data?.frame_id, "data should contain frame_id");
     assert.ok(event.data?.created_at, "data should contain created_at");
     assert.equal(event.data?.success, true, "data should contain success: true");
+    assert.equal(event.data?.branch, "test-branch", "existing branch field should be preserved");
+    assert.deepEqual(
+      event.data?.modules,
+      ["ui/admin-panel"],
+      "existing modules should be preserved"
+    );
+    assert.equal(
+      event.data?.referencePoint,
+      "json test",
+      "existing referencePoint should be preserved"
+    );
+
+    const canonicalStorePath = canonicalizeStorePath(testDbPath);
+    const expectedStoreIdentity = createStoreIdentity(canonicalStorePath);
+    assert.equal(
+      event.data?.storeIdentity,
+      expectedStoreIdentity,
+      "receipt should bind the exact selected store identity"
+    );
+    assert.deepEqual(event.data?.store, {
+      backend: "sqlite",
+      canonicalLocation: canonicalStorePath,
+      identity: expectedStoreIdentity,
+    });
+    assert.equal(
+      Object.prototype.hasOwnProperty.call(event.data, "provenance"),
+      false,
+      "existing no-provenance receipts should not gain an asserted provenance value"
+    );
+  } finally {
+    cleanup();
+  }
+});
+
+test("CLI: caller provenance persists exactly from remember receipt through context", () => {
+  setupTest();
+  try {
+    const referencePoint = "caller provenance round trip";
+    const provenance = {
+      schemaVersion: "caller-handoff/v1",
+      workspace: { id: "workspace-fixture", root: "D:\\fixture" },
+      repositories: [{ id: "repo-a", head: "0123456789abcdef", issue: null, pullRequest: 42 }],
+      verified: true,
+    };
+    const rememberOutput = execFileSync(
+      process.execPath,
+      [
+        lexBin,
+        "--json",
+        "remember",
+        "--reference-point",
+        referencePoint,
+        "--summary",
+        "Caller provenance persistence",
+        "--next",
+        "Read the exact historical object",
+        "--modules",
+        "ui/admin-panel",
+        "--provenance-json",
+        JSON.stringify(provenance),
+      ],
+      { encoding: "utf-8", env: getTestEnv() }
+    );
+    const receipt = JSON.parse(rememberOutput.trim());
+    assert.deepEqual(receipt.data?.provenance, provenance);
+
+    const contextOutput = execFileSync(
+      process.execPath,
+      [
+        lexBin,
+        "--json",
+        "context",
+        referencePoint,
+        "--project-root",
+        testDir,
+        "--branch",
+        "test-branch",
+        "--max-tokens",
+        "2000",
+      ],
+      { encoding: "utf-8", env: getTestEnv() }
+    );
+    const context = JSON.parse(contextOutput.trim());
+    assert.equal(context.safety?.contentTrust, "untrusted-historical-data");
+    assert.equal(context.frames?.length, 1);
+    assert.deepEqual(context.frames[0]?.provenance, provenance);
   } finally {
     cleanup();
   }

@@ -17,6 +17,11 @@ export const FrameSpendMetadata = z.object({
 
 export type FrameSpendMetadata = z.infer<typeof FrameSpendMetadata>;
 
+/** Opaque caller-supplied historical data. Lex stores but does not interpret these fields. */
+export const CallerProvenance = z.record(z.string(), z.json());
+
+export type CallerProvenance = z.infer<typeof CallerProvenance>;
+
 export const ModuleAttribution = z.object({
   mode: z.enum(["explicit", "inferred", "fallback"]),
   confidence: z.enum(["high", "medium", "low"]),
@@ -71,6 +76,7 @@ export const FrameStatusSnapshot = z.object({
   blockers: z.array(z.string()).optional(),
   merge_blockers: z.array(z.string()).optional(),
   tests_failing: z.array(z.string()).optional(),
+  provenance: CallerProvenance.optional(),
 });
 
 export type FrameStatusSnapshot = z.infer<typeof FrameStatusSnapshot>;
@@ -154,8 +160,9 @@ export type Frame = z.infer<typeof Frame>;
  * v5: Added superseded_by, merged_from for deduplication (2.2.0)
  * v6: Added contradiction_resolution for contradiction detection (2.3.0)
  * v7: Added module_attribution provenance (2.9.0)
+ * v8: Added caller-supplied historical provenance (4.0.0)
  */
-export const FRAME_SCHEMA_VERSION = 7;
+export const FRAME_SCHEMA_VERSION = 8;
 
 /**
  * Frame search query interface

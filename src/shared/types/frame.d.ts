@@ -28,7 +28,14 @@ export interface StatusSnapshot {
   merge_blockers?: string[];
   /** Test names that were failing during this session */
   tests_failing?: string[];
+  /** Opaque caller-supplied historical data. Lex stores but does not interpret these fields. */
+  provenance?: CallerProvenance;
 }
+export type JsonValue = string | number | boolean | null | JsonValue[] | {
+  [key: string]: JsonValue;
+};
+/** A JSON object supplied by the caller as historical write provenance. */
+export type CallerProvenance = Record<string, JsonValue>;
 /**
  * Frame metadata representing a timestamped work session snapshot.
  *

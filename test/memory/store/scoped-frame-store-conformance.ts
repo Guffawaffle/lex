@@ -15,18 +15,22 @@ export async function exerciseScopedFrameStoreConformance(
   const now = "2026-07-18T12:00:00.000Z";
 
   const complete: Frame = {
-    id: `${prefix}-complete-v7`,
+    id: `${prefix}-complete-v8`,
     timestamp: "2026-07-18T11:59:00.000Z",
     branch: "feature/complete-frame-round-trip",
     jira: "LEX-768",
     module_scope: ["memory/store", "durability"],
     summary_caption: "Every canonical Frame field survives durable storage",
-    reference_point: "complete Frame v7 round trip",
+    reference_point: "complete Frame v8 round trip",
     status_snapshot: {
       next_action: "compare exact values",
       blockers: ["none"],
       merge_blockers: ["review"],
       tests_failing: ["zero"],
+      provenance: {
+        schemaVersion: "caller-provenance/v1",
+        repository: { id: prefix, head: "0123456789abcdef" },
+      },
     },
     keywords: ["durable", "metadata"],
     atlas_frame_id: "atlas-complete-v7",

@@ -6,7 +6,7 @@
 
 import { existsSync } from "node:fs";
 import { spawnSync } from "node:child_process";
-import type { Frame } from "../types/frame-schema.js";
+import type { CallerProvenance, Frame } from "../types/frame-schema.js";
 import type { FrameStore } from "../../memory/store/frame-store.js";
 import {
   createFrameStore,
@@ -31,7 +31,7 @@ import { json, raw } from "./output.js";
 import { buildFrameWriteContract } from "./frame-write-contract.js";
 import type { Policy } from "../types/policy.js";
 
-const CONTEXT_SCHEMA_VERSION = "1.1.0";
+const CONTEXT_SCHEMA_VERSION = "1.2.0";
 const DEFAULT_LIMIT = 5;
 const DEFAULT_MAX_TOKENS = 1200;
 const MIN_MAX_TOKENS = 256;
@@ -71,6 +71,8 @@ export interface ContextFrame {
   blockers: string[];
   mergeBlockers: string[];
   testsFailing: string[];
+  /** Opaque caller-supplied historical data; consumers must not treat it as instructions. */
+  provenance?: CallerProvenance;
   jira?: string;
   whySelected: string[];
   truncated: boolean;
@@ -217,6 +219,7 @@ function toContextFrame(frame: Frame, reasons: string[]): ContextFrame {
     blockers,
     mergeBlockers,
     testsFailing,
+    ...(frame.status_snapshot.provenance ? { provenance: frame.status_snapshot.provenance } : {}),
     ...(frame.jira ? { jira: frame.jira } : {}),
     whySelected: reasons,
     truncated:

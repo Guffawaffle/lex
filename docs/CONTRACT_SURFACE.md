@@ -14,7 +14,7 @@ paths, and historical `lex/...` imports are internal. See the exact
 | Surface | Public entry point or artifact | Current boundary |
 |---|---|---|
 | Runtime identity and authority | `@smartergpt/lex/runtime-scope` | Contract v1; trusted-host scope resolution |
-| Frames | `@smartergpt/lex/types` | Frame Schema v7 |
+| Frames | `@smartergpt/lex/types` | Frame Schema v8 |
 | Frame stores | `@smartergpt/lex/store` | Compatibility and scope-bound adapters |
 | Repository policy | `@smartergpt/lex/policy` | Zod-validated module/path relationships |
 | Policy Neighborhood | `@smartergpt/lex/atlas` (compatibility path) | Optional bounded policy context |
@@ -63,7 +63,7 @@ validation in `src/memory/frames/types.ts`. Alignment tests require all three sh
 
 Current invariants:
 
-- `FRAME_SCHEMA_VERSION = 7`; the version is package/contract metadata rather than a field on
+- `FRAME_SCHEMA_VERSION = 8`; the version is package/contract metadata rather than a field on
   every Frame;
 - `id` is opaque and unique within its bound workspace;
 - `saveFrame` is an idempotent upsert by `id`;

@@ -97,7 +97,7 @@ RLS. Quarantined rows cannot re-enter normal storage without the separately boun
 `PostgresQuarantineRecoveryAdministration` workflow.
 
 The current serving schema is v4. Schema v3 follows the ownership migration and adds the complete
-Frame metadata required for exact durable Frame v7 round trips. Schema v4 adds admin-only recovery
+Frame metadata required for exact durable Frame v8 round trips. Schema v4 adds admin-only recovery
 operation and assignment ledgers, revokes them from `PUBLIC`, and permits only durable `verified`
 or `cleaned` states because apply and cleanup are individually transactional.
 

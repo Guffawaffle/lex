@@ -8,7 +8,15 @@ export interface StatusSnapshot {
   blockers?: string[];
   merge_blockers?: string[];
   tests_failing?: string[];
+  /** Opaque caller-supplied historical data. Lex stores but does not interpret these fields. */
+  provenance?: CallerProvenance;
 }
+
+export type JsonValue =
+  string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
+
+/** A JSON object supplied by the caller as historical write provenance. */
+export type CallerProvenance = Record<string, JsonValue>;
 
 export interface SpendMetadata {
   prompts?: number;
@@ -110,8 +118,17 @@ export interface Frame {
  * v5: Added superseded_by, merged_from for deduplication (2.2.0)
  * v6: Added contradiction resolution metadata (2.3.0)
  * v7: Added module attribution provenance (2.9.0)
+ * v8: Added caller-supplied historical provenance (4.0.0)
  */
-export const FRAME_SCHEMA_VERSION = 7;
+export const FRAME_SCHEMA_VERSION = 8;
+
+function isJsonValue(value: unknown): value is JsonValue {
+  if (value === null || typeof value === "string" || typeof value === "boolean") return true;
+  if (typeof value === "number") return Number.isFinite(value);
+  if (Array.isArray(value)) return value.every(isJsonValue);
+  if (typeof value !== "object") return false;
+  return Object.values(value).every(isJsonValue);
+}
 
 export function validateFrameMetadata(frame: unknown): frame is Frame {
   if (typeof frame !== "object" || frame === null) return false;
@@ -137,6 +154,15 @@ export function validateFrameMetadata(frame: unknown): frame is Frame {
   if (status.tests_failing !== undefined) {
     if (!Array.isArray(status.tests_failing)) return false;
     if (!status.tests_failing.every((t: unknown) => typeof t === "string")) return false;
+  }
+  if (status.provenance !== undefined) {
+    if (
+      typeof status.provenance !== "object" ||
+      status.provenance === null ||
+      Array.isArray(status.provenance)
+    )
+      return false;
+    if (!Object.values(status.provenance).every(isJsonValue)) return false;
   }
   if (f.jira !== undefined && typeof f.jira !== "string") return false;
   if (f.keywords !== undefined) {

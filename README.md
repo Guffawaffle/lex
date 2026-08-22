@@ -257,7 +257,7 @@ Lex exposes the same core through several entry points:
 - **MCP** through `@smartergpt/lex-mcp` or the embeddable server export
 - **TypeScript APIs** for applications and trusted hosts
 
-Frame Schema v7 is the current canonical Frame contract. The package's public export map is
+Frame Schema v8 is the current canonical Frame contract. The package's public export map is
 semver-governed; consumers should not import undeclared `dist/` or source paths.
 
 [CLI output contract](./docs/CLI_OUTPUT.md) · [MCP tools](./README.mcp.md) · [Public package entry points](./docs/PUBLIC_API.md) · [Contract surface](./docs/CONTRACT_SURFACE.md)

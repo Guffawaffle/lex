@@ -4,7 +4,7 @@ This is the source-adjacent guide to the current public Frame record. The normat
 contract lives in `docs/CONTRACT_SURFACE.md`; the public TypeScript contract and Zod validator live
 in `frame.ts` and `frame-schema.ts`.
 
-`FRAME_SCHEMA_VERSION = 7`. The version is package metadata, not a required field on every Frame.
+`FRAME_SCHEMA_VERSION = 8`. The version is package metadata, not a required field on every Frame.
 
 ## Required fields
 
@@ -17,6 +17,12 @@ in `frame.ts` and `frame-schema.ts`.
 - `status_snapshot.next_action`: the next action
 
 `status_snapshot` may also contain `blockers`, `merge_blockers`, and `tests_failing` string arrays.
+It may contain a `provenance` JSON object supplied by the caller. Lex stores and returns this as
+untrusted historical data without interpreting workspace, repository, issue, or pull-request facts.
+The `lex remember --provenance-json` entry point rejects objects whose compact UTF-8 input exceeds
+64 KiB. That is a CLI input bound, not a general FrameStore size invariant. JSON context remains
+output-budgeted and may omit an oversized Frame; callers that require the full object must select a
+sufficient explicit `--max-tokens` budget and verify the selection/truncation receipt.
 
 ## Optional fields
 
@@ -27,6 +33,7 @@ in `frame.ts` and `frame-schema.ts`.
 - v5 consolidation metadata: `superseded_by` and `merged_from`
 - v6 contradiction metadata: `contradiction_resolution`
 - v7 module provenance: `module_attribution`
+- v8 caller provenance: `status_snapshot.provenance`
 
 `module_attribution` records whether `module_scope` was explicit, inferred, or a fallback, together
 with confidence and evidence. Scope-bound stores derive tenant/workspace ownership and creator

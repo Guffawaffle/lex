@@ -18,17 +18,21 @@ const publicAndPersistenceKeysAgree: SameKeys<PublicFrame, PersistenceFrame> = t
 void publicAndPersistenceKeysAgree;
 
 const completeFrame = {
-  id: "frame-contract-v7",
+  id: "frame-contract-v8",
   timestamp: "2026-07-18T10:00:00Z",
   branch: "main",
   module_scope: ["memory"],
-  summary_caption: "Exercise every Frame v7 field",
+  summary_caption: "Exercise every Frame v8 field",
   reference_point: "frame contract alignment",
   status_snapshot: {
     next_action: "Keep the contract aligned",
     blockers: [],
     merge_blockers: [],
     tests_failing: [],
+    provenance: {
+      schemaVersion: "caller-provenance/v1",
+      repository: { head: "0123456789abcdef", issue: null },
+    },
   },
   jira: "LEX-763",
   keywords: ["frame", "contract"],
@@ -77,7 +81,7 @@ const completeFrame = {
   },
 };
 
-describe("Frame v7 contract alignment", () => {
+describe("Frame v8 contract alignment", () => {
   test("public and persistence Zod schemas expose the same record fields", () => {
     assert.deepEqual(
       [...Object.keys(FrameSchema.shape)].sort(),
