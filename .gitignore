@@ -10,6 +10,9 @@ build/
 *.d.ts.map
 tsconfig.tsbuildinfo
 *.tgz
+/pack.json
+/release-candidate.json
+/release-candidate.attestation.jsonl
 
 # Local config (copy lex.yaml.example to lex.yaml and customize)
 # lex.yaml.example is tracked; lex.yaml is your local config

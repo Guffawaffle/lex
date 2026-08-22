@@ -4,7 +4,7 @@
 
 import { describe, test, before, after } from "node:test";
 import assert from "node:assert";
-import { readFileSync, unlinkSync, existsSync, mkdirSync } from "fs";
+import { readFileSync, existsSync, mkdirSync, rmSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
 import {
@@ -17,6 +17,7 @@ import {
 
 describe("NDJSON Logger", () => {
   const originalWorkspaceRoot = process.env.LEX_WORKSPACE_ROOT;
+  const originalNdjsonSetting = process.env.LEX_LOG_NDJSON;
   const testWorkspaceRoot = join(tmpdir(), `lex-ndjson-test-${Date.now()}`);
 
   before(() => {
@@ -27,22 +28,19 @@ describe("NDJSON Logger", () => {
   });
 
   after(() => {
+    // Remove only the test-owned tree while its identity is still explicit.
+    rmSync(testWorkspaceRoot, { recursive: true, force: true });
+
     // Restore original env
     if (originalWorkspaceRoot) {
       process.env.LEX_WORKSPACE_ROOT = originalWorkspaceRoot;
     } else {
       delete process.env.LEX_WORKSPACE_ROOT;
     }
-    delete process.env.LEX_LOG_NDJSON;
-
-    // Clean up test workspace
-    try {
-      const logFile = getLogFilePath();
-      if (existsSync(logFile)) {
-        unlinkSync(logFile);
-      }
-    } catch {
-      // Ignore cleanup errors
+    if (originalNdjsonSetting) {
+      process.env.LEX_LOG_NDJSON = originalNdjsonSetting;
+    } else {
+      delete process.env.LEX_LOG_NDJSON;
     }
   });
 
@@ -50,7 +48,7 @@ describe("NDJSON Logger", () => {
     const logDir = getLogDirectory();
     assert.ok(existsSync(logDir), "Log directory should exist");
     assert.ok(
-      logDir.includes(".smartergpt/lex/logs"),
+      logDir === join(testWorkspaceRoot, ".smartergpt", "lex", "logs"),
       "Log directory should be in .smartergpt/lex/logs"
     );
   });

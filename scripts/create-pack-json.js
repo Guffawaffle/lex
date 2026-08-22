@@ -3,12 +3,13 @@
  * Create pack.json for pack guard validation
  * This script runs npm pack and extracts only the JSON output
  */
-import { execFileSync } from "child_process";
 import fs from "fs";
+
+import { runNpm } from "./run-npm.mjs";
 
 try {
   // Run npm pack and capture output
-  const output = execFileSync("npm", ["pack", "--json"], { encoding: "utf8" });
+  const output = runNpm(["pack", "--json"], { capture: true });
 
   // Find the JSON array in the output (starts with '[' and ends with ']')
   const jsonStart = output.indexOf("[");

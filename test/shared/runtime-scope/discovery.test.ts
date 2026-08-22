@@ -69,8 +69,8 @@ describe("production runtime-scope discovery", () => {
         argv: ["node", "lex", "recall"],
         cwd: nested,
         environment: { HOME: root },
-        platform: "linux",
-        installationRef: "/usr/bin/node",
+        platform: process.platform,
+        installationRef: process.execPath,
         capturedAt: NOW,
       });
       const result = await discovery.discover({ entrypoint: "cli", bootstrap });
@@ -115,8 +115,8 @@ describe("production runtime-scope discovery", () => {
         argv: ["node", "lex"],
         cwd: caller,
         environment: { HOME: root },
-        platform: "linux",
-        installationRef: "/usr/bin/node",
+        platform: process.platform,
+        installationRef: process.execPath,
         capturedAt: NOW,
       });
       await assert.rejects(

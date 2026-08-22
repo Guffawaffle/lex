@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, test } from "node:test";
@@ -8,20 +8,41 @@ import {
   canonicalizeContainedPath,
   readContainedFile,
 } from "../../../src/shared/config/contained-path.js";
+import { createTestSymlinkOrSkip } from "../../helpers/symlink.js";
 
 describe("trusted contained paths", () => {
-  test("rejects an existing symlink file and unresolved symlink ancestor outside the root", () => {
+  test("rejects an existing symlink file outside the root", (t) => {
     const fixture = mkdtempSync(join(tmpdir(), "lex-contained-path-"));
     const projectRoot = join(fixture, "project");
     const externalRoot = join(fixture, "external");
     mkdirSync(projectRoot);
     mkdirSync(externalRoot);
     writeFileSync(join(externalRoot, "policy.json"), "{}", "utf8");
-    symlinkSync(join(externalRoot, "policy.json"), join(projectRoot, "policy.json"));
-    symlinkSync(externalRoot, join(projectRoot, "linked"));
+    try {
+      if (
+        !createTestSymlinkOrSkip(
+          t,
+          join(externalRoot, "policy.json"),
+          join(projectRoot, "policy.json")
+        )
+      ) {
+        return;
+      }
+      assert.throws(() => readContainedFile(projectRoot, join(projectRoot, "policy.json")));
+    } finally {
+      rmSync(fixture, { recursive: true, force: true });
+    }
+  });
+
+  test("rejects an unresolved linked ancestor outside the root", (t) => {
+    const fixture = mkdtempSync(join(tmpdir(), "lex-contained-ancestor-"));
+    const projectRoot = join(fixture, "project");
+    const externalRoot = join(fixture, "external");
+    mkdirSync(projectRoot);
+    mkdirSync(externalRoot);
 
     try {
-      assert.throws(() => readContainedFile(projectRoot, join(projectRoot, "policy.json")));
+      if (!createTestSymlinkOrSkip(t, externalRoot, join(projectRoot, "linked"), "dir")) return;
       assert.throws(() =>
         canonicalizeContainedPath(projectRoot, join(projectRoot, "linked", "missing.json"))
       );
@@ -30,7 +51,7 @@ describe("trusted contained paths", () => {
     }
   });
 
-  test("returns content from the validated open handle even if the path is replaced later", () => {
+  test("returns the validated snapshot and rejects a later symlink replacement", (t) => {
     const fixture = mkdtempSync(join(tmpdir(), "lex-contained-snapshot-"));
     const projectRoot = join(fixture, "project");
     const externalRoot = join(fixture, "external");
@@ -44,7 +65,7 @@ describe("trusted contained paths", () => {
     try {
       const snapshot = readContainedFile(projectRoot, trustedPath);
       unlinkSync(trustedPath);
-      symlinkSync(externalPath, trustedPath);
+      if (!createTestSymlinkOrSkip(t, externalPath, trustedPath)) return;
       assert.equal(snapshot.content, '{"source":"trusted"}');
       assert.throws(() => readContainedFile(projectRoot, trustedPath));
     } finally {

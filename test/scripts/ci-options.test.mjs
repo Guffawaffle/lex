@@ -6,10 +6,14 @@ import { spawnSync } from "node:child_process";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
+import { findCompatibleBash } from "../helpers/bash.mjs";
+
 const REPOSITORY_ROOT = fileURLToPath(new URL("../../", import.meta.url));
+const bashExecutable = findCompatibleBash();
+const shellTest = bashExecutable ? test : test.skip;
 
 function runBash(script, args = [], options = {}) {
-  return spawnSync("bash", ["-c", script, "bash", ...args], {
+  return spawnSync(bashExecutable, ["-c", script, "bash", ...args], {
     cwd: REPOSITORY_ROOT,
     encoding: "utf8",
     ...options,
@@ -23,13 +27,13 @@ npm() { printf 'npm:%s\\n' "$*"; }
 lex_ci_run_optional_audits
 `;
 
-test("default developer validation does not invoke Prettier", () => {
+shellTest("default developer validation does not invoke Prettier", () => {
   const result = runBash(parseAndRun);
   assert.equal(result.status, 0, result.stderr);
   assert.equal(result.stdout, "");
 });
 
-test("--pretty and --prettier are exact check-only aliases", () => {
+shellTest("--pretty and --prettier are exact check-only aliases", () => {
   for (const alias of ["--pretty", "--prettier"]) {
     const result = runBash(parseAndRun, [alias]);
     assert.equal(result.status, 0, result.stderr);
@@ -41,13 +45,13 @@ test("--pretty and --prettier are exact check-only aliases", () => {
   }
 });
 
-test("both aliases request only one Prettier audit", () => {
+shellTest("both aliases request only one Prettier audit", () => {
   const result = runBash(parseAndRun, ["--pretty", "--prettier"]);
   assert.equal(result.status, 0, result.stderr);
   assert.equal(result.stdout.match(/^npm:run format:check$/gm)?.length, 1);
 });
 
-test("unknown developer-validation options fail fast with usage", () => {
+shellTest("unknown developer-validation options fail fast with usage", () => {
   const result = runBash(parseAndRun, ["--rewrite"]);
   assert.equal(result.status, 2);
   assert.match(result.stderr, /Unknown developer-validation option: --rewrite/);
@@ -86,13 +90,17 @@ function recordedArguments(path) {
   return readFileSync(path, "utf8").split("\0").filter(Boolean);
 }
 
-test("documented Docker wrappers forward validation aliases verbatim", () => {
+shellTest("documented Docker wrappers forward validation aliases verbatim", () => {
   withFakeDocker(({ argumentsPath, environment }) => {
-    const local = spawnSync("bash", ["./scripts/local-ci-run.sh", "--pretty", "--prettier"], {
-      cwd: REPOSITORY_ROOT,
-      env: environment,
-      encoding: "utf8",
-    });
+    const local = spawnSync(
+      bashExecutable,
+      ["./scripts/local-ci-run.sh", "--pretty", "--prettier"],
+      {
+        cwd: REPOSITORY_ROOT,
+        env: environment,
+        encoding: "utf8",
+      }
+    );
     assert.equal(local.status, 0, local.stderr);
     assert.deepEqual(recordedArguments(argumentsPath).slice(-3), [
       "./scripts/ci.sh",
@@ -100,11 +108,15 @@ test("documented Docker wrappers forward validation aliases verbatim", () => {
       "--prettier",
     ]);
 
-    const nonet = spawnSync("bash", ["./scripts/ci-nonet.sh", "lex-ci:test", "--prettier"], {
-      cwd: REPOSITORY_ROOT,
-      env: environment,
-      encoding: "utf8",
-    });
+    const nonet = spawnSync(
+      bashExecutable,
+      ["./scripts/ci-nonet.sh", "lex-ci:test", "--prettier"],
+      {
+        cwd: REPOSITORY_ROOT,
+        env: environment,
+        encoding: "utf8",
+      }
+    );
     assert.equal(nonet.status, 0, nonet.stderr);
     const nonetArguments = recordedArguments(argumentsPath);
     assert.ok(nonetArguments.includes("lex-ci:test"));

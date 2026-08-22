@@ -49,7 +49,7 @@ describe("Canonical Instruction Loader", () => {
 
       assert.equal(result.exists, false);
       assert.equal(result.content, "");
-      assert.ok(result.path.includes(".smartergpt/instructions/lex.md"));
+      assert.equal(result.path, path.join(repoRoot, ".smartergpt", "instructions", "lex.md"));
     });
 
     it("uses custom path from config", () => {
@@ -71,7 +71,7 @@ describe("Canonical Instruction Loader", () => {
 
       assert.equal(result.exists, true);
       assert.equal(result.content, content);
-      assert.ok(result.path.includes("docs/ai/instructions.md"));
+      assert.equal(result.path, path.join(repoRoot, "docs", "ai", "instructions.md"));
     });
 
     it("generates deterministic hash for content", () => {

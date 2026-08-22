@@ -4,10 +4,15 @@
 
 ### Patch Changes
 
-- 7493f13: Upgrade the repository-only ESLint and c8 toolchains to their patched major versions. Lex runtime dependencies and the Node 24 support contract are unchanged.
+- 7493f13: Upgrade the repository-only ESLint and c8 toolchains to their patched major versions. Direct dependency declarations and the Node 24 support contract are unchanged.
+- Refresh five transitive lock entries to patched releases for `brace-expansion`, `fast-uri`,
+  `ip-address`, and both `js-yaml` lines; the high-severity dependency audit is clean.
 - 2a795a6: Require every normalized `lex context` query term to match before continuity is ranked, and fail
   closed for empty or partially unsupported normalized queries instead of returning unrelated recent
   Frames.
+- Persist bounded handoff provenance with exact repository, workspace, store, provider, and invocation
+  identity so downstream session consumers can distinguish source-bound continuity from an unavailable
+  or unbound runtime.
 - Export the PostgreSQL behavioral-store migration plan, apply, SQL, and rollback surfaces from the
   public `@smartergpt/lex/store` entrypoint so operators can provision the runtime boundary without
   importing package internals.

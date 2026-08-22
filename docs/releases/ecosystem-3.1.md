@@ -4,8 +4,9 @@ Ecosystem 3.1 is a compatibility release train across the Lex toolset. It is not
 version. Each repository selects semver from its own reviewed user-visible delta, while the release
 manifest records the exact set proven to work together.
 
-Lex selects package version 4.0.0 because the Node 20-to-24 support-floor change is breaking under
-Lex's public compatibility policy. Lex-MCP preserves exact major/version alignment with Lex.
+Lex selects package version 4.0.1 as the corrective release for the 4.0 line, whose Node 20-to-24
+support-floor change is breaking under Lex's public compatibility policy. Lex-MCP preserves exact
+major/version alignment with Lex.
 Neither package version renames the Ecosystem 3.1 train.
 
 The canonical machine-readable draft is [`releases/ecosystem-3.1.json`](../../releases/ecosystem-3.1.json).
@@ -165,10 +166,20 @@ git rev-parse HEAD
 The expected npm identity is `guffawaffle`. The worktree must be clean and `HEAD` must equal the
 reviewed release commit recorded in the candidate manifest.
 
-From that exact checkout, the maintainer runs the applicable command:
+For Lex 4.0.1, download the `npm-candidate-<commit>` artifact from the reviewed release workflow,
+verify both the tarball and `release-candidate.json` with `gh attestation verify` constrained to
+`Guffawaffle/lex/.github/workflows/release.yml` and the reviewed source digest, run
+`node scripts/verify-release-candidate.mjs --check-only`, and publish the exact retained file:
 
 ```bash
-# Public packages
+npm publish ./smartergpt-lex-4.0.1.tgz --access public
+```
+
+Other repositories must follow their own artifact-bound release checklist. Where that checklist
+has not yet defined a retained artifact, the applicable access command remains:
+
+```bash
+# Public packages other than Lex
 npm publish --access public
 
 # Restricted packages

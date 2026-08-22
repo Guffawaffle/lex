@@ -6,6 +6,7 @@
  * - Only expected directories and files are included
  */
 import fs from "fs";
+import { execFileSync } from "node:child_process";
 
 const packageJson = JSON.parse(fs.readFileSync("package.json", "utf8"));
 
@@ -37,6 +38,20 @@ if (!packData[0].files || !Array.isArray(packData[0].files)) {
 }
 
 const files = packData[0].files.map((x) => x?.path).filter((p) => p != null);
+const trackedFiles = new Set(
+  execFileSync("git", ["ls-files", "-z"], { encoding: "utf8" }).split("\0").filter(Boolean)
+);
+const generatedRoots = /^(dist|schemas|rules)\//;
+const untrackedPackageInputs = files.filter(
+  (filePath) => !generatedRoots.test(filePath) && !trackedFiles.has(filePath)
+);
+if (untrackedPackageInputs.length) {
+  console.error(
+    "❌ Tarball contains static inputs not tracked by the candidate commit:",
+    untrackedPackageInputs
+  );
+  process.exit(1);
+}
 const allowed = ["README.md", "README.mcp.md", "LICENSE", "package.json", "CHANGELOG.md"];
 
 function exportTargets(entry) {

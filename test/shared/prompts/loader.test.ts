@@ -17,9 +17,10 @@
 import { test, describe, beforeEach, afterEach } from "node:test";
 import assert from "node:assert";
 import { loadPrompt, listPrompts, getPromptPath } from "@app/shared/prompts/loader.js";
-import { mkdtempSync, rmSync, mkdirSync, writeFileSync, symlinkSync } from "fs";
+import { mkdtempSync, rmSync, mkdirSync, writeFileSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
+import { createTestSymlinkOrSkip } from "../../helpers/symlink.js";
 
 describe("Prompt Loader Precedence", () => {
   let originalDir: string;
@@ -300,7 +301,7 @@ describe("Prompt Loader Edge Cases", () => {
     assert.strictEqual(result, "# Relative Canon");
   });
 
-  test("handles symlinks in .smartergpt/prompts/", async () => {
+  test("handles symlinks in .smartergpt/prompts/", async (t) => {
     const repo = createTestRepo();
     const targetDir = mkdtempSync(join(tmpdir(), "lex-symlink-target-"));
 
@@ -311,7 +312,16 @@ describe("Prompt Loader Edge Cases", () => {
 
       // Create symlink
       mkdirSync(join(repo, ".smartergpt"), { recursive: true });
-      symlinkSync(join(targetDir, "prompts"), join(repo, ".smartergpt", "prompts"));
+      if (
+        !createTestSymlinkOrSkip(
+          t,
+          join(targetDir, "prompts"),
+          join(repo, ".smartergpt", "prompts"),
+          "dir"
+        )
+      ) {
+        return;
+      }
 
       process.env.REPO_ROOT = repo;
       process.chdir(repo);

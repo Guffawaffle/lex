@@ -162,13 +162,14 @@ async function createFixture(options: { register?: boolean } = {}): Promise<Boot
     cwd: projectRoot,
     environment: {
       HOME: root,
+      LOCALAPPDATA: root,
       XDG_STATE_HOME: join(root, "state"),
       LEX_WORKSPACE_ROOT: projectRoot,
       LEX_REGISTRY_PATH: join(root, "forbidden-registry.db"),
       LEX_DATABASE_URL: "postgresql://secret",
     },
-    platform: "linux",
-    installationRef: "/usr/local/bin/node",
+    platform: process.platform,
+    installationRef: process.execPath,
     capturedAt: NOW,
   });
   const databasePath = registryLocationFromBootstrap(bootstrap).registryPath;

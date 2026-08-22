@@ -13,7 +13,10 @@ authenticated maintainer verifies identity and state, then runs:
   npm access list packages smartergpt --json
   git status --short
   git rev-parse HEAD
-  npm publish --access public
+  gh attestation verify <tarball> --repo Guffawaffle/lex --signer-workflow Guffawaffle/lex/.github/workflows/release.yml --source-digest <HEAD> --deny-self-hosted-runners --bundle <bundle>
+  gh attestation verify release-candidate.json --repo Guffawaffle/lex --signer-workflow Guffawaffle/lex/.github/workflows/release.yml --source-digest <HEAD> --deny-self-hosted-runners --bundle <bundle>
+  node scripts/verify-release-candidate.mjs --check-only
+  npm publish ./smartergpt-lex-4.0.1.tgz --access public
 
 See RELEASE.md and docs/releases/ecosystem-3.1.md. Nothing was published.`);
 

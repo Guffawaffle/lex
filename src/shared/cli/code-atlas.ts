@@ -591,6 +591,7 @@ export async function codeAtlas(options: CodeAtlasOptions = {}): Promise<CodeAtl
   const repoDir = options.trustedProjectRoot
     ? canonicalizeContainedPath(options.trustedProjectRoot, requestedRepoDir)
     : requestedRepoDir;
+  const sourceContainmentRoot = options.trustedProjectRoot ? repoDir : undefined;
   const includePattern = options.include || DEFAULT_INCLUDE;
   const excludePattern = options.exclude || DEFAULT_EXCLUDE;
   const maxFiles = options.maxFiles || DEFAULT_MAX_FILES;
@@ -613,12 +614,12 @@ export async function codeAtlas(options: CodeAtlasOptions = {}): Promise<CodeAtl
     return { success: false, error: errorMsg };
   }
 
-  const repoId = getRepoId(repoDir, options.trustedProjectRoot);
+  const repoId = getRepoId(repoDir, sourceContainmentRoot);
   const runId = generateRunId();
   const startTime = Date.now();
 
   // Parse .gitignore patterns
-  const gitignorePatterns = parseGitignore(repoDir, options.trustedProjectRoot);
+  const gitignorePatterns = parseGitignore(repoDir, sourceContainmentRoot);
 
   // Build ignore patterns
   const ignorePatterns = [
@@ -639,16 +640,27 @@ export async function codeAtlas(options: CodeAtlasOptions = {}): Promise<CodeAtl
   }
 
   try {
-    // Preprocess ignore patterns for efficiency
-    const resolvedIgnorePatterns = ignorePatterns.map((p) =>
-      p.startsWith("**/") ? p : path.join(repoDir, p)
-    );
-
     // Discover files
-    const pattern = path.join(repoDir, includePattern);
-    const allFiles = await glob(pattern, {
-      ignore: resolvedIgnorePatterns,
+    const discoveredFiles = await glob(includePattern, {
+      cwd: repoDir,
+      absolute: true,
+      ignore: ignorePatterns,
       nodir: true,
+    });
+    const allFiles = discoveredFiles.filter((filePath) => {
+      const relativePath = path.relative(repoDir, filePath);
+      const lexicallyContained =
+        relativePath !== ".." &&
+        !relativePath.startsWith(`..${path.sep}`) &&
+        !path.isAbsolute(relativePath);
+      if (!lexicallyContained) return false;
+      if (!sourceContainmentRoot) return true;
+      try {
+        canonicalizeContainedPath(sourceContainmentRoot, filePath);
+        return true;
+      } catch {
+        return false;
+      }
     });
 
     // Apply file limit
@@ -666,8 +678,8 @@ export async function codeAtlas(options: CodeAtlasOptions = {}): Promise<CodeAtl
     // Process files
     for (const filePath of filesToScan) {
       try {
-        const snapshot = options.trustedProjectRoot
-          ? readContainedFile(options.trustedProjectRoot, filePath)
+        const snapshot = sourceContainmentRoot
+          ? readContainedFile(sourceContainmentRoot, filePath)
           : { canonicalPath: filePath, content: fs.readFileSync(filePath, "utf-8") };
         const content = snapshot.content;
         const relativePath = path.relative(repoDir, snapshot.canonicalPath).replace(/\\/g, "/");
