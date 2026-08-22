@@ -101,6 +101,7 @@ const KNOWN_STATUS_SNAPSHOT_FIELDS = new Set([
   "blockers",
   "merge_blockers",
   "tests_failing",
+  "provenance",
 ]);
 
 /**

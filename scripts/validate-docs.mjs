@@ -207,7 +207,9 @@ for (const required of [
 
 if (
   releaseChecklist?.includes("human maintainer") &&
-  releaseChecklist.includes("npm publish --access public") &&
+  releaseChecklist.includes("npm publish ./smartergpt-lex-4.0.1.tgz --access public") &&
+  releaseChecklist.includes("release-candidate.json") &&
+  releaseChecklist.includes("gh attestation verify") &&
   !releaseChecklist.includes("triggers automated npm publish")
 ) {
   pass("RELEASE.md preserves the human-only npm publication gate");
@@ -217,9 +219,11 @@ if (
 
 if (
   packageJson.scripts?.release === "node scripts/manual-publish-boundary.mjs" &&
-  packageJson.scripts?.["release:dry-run"]?.includes("npm publish --dry-run") &&
+  packageJson.scripts?.["release:dry-run"] === "npm run release:candidate" &&
+  packageJson.scripts?.["release:candidate"]?.includes("verify-release-candidate.mjs") &&
   manualPublishBoundary?.includes("LEX_NPM_PUBLISH_REQUIRES_HUMAN") &&
-  manualPublishBoundary.includes("npm publish --access public")
+  manualPublishBoundary.includes("gh attestation verify") &&
+  manualPublishBoundary.includes("npm publish ./smartergpt-lex-4.0.1.tgz --access public")
 ) {
   pass("Package scripts hard-stop automated publication and preserve an agent-safe dry run");
 } else {

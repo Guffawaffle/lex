@@ -42,7 +42,7 @@ describe("Attachment Manager", () => {
       assert.strictEqual(ref.mime_type, mimeType, "MIME type should match");
       assert.strictEqual(ref.size_bytes, imageData.length, "Size should match");
       assert.ok(
-        ref.path.includes(".smartergpt/lex/attachments"),
+        ref.path.includes(join(".smartergpt", "lex", "attachments")),
         "Path should be in attachments dir"
       );
     } finally {

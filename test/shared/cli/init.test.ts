@@ -378,12 +378,12 @@ test("init: creates instructions file by default", async () => {
     assert.strictEqual(result.success, true, "Should succeed");
     assert.strictEqual(result.instructionsCreated, true, "Should report instructions created");
 
-    const instructionsPath = join(testDir, ".smartergpt/instructions/lex.md");
+    const instructionsPath = join(testDir, ".smartergpt", "instructions", "lex.md");
     assert.ok(existsSync(instructionsPath), "Should create instructions file");
 
     // Verify file is in filesCreated
     assert.ok(
-      result.filesCreated.some((f) => f.includes("instructions/lex.md")),
+      result.filesCreated.includes(join(".smartergpt", "instructions", "lex.md")),
       "Should include instructions file in filesCreated"
     );
 

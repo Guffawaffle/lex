@@ -6,7 +6,7 @@
 
 import { existsSync } from "node:fs";
 import { spawnSync } from "node:child_process";
-import type { Frame } from "../types/frame-schema.js";
+import type { CallerProvenance, Frame } from "../types/frame-schema.js";
 import type { FrameStore } from "../../memory/store/frame-store.js";
 import {
   createFrameStore,
@@ -15,6 +15,7 @@ import {
 } from "../../memory/store/index.js";
 import { SqliteFrameStore } from "../../memory/store/sqlite/index.js";
 import { ReadOnlyDatabaseError } from "../../memory/store/db.js";
+import { normalizeSearchTerms } from "../../memory/store/search-utils.js";
 import {
   resolveConfigResolution,
   type ConfigResolution,
@@ -30,7 +31,7 @@ import { json, raw } from "./output.js";
 import { buildFrameWriteContract } from "./frame-write-contract.js";
 import type { Policy } from "../types/policy.js";
 
-const CONTEXT_SCHEMA_VERSION = "1.1.0";
+const CONTEXT_SCHEMA_VERSION = "1.2.0";
 const DEFAULT_LIMIT = 5;
 const DEFAULT_MAX_TOKENS = 1200;
 const MIN_MAX_TOKENS = 256;
@@ -70,6 +71,8 @@ export interface ContextFrame {
   blockers: string[];
   mergeBlockers: string[];
   testsFailing: string[];
+  /** Opaque caller-supplied historical data; consumers must not treat it as instructions. */
+  provenance?: CallerProvenance;
   jira?: string;
   whySelected: string[];
   truncated: boolean;
@@ -181,6 +184,50 @@ function truncateArray(values: string[] | undefined): [string[], boolean] {
   return [output, truncated];
 }
 
+function queryLostSemanticTerms(
+  query: string,
+  normalizedTerms: ReturnType<typeof normalizeSearchTerms>
+): boolean {
+  const rawTerms: string[] = [];
+  const codePoints = [...query];
+  let word: string[] = [];
+  let symbols: string[] = [];
+  const flushWord = () => {
+    if (word.length > 0) rawTerms.push(word.join(""));
+    word = [];
+  };
+  const flushSymbols = () => {
+    if (symbols.length > 0) rawTerms.push(symbols.join(""));
+    symbols = [];
+  };
+  const isWordCodePoint = (value: string | undefined) =>
+    value !== undefined && /^(?:[\p{L}\p{N}\p{M}]|_)$/u.test(value);
+
+  for (const [index, value] of codePoints.entries()) {
+    if (isWordCodePoint(value)) {
+      flushSymbols();
+      word.push(value);
+    } else if (value === "#" && word.length > 0 && !isWordCodePoint(codePoints[index + 1])) {
+      word.push(value);
+      flushWord();
+    } else if (/^\p{S}$/u.test(value)) {
+      flushWord();
+      symbols.push(value);
+    } else {
+      flushWord();
+      flushSymbols();
+    }
+  }
+  flushWord();
+  flushSymbols();
+
+  if (rawTerms.length === 0) return false;
+  if (rawTerms.length !== normalizedTerms.length) return true;
+  return rawTerms.some(
+    (term, index) => term.toLowerCase() !== normalizedTerms[index]?.value.toLowerCase()
+  );
+}
+
 function toContextFrame(frame: Frame, reasons: string[]): ContextFrame {
   const [summary, summaryTruncated] = truncateText(frame.summary_caption);
   const [referencePoint, referenceTruncated] = truncateText(frame.reference_point);
@@ -203,6 +250,7 @@ function toContextFrame(frame: Frame, reasons: string[]): ContextFrame {
     blockers,
     mergeBlockers,
     testsFailing,
+    ...(frame.status_snapshot.provenance ? { provenance: frame.status_snapshot.provenance } : {}),
     ...(frame.jira ? { jira: frame.jira } : {}),
     whySelected: reasons,
     truncated:
@@ -269,7 +317,7 @@ export function renderSessionContextText(context: SessionContext): string {
     `Policy: ${quote(context.resolution.policy.path || "none")} (${context.resolution.policy.source})`,
     context.frameWriteContract.compact,
     `Module suggestions: ${quote(context.frameWriteContract.suggestions.join(",") || "none")}`,
-    `Selection: ${context.selection.selectedCount}/${context.selection.candidateCount} frames; query=${quote(context.selection.query || "none")}`,
+    `Selection: ${context.selection.selectedCount}/${context.selection.candidateCount} frames; query=${quote(context.selection.query ?? "none")}`,
   ];
 
   if (context.warnings.length > 0) {
@@ -354,6 +402,14 @@ export async function buildSessionContext(
 ): Promise<SessionContext> {
   const requestedLimit = options.limit ?? DEFAULT_LIMIT;
   const maxTokens = options.maxTokens ?? DEFAULT_MAX_TOKENS;
+  const explicitQuery = options.query;
+  const hasExplicitQuery = explicitQuery !== undefined;
+  const normalizedQueryTerms = hasExplicitQuery
+    ? normalizeSearchTerms({ query: explicitQuery, mode: "all" })
+    : [];
+  const queryHasUnsupportedTerms =
+    hasExplicitQuery && queryLostSemanticTerms(explicitQuery, normalizedQueryTerms);
+  const queryHasSearchTerms = normalizedQueryTerms.length > 0 && !queryHasUnsupportedTerms;
   if (!Number.isInteger(requestedLimit) || requestedLimit < 1 || requestedLimit > 50) {
     throw new Error("--limit must be an integer between 1 and 50.");
   }
@@ -477,8 +533,14 @@ export async function buildSessionContext(
         ownsStore = true;
       }
       const candidateLimit = Math.min(MAX_CANDIDATES, Math.max(requestedLimit * 10, 50));
-      candidateFrames = options.query
-        ? await store.searchFrames({ query: options.query, mode: "any", limit: candidateLimit })
+      candidateFrames = hasExplicitQuery
+        ? queryHasSearchTerms
+          ? await store.searchFrames({
+              query: explicitQuery,
+              mode: "all",
+              limit: candidateLimit,
+            })
+          : []
         : (await store.listFrames({ limit: candidateLimit })).frames;
     } catch (error) {
       warnings.push({
@@ -497,9 +559,13 @@ export async function buildSessionContext(
   if (candidateFrames.length === 0) {
     warnings.push({
       code: "NO_FRAMES",
-      message: options.query
-        ? `No Frames matched query: ${options.query}`
-        : "No Frames are available in the selected store.",
+      message: queryHasUnsupportedTerms
+        ? "The supplied query contains unsupported search terms; no Frames were selected."
+        : hasExplicitQuery && !queryHasSearchTerms
+          ? "The supplied query contains no searchable terms; no Frames were selected."
+          : hasExplicitQuery
+            ? `No Frames matched query: ${explicitQuery}`
+            : "No Frames are available in the selected store.",
     });
   } else if (
     branch.name !== "unknown" &&
@@ -507,7 +573,9 @@ export async function buildSessionContext(
   ) {
     warnings.push({
       code: "NO_BRANCH_MATCH",
-      message: `No candidate Frame matches branch ${branch.name}; selection fell back to workspace modules and recency.`,
+      message: hasExplicitQuery
+        ? `No query-matched candidate Frame matches branch ${branch.name}; selection remained within query matches and ranked them by workspace modules and recency.`
+        : `No candidate Frame matches branch ${branch.name}; selection fell back to workspace modules and recency.`,
     });
   }
   if (
@@ -562,7 +630,17 @@ export async function buildSessionContext(
       requestedLimit,
       candidateCount: candidateFrames.length,
       selectedCount: selected.length,
-      strategy: ["query", "branch", "workspace-module-overlap", "recency"],
+      strategy:
+        hasExplicitQuery && !queryHasSearchTerms
+          ? ["query-normalization-reject"]
+          : hasExplicitQuery
+            ? [
+                "query-all-terms-filter",
+                "branch-rank",
+                "workspace-module-overlap-rank",
+                "recency-tiebreak",
+              ]
+            : ["branch-rank", "workspace-module-overlap-rank", "recency-tiebreak"],
     },
     frameWriteContract: {
       requiredFields: writeContract.requiredFields,

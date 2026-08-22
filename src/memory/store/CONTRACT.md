@@ -1,7 +1,7 @@
 # FrameStore Contracts
 
 > **Status:** Current
-> **Record Schema Version:** `FRAME_SCHEMA_VERSION = 7`
+> **Record Schema Version:** `FRAME_SCHEMA_VERSION = 8`
 > **Scope Contract Version:** `FRAME_STORE_SCOPE_CONTRACT_VERSION = 1`
 
 This document describes the implemented persistence contract. The exported unscoped `FrameStore`
@@ -14,7 +14,7 @@ These values are independent and must not be substituted for one another:
 
 | Domain | Current value | Meaning |
 |---|---:|---|
-| Episodic Frame record | `FRAME_SCHEMA_VERSION = 7` | Public Frame metadata evolution |
+| Episodic Frame record | `FRAME_SCHEMA_VERSION = 8` | Public Frame metadata evolution |
 | Legacy FrameStore interface | `FRAME_STORE_SCHEMA_VERSION = "1.0.0"` | Backend-neutral compatibility contract |
 | Scoped ownership contract | `FRAME_STORE_SCOPE_CONTRACT_VERSION = 1` | Scope binding, capability, and ownership semantics |
 | Legacy/unowned SQLite | `DATABASE_SCHEMA_VERSION = 14` | Last physical schema accepted by the unscoped adapter |
@@ -45,6 +45,7 @@ Required Frame fields are:
 | `summary_caption` | string |
 | `reference_point` | string |
 | `status_snapshot.next_action` | string |
+| `status_snapshot.provenance` | optional caller-supplied JSON object (untrusted historical data) |
 
 Frame records have no normative `parent_id` or created/active/archived lifecycle field.
 `superseded_by` and `merged_from` represent deduplication and consolidation relationships.

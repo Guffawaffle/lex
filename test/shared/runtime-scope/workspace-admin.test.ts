@@ -189,9 +189,9 @@ describe("workspace binding administration", () => {
     const bootstrap = captureTrustedBootstrapInput({
       argv: ["node", "lex", "workspace"],
       cwd: projectRoot,
-      environment: { HOME: root, XDG_STATE_HOME: join(root, "state") },
-      platform: "linux",
-      installationRef: "/usr/bin/node",
+      environment: { HOME: root, LOCALAPPDATA: root, XDG_STATE_HOME: join(root, "state") },
+      platform: process.platform,
+      installationRef: process.execPath,
       capturedAt: NOW,
     });
     let nextId = 0;
@@ -274,9 +274,9 @@ describe("workspace binding administration", () => {
     const bootstrap = captureTrustedBootstrapInput({
       argv: ["node", "lex", "workspace", "recover"],
       cwd: projectRoot,
-      environment: { HOME: root, XDG_STATE_HOME: join(root, "state") },
-      platform: "linux",
-      installationRef: "/usr/bin/node",
+      environment: { HOME: root, LOCALAPPDATA: root, XDG_STATE_HOME: join(root, "state") },
+      platform: process.platform,
+      installationRef: process.execPath,
       capturedAt: NOW,
     });
     const service = new WorkspaceBindingAdminService({

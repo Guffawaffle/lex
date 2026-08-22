@@ -6,7 +6,7 @@ This directory contains a minimal example application that uses the Lex package 
 
 - Demonstrates how to consume the Lex package in a real application
 - Validates that the published package exports work correctly
-- Used by `scripts/consumer-smoke-test.sh` for end-to-end testing
+- Used by `scripts/consumer-smoke-test.mjs` for cross-platform end-to-end testing
 
 ## Files
 
@@ -55,7 +55,7 @@ The `RECEIPT_OK` token is checked by the smoke test to confirm success.
 
 ## Usage in Smoke Tests
 
-The `consumer-smoke-test.sh` script:
+The `consumer-smoke-test.mjs` script:
 
 1. Builds and packs the Lex package
 2. Creates a temp directory

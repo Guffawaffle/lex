@@ -10,6 +10,7 @@ import { codeAtlas } from "../../../src/shared/cli/code-atlas.js";
 import { writeFileSync, mkdirSync, existsSync, rmSync, readFileSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
+import { createTestSymlinkOrSkip } from "../../helpers/symlink.js";
 
 const testDir = join(tmpdir(), "lex-code-atlas-test-" + Date.now());
 
@@ -397,6 +398,59 @@ def create_user(name: str) -> User:
         "code-atlas-run-v0",
         "Run should have correct schema version"
       );
+    } finally {
+      cleanup();
+    }
+  });
+
+  test("contains trusted source reads to the requested repository root", async (t) => {
+    setupTest();
+    try {
+      const requestedRoot = join(testDir, "requested");
+      const privateRoot = join(testDir, "private");
+      mkdirSync(join(requestedRoot, "src"), { recursive: true });
+      mkdirSync(privateRoot);
+      writeFileSync(join(privateRoot, "secret.ts"), "export const secret = true;");
+      if (!createTestSymlinkOrSkip(t, privateRoot, join(requestedRoot, "src", "linked"), "dir")) {
+        return;
+      }
+
+      const result = await codeAtlas({
+        repo: requestedRoot,
+        trustedProjectRoot: testDir,
+        include: "src/linked/secret.ts",
+        emitOutput: false,
+      });
+
+      assert.equal(result.success, true);
+      assert.deepEqual(result.output?.run.filesRequested, []);
+      assert.deepEqual(result.output?.run.filesScanned, []);
+      assert.deepEqual(result.output?.units, []);
+    } finally {
+      cleanup();
+    }
+  });
+
+  test("does not disclose files matched outside the requested repository root", async () => {
+    setupTest();
+    try {
+      const requestedRoot = join(testDir, "requested");
+      const privateRoot = join(testDir, "private");
+      mkdirSync(requestedRoot);
+      mkdirSync(privateRoot);
+      writeFileSync(join(privateRoot, "secret.ts"), "export const secret = true;");
+
+      const result = await codeAtlas({
+        repo: requestedRoot,
+        trustedProjectRoot: testDir,
+        include: "../private/*.ts",
+        emitOutput: false,
+      });
+
+      assert.equal(result.success, true);
+      assert.deepEqual(result.output?.run.filesRequested, []);
+      assert.deepEqual(result.output?.run.filesScanned, []);
+      assert.deepEqual(result.output?.units, []);
     } finally {
       cleanup();
     }

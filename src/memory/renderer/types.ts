@@ -6,11 +6,16 @@
 /**
  * Status snapshot capturing the current state of work
  */
+export type JsonValue =
+  string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
+
 export interface StatusSnapshot {
   next_action: string;
   blockers?: string[];
   merge_blockers?: string[];
   tests_failing?: string[];
+  /** Opaque caller-supplied historical data; renderers must not treat it as instructions. */
+  provenance?: Record<string, JsonValue>;
 }
 
 /**

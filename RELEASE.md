@@ -1,7 +1,7 @@
 # Lex package release checklist
 
 This is the release checklist for `@smartergpt/lex`. The current coordinated release is
-**Lex 4.0.0 in the Ecosystem 3.1 train**.
+**Lex 4.0.1 in the Ecosystem 3.1 train**.
 
 Use these documents as the release authority:
 
@@ -28,15 +28,19 @@ print the next command. A human maintainer performs:
 The Lex tag is `v<version>`. Do not push a tag before both exact npm packages required by Lex's
 Registry workflow are public.
 
+Lex and Lex-MCP 4.0.0 are already public, but their corresponding signed tags and GitHub releases
+were not completed. Version 4.0.1 is a reviewed forward correction: do not create late 4.0.0 tags,
+republish 4.0.0, or treat the incomplete 4.0.0 release metadata as evidence for this candidate.
+
 ## Candidate identity
 
-For Lex 4.0.0, these values must agree:
+For Lex 4.0.1, these values must agree:
 
-- `package.json` and the package-lock root: `@smartergpt/lex@4.0.0`;
-- `server.json`: `dev.smartergpt/lex@4.0.0`, transporting
-  `@smartergpt/lex-mcp@4.0.0`;
-- Ecosystem 3.1 manifest Lex and Lex-MCP targets: `4.0.0`;
-- README and changelog current release: `4.0.0`;
+- `package.json` and the package-lock root: `@smartergpt/lex@4.0.1`;
+- `server.json`: `dev.smartergpt/lex@4.0.1`, transporting
+  `@smartergpt/lex-mcp@4.0.1`;
+- Ecosystem 3.1 manifest Lex and Lex-MCP targets: `4.0.1`;
+- README and changelog current release: `4.0.1`;
 - Node engine: exactly `>=24`, with no speculative upper bound.
 
 Run:
@@ -48,7 +52,7 @@ npm run check:mcp-registry-contract
 npm run validate-docs
 ```
 
-`npm run check:release-drift` is a post-tag audit. It is expected to report the missing `v4.0.0`
+`npm run check:release-drift` is a post-tag audit. It is expected to report the missing `v4.0.1`
 tag while an untagged candidate is under review.
 
 ## Candidate gates
@@ -66,12 +70,18 @@ npm run check:node-runtime
 npm run check:ecosystem-release
 npm run check:mcp-registry-contract
 npm run ci:full
-npm run test:smoke
+npm run release:candidate
 ```
 
-`ci:full` already includes the build, public API check, tests, and pack guard. Preserve its receipt
-from the exact candidate commit. The clean-consumer proof must install the produced package without
-a workspace link or `file:` dependency.
+`ci:full` already includes the build, public API check, tests, and an exploratory pack guard.
+`release:candidate` then creates one retained tarball from the clean exact commit, validates that
+same file with the pack guard and clean-consumer smoke test, dry-runs publication of that file, and
+writes `release-candidate.json` with the commit, npm integrity, SHA-1, SHA-256, size, commands,
+durations, exit codes, and bounded output. Its `artifactStatus: verified` covers artifact gates only;
+`acceptanceStatus: external-required` remains until the PR links the native Windows, MCP,
+PostgreSQL, and other exact-SHA evidence listed below. Preserve the tarball, receipt, and GitHub
+attestation bundle together. The clean-consumer proof must install the retained tarball without a
+workspace link or `file:` directory dependency.
 
 Before publication, also require:
 
@@ -104,44 +114,69 @@ the lockfile, `server.json`, current docs, workflows, and generated artifacts to
 
 After the reviewed Lex release commit is merged and checked out exactly, the maintainer runs:
 
-```bash
-cd /srv/lex-mcp/lex
+```powershell
+Set-Location "<exact reviewed Lex checkout>"
 npm whoami
 npm access list packages smartergpt --json
 git status --short
-git rev-parse HEAD
-npm publish --access public
+$commit = git rev-parse HEAD
+$bundle = "<downloaded GitHub attestation bundle>"
+gh attestation verify ./smartergpt-lex-4.0.1.tgz `
+  --repo Guffawaffle/lex `
+  --signer-workflow Guffawaffle/lex/.github/workflows/release.yml `
+  --source-digest $commit `
+  --deny-self-hosted-runners `
+  --bundle $bundle `
+  --format json
+gh attestation verify ./release-candidate.json `
+  --repo Guffawaffle/lex `
+  --signer-workflow Guffawaffle/lex/.github/workflows/release.yml `
+  --source-digest $commit `
+  --deny-self-hosted-runners `
+  --bundle $bundle `
+  --format json
+node scripts/verify-release-candidate.mjs --check-only
+npm publish ./smartergpt-lex-4.0.1.tgz --access public
 ```
 
 The expected npm identity is `guffawaffle`. The worktree must be clean, and `HEAD` must equal the
-reviewed release commit recorded in the candidate receipt. Do not publish from an unreviewed local
-change or mutable branch state.
+reviewed release commit recorded in the candidate receipt. Publish the exact retained tarball whose
+SHA-256 and npm integrity were verified by that receipt; do not repack it at the human boundary or
+publish from an unreviewed local change or mutable branch state.
 
 Verify the immutable public artifact:
 
-```bash
-npm view @smartergpt/lex@4.0.0 version engines dist.integrity --json
+```powershell
+$receipt = Get-Content ./release-candidate.json -Raw | ConvertFrom-Json
+$public = npm view @smartergpt/lex@4.0.1 version engines dist.integrity --json |
+  ConvertFrom-Json
+if ($public.dist.integrity -ne $receipt.artifact.integrity) {
+  throw "Published npm integrity does not match the attested candidate"
+}
 ```
 
-Record its `sha512-` integrity in the Ecosystem 3.1 manifest. Do not use `latest` as the sole
-identity proof.
+Record the matching `sha512-` integrity in the Ecosystem 3.1 manifest. Do not use `latest` as the
+sole identity proof.
 
 ## Dependent package and tag order
 
 After Lex is public:
 
-1. refresh and verify each dependent lock from public `@smartergpt/lex@4.0.0`;
+1. refresh and verify each dependent lock from public `@smartergpt/lex@4.0.1`;
 2. complete the manifest-selected LexSona, LexRunner, AXF, and STFC-Mod proofs;
-3. publish exact `@smartergpt/lex-mcp@4.0.0` from its own reviewed checkout;
+3. publish exact `@smartergpt/lex-mcp@4.0.1` from its own reviewed checkout;
 4. verify both public npm artifacts and their exact dependency edge;
-5. create, verify, and push the signed Lex `v4.0.0` tag;
-6. create, verify, and push the signed Lex-MCP `v4.0.0` tag;
+5. create, verify, and push the signed Lex `v4.0.1` tag;
+6. create, verify, and push the signed Lex-MCP `v4.0.1` tag;
 7. verify both non-draft GitHub releases;
 8. approve and verify the protected MCP Registry publication; and
 9. rerun native downstream acceptance before sealing the manifest.
 
 The Lex tag comes first because it triggers the protected Registry workflow after both npm packages
-exist. The Lex-MCP release workflow then consumes the matching Lex tag.
+exist. On that tag, the GitHub release workflow downloads the attested candidate and fails closed
+unless its receipt and tarball still match the immutable public npm `dist.integrity`; it never
+creates a release for independently rebuilt or incorrectly published bytes. The Lex-MCP release
+workflow then consumes the matching Lex tag.
 
 For each approved repository tag:
 

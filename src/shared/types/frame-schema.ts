@@ -112,6 +112,11 @@ export const TurnCostSchema = z.object({
 
 export type TurnCost = z.infer<typeof TurnCostSchema>;
 
+/** Opaque caller-supplied historical data. Lex stores but does not interpret these fields. */
+export const CallerProvenanceSchema = z.record(z.string(), z.json());
+
+export type CallerProvenance = z.infer<typeof CallerProvenanceSchema>;
+
 /**
  * StatusSnapshot schema - current status and next action
  */
@@ -127,6 +132,9 @@ export const StatusSnapshotSchema = z.object({
 
   /** Failing test identifiers */
   tests_failing: z.array(z.string()).optional(),
+
+  /** Opaque caller-supplied historical write provenance */
+  provenance: CallerProvenanceSchema.optional(),
 });
 
 export type StatusSnapshot = z.infer<typeof StatusSnapshotSchema>;
@@ -258,8 +266,9 @@ export type Frame = z.infer<typeof FrameSchema>;
  * v5: Added superseded_by, merged_from for frame deduplication (2.1.x)
  * v6: Added contradiction resolution metadata (2.3.0)
  * v7: Added module attribution provenance (2.9.0)
+ * v8: Added caller-supplied historical provenance (4.0.0)
  */
-export const FRAME_SCHEMA_VERSION = 7;
+export const FRAME_SCHEMA_VERSION = 8;
 
 /**
  * Validate a Frame using Zod schema

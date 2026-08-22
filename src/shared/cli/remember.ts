@@ -10,7 +10,7 @@
 
 import inquirer from "inquirer";
 import { v4 as uuidv4 } from "uuid";
-import type { Frame } from "../types/frame.js";
+import type { CallerProvenance, Frame } from "../types/frame.js";
 import { validateModuleIds } from "../module_ids/index.js";
 import { loadPolicyIfAvailable } from "../policy/loader.js";
 import { createFrameStore, type FrameStore } from "../../memory/store/index.js";
@@ -35,12 +35,48 @@ export interface RememberOptions {
   keywords?: string[];
   featureFlags?: string[];
   permissions?: string[];
+  provenanceJson?: string;
   interactive?: boolean;
   json?: boolean;
   strict?: boolean;
   noSubstring?: boolean;
   noPolicy?: boolean;
   dryRun?: boolean;
+}
+
+export const MAX_CALLER_PROVENANCE_BYTES = 64 * 1024;
+
+type ProvenanceParseResult =
+  { ok: true; provenance?: CallerProvenance } | { ok: false; message: string; bytes: number };
+
+function parseCallerProvenance(value: string | undefined): ProvenanceParseResult {
+  if (value === undefined) return { ok: true };
+
+  const bytes = Buffer.byteLength(value, "utf8");
+  if (bytes > MAX_CALLER_PROVENANCE_BYTES) {
+    return {
+      ok: false,
+      message: `--provenance-json exceeds the ${MAX_CALLER_PROVENANCE_BYTES}-byte limit.`,
+      bytes,
+    };
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(value);
+  } catch {
+    return { ok: false, message: "--provenance-json must be valid JSON.", bytes };
+  }
+
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+    return {
+      ok: false,
+      message: "--provenance-json must contain a non-null JSON object.",
+      bytes,
+    };
+  }
+
+  return { ok: true, provenance: parsed as CallerProvenance };
 }
 
 /**
@@ -64,6 +100,29 @@ export async function remember(
     scope: "cli:remember",
     mode: options.json ? "jsonl" : "plain",
   });
+
+  // Caller provenance is opaque historical data. Validate it before opening or mutating a store.
+  const provenanceResult = parseCallerProvenance(options.provenanceJson);
+  if (!provenanceResult.ok) {
+    const axError = createAXError(
+      "INVALID_PROVENANCE_JSON",
+      provenanceResult.message,
+      [
+        "Pass a valid non-null JSON object to --provenance-json",
+        `Keep its UTF-8 representation at or below ${MAX_CALLER_PROVENANCE_BYTES} bytes`,
+        "Remove --provenance-json when no caller provenance is available",
+      ],
+      { bytes: provenanceResult.bytes, maxBytes: MAX_CALLER_PROVENANCE_BYTES }
+    );
+    if (options.json) {
+      out.json({ level: "error", message: axError.message, data: axError, code: axError.code });
+    } else {
+      out.error(axError.message, axError, axError.code);
+    }
+    process.exitCode = 1;
+    return;
+  }
+  const callerProvenance = provenanceResult.provenance;
 
   // If no store is provided, create a default one (which we'll need to close)
   const store = frameStore ?? createFrameStore();
@@ -230,6 +289,7 @@ export async function remember(
         blockers: answers.blockers,
         merge_blockers: answers.mergeBlockers,
         tests_failing: answers.testsFailing,
+        ...(callerProvenance ? { provenance: callerProvenance } : {}),
       },
       jira: answers.jira,
       keywords: answers.keywords,
@@ -270,6 +330,10 @@ export async function remember(
       return;
     }
 
+    // Bind the JSON write receipt to the exact selected store before mutation.
+    // Resolving metadata first prevents a successful write followed by a failed receipt.
+    const storeMetadata = options.json ? store.getMetadata() : null;
+
     // Save Frame to database using FrameStore
     await store.saveFrame(frame);
 
@@ -288,6 +352,13 @@ export async function remember(
           modules: frame.module_scope,
           referencePoint: frame.reference_point,
           moduleAttribution: frame.module_attribution,
+          ...(callerProvenance ? { provenance: callerProvenance } : {}),
+          storeIdentity: storeMetadata!.identity,
+          store: {
+            backend: storeMetadata!.backend,
+            canonicalLocation: storeMetadata!.canonicalLocation,
+            identity: storeMetadata!.identity,
+          },
         },
       });
     } else {

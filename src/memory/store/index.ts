@@ -17,7 +17,7 @@ import { createDatabase, getDefaultDbPath } from "./db.js";
 
 export type { FrameRow, CodeAtlasRunRow, ReadOnlyDatabaseErrorCode } from "./db.js";
 export type { BehaviorRuleRow } from "./lexsona-queries.js";
-export type { Frame, FrameStatusSnapshot } from "../frames/types.js";
+export type { CallerProvenance, Frame, FrameStatusSnapshot } from "../frames/types.js";
 export type { SearchResult, ExportFramesOptions } from "./queries.js";
 export type {
   FrameStore,
@@ -132,6 +132,10 @@ export {
   openPostgresBehavioralStore,
   postgresBehavioralBackendIdentity,
   POSTGRES_BEHAVIORAL_STORE_SCHEMA_VERSION,
+  migratePostgresBehavioralStore,
+  planPostgresBehavioralStoreMigration,
+  postgresBehavioralMigrationSql,
+  postgresBehavioralRollbackSql,
   migratePostgresFrameStore,
   planPostgresFrameStoreMigration,
   POSTGRES_COMPATIBILITY_FRAME_STORE_SCHEMA_VERSION,
@@ -155,6 +159,7 @@ export type {
   PostgresFrameStoreOptions,
   PostgresScopedFrameStoreOptions,
   PostgresBehavioralStoreOptionsV1,
+  PostgresBehavioralStoreMigrationPlanV1,
   CompatibilityQuarantineRecoveryDecisionV1,
   QuarantinedFrameEvidenceV1,
   QuarantineDestinationCollisionV1,

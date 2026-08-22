@@ -12,7 +12,13 @@
 // =============================================================================
 
 // Frame types - the core episodic memory structure
-export type { Frame, StatusSnapshot, SpendMetadata } from "./shared/types/frame.js";
+export type {
+  CallerProvenance,
+  Frame,
+  JsonValue,
+  StatusSnapshot,
+  SpendMetadata,
+} from "./shared/types/frame.js";
 export { FRAME_SCHEMA_VERSION, validateFrameMetadata } from "./shared/types/frame.js";
 
 // Policy types - architectural boundary definitions

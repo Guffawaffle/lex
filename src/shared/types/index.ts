@@ -6,12 +6,13 @@
  */
 
 // Frame types (original interface-based)
-export type { Frame, StatusSnapshot, SpendMetadata } from "./frame.js";
+export type { CallerProvenance, Frame, JsonValue, StatusSnapshot, SpendMetadata } from "./frame.js";
 export { FRAME_SCHEMA_VERSION, validateFrameMetadata } from "./frame.js";
 
 // Frame Zod schemas (for validation and runner integration)
 export {
   FrameSchema,
+  CallerProvenanceSchema,
   StatusSnapshotSchema,
   SpendMetadataSchema,
   isFrame,

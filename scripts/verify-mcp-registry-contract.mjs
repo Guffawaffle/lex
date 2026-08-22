@@ -7,8 +7,8 @@
  * manifest all identify the same version and namespace.
  *
  * Usage:
- *   node scripts/verify-mcp-registry-contract.mjs --version 4.0.0
- *   node scripts/verify-mcp-registry-contract.mjs --version 4.0.0 \
+ *   node scripts/verify-mcp-registry-contract.mjs
+ *   node scripts/verify-mcp-registry-contract.mjs --version 4.0.1 \
  *     --schema /tmp/server.schema.json --core-metadata /tmp/lex.json \
  *     --wrapper-metadata /tmp/lex-mcp.json
  */
@@ -44,19 +44,12 @@ function assert(condition, message) {
   }
 }
 
-const expectedVersion = option("--version");
+const lexPackage = readJson(resolve(rootDir, "package.json"));
+const expectedVersion = option("--version") ?? lexPackage.version;
 const schemaPath = option("--schema");
 const coreMetadataPath = option("--core-metadata");
 const wrapperMetadataPath = option("--wrapper-metadata");
 
-if (!expectedVersion) {
-  console.error(
-    "Usage: verify-mcp-registry-contract.mjs --version <semver> [--schema <path>] [--wrapper-metadata <path>]"
-  );
-  process.exit(2);
-}
-
-const lexPackage = readJson(resolve(rootDir, "package.json"));
 const manifest = readJson(resolve(rootDir, "server.json"));
 const registryPackage = manifest.packages?.[0];
 const registryEnvironment = new Map(

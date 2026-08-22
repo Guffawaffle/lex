@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, test } from "node:test";
 import { fileURLToPath } from "node:url";
+import { createTestSymlinkOrSkip } from "../../helpers/symlink.js";
 
 import { MCPServer } from "../../../src/memory/mcp_server/server.js";
 import {
@@ -711,38 +712,33 @@ describe("trusted runtime-scope entrypoint guards", () => {
     }
   });
 
-  test("MCP rejects config and policy symlinks that physically escape the trusted root", async () => {
-    const root = mkdtempSync(join(tmpdir(), "lex-mcp-physical-escape-"));
+  test("MCP rejects a config symlink that physically escapes the trusted root", async (t) => {
+    const root = mkdtempSync(join(tmpdir(), "lex-mcp-config-escape-"));
     const external = join(root, "external");
     const configEscape = join(root, "config-escape");
-    const policyEscape = join(root, "policy-escape");
     mkdirSync(external);
     mkdirSync(configEscape);
-    mkdirSync(policyEscape);
     writeFileSync(
       join(external, "config.json"),
       JSON.stringify({ paths: { policy: "./policy.json" } }),
       "utf8"
     );
-    writeFileSync(
-      join(external, "policy.json"),
-      JSON.stringify({ version: "1.0.0", modules: { "external/module": {} } }),
-      "utf8"
-    );
-    symlinkSync(join(external, "config.json"), join(configEscape, ".lex.config.json"));
-    writeFileSync(
-      join(policyEscape, ".lex.config.json"),
-      JSON.stringify({ paths: { policy: "./linked/policy.json" } }),
-      "utf8"
-    );
-    symlinkSync(external, join(policyEscape, "linked"));
+    if (
+      !createTestSymlinkOrSkip(
+        t,
+        join(external, "config.json"),
+        join(configEscape, ".lex.config.json")
+      )
+    ) {
+      rmSync(root, { recursive: true, force: true });
+      return;
+    }
 
-    let projectRoot = configEscape;
     const bootstrap: TrustedRuntimeScopeBootstrapV1 = {
       async resolve(request) {
         return {
           resolved: true,
-          invocationContext: fakeInvocationContext(projectRoot),
+          invocationContext: fakeInvocationContext(configEscape),
           authorizedScope: fakeAuthorizedScope(request.requestedCapabilities),
         };
       },
@@ -756,8 +752,50 @@ describe("trusted runtime-scope entrypoint guards", () => {
 
     try {
       assert.equal((await validate()).error?.code, "POLICY_INVALID");
-      projectRoot = policyEscape;
-      assert.equal((await validate()).error?.code, "POLICY_INVALID");
+    } finally {
+      await server.close();
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test("MCP rejects a linked policy ancestor that physically escapes the trusted root", async (t) => {
+    const root = mkdtempSync(join(tmpdir(), "lex-mcp-policy-escape-"));
+    const external = join(root, "external");
+    const policyEscape = join(root, "policy-escape");
+    mkdirSync(external);
+    mkdirSync(policyEscape);
+    writeFileSync(
+      join(external, "policy.json"),
+      JSON.stringify({ version: "1.0.0", modules: { "external/module": {} } }),
+      "utf8"
+    );
+    writeFileSync(
+      join(policyEscape, ".lex.config.json"),
+      JSON.stringify({ paths: { policy: "./linked/policy.json" } }),
+      "utf8"
+    );
+    if (!createTestSymlinkOrSkip(t, external, join(policyEscape, "linked"), "dir")) {
+      rmSync(root, { recursive: true, force: true });
+      return;
+    }
+
+    const bootstrap: TrustedRuntimeScopeBootstrapV1 = {
+      async resolve(request) {
+        return {
+          resolved: true,
+          invocationContext: fakeInvocationContext(policyEscape),
+          authorizedScope: fakeAuthorizedScope(request.requestedCapabilities),
+        };
+      },
+    };
+    const server = new MCPServer({ runtimeScope: { bootstrap, request: invocationRequest } });
+
+    try {
+      const response = await server.handleRequest({
+        method: "tools/call",
+        params: { name: "frame_validate", arguments: validationArguments("external/module") },
+      });
+      assert.equal(response.error?.code, "POLICY_INVALID");
     } finally {
       await server.close();
       rmSync(root, { recursive: true, force: true });
@@ -861,7 +899,7 @@ describe("trusted runtime-scope entrypoint guards", () => {
     }
   });
 
-  test("trusted atlas runs in-process without output and skips physically escaping sources", async () => {
+  test("trusted atlas runs in-process without output and skips physically escaping sources", async (t) => {
     const root = mkdtempSync(join(tmpdir(), "lex-mcp-atlas-boundary-"));
     const projectRoot = join(root, "project");
     const requestedRoot = join(projectRoot, "requested");
@@ -879,7 +917,10 @@ describe("trusted runtime-scope entrypoint guards", () => {
       "export function exfiltratedSecret(): string { return 'secret'; }\n",
       "utf8"
     );
-    symlinkSync(join(privateRoot, "secret.ts"), join(requestedRoot, "src", "linked.ts"));
+    if (!createTestSymlinkOrSkip(t, privateRoot, join(requestedRoot, "src", "linked"), "dir")) {
+      rmSync(root, { recursive: true, force: true });
+      return;
+    }
     const bootstrap: TrustedRuntimeScopeBootstrapV1 = {
       async resolve(request) {
         return {

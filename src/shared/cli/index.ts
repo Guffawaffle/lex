@@ -170,6 +170,10 @@ export function createProgram(programOptions: CreateProgramOptionsV1 = {}): Comm
     .option("--keywords <list>", "Comma-separated keywords", parseList)
     .option("--feature-flags <list>", "Comma-separated feature flags", parseList)
     .option("--permissions <list>", "Comma-separated permissions", parseList)
+    .option(
+      "--provenance-json <json>",
+      "Bounded caller-supplied historical provenance JSON object (stored without interpretation)"
+    )
     .option("-i, --interactive", "Interactive mode (prompt for all fields)")
     .option("--strict", "Disable auto-correction for typos (for CI)")
     .option("--no-substring", "Disable substring matching for module IDs (for CI)")
@@ -189,6 +193,7 @@ export function createProgram(programOptions: CreateProgramOptionsV1 = {}): Comm
         keywords: cmdOptions.keywords,
         featureFlags: cmdOptions.featureFlags,
         permissions: cmdOptions.permissions,
+        provenanceJson: cmdOptions.provenanceJson,
         interactive: cmdOptions.interactive || false,
         json: globalOptions.json || false,
         strict: cmdOptions.strict || false,

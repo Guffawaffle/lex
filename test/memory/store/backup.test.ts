@@ -65,7 +65,7 @@ describe("Database Backup and Maintenance", () => {
     const backupDir = getBackupDir(testWorkspaceRoot);
     assert.ok(existsSync(backupDir), "Backup directory should exist");
     assert.ok(
-      backupDir.includes(".smartergpt/lex/backups"),
+      backupDir === join(testWorkspaceRoot, ".smartergpt", "lex", "backups"),
       "Backup directory should be in .smartergpt/lex/backups"
     );
   });

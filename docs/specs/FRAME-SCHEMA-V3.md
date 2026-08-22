@@ -1,12 +1,12 @@
 # Historical Frame Schema v3 Specification
 
-> **Status:** Historical — superseded by Frame Schema v7
+> **Status:** Historical — superseded by Frame Schema v8
 > **Version:** 3
 > **Current Contract:** [`docs/CONTRACT_SURFACE.md`](../CONTRACT_SURFACE.md)
 
 This document records the fields introduced through Frame v3. It is not the current public
 contract and its examples must not be used to infer present ID, mutability, or version semantics.
-Current releases expose `FRAME_SCHEMA_VERSION = 7` from `@smartergpt/lex/types`.
+Current releases expose `FRAME_SCHEMA_VERSION = 8` from `@smartergpt/lex/types`.
 
 This document described the Frame schema used by Lex 2.0.0 and early LexRunner integrations.
 
@@ -274,7 +274,7 @@ Use the validator from `src/shared/types/frame.ts`:
 import { validateFrameMetadata, FRAME_SCHEMA_VERSION } from '@lex/shared/types/frame';
 
 const isValid = validateFrameMetadata(frame);
-const version = FRAME_SCHEMA_VERSION; // 7 in current releases
+const version = FRAME_SCHEMA_VERSION; // 8 in current releases
 ```
 
 ---
