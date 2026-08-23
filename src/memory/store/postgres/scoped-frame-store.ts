@@ -81,6 +81,7 @@ interface RuntimeBoundaryRow extends QueryResultRow {
   role_is_superuser: boolean;
   role_bypasses_rls: boolean;
   role_owns_frames: boolean;
+  role_can_set_protected_owner: boolean;
   role_can_create_in_schema: boolean;
   rls_enabled: boolean;
   rls_forced: boolean;
@@ -88,6 +89,14 @@ interface RuntimeBoundaryRow extends QueryResultRow {
 
 type FrameValue = string | string[] | object | null;
 type TransactionKind = "read" | "write";
+
+const FRAME_STORE_PROTECTED_RELATIONS = Object.freeze([
+  "frames",
+  "lex_frame_store_migrations",
+  "lex_frame_store_unowned_frames_v1",
+  "lex_frame_store_recovery_operations",
+  "lex_frame_store_recovery_assignments",
+]);
 
 const FRAME_COLUMNS = `
   id, "timestamp" AS timestamp, branch, jira, module_scope, summary_caption,
@@ -422,6 +431,22 @@ class ScopedTransactionRunner {
         role.rolsuper AS role_is_superuser,
         role.rolbypassrls AS role_bypasses_rls,
         frames.relowner = role.oid AS role_owns_frames,
+        (
+          pg_catalog.pg_has_role(CURRENT_USER, frame_namespace.nspowner, 'SET')
+          OR EXISTS (
+            SELECT 1
+            FROM pg_catalog.pg_class AS protected_relation
+            JOIN pg_catalog.pg_namespace AS protected_namespace
+              ON protected_namespace.oid = protected_relation.relnamespace
+            WHERE protected_namespace.nspname = $1
+              AND protected_relation.relname = ANY($2::text[])
+              AND pg_catalog.pg_has_role(
+                CURRENT_USER,
+                protected_relation.relowner,
+                'SET'
+              )
+          )
+        ) AS role_can_set_protected_owner,
         pg_catalog.has_schema_privilege(CURRENT_USER, $1, 'CREATE')
           AS role_can_create_in_schema,
         frames.relrowsecurity AS rls_enabled,
@@ -432,7 +457,7 @@ class ScopedTransactionRunner {
       WHERE role.rolname = CURRENT_USER
         AND frame_namespace.nspname = $1
         AND frames.relname = 'frames'`,
-      [this.target.schema]
+      [this.target.schema, FRAME_STORE_PROTECTED_RELATIONS]
     );
     const boundary = result.rows[0];
     if (boundary?.schema_version !== POSTGRES_FRAME_STORE_SCHEMA_VERSION) {
@@ -448,10 +473,11 @@ class ScopedTransactionRunner {
       (boundary.role_is_superuser ||
         boundary.role_bypasses_rls ||
         boundary.role_owns_frames ||
+        boundary.role_can_set_protected_owner ||
         boundary.role_can_create_in_schema)
     ) {
       throw new Error(
-        "PostgreSQL FrameStore runtime role must be non-owner, non-superuser, must not BYPASSRLS, and must not have effective schema CREATE privilege"
+        "PostgreSQL FrameStore runtime role must be non-owner, non-superuser, must not BYPASSRLS, must not be able to SET ROLE to a protected owner, and must not have effective schema CREATE privilege"
       );
     }
   }

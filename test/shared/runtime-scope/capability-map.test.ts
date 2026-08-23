@@ -55,6 +55,10 @@ describe("trusted operation capability drift gates", () => {
       RUNTIME_OPERATION_CAPABILITIES.FRAME_READ,
       RUNTIME_OPERATION_CAPABILITIES.FRAME_WRITE,
     ]);
+    assert.deepEqual(capabilitiesForCliOperation("frames:import"), [
+      RUNTIME_OPERATION_CAPABILITIES.FRAME_READ,
+      RUNTIME_OPERATION_CAPABILITIES.FRAME_WRITE,
+    ]);
     assert.deepEqual(capabilitiesForCliInvocation(["node", "lex", "remember", "--dry-run"]), [
       RUNTIME_OPERATION_CAPABILITIES.FRAME_READ,
     ]);

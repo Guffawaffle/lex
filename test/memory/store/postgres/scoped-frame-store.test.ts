@@ -90,6 +90,7 @@ class FakePool {
     role_is_superuser: false,
     role_bypasses_rls: false,
     role_owns_frames: false,
+    role_can_set_protected_owner: false,
     role_can_create_in_schema: false,
     rls_enabled: true,
     rls_forced: true,
@@ -259,6 +260,20 @@ describe("PostgresScopedFrameStoreBackend", () => {
       pool.queries.find(({ sql }) => sql.includes("role_is_superuser"))?.sql ?? "",
       /FROM pg_catalog\.pg_roles AS role CROSS JOIN pg_catalog\.pg_class AS frames JOIN pg_catalog\.pg_namespace/
     );
+    assert.match(
+      pool.queries.find(({ sql }) => sql.includes("role_is_superuser"))?.sql ?? "",
+      /pg_catalog\.pg_has_role\(CURRENT_USER, frame_namespace\.nspowner, 'SET'\).+protected_relation\.relname = ANY\(\$2::text\[\]\).+pg_catalog\.pg_has_role\( CURRENT_USER, protected_relation\.relowner, 'SET' \)/
+    );
+    assert.deepEqual(pool.queries.find(({ sql }) => sql.includes("role_is_superuser"))?.values, [
+      SCHEMA,
+      [
+        "frames",
+        "lex_frame_store_migrations",
+        "lex_frame_store_unowned_frames_v1",
+        "lex_frame_store_recovery_operations",
+        "lex_frame_store_recovery_assignments",
+      ],
+    ]);
     assert.equal(pool.releases.filter((value) => value !== undefined).length, 0);
 
     await backend.close();
@@ -413,6 +428,7 @@ describe("PostgresScopedFrameStoreBackend", () => {
       "role_is_superuser",
       "role_bypasses_rls",
       "role_owns_frames",
+      "role_can_set_protected_owner",
       "role_can_create_in_schema",
     ] as const) {
       const pool = new FakePool();

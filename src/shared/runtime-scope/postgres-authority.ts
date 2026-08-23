@@ -98,6 +98,7 @@ interface RuntimeRoleBoundaryRow extends QueryResultRow {
   role_bypasses_rls: boolean;
   role_owns_authority: boolean;
   role_can_mutate_authority: boolean;
+  role_can_set_protected_owner: boolean;
   role_can_create_in_schema: boolean;
 }
 
@@ -258,6 +259,21 @@ async function assertReadOnlyRuntimeRole(
             'INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER'
           )
       ) AS role_can_mutate_authority,
+      EXISTS (
+        SELECT 1
+        FROM (
+          SELECT namespace.nspowner AS owner_oid
+          FROM pg_catalog.pg_namespace namespace
+          WHERE namespace.nspname = $1
+          UNION
+          SELECT relation.relowner AS owner_oid
+          FROM pg_catalog.pg_class relation
+          JOIN pg_catalog.pg_namespace namespace ON namespace.oid = relation.relnamespace
+          WHERE namespace.nspname = $1
+            AND relation.relname = ANY($2::text[])
+        ) protected_owner
+        WHERE pg_catalog.pg_has_role(CURRENT_USER, protected_owner.owner_oid, 'SET')
+      ) AS role_can_set_protected_owner,
       pg_catalog.has_schema_privilege(CURRENT_USER, $1, 'CREATE')
         AS role_can_create_in_schema
     FROM pg_catalog.pg_roles role
@@ -273,10 +289,11 @@ async function assertReadOnlyRuntimeRole(
     boundary.role_bypasses_rls ||
     boundary.role_owns_authority ||
     boundary.role_can_mutate_authority ||
+    boundary.role_can_set_protected_owner ||
     boundary.role_can_create_in_schema
   ) {
     throw new Error(
-      "PostgreSQL canonical authority requires a read-only non-owner runtime role without effective schema CREATE privilege."
+      "PostgreSQL canonical authority requires a read-only non-owner runtime role without a SET ROLE path to a protected owner or effective schema CREATE privilege."
     );
   }
 }

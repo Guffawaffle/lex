@@ -64,6 +64,7 @@ class AuthorityClient {
   releaseCount = 0;
   readonly unsafeRole: boolean;
   readonly schemaCreate: boolean;
+  readonly setRoleEscape: boolean;
   readonly grantRevoked: boolean;
   readonly grantExpired: boolean;
 
@@ -71,12 +72,14 @@ class AuthorityClient {
     options: {
       readonly unsafeRole?: boolean;
       readonly schemaCreate?: boolean;
+      readonly setRoleEscape?: boolean;
       readonly grantRevoked?: boolean;
       readonly grantExpired?: boolean;
     } = {}
   ) {
     this.unsafeRole = options.unsafeRole ?? false;
     this.schemaCreate = options.schemaCreate ?? false;
+    this.setRoleEscape = options.setRoleEscape ?? false;
     this.grantRevoked = options.grantRevoked ?? false;
     this.grantExpired = options.grantExpired ?? false;
   }
@@ -93,6 +96,7 @@ class AuthorityClient {
           role_bypasses_rls: false,
           role_owns_authority: false,
           role_can_mutate_authority: false,
+          role_can_set_protected_owner: this.setRoleEscape,
           role_can_create_in_schema: this.schemaCreate,
         },
       ]);
@@ -412,6 +416,10 @@ describe("PostgreSQL canonical authority", () => {
       client.calls.find(({ sql }) => sql.includes("role_can_mutate_authority"))?.params,
       [AUTHORITY_SCHEMA, ["lex_authority_migrations", ...POSTGRES_AUTHORITY_TABLES]]
     );
+    assert.match(
+      client.calls.find(({ sql }) => sql.includes("role_can_mutate_authority"))?.sql ?? "",
+      /pg_catalog\.pg_has_role\(CURRENT_USER, protected_owner\.owner_oid, 'SET'\)/
+    );
   });
 
   test("rejects repository widening, revocation, expiry, and unsafe runtime roles", async () => {
@@ -486,6 +494,18 @@ describe("PostgreSQL canonical authority", () => {
     await assert.rejects(
       () => schemaCreator.getTenant({ tenantId: TENANT }),
       /effective schema CREATE/
+    );
+
+    const roleMember = new PostgresAuthorityDirectory(
+      poolFor(new AuthorityClient({ setRoleEscape: true })),
+      {
+        schema: AUTHORITY_SCHEMA,
+        now: () => NOW,
+      }
+    );
+    await assert.rejects(
+      () => roleMember.getTenant({ tenantId: TENANT }),
+      /SET ROLE path to a protected owner/
     );
   });
 

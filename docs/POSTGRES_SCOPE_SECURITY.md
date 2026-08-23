@@ -28,7 +28,7 @@ Before serving data it verifies that the connected role:
 - does not have `BYPASSRLS`;
 - does not own `frames`; and
 - has no effective `CREATE` privilege on the protected FrameStore schema; and
-- is using schema version 3 with RLS enabled and forced.
+- is using schema version 4 with RLS enabled and forced.
 
 `PostgresFrameStoreAdministration` is the distinct privileged boundary. It exposes migration
 planning, migration execution, and capability-gated ownership inspection. Do not pass it, its

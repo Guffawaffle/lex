@@ -2,9 +2,18 @@
 
 import assert from "node:assert/strict";
 import { createHash, randomBytes } from "node:crypto";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  readdirSync,
+  rmSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import { Pool, type PoolClient } from "pg";
 
 import { MCPServer } from "../src/memory/mcp_server/server.js";
@@ -84,6 +93,7 @@ interface SurfaceFixture {
   readonly name: "windows-native" | "wsl";
   readonly platform: NodeJS.Platform;
   readonly root: string;
+  readonly simulatedRoot?: string;
   readonly surface: ExecutionSurfaceEvidenceV1;
   readonly databasePath: string;
   readonly registryInstanceId: RegistryInstanceId;
@@ -106,6 +116,26 @@ const FRAME_CAPABILITIES = Object.freeze([
 function quoteIdentifier(identifier: string): string {
   if (!/^[a-z][a-z0-9_]+$/.test(identifier)) throw new TypeError("Unsafe canary identifier.");
   return `"${identifier}"`;
+}
+
+function verifiedHostTemporaryRoot(prefix: string): string {
+  const hostTemporaryRoot = realpathSync(tmpdir());
+  const fixtureRoot = realpathSync(mkdtempSync(join(hostTemporaryRoot, prefix)));
+  if (realpathSync(dirname(fixtureRoot)) !== hostTemporaryRoot) {
+    throw new Error("Canary fixture escaped the verified host temporary directory.");
+  }
+  return fixtureRoot;
+}
+
+function removeVerifiedHostTemporaryRoot(fixtureRoot: string): void {
+  const hostTemporaryRoot = realpathSync(tmpdir());
+  const canonicalFixtureRoot = realpathSync(fixtureRoot);
+  if (realpathSync(dirname(canonicalFixtureRoot)) !== hostTemporaryRoot) {
+    throw new Error(
+      "Refusing to remove a canary fixture outside the verified host temporary directory."
+    );
+  }
+  rmSync(canonicalFixtureRoot, { recursive: true, force: true });
 }
 
 function scopedConnectionString(connectionString: string, schema: string): string {
@@ -274,8 +304,14 @@ export async function runLex3PostgresDogfoodCanary(
   const schema = `lex3_canary_${suffix}`;
   const runtimeRole = `lex3_canary_runtime_${suffix}`;
   const runtimePassword = randomBytes(32).toString("base64url");
-  const registryRoot = mkdtempSync(join(tmpdir(), "lex3-registry-canary-"));
-  const exportRoot = mkdtempSync(join(tmpdir(), "lex3-export-canary-"));
+  const registryRoot = verifiedHostTemporaryRoot("lex3-registry-canary-");
+  const wslFixtureRoot = `/tmp/lex3-registry-canary-${suffix}`;
+  const windowsFixtureHostRoot = join(registryRoot, "windows-repository");
+  const wslFixtureHostRoot = join(registryRoot, "wsl-repository");
+  const wslFixtureExecutionRoot = wslFixtureHostRoot.slice(2).replaceAll("\\", "/");
+  mkdirSync(windowsFixtureHostRoot);
+  mkdirSync(wslFixtureHostRoot);
+  const exportRoot = verifiedHostTemporaryRoot("lex3-export-canary-");
   const now = new Date();
   const capturedAt = now.toISOString();
   const cacheExpiresAt = new Date(now.getTime() + 60 * 60 * 1000).toISOString();
@@ -310,7 +346,7 @@ export async function runLex3PostgresDogfoodCanary(
     {
       name: "windows-native",
       platform: "win32",
-      root: "C:\\lex3-dogfood\\repository",
+      root: windowsFixtureHostRoot,
       surface: detectExecutionSurface({
         platform: "win32",
         installationRef: "C:\\Program Files\\nodejs\\node.exe",
@@ -322,7 +358,8 @@ export async function runLex3PostgresDogfoodCanary(
     {
       name: "wsl",
       platform: "linux",
-      root: join(registryRoot, "wsl-repository"),
+      root: wslFixtureExecutionRoot,
+      simulatedRoot: wslFixtureRoot,
       surface: detectExecutionSurface({
         platform: "linux",
         installationRef: "/usr/bin/node",
@@ -333,8 +370,6 @@ export async function runLex3PostgresDogfoodCanary(
       executionSurfaceId: "wsl-canary-surface" as ExecutionSurfaceId,
     },
   ];
-  mkdirSync(surfaces[1]!.root, { recursive: true });
-
   const runCase = async <T>(
     id: Lex3DogfoodAcceptanceCase,
     action: () => Promise<T> | T
@@ -1242,6 +1277,12 @@ export async function runLex3PostgresDogfoodCanary(
     failure = error;
     failurePhase = phase;
     failureCode = `${step.toUpperCase().replaceAll(/[^A-Z0-9]+/g, "_")}_${safeFailureCode(error)}`;
+    if (options.diagnostics) {
+      const message = error instanceof Error ? error.message : String(error);
+      process.stderr.write(
+        `${JSON.stringify({ schemaVersion: 1, scope: "lex3-dogfood-canary", code: failureCode, message: message.slice(0, 512) })}\n`
+      );
+    }
   } finally {
     await mcp?.close().catch(() => undefined);
     await frameBackend?.close().catch(() => undefined);
@@ -1289,8 +1330,8 @@ export async function runLex3PostgresDogfoodCanary(
       cleanup.runtimeRoleDropped = absent.rows[0]?.role_exists === false;
       await adminPool.end().catch(() => undefined);
     }
-    rmSync(registryRoot, { recursive: true, force: true });
-    rmSync(exportRoot, { recursive: true, force: true });
+    removeVerifiedHostTemporaryRoot(registryRoot);
+    removeVerifiedHostTemporaryRoot(exportRoot);
     cleanup.registryFixturesRemoved = !existsSync(registryRoot);
     cleanup.exportFixturesRemoved = !existsSync(exportRoot);
     if (!Object.values(cleanup).every(Boolean) && !failure) {
@@ -1366,7 +1407,12 @@ export async function runLex3PostgresDogfoodCanary(
 
 function processConnectionString(): string {
   const configured = process.env.LEX_DATABASE_URL;
-  const password = process.env.LEX_POSTGRES_PASSWORD;
+  const password =
+    process.env.LEX_POSTGRES_PASSWORD_STDIN === "1"
+      ? readFileSync(0, "utf8").trim()
+      : process.env.LEX_POSTGRES_PASSWORD;
+  delete process.env.LEX_POSTGRES_PASSWORD;
+  delete process.env.LEX_POSTGRES_PASSWORD_STDIN;
   if (!configured || !password) {
     throw new Error(
       "The opt-in canary requires LEX_DATABASE_URL and LEX_POSTGRES_PASSWORD in this process."
@@ -1409,7 +1455,7 @@ async function main(): Promise<void> {
   }
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
   main().catch(() => {
     process.stderr.write(
       `${JSON.stringify({ schemaVersion: 1, gate: "lex-3.0-postgres-two-tenant-five-workspace", ok: false, failure: { phase: "setup", code: "WRAPPER_FAILED" } })}\n`
