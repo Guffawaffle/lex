@@ -93,10 +93,11 @@ class AuthorityClient {
         {
           schema_version: 1,
           role_is_superuser: this.unsafeRole,
+          role_can_create_roles: false,
           role_bypasses_rls: false,
           role_owns_authority: false,
           role_can_mutate_authority: false,
-          role_can_set_protected_owner: this.setRoleEscape,
+          role_can_set_unsafe_role: this.setRoleEscape,
           role_can_create_in_schema: this.schemaCreate,
         },
       ]);
@@ -416,9 +417,16 @@ describe("PostgreSQL canonical authority", () => {
       client.calls.find(({ sql }) => sql.includes("role_can_mutate_authority"))?.params,
       [AUTHORITY_SCHEMA, ["lex_authority_migrations", ...POSTGRES_AUTHORITY_TABLES]]
     );
+    const runtimeBoundarySql =
+      client.calls.find(({ sql }) => sql.includes("role_can_mutate_authority"))?.sql ?? "";
+    assert.match(runtimeBoundarySql, /current_setting\('server_version_num'\)::integer >= 160000/);
     assert.match(
-      client.calls.find(({ sql }) => sql.includes("role_can_mutate_authority"))?.sql ?? "",
-      /pg_catalog\.pg_has_role\(CURRENT_USER, protected_owner\.owner_oid, 'SET'\)/
+      runtimeBoundarySql,
+      /pg_catalog\.pg_has_role\(CURRENT_USER, reachable_role\.oid, 'SET'\)/
+    );
+    assert.match(
+      runtimeBoundarySql,
+      /pg_catalog\.pg_has_role\(CURRENT_USER, reachable_role\.oid, 'MEMBER'\)/
     );
   });
 
@@ -505,7 +513,7 @@ describe("PostgreSQL canonical authority", () => {
     );
     await assert.rejects(
       () => roleMember.getTenant({ tenantId: TENANT }),
-      /SET ROLE path to a protected owner/
+      /SET ROLE path to an unsafe role/
     );
   });
 

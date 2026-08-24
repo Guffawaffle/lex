@@ -27,6 +27,8 @@ Before serving data it verifies that the connected role:
 - is not a superuser;
 - does not have `BYPASSRLS`;
 - does not own `frames`; and
+- cannot `SET ROLE` to any role with `SUPERUSER`, `CREATEROLE`, `BYPASSRLS`, protected ownership,
+  protected mutation, or effective schema `CREATE` capability;
 - has no effective `CREATE` privilege on the protected FrameStore schema; and
 - is using schema version 4 with RLS enabled and forced.
 
@@ -58,10 +60,16 @@ GRANT EXECUTE ON FUNCTION lex_store.lex_runtime_scope_matches(uuid, uuid) TO lex
 ```
 
 The schema owner/migration role is not a runtime role. Lex fails closed if an owner, superuser,
-`BYPASSRLS`, or effective schema-creator role is supplied to
+`CREATEROLE`, `BYPASSRLS`, effective schema-creator, or a role able to become any such unsafe role is supplied to
 `PostgresScopedFrameStoreBackend` even though PostgreSQL itself could let that role escape policy
 enforcement. Use a dedicated protected schema; a direct revoke from the login role does not remove
 privileges inherited through `PUBLIC` or group membership.
+
+PostgreSQL 16 and newer expose the exact `SET` membership option through `pg_has_role`. On older
+supported servers Lex conservatively rejects any `MEMBER` relationship to an unsafe role, because
+those releases cannot distinguish a settable membership through that function. The live dogfood
+canary grants the runtime role a settable non-owner `BYPASSRLS` role and, separately, a settable
+non-owner authority-table mutator; both runtime bindings must reject those paths before normal work.
 
 ## Transaction and pool invariant
 

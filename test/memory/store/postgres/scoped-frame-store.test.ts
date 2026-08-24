@@ -88,9 +88,10 @@ class FakePool {
     schema_version: POSTGRES_FRAME_STORE_SCHEMA_VERSION,
     role_name: "lex_runtime",
     role_is_superuser: false,
+    role_can_create_roles: false,
     role_bypasses_rls: false,
     role_owns_frames: false,
-    role_can_set_protected_owner: false,
+    role_can_set_unsafe_role: false,
     role_can_create_in_schema: false,
     rls_enabled: true,
     rls_forced: true,
@@ -260,10 +261,15 @@ describe("PostgresScopedFrameStoreBackend", () => {
       pool.queries.find(({ sql }) => sql.includes("role_is_superuser"))?.sql ?? "",
       /FROM pg_catalog\.pg_roles AS role CROSS JOIN pg_catalog\.pg_class AS frames JOIN pg_catalog\.pg_namespace/
     );
-    assert.match(
-      pool.queries.find(({ sql }) => sql.includes("role_is_superuser"))?.sql ?? "",
-      /pg_catalog\.pg_has_role\(CURRENT_USER, frame_namespace\.nspowner, 'SET'\).+protected_relation\.relname = ANY\(\$2::text\[\]\).+pg_catalog\.pg_has_role\( CURRENT_USER, protected_relation\.relowner, 'SET' \)/
-    );
+    const runtimeBoundarySql =
+      pool.queries.find(({ sql }) => sql.includes("role_is_superuser"))?.sql ?? "";
+    assert.match(runtimeBoundarySql, /current_setting\('server_version_num'\)::integer >= 160000/);
+    assert.equal(runtimeBoundarySql.match(/'SET'/g)?.length, 1);
+    assert.equal(runtimeBoundarySql.match(/'MEMBER'/g)?.length, 1);
+    assert.match(runtimeBoundarySql, /reachable_role\.rolsuper/);
+    assert.match(runtimeBoundarySql, /reachable_role\.rolcreaterole/);
+    assert.match(runtimeBoundarySql, /reachable_role\.rolbypassrls/);
+    assert.match(runtimeBoundarySql, /protected_relation\.relname = ANY\(\$2::text\[\]\)/);
     assert.deepEqual(pool.queries.find(({ sql }) => sql.includes("role_is_superuser"))?.values, [
       SCHEMA,
       [
@@ -426,9 +432,10 @@ describe("PostgresScopedFrameStoreBackend", () => {
   test("fails closed when the runtime role can bypass protected schema or RLS boundaries", async () => {
     for (const unsafe of [
       "role_is_superuser",
+      "role_can_create_roles",
       "role_bypasses_rls",
       "role_owns_frames",
-      "role_can_set_protected_owner",
+      "role_can_set_unsafe_role",
       "role_can_create_in_schema",
     ] as const) {
       const pool = new FakePool();
