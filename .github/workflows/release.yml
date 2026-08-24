@@ -257,10 +257,15 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          curl -fsSL "https://github.com/cli/cli/releases/download/v${GH_VERIFY_VERSION}/gh_${GH_VERIFY_VERSION}_linux_amd64.tar.gz" -o gh.tar.gz
-          echo "${GH_VERIFY_SHA256}  gh.tar.gz" | sha256sum -c -
-          tar xzf gh.tar.gz
-          echo "$PWD/gh_${GH_VERIFY_VERSION}_linux_amd64/bin" >> "$GITHUB_PATH"
+          GH_ROOT="$RUNNER_TEMP/gh-verify"
+          mkdir -p "$GH_ROOT"
+          curl -fsSL "https://github.com/cli/cli/releases/download/v${GH_VERIFY_VERSION}/gh_${GH_VERIFY_VERSION}_linux_amd64.tar.gz" -o "$GH_ROOT/gh.tar.gz"
+          (
+            cd "$GH_ROOT"
+            echo "${GH_VERIFY_SHA256}  gh.tar.gz" | sha256sum -c -
+            tar xzf gh.tar.gz
+          )
+          echo "$GH_ROOT/gh_${GH_VERIFY_VERSION}_linux_amd64/bin" >> "$GITHUB_PATH"
 
       - name: Verify immutable artifact service record
         env:
@@ -411,10 +416,15 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          curl -fsSL "https://github.com/cli/cli/releases/download/v${GH_VERIFY_VERSION}/gh_${GH_VERIFY_VERSION}_linux_amd64.tar.gz" -o gh.tar.gz
-          echo "${GH_VERIFY_SHA256}  gh.tar.gz" | sha256sum -c -
-          tar xzf gh.tar.gz
-          echo "$PWD/gh_${GH_VERIFY_VERSION}_linux_amd64/bin" >> "$GITHUB_PATH"
+          GH_ROOT="$RUNNER_TEMP/gh-verify"
+          mkdir -p "$GH_ROOT"
+          curl -fsSL "https://github.com/cli/cli/releases/download/v${GH_VERIFY_VERSION}/gh_${GH_VERIFY_VERSION}_linux_amd64.tar.gz" -o "$GH_ROOT/gh.tar.gz"
+          (
+            cd "$GH_ROOT"
+            echo "${GH_VERIFY_SHA256}  gh.tar.gz" | sha256sum -c -
+            tar xzf gh.tar.gz
+          )
+          echo "$GH_ROOT/gh_${GH_VERIFY_VERSION}_linux_amd64/bin" >> "$GITHUB_PATH"
 
       - name: Verify immutable artifact service record
         env:
@@ -521,20 +531,11 @@ jobs:
           WRAPPER_VERSION=$(node -p "require('./server.json').packages[0].version")
           LEX_VERSION=$(node -p "require('./package.json').version")
           npm view "$WRAPPER_NAME@$WRAPPER_VERSION" version engines dependencies dist.integrity --json > lex-mcp-public.json
-          EXPECTED_WRAPPER_NAME="$WRAPPER_NAME" EXPECTED_WRAPPER_VERSION="$WRAPPER_VERSION" EXPECTED_LEX_VERSION="$LEX_VERSION" node --input-type=module -e '
-            import { readFileSync } from "node:fs";
-            const observed = JSON.parse(readFileSync("lex-mcp-public.json", "utf8"));
-            if (
-              observed.version !== process.env.EXPECTED_WRAPPER_VERSION ||
-              observed.dependencies?.["@smartergpt/lex"] !== process.env.EXPECTED_LEX_VERSION ||
-              observed.engines?.node !== ">=24" ||
-              !/^sha512-/.test(observed.dist?.integrity ?? "")
-            ) {
-              throw new Error(
-                `${process.env.EXPECTED_WRAPPER_NAME}@${process.env.EXPECTED_WRAPPER_VERSION} does not expose the exact reviewed Lex dependency edge`
-              );
-            }
-          '
+          node scripts/verify-lex-mcp-public.mjs \
+            --metadata lex-mcp-public.json \
+            --name "$WRAPPER_NAME" \
+            --version "$WRAPPER_VERSION" \
+            --lex-version "$LEX_VERSION"
 
       - name: Re-verify remote release identity before GitHub release
         env:

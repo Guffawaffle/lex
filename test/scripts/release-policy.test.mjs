@@ -15,6 +15,7 @@ import {
 
 const verifier = path.resolve("scripts/verify-release-tag.mjs");
 const provenanceVerifier = path.resolve("scripts/verify-npm-provenance.mjs");
+const lexMcpVerifier = path.resolve("scripts/verify-lex-mcp-public.mjs");
 const workflowPath = path.resolve(".github/workflows/release.yml");
 const mcpWorkflowPath = path.resolve(".github/workflows/mcp-publish.yml");
 
@@ -53,10 +54,69 @@ test("release workflow separates npm publication from signed-tag release creatio
   assert.match(releaseJob, /if: github\.event_name == 'push'/);
   assert.match(releaseJob, /Verify immutable public npm integrity/);
   assert.match(releaseJob, /Verify the exact public Lex-MCP dependency edge/);
-  assert.match(releaseJob, /dependencies\?\.\["@smartergpt\/lex"\]/);
+  assert.match(releaseJob, /verify-lex-mcp-public\.mjs/);
   assert.match(releaseJob, /Verify public npm workflow provenance/);
   assert.match(releaseJob, /softprops\/action-gh-release@[0-9a-f]{40}/);
   assert.doesNotMatch(releaseJob, /npm publish/);
+
+  const installers = [
+    ...workflow.matchAll(
+      /- name: Install verified GitHub attestation CLI([\s\S]*?)(?=\n\s+- (?:name:|uses:))/gu
+    ),
+  ];
+  assert.equal(installers.length, 2);
+  for (const [, installer] of installers) {
+    assert.match(installer, /GH_ROOT="\$RUNNER_TEMP\/gh-verify"/u);
+    assert.doesNotMatch(installer, /-o gh\.tar\.gz/u);
+    assert.doesNotMatch(installer, /echo "\$PWD\//u);
+  }
+});
+
+test("public Lex-MCP policy reads npm's dotted integrity field", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "lex-mcp-public-"));
+  try {
+    const metadataPath = path.join(root, "metadata.json");
+    const metadata = {
+      version: "4.0.2",
+      engines: { node: ">=24" },
+      dependencies: { "@smartergpt/lex": "4.0.2" },
+      "dist.integrity": `sha512-${Buffer.from("a".repeat(128), "hex").toString("base64")}`,
+    };
+    const args = [
+      lexMcpVerifier,
+      "--metadata",
+      metadataPath,
+      "--name",
+      "@smartergpt/lex-mcp",
+      "--version",
+      "4.0.2",
+      "--lex-version",
+      "4.0.2",
+    ];
+
+    await writeFile(metadataPath, JSON.stringify(metadata));
+    const accepted = spawnSync(process.execPath, args, { encoding: "utf8" });
+    assert.equal(accepted.status, 0, accepted.stderr);
+
+    delete metadata["dist.integrity"];
+    metadata.dist = {
+      integrity: `sha512-${Buffer.from("b".repeat(128), "hex").toString("base64")}`,
+    };
+    await writeFile(metadataPath, JSON.stringify(metadata));
+    const rejected = spawnSync(process.execPath, args, { encoding: "utf8" });
+    assert.notEqual(rejected.status, 0);
+    assert.match(rejected.stderr, /does not expose the exact reviewed Lex dependency edge/);
+
+    delete metadata.dist;
+    metadata["dist.integrity"] = `sha512-${Buffer.from("c".repeat(128), "hex").toString("base64")}`;
+    metadata.dependencies["@smartergpt/lex"] = "4.0.1";
+    await writeFile(metadataPath, JSON.stringify(metadata));
+    const wrongDependency = spawnSync(process.execPath, args, { encoding: "utf8" });
+    assert.notEqual(wrongDependency.status, 0);
+    assert.match(wrongDependency.stderr, /does not expose the exact reviewed Lex dependency edge/);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });
 
 test("npm provenance policy binds package bytes to the protected source workflow", async () => {
