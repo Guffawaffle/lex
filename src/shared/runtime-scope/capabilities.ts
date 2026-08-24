@@ -74,7 +74,10 @@ const CLI_CAPABILITIES: Readonly<Record<TrustedCliOperation, readonly Capability
     check: Object.freeze([]),
     timeline: Object.freeze([RUNTIME_OPERATION_CAPABILITIES.FRAME_READ]),
     "frames:export": Object.freeze([RUNTIME_OPERATION_CAPABILITIES.FRAME_READ]),
-    "frames:import": Object.freeze([RUNTIME_OPERATION_CAPABILITIES.FRAME_WRITE]),
+    "frames:import": Object.freeze([
+      RUNTIME_OPERATION_CAPABILITIES.FRAME_READ,
+      RUNTIME_OPERATION_CAPABILITIES.FRAME_WRITE,
+    ]),
     "db:vacuum": Object.freeze([RUNTIME_OPERATION_CAPABILITIES.FRAME_ADMIN]),
     "db:backup": Object.freeze([RUNTIME_OPERATION_CAPABILITIES.FRAME_ADMIN]),
     "db:repair": Object.freeze([RUNTIME_OPERATION_CAPABILITIES.FRAME_ADMIN]),

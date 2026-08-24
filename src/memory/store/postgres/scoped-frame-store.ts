@@ -79,8 +79,12 @@ interface RuntimeBoundaryRow extends QueryResultRow {
   schema_version: number | null;
   role_name: string;
   role_is_superuser: boolean;
+  role_can_create_roles: boolean;
   role_bypasses_rls: boolean;
-  role_owns_frames: boolean;
+  role_owns_protected_relation: boolean;
+  role_can_mutate_protected_ledger: boolean;
+  role_has_admin_option: boolean;
+  role_can_set_unsafe_role: boolean;
   role_can_create_in_schema: boolean;
   rls_enabled: boolean;
   rls_forced: boolean;
@@ -88,6 +92,14 @@ interface RuntimeBoundaryRow extends QueryResultRow {
 
 type FrameValue = string | string[] | object | null;
 type TransactionKind = "read" | "write";
+
+const FRAME_STORE_PROTECTED_RELATIONS = Object.freeze([
+  "frames",
+  "lex_frame_store_migrations",
+  "lex_frame_store_unowned_frames_v1",
+  "lex_frame_store_recovery_operations",
+  "lex_frame_store_recovery_assignments",
+]);
 
 const FRAME_COLUMNS = `
   id, "timestamp" AS timestamp, branch, jira, module_scope, summary_caption,
@@ -420,8 +432,79 @@ class ScopedTransactionRunner {
           AS schema_version,
         CURRENT_USER AS role_name,
         role.rolsuper AS role_is_superuser,
+        role.rolcreaterole AS role_can_create_roles,
         role.rolbypassrls AS role_bypasses_rls,
-        frames.relowner = role.oid AS role_owns_frames,
+        EXISTS (
+          SELECT 1
+          FROM pg_catalog.pg_class AS current_protected_relation
+          JOIN pg_catalog.pg_namespace AS current_protected_namespace
+            ON current_protected_namespace.oid = current_protected_relation.relnamespace
+          WHERE current_protected_namespace.nspname = $1
+            AND current_protected_relation.relname = ANY($2::text[])
+            AND current_protected_relation.relowner = role.oid
+        ) AS role_owns_protected_relation,
+        EXISTS (
+          SELECT 1
+          FROM pg_catalog.pg_class AS current_protected_relation
+          JOIN pg_catalog.pg_namespace AS current_protected_namespace
+            ON current_protected_namespace.oid = current_protected_relation.relnamespace
+          WHERE current_protected_namespace.nspname = $1
+            AND current_protected_relation.relname = ANY($2::text[])
+            AND current_protected_relation.relname <> 'frames'
+            AND pg_catalog.has_table_privilege(
+              CURRENT_USER,
+              current_protected_relation.oid,
+              'INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER'
+            )
+        ) AS role_can_mutate_protected_ledger,
+        EXISTS (
+          SELECT 1
+          FROM pg_catalog.pg_roles AS administered_role
+          WHERE administered_role.oid <> role.oid
+            AND CASE
+              WHEN current_setting('server_version_num')::integer >= 160000
+                THEN pg_catalog.pg_has_role(
+                  CURRENT_USER,
+                  administered_role.oid,
+                  'MEMBER WITH ADMIN OPTION'
+                )
+              ELSE FALSE
+            END
+        ) AS role_has_admin_option,
+        EXISTS (
+          SELECT 1
+          FROM pg_catalog.pg_roles AS reachable_role
+          WHERE reachable_role.oid <> role.oid
+            AND CASE
+              WHEN current_setting('server_version_num')::integer >= 160000
+                THEN pg_catalog.pg_has_role(CURRENT_USER, reachable_role.oid, 'SET')
+                  OR pg_catalog.pg_has_role(CURRENT_USER, reachable_role.oid, 'USAGE')
+              ELSE pg_catalog.pg_has_role(CURRENT_USER, reachable_role.oid, 'MEMBER')
+            END
+            AND (
+              reachable_role.rolsuper
+              OR reachable_role.rolcreaterole
+              OR reachable_role.rolbypassrls
+              OR reachable_role.oid = frame_namespace.nspowner
+              OR pg_catalog.has_schema_privilege(reachable_role.oid, $1, 'CREATE')
+              OR EXISTS (
+                SELECT 1
+                FROM pg_catalog.pg_class AS protected_relation
+                JOIN pg_catalog.pg_namespace AS protected_namespace
+                  ON protected_namespace.oid = protected_relation.relnamespace
+                WHERE protected_namespace.nspname = $1
+                  AND protected_relation.relname = ANY($2::text[])
+                  AND (
+                    protected_relation.relowner = reachable_role.oid
+                    OR pg_catalog.has_table_privilege(
+                      reachable_role.oid,
+                      protected_relation.oid,
+                      'INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER'
+                    )
+                  )
+              )
+            )
+        ) AS role_can_set_unsafe_role,
         pg_catalog.has_schema_privilege(CURRENT_USER, $1, 'CREATE')
           AS role_can_create_in_schema,
         frames.relrowsecurity AS rls_enabled,
@@ -432,7 +515,7 @@ class ScopedTransactionRunner {
       WHERE role.rolname = CURRENT_USER
         AND frame_namespace.nspname = $1
         AND frames.relname = 'frames'`,
-      [this.target.schema]
+      [this.target.schema, FRAME_STORE_PROTECTED_RELATIONS]
     );
     const boundary = result.rows[0];
     if (boundary?.schema_version !== POSTGRES_FRAME_STORE_SCHEMA_VERSION) {
@@ -446,12 +529,16 @@ class ScopedTransactionRunner {
     if (
       this.enforceRuntimeRole &&
       (boundary.role_is_superuser ||
+        boundary.role_can_create_roles ||
         boundary.role_bypasses_rls ||
-        boundary.role_owns_frames ||
+        boundary.role_owns_protected_relation ||
+        boundary.role_can_mutate_protected_ledger ||
+        boundary.role_has_admin_option ||
+        boundary.role_can_set_unsafe_role ||
         boundary.role_can_create_in_schema)
     ) {
       throw new Error(
-        "PostgreSQL FrameStore runtime role must be non-owner, non-superuser, must not BYPASSRLS, and must not have effective schema CREATE privilege"
+        "PostgreSQL FrameStore runtime role must be non-owner, non-superuser, must not CREATEROLE or BYPASSRLS, must not own or mutate protected ledgers, must not hold ADMIN OPTION, must not inherit from or SET ROLE to an unsafe role, and must not have effective schema CREATE privilege"
       );
     }
   }

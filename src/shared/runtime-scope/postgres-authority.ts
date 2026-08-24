@@ -95,9 +95,12 @@ interface GrantRow extends QueryResultRow {
 interface RuntimeRoleBoundaryRow extends QueryResultRow {
   schema_version: number | null;
   role_is_superuser: boolean;
+  role_can_create_roles: boolean;
   role_bypasses_rls: boolean;
   role_owns_authority: boolean;
   role_can_mutate_authority: boolean;
+  role_has_admin_option: boolean;
+  role_can_set_unsafe_role: boolean;
   role_can_create_in_schema: boolean;
 }
 
@@ -237,6 +240,7 @@ async function assertReadOnlyRuntimeRole(
     SELECT
       (SELECT MAX(version) FROM ${target.relation("lex_authority_migrations")}) AS schema_version,
       role.rolsuper AS role_is_superuser,
+      role.rolcreaterole AS role_can_create_roles,
       role.rolbypassrls AS role_bypasses_rls,
       EXISTS (
         SELECT 1
@@ -258,6 +262,58 @@ async function assertReadOnlyRuntimeRole(
             'INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER'
           )
       ) AS role_can_mutate_authority,
+      EXISTS (
+        SELECT 1
+        FROM pg_catalog.pg_roles administered_role
+        WHERE administered_role.oid <> role.oid
+          AND CASE
+            WHEN current_setting('server_version_num')::integer >= 160000
+              THEN pg_catalog.pg_has_role(
+                CURRENT_USER,
+                administered_role.oid,
+                'MEMBER WITH ADMIN OPTION'
+              )
+            ELSE FALSE
+          END
+      ) AS role_has_admin_option,
+      EXISTS (
+        SELECT 1
+        FROM pg_catalog.pg_roles reachable_role
+        WHERE reachable_role.oid <> role.oid
+          AND CASE
+          WHEN current_setting('server_version_num')::integer >= 160000
+              THEN pg_catalog.pg_has_role(CURRENT_USER, reachable_role.oid, 'SET')
+                OR pg_catalog.pg_has_role(CURRENT_USER, reachable_role.oid, 'USAGE')
+            ELSE pg_catalog.pg_has_role(CURRENT_USER, reachable_role.oid, 'MEMBER')
+          END
+          AND (
+            reachable_role.rolsuper
+            OR reachable_role.rolcreaterole
+            OR reachable_role.rolbypassrls
+            OR pg_catalog.has_schema_privilege(reachable_role.oid, $1, 'CREATE')
+            OR EXISTS (
+              SELECT 1
+              FROM pg_catalog.pg_namespace namespace
+              WHERE namespace.nspname = $1
+                AND namespace.nspowner = reachable_role.oid
+            )
+            OR EXISTS (
+              SELECT 1
+              FROM pg_catalog.pg_class relation
+              JOIN pg_catalog.pg_namespace namespace ON namespace.oid = relation.relnamespace
+              WHERE namespace.nspname = $1
+                AND relation.relname = ANY($2::text[])
+                AND (
+                  relation.relowner = reachable_role.oid
+                  OR pg_catalog.has_table_privilege(
+                    reachable_role.oid,
+                    relation.oid,
+                    'INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER'
+                  )
+                )
+            )
+          )
+      ) AS role_can_set_unsafe_role,
       pg_catalog.has_schema_privilege(CURRENT_USER, $1, 'CREATE')
         AS role_can_create_in_schema
     FROM pg_catalog.pg_roles role
@@ -270,13 +326,16 @@ async function assertReadOnlyRuntimeRole(
     !boundary ||
     boundary.schema_version !== 1 ||
     boundary.role_is_superuser ||
+    boundary.role_can_create_roles ||
     boundary.role_bypasses_rls ||
     boundary.role_owns_authority ||
     boundary.role_can_mutate_authority ||
+    boundary.role_has_admin_option ||
+    boundary.role_can_set_unsafe_role ||
     boundary.role_can_create_in_schema
   ) {
     throw new Error(
-      "PostgreSQL canonical authority requires a read-only non-owner runtime role without effective schema CREATE privilege."
+      "PostgreSQL canonical authority requires a read-only non-owner runtime role without CREATEROLE, ADMIN OPTION, an inherited or SET ROLE path to an unsafe role, or effective schema CREATE privilege."
     );
   }
 }

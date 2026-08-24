@@ -2,9 +2,18 @@
 
 import assert from "node:assert/strict";
 import { createHash, randomBytes } from "node:crypto";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  readdirSync,
+  rmSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join, resolve, win32 } from "node:path";
+import { pathToFileURL } from "node:url";
 import { Pool, type PoolClient } from "pg";
 
 import { MCPServer } from "../src/memory/mcp_server/server.js";
@@ -84,6 +93,7 @@ interface SurfaceFixture {
   readonly name: "windows-native" | "wsl";
   readonly platform: NodeJS.Platform;
   readonly root: string;
+  readonly simulatedRoot?: string;
   readonly surface: ExecutionSurfaceEvidenceV1;
   readonly databasePath: string;
   readonly registryInstanceId: RegistryInstanceId;
@@ -106,6 +116,38 @@ const FRAME_CAPABILITIES = Object.freeze([
 function quoteIdentifier(identifier: string): string {
   if (!/^[a-z][a-z0-9_]+$/.test(identifier)) throw new TypeError("Unsafe canary identifier.");
   return `"${identifier}"`;
+}
+
+export function resolveWslFixtureExecutionRoot(
+  hostRoot: string,
+  platform: NodeJS.Platform = process.platform
+): string {
+  if (platform !== "win32") return hostRoot;
+  const parsedRoot = win32.parse(hostRoot).root;
+  if (!/^[a-z]:\\$/i.test(parsedRoot)) {
+    throw new Error("The Windows WSL fixture host root must use an absolute drive path.");
+  }
+  return `/${hostRoot.slice(parsedRoot.length).replaceAll("\\", "/")}`;
+}
+
+function verifiedHostTemporaryRoot(prefix: string): string {
+  const hostTemporaryRoot = realpathSync(tmpdir());
+  const fixtureRoot = realpathSync(mkdtempSync(join(hostTemporaryRoot, prefix)));
+  if (realpathSync(dirname(fixtureRoot)) !== hostTemporaryRoot) {
+    throw new Error("Canary fixture escaped the verified host temporary directory.");
+  }
+  return fixtureRoot;
+}
+
+function removeVerifiedHostTemporaryRoot(fixtureRoot: string): void {
+  const hostTemporaryRoot = realpathSync(tmpdir());
+  const canonicalFixtureRoot = realpathSync(fixtureRoot);
+  if (realpathSync(dirname(canonicalFixtureRoot)) !== hostTemporaryRoot) {
+    throw new Error(
+      "Refusing to remove a canary fixture outside the verified host temporary directory."
+    );
+  }
+  rmSync(canonicalFixtureRoot, { recursive: true, force: true });
 }
 
 function scopedConnectionString(connectionString: string, schema: string): string {
@@ -273,9 +315,29 @@ export async function runLex3PostgresDogfoodCanary(
   const suffix = `${process.pid}_${randomBytes(5).toString("hex")}`;
   const schema = `lex3_canary_${suffix}`;
   const runtimeRole = `lex3_canary_runtime_${suffix}`;
+  const bypassEscapeRole = `lex3_canary_bypass_${suffix}`;
+  const authorityMutatorRole = `lex3_canary_mutator_${suffix}`;
+  const inheritedOwnerRole = `lex3_canary_inherited_owner_${suffix}`;
+  const adminBridgeRole = `lex3_canary_admin_bridge_${suffix}`;
+  const adminUnsafeRole = `lex3_canary_admin_unsafe_${suffix}`;
+  const canaryRoles = [
+    runtimeRole,
+    bypassEscapeRole,
+    authorityMutatorRole,
+    inheritedOwnerRole,
+    adminBridgeRole,
+    adminUnsafeRole,
+  ];
   const runtimePassword = randomBytes(32).toString("base64url");
-  const registryRoot = mkdtempSync(join(tmpdir(), "lex3-registry-canary-"));
-  const exportRoot = mkdtempSync(join(tmpdir(), "lex3-export-canary-"));
+  const registryRoot = verifiedHostTemporaryRoot("lex3-registry-canary-");
+  const originalWorkingDirectory = process.cwd();
+  const wslFixtureRoot = `/tmp/lex3-registry-canary-${suffix}`;
+  const windowsFixtureHostRoot = join(registryRoot, "windows-repository");
+  const wslFixtureHostRoot = join(registryRoot, "wsl-repository");
+  const wslFixtureExecutionRoot = resolveWslFixtureExecutionRoot(wslFixtureHostRoot);
+  mkdirSync(windowsFixtureHostRoot);
+  mkdirSync(wslFixtureHostRoot);
+  const exportRoot = verifiedHostTemporaryRoot("lex3-export-canary-");
   const now = new Date();
   const capturedAt = now.toISOString();
   const cacheExpiresAt = new Date(now.getTime() + 60 * 60 * 1000).toISOString();
@@ -300,6 +362,7 @@ export async function runLex3PostgresDogfoodCanary(
   let mcp: MCPServer | undefined;
   let schemaCreated = false;
   let roleCreated = false;
+  const escapeRolesCreated = new Set<string>();
   const cleanup = {
     schemaDropped: false,
     runtimeRoleDropped: false,
@@ -310,7 +373,7 @@ export async function runLex3PostgresDogfoodCanary(
     {
       name: "windows-native",
       platform: "win32",
-      root: "C:\\lex3-dogfood\\repository",
+      root: windowsFixtureHostRoot,
       surface: detectExecutionSurface({
         platform: "win32",
         installationRef: "C:\\Program Files\\nodejs\\node.exe",
@@ -322,7 +385,8 @@ export async function runLex3PostgresDogfoodCanary(
     {
       name: "wsl",
       platform: "linux",
-      root: join(registryRoot, "wsl-repository"),
+      root: wslFixtureExecutionRoot,
+      simulatedRoot: wslFixtureRoot,
       surface: detectExecutionSurface({
         platform: "linux",
         installationRef: "/usr/bin/node",
@@ -333,8 +397,6 @@ export async function runLex3PostgresDogfoodCanary(
       executionSurfaceId: "wsl-canary-surface" as ExecutionSurfaceId,
     },
   ];
-  mkdirSync(surfaces[1]!.root, { recursive: true });
-
   const runCase = async <T>(
     id: Lex3DogfoodAcceptanceCase,
     action: () => Promise<T> | T
@@ -356,6 +418,7 @@ export async function runLex3PostgresDogfoodCanary(
   };
 
   try {
+    if (process.platform === "win32") process.chdir(dirname(registryRoot));
     step = "connect";
     adminPool = new Pool({
       connectionString: options.administrationConnectionString,
@@ -367,9 +430,11 @@ export async function runLex3PostgresDogfoodCanary(
     }
     const liveIdentity = await adminPool.query<{
       database_name: string;
+      server_version_num: number;
       system_identifier: string;
     }>(`
       SELECT current_database() AS database_name,
+             current_setting('server_version_num')::integer AS server_version_num,
              system_identifier::text AS system_identifier
       FROM pg_control_system()
     `);
@@ -599,6 +664,103 @@ export async function runLex3PostgresDogfoodCanary(
       assert.equal(decision.authorized, true);
       if (!decision.authorized) throw new Error("Workspace scope was not authorized.");
       stores.push({ workspace, store: liveFrameBackend.bind(decision.grant) });
+    }
+
+    step = "reject-settable-bypass-role";
+    await adminPool.query(
+      `CREATE ROLE ${quoteIdentifier(bypassEscapeRole)} NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOREPLICATION BYPASSRLS`
+    );
+    escapeRolesCreated.add(bypassEscapeRole);
+    await adminPool.query(
+      `GRANT ${quoteIdentifier(bypassEscapeRole)} TO ${quoteIdentifier(runtimeRole)}`
+    );
+    await assert.rejects(() => stores[0]!.store.getFrameCount(), /unsafe role/);
+    await adminPool.query(
+      `REVOKE ${quoteIdentifier(bypassEscapeRole)} FROM ${quoteIdentifier(runtimeRole)}; DROP ROLE ${quoteIdentifier(bypassEscapeRole)}`
+    );
+    escapeRolesCreated.delete(bypassEscapeRole);
+
+    step = "reject-settable-authority-mutator";
+    await adminPool.query(
+      `CREATE ROLE ${quoteIdentifier(authorityMutatorRole)} NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOREPLICATION NOBYPASSRLS`
+    );
+    escapeRolesCreated.add(authorityMutatorRole);
+    await adminPool.query(`
+      GRANT UPDATE ON ${quoteIdentifier(schema)}.lex_authority_migrations TO ${quoteIdentifier(authorityMutatorRole)};
+      GRANT ${quoteIdentifier(authorityMutatorRole)} TO ${quoteIdentifier(runtimeRole)};
+    `);
+    await assert.rejects(
+      () => authorityDirectory.resolvePrincipal({ authenticationRef: AUTHENTICATION_REF }),
+      /unsafe role/
+    );
+    await adminPool.query(`
+      REVOKE ${quoteIdentifier(authorityMutatorRole)} FROM ${quoteIdentifier(runtimeRole)};
+      DROP OWNED BY ${quoteIdentifier(authorityMutatorRole)};
+      DROP ROLE ${quoteIdentifier(authorityMutatorRole)};
+    `);
+    escapeRolesCreated.delete(authorityMutatorRole);
+
+    step = "reject-direct-protected-ledger-mutation";
+    await adminPool.query(
+      `GRANT UPDATE ON ${quoteIdentifier(schema)}.lex_frame_store_migrations TO ${quoteIdentifier(runtimeRole)}`
+    );
+    await assert.rejects(
+      () => stores[0]!.store.getFrameCount(),
+      /must be non-owner, non-superuser/
+    );
+    await adminPool.query(
+      `REVOKE UPDATE ON ${quoteIdentifier(schema)}.lex_frame_store_migrations FROM ${quoteIdentifier(runtimeRole)}`
+    );
+
+    if (liveIdentity.rows[0].server_version_num >= 160000) {
+      step = "reject-inherited-protected-owner";
+      const protectedOwner = await adminPool.query<{ owner_name: string }>(
+        `SELECT owner.rolname AS owner_name
+           FROM pg_catalog.pg_class relation
+           JOIN pg_catalog.pg_namespace namespace ON namespace.oid = relation.relnamespace
+           JOIN pg_catalog.pg_roles owner ON owner.oid = relation.relowner
+          WHERE namespace.nspname = $1 AND relation.relname = 'lex_frame_store_recovery_operations'`,
+        [schema]
+      );
+      assert.ok(protectedOwner.rows[0]?.owner_name);
+      await adminPool.query(
+        `CREATE ROLE ${quoteIdentifier(inheritedOwnerRole)} NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOREPLICATION NOBYPASSRLS`
+      );
+      escapeRolesCreated.add(inheritedOwnerRole);
+      await adminPool.query(`
+        ALTER TABLE ${quoteIdentifier(schema)}.lex_frame_store_recovery_operations OWNER TO ${quoteIdentifier(inheritedOwnerRole)};
+        GRANT ${quoteIdentifier(inheritedOwnerRole)} TO ${quoteIdentifier(runtimeRole)} WITH INHERIT TRUE, SET FALSE;
+      `);
+      await assert.rejects(() => stores[0]!.store.getFrameCount(), /unsafe role/);
+      await adminPool.query(`
+        REVOKE ${quoteIdentifier(inheritedOwnerRole)} FROM ${quoteIdentifier(runtimeRole)};
+        ALTER TABLE ${quoteIdentifier(schema)}.lex_frame_store_recovery_operations OWNER TO ${quoteIdentifier(protectedOwner.rows[0].owner_name)};
+        DROP ROLE ${quoteIdentifier(inheritedOwnerRole)};
+      `);
+      escapeRolesCreated.delete(inheritedOwnerRole);
+
+      step = "reject-admin-option-two-hop-regrant";
+      await adminPool.query(`
+        CREATE ROLE ${quoteIdentifier(adminBridgeRole)} NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOREPLICATION NOBYPASSRLS;
+        CREATE ROLE ${quoteIdentifier(adminUnsafeRole)} NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOREPLICATION NOBYPASSRLS;
+      `);
+      escapeRolesCreated.add(adminBridgeRole);
+      escapeRolesCreated.add(adminUnsafeRole);
+      await adminPool.query(`
+        GRANT UPDATE ON ${quoteIdentifier(schema)}.lex_frame_store_recovery_assignments TO ${quoteIdentifier(adminUnsafeRole)};
+        GRANT ${quoteIdentifier(adminUnsafeRole)} TO ${quoteIdentifier(adminBridgeRole)} WITH ADMIN FALSE, INHERIT FALSE, SET TRUE;
+        GRANT ${quoteIdentifier(adminBridgeRole)} TO ${quoteIdentifier(runtimeRole)} WITH ADMIN TRUE, INHERIT FALSE, SET FALSE;
+      `);
+      await assert.rejects(() => stores[0]!.store.getFrameCount(), /ADMIN OPTION/);
+      await adminPool.query(`
+        REVOKE ${quoteIdentifier(adminBridgeRole)} FROM ${quoteIdentifier(runtimeRole)};
+        REVOKE ${quoteIdentifier(adminUnsafeRole)} FROM ${quoteIdentifier(adminBridgeRole)};
+        DROP OWNED BY ${quoteIdentifier(adminUnsafeRole)};
+        DROP ROLE ${quoteIdentifier(adminBridgeRole)};
+        DROP ROLE ${quoteIdentifier(adminUnsafeRole)};
+      `);
+      escapeRolesCreated.delete(adminBridgeRole);
+      escapeRolesCreated.delete(adminUnsafeRole);
     }
 
     const collisionFrame = {
@@ -1242,6 +1404,12 @@ export async function runLex3PostgresDogfoodCanary(
     failure = error;
     failurePhase = phase;
     failureCode = `${step.toUpperCase().replaceAll(/[^A-Z0-9]+/g, "_")}_${safeFailureCode(error)}`;
+    if (options.diagnostics) {
+      const message = error instanceof Error ? error.message : String(error);
+      process.stderr.write(
+        `${JSON.stringify({ schemaVersion: 1, scope: "lex3-dogfood-canary", code: failureCode, message: message.slice(0, 512) })}\n`
+      );
+    }
   } finally {
     await mcp?.close().catch(() => undefined);
     await frameBackend?.close().catch(() => undefined);
@@ -1268,6 +1436,19 @@ export async function runLex3PostgresDogfoodCanary(
           });
       }
       if (roleCreated) {
+        for (const escapeRole of escapeRolesCreated) {
+          await adminPool
+            .query(
+              `DROP OWNED BY ${quoteIdentifier(escapeRole)}; DROP ROLE IF EXISTS ${quoteIdentifier(escapeRole)}`
+            )
+            .catch((error) => {
+              if (!failure) {
+                failure = error;
+                failurePhase = "cleanup";
+                failureCode = `DROP_ESCAPE_ROLE_${safeFailureCode(error)}`;
+              }
+            });
+        }
         await adminPool
           .query(`DROP ROLE IF EXISTS ${quoteIdentifier(runtimeRole)}`)
           .catch((error) => {
@@ -1281,16 +1462,17 @@ export async function runLex3PostgresDogfoodCanary(
       const absent = await adminPool
         .query<{ schema_exists: boolean; role_exists: boolean }>(
           `SELECT EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = $1) AS schema_exists,
-                  EXISTS (SELECT 1 FROM pg_roles WHERE rolname = $2) AS role_exists`,
-          [schema, runtimeRole]
+                  EXISTS (SELECT 1 FROM pg_roles WHERE rolname = ANY($2::text[])) AS role_exists`,
+          [schema, canaryRoles]
         )
         .catch(() => ({ rows: [{ schema_exists: true, role_exists: true }] }));
       cleanup.schemaDropped = absent.rows[0]?.schema_exists === false;
       cleanup.runtimeRoleDropped = absent.rows[0]?.role_exists === false;
       await adminPool.end().catch(() => undefined);
     }
-    rmSync(registryRoot, { recursive: true, force: true });
-    rmSync(exportRoot, { recursive: true, force: true });
+    if (process.cwd() !== originalWorkingDirectory) process.chdir(originalWorkingDirectory);
+    removeVerifiedHostTemporaryRoot(registryRoot);
+    removeVerifiedHostTemporaryRoot(exportRoot);
     cleanup.registryFixturesRemoved = !existsSync(registryRoot);
     cleanup.exportFixturesRemoved = !existsSync(exportRoot);
     if (!Object.values(cleanup).every(Boolean) && !failure) {
@@ -1366,7 +1548,12 @@ export async function runLex3PostgresDogfoodCanary(
 
 function processConnectionString(): string {
   const configured = process.env.LEX_DATABASE_URL;
-  const password = process.env.LEX_POSTGRES_PASSWORD;
+  const password =
+    process.env.LEX_POSTGRES_PASSWORD_STDIN === "1"
+      ? readFileSync(0, "utf8").trim()
+      : process.env.LEX_POSTGRES_PASSWORD;
+  delete process.env.LEX_POSTGRES_PASSWORD;
+  delete process.env.LEX_POSTGRES_PASSWORD_STDIN;
   if (!configured || !password) {
     throw new Error(
       "The opt-in canary requires LEX_DATABASE_URL and LEX_POSTGRES_PASSWORD in this process."
@@ -1409,7 +1596,7 @@ async function main(): Promise<void> {
   }
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
   main().catch(() => {
     process.stderr.write(
       `${JSON.stringify({ schemaVersion: 1, gate: "lex-3.0-postgres-two-tenant-five-workspace", ok: false, failure: { phase: "setup", code: "WRAPPER_FAILED" } })}\n`
