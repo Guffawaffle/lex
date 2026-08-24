@@ -8,4 +8,5 @@ imports the read capability required for collision handling. Runtime bindings no
 that can `SET ROLE` to any privilege-bearing authority escape, with live `BYPASSRLS` and
 authority-mutator controls, direct protected-ledger mutation rejection, and a fail-closed membership
 check on PostgreSQL versions older than 16. PostgreSQL 16+ rejects both settable and immediately
-inherited unsafe-role paths, plus admin-option memberships that can regrant a settable path.
+inherited unsafe-role paths, and disallows admin-option memberships that can regrant a settable
+path through otherwise benign bridge roles.

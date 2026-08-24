@@ -318,13 +318,15 @@ export async function runLex3PostgresDogfoodCanary(
   const bypassEscapeRole = `lex3_canary_bypass_${suffix}`;
   const authorityMutatorRole = `lex3_canary_mutator_${suffix}`;
   const inheritedOwnerRole = `lex3_canary_inherited_owner_${suffix}`;
-  const adminEscapeRole = `lex3_canary_admin_${suffix}`;
+  const adminBridgeRole = `lex3_canary_admin_bridge_${suffix}`;
+  const adminUnsafeRole = `lex3_canary_admin_unsafe_${suffix}`;
   const canaryRoles = [
     runtimeRole,
     bypassEscapeRole,
     authorityMutatorRole,
     inheritedOwnerRole,
-    adminEscapeRole,
+    adminBridgeRole,
+    adminUnsafeRole,
   ];
   const runtimePassword = randomBytes(32).toString("base64url");
   const registryRoot = verifiedHostTemporaryRoot("lex3-registry-canary-");
@@ -737,22 +739,28 @@ export async function runLex3PostgresDogfoodCanary(
       `);
       escapeRolesCreated.delete(inheritedOwnerRole);
 
-      step = "reject-admin-option-regrant";
-      await adminPool.query(
-        `CREATE ROLE ${quoteIdentifier(adminEscapeRole)} NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOREPLICATION NOBYPASSRLS`
-      );
-      escapeRolesCreated.add(adminEscapeRole);
+      step = "reject-admin-option-two-hop-regrant";
       await adminPool.query(`
-        GRANT UPDATE ON ${quoteIdentifier(schema)}.lex_frame_store_recovery_assignments TO ${quoteIdentifier(adminEscapeRole)};
-        GRANT ${quoteIdentifier(adminEscapeRole)} TO ${quoteIdentifier(runtimeRole)} WITH ADMIN TRUE, INHERIT FALSE, SET FALSE;
+        CREATE ROLE ${quoteIdentifier(adminBridgeRole)} NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOREPLICATION NOBYPASSRLS;
+        CREATE ROLE ${quoteIdentifier(adminUnsafeRole)} NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOREPLICATION NOBYPASSRLS;
       `);
-      await assert.rejects(() => stores[0]!.store.getFrameCount(), /unsafe role/);
+      escapeRolesCreated.add(adminBridgeRole);
+      escapeRolesCreated.add(adminUnsafeRole);
       await adminPool.query(`
-        REVOKE ${quoteIdentifier(adminEscapeRole)} FROM ${quoteIdentifier(runtimeRole)};
-        DROP OWNED BY ${quoteIdentifier(adminEscapeRole)};
-        DROP ROLE ${quoteIdentifier(adminEscapeRole)};
+        GRANT UPDATE ON ${quoteIdentifier(schema)}.lex_frame_store_recovery_assignments TO ${quoteIdentifier(adminUnsafeRole)};
+        GRANT ${quoteIdentifier(adminUnsafeRole)} TO ${quoteIdentifier(adminBridgeRole)} WITH ADMIN FALSE, INHERIT FALSE, SET TRUE;
+        GRANT ${quoteIdentifier(adminBridgeRole)} TO ${quoteIdentifier(runtimeRole)} WITH ADMIN TRUE, INHERIT FALSE, SET FALSE;
       `);
-      escapeRolesCreated.delete(adminEscapeRole);
+      await assert.rejects(() => stores[0]!.store.getFrameCount(), /ADMIN OPTION/);
+      await adminPool.query(`
+        REVOKE ${quoteIdentifier(adminBridgeRole)} FROM ${quoteIdentifier(runtimeRole)};
+        REVOKE ${quoteIdentifier(adminUnsafeRole)} FROM ${quoteIdentifier(adminBridgeRole)};
+        DROP OWNED BY ${quoteIdentifier(adminUnsafeRole)};
+        DROP ROLE ${quoteIdentifier(adminBridgeRole)};
+        DROP ROLE ${quoteIdentifier(adminUnsafeRole)};
+      `);
+      escapeRolesCreated.delete(adminBridgeRole);
+      escapeRolesCreated.delete(adminUnsafeRole);
     }
 
     const collisionFrame = {

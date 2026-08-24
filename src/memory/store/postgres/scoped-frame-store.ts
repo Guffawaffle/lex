@@ -83,6 +83,7 @@ interface RuntimeBoundaryRow extends QueryResultRow {
   role_bypasses_rls: boolean;
   role_owns_protected_relation: boolean;
   role_can_mutate_protected_ledger: boolean;
+  role_has_admin_option: boolean;
   role_can_set_unsafe_role: boolean;
   role_can_create_in_schema: boolean;
   rls_enabled: boolean;
@@ -458,17 +459,26 @@ class ScopedTransactionRunner {
         ) AS role_can_mutate_protected_ledger,
         EXISTS (
           SELECT 1
+          FROM pg_catalog.pg_roles AS administered_role
+          WHERE administered_role.oid <> role.oid
+            AND CASE
+              WHEN current_setting('server_version_num')::integer >= 160000
+                THEN pg_catalog.pg_has_role(
+                  CURRENT_USER,
+                  administered_role.oid,
+                  'MEMBER WITH ADMIN OPTION'
+                )
+              ELSE FALSE
+            END
+        ) AS role_has_admin_option,
+        EXISTS (
+          SELECT 1
           FROM pg_catalog.pg_roles AS reachable_role
           WHERE reachable_role.oid <> role.oid
             AND CASE
               WHEN current_setting('server_version_num')::integer >= 160000
                 THEN pg_catalog.pg_has_role(CURRENT_USER, reachable_role.oid, 'SET')
                   OR pg_catalog.pg_has_role(CURRENT_USER, reachable_role.oid, 'USAGE')
-                  OR pg_catalog.pg_has_role(
-                    CURRENT_USER,
-                    reachable_role.oid,
-                    'MEMBER WITH ADMIN OPTION'
-                  )
               ELSE pg_catalog.pg_has_role(CURRENT_USER, reachable_role.oid, 'MEMBER')
             END
             AND (
@@ -523,11 +533,12 @@ class ScopedTransactionRunner {
         boundary.role_bypasses_rls ||
         boundary.role_owns_protected_relation ||
         boundary.role_can_mutate_protected_ledger ||
+        boundary.role_has_admin_option ||
         boundary.role_can_set_unsafe_role ||
         boundary.role_can_create_in_schema)
     ) {
       throw new Error(
-        "PostgreSQL FrameStore runtime role must be non-owner, non-superuser, must not CREATEROLE or BYPASSRLS, must not own or mutate protected ledgers, must not inherit from or SET ROLE to an unsafe role, and must not have effective schema CREATE privilege"
+        "PostgreSQL FrameStore runtime role must be non-owner, non-superuser, must not CREATEROLE or BYPASSRLS, must not own or mutate protected ledgers, must not hold ADMIN OPTION, must not inherit from or SET ROLE to an unsafe role, and must not have effective schema CREATE privilege"
       );
     }
   }

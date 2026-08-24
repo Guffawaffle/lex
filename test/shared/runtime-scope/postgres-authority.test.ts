@@ -64,6 +64,7 @@ class AuthorityClient {
   releaseCount = 0;
   readonly unsafeRole: boolean;
   readonly schemaCreate: boolean;
+  readonly adminOption: boolean;
   readonly setRoleEscape: boolean;
   readonly grantRevoked: boolean;
   readonly grantExpired: boolean;
@@ -72,6 +73,7 @@ class AuthorityClient {
     options: {
       readonly unsafeRole?: boolean;
       readonly schemaCreate?: boolean;
+      readonly adminOption?: boolean;
       readonly setRoleEscape?: boolean;
       readonly grantRevoked?: boolean;
       readonly grantExpired?: boolean;
@@ -79,6 +81,7 @@ class AuthorityClient {
   ) {
     this.unsafeRole = options.unsafeRole ?? false;
     this.schemaCreate = options.schemaCreate ?? false;
+    this.adminOption = options.adminOption ?? false;
     this.setRoleEscape = options.setRoleEscape ?? false;
     this.grantRevoked = options.grantRevoked ?? false;
     this.grantExpired = options.grantExpired ?? false;
@@ -97,6 +100,7 @@ class AuthorityClient {
           role_bypasses_rls: false,
           role_owns_authority: false,
           role_can_mutate_authority: false,
+          role_has_admin_option: this.adminOption,
           role_can_set_unsafe_role: this.setRoleEscape,
           role_can_create_in_schema: this.schemaCreate,
         },
@@ -430,7 +434,7 @@ describe("PostgreSQL canonical authority", () => {
     );
     assert.match(
       runtimeBoundarySql,
-      /pg_catalog\.pg_has_role\(\s*CURRENT_USER,\s*reachable_role\.oid,\s*'MEMBER WITH ADMIN OPTION'\s*\)/
+      /pg_catalog\.pg_has_role\(\s*CURRENT_USER,\s*administered_role\.oid,\s*'MEMBER WITH ADMIN OPTION'\s*\)/
     );
     assert.match(
       runtimeBoundarySql,
@@ -520,6 +524,15 @@ describe("PostgreSQL canonical authority", () => {
       }
     );
     await assert.rejects(() => roleMember.getTenant({ tenantId: TENANT }), /unsafe role/);
+
+    const roleAdministrator = new PostgresAuthorityDirectory(
+      poolFor(new AuthorityClient({ adminOption: true })),
+      {
+        schema: AUTHORITY_SCHEMA,
+        now: () => NOW,
+      }
+    );
+    await assert.rejects(() => roleAdministrator.getTenant({ tenantId: TENANT }), /ADMIN OPTION/);
   });
 
   test("seeds the explicit dogfood topology with redacted idempotent administration inputs", async () => {

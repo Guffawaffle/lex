@@ -92,6 +92,7 @@ class FakePool {
     role_bypasses_rls: false,
     role_owns_protected_relation: false,
     role_can_mutate_protected_ledger: false,
+    role_has_admin_option: false,
     role_can_set_unsafe_role: false,
     role_can_create_in_schema: false,
     rls_enabled: true,
@@ -269,6 +270,7 @@ describe("PostgresScopedFrameStoreBackend", () => {
     assert.equal(runtimeBoundarySql.match(/'USAGE'/g)?.length, 1);
     assert.equal(runtimeBoundarySql.match(/'MEMBER'/g)?.length, 1);
     assert.equal(runtimeBoundarySql.match(/'MEMBER WITH ADMIN OPTION'/g)?.length, 1);
+    assert.match(runtimeBoundarySql, /administered_role\.oid/);
     assert.match(runtimeBoundarySql, /reachable_role\.rolsuper/);
     assert.match(runtimeBoundarySql, /reachable_role\.rolcreaterole/);
     assert.match(runtimeBoundarySql, /reachable_role\.rolbypassrls/);
@@ -440,6 +442,7 @@ describe("PostgresScopedFrameStoreBackend", () => {
       "role_bypasses_rls",
       "role_owns_protected_relation",
       "role_can_mutate_protected_ledger",
+      "role_has_admin_option",
       "role_can_set_unsafe_role",
       "role_can_create_in_schema",
     ] as const) {

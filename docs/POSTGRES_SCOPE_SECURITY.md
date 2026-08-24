@@ -67,8 +67,9 @@ enforcement. Use a dedicated protected schema; a direct revoke from the login ro
 privileges inherited through `PUBLIC` or group membership.
 
 PostgreSQL 16 and newer expose exact `SET` and immediately inherited `USAGE` paths through
-`pg_has_role`; Lex rejects either path to an unsafe role, plus memberships carrying `ADMIN` that
-could grant themselves a settable path. On older supported servers Lex
+`pg_has_role`; Lex rejects either path to an unsafe role. Runtime roles may not hold `ADMIN OPTION`
+on any role, because even a benign bridge role can use it to regrant itself a settable path to an
+unsafe child role. On older supported servers Lex
 conservatively rejects any `MEMBER` relationship to an unsafe role, because those releases cannot
 distinguish the membership options through that function. The live dogfood
 canary grants the runtime role a settable non-owner `BYPASSRLS` role and, separately, a settable
@@ -76,8 +77,9 @@ non-owner authority-table mutator; both runtime bindings must reject those paths
 It also temporarily grants the runtime role direct `UPDATE` on the FrameStore migration ledger and
 requires rejection before revoking that privilege. On PostgreSQL 16+, a protected relation owner
 granted with `INHERIT TRUE, SET FALSE` is also rejected before ownership and membership are restored.
-The same PostgreSQL 16+ control rejects `ADMIN TRUE, INHERIT FALSE, SET FALSE` membership in a
-protected-ledger mutator before it can regrant itself `SET TRUE`.
+The same PostgreSQL 16+ control creates an unsafe protected-ledger mutator behind a benign settable
+bridge and rejects `ADMIN TRUE, INHERIT FALSE, SET FALSE` membership in that bridge before the
+runtime can regrant itself `SET TRUE` and traverse the two-hop path.
 
 When this canary simulates a WSL surface from a Windows process, the dedicated canary temporarily
 pins its working directory to the verified host temporary drive and restores the caller's original
