@@ -426,6 +426,14 @@ describe("PostgreSQL canonical authority", () => {
     );
     assert.match(
       runtimeBoundarySql,
+      /pg_catalog\.pg_has_role\(CURRENT_USER, reachable_role\.oid, 'USAGE'\)/
+    );
+    assert.match(
+      runtimeBoundarySql,
+      /pg_catalog\.pg_has_role\(\s*CURRENT_USER,\s*reachable_role\.oid,\s*'MEMBER WITH ADMIN OPTION'\s*\)/
+    );
+    assert.match(
+      runtimeBoundarySql,
       /pg_catalog\.pg_has_role\(CURRENT_USER, reachable_role\.oid, 'MEMBER'\)/
     );
   });
@@ -511,10 +519,7 @@ describe("PostgreSQL canonical authority", () => {
         now: () => NOW,
       }
     );
-    await assert.rejects(
-      () => roleMember.getTenant({ tenantId: TENANT }),
-      /SET ROLE path to an unsafe role/
-    );
+    await assert.rejects(() => roleMember.getTenant({ tenantId: TENANT }), /unsafe role/);
   });
 
   test("seeds the explicit dogfood topology with redacted idempotent administration inputs", async () => {

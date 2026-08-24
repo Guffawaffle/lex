@@ -317,9 +317,18 @@ export async function runLex3PostgresDogfoodCanary(
   const runtimeRole = `lex3_canary_runtime_${suffix}`;
   const bypassEscapeRole = `lex3_canary_bypass_${suffix}`;
   const authorityMutatorRole = `lex3_canary_mutator_${suffix}`;
-  const canaryRoles = [runtimeRole, bypassEscapeRole, authorityMutatorRole];
+  const inheritedOwnerRole = `lex3_canary_inherited_owner_${suffix}`;
+  const adminEscapeRole = `lex3_canary_admin_${suffix}`;
+  const canaryRoles = [
+    runtimeRole,
+    bypassEscapeRole,
+    authorityMutatorRole,
+    inheritedOwnerRole,
+    adminEscapeRole,
+  ];
   const runtimePassword = randomBytes(32).toString("base64url");
   const registryRoot = verifiedHostTemporaryRoot("lex3-registry-canary-");
+  const originalWorkingDirectory = process.cwd();
   const wslFixtureRoot = `/tmp/lex3-registry-canary-${suffix}`;
   const windowsFixtureHostRoot = join(registryRoot, "windows-repository");
   const wslFixtureHostRoot = join(registryRoot, "wsl-repository");
@@ -407,6 +416,7 @@ export async function runLex3PostgresDogfoodCanary(
   };
 
   try {
+    if (process.platform === "win32") process.chdir(dirname(registryRoot));
     step = "connect";
     adminPool = new Pool({
       connectionString: options.administrationConnectionString,
@@ -418,9 +428,11 @@ export async function runLex3PostgresDogfoodCanary(
     }
     const liveIdentity = await adminPool.query<{
       database_name: string;
+      server_version_num: number;
       system_identifier: string;
     }>(`
       SELECT current_database() AS database_name,
+             current_setting('server_version_num')::integer AS server_version_num,
              system_identifier::text AS system_identifier
       FROM pg_control_system()
     `);
@@ -660,7 +672,7 @@ export async function runLex3PostgresDogfoodCanary(
     await adminPool.query(
       `GRANT ${quoteIdentifier(bypassEscapeRole)} TO ${quoteIdentifier(runtimeRole)}`
     );
-    await assert.rejects(() => stores[0]!.store.getFrameCount(), /SET ROLE to an unsafe role/);
+    await assert.rejects(() => stores[0]!.store.getFrameCount(), /unsafe role/);
     await adminPool.query(
       `REVOKE ${quoteIdentifier(bypassEscapeRole)} FROM ${quoteIdentifier(runtimeRole)}; DROP ROLE ${quoteIdentifier(bypassEscapeRole)}`
     );
@@ -677,7 +689,7 @@ export async function runLex3PostgresDogfoodCanary(
     `);
     await assert.rejects(
       () => authorityDirectory.resolvePrincipal({ authenticationRef: AUTHENTICATION_REF }),
-      /SET ROLE path to an unsafe role/
+      /unsafe role/
     );
     await adminPool.query(`
       REVOKE ${quoteIdentifier(authorityMutatorRole)} FROM ${quoteIdentifier(runtimeRole)};
@@ -685,6 +697,63 @@ export async function runLex3PostgresDogfoodCanary(
       DROP ROLE ${quoteIdentifier(authorityMutatorRole)};
     `);
     escapeRolesCreated.delete(authorityMutatorRole);
+
+    step = "reject-direct-protected-ledger-mutation";
+    await adminPool.query(
+      `GRANT UPDATE ON ${quoteIdentifier(schema)}.lex_frame_store_migrations TO ${quoteIdentifier(runtimeRole)}`
+    );
+    await assert.rejects(
+      () => stores[0]!.store.getFrameCount(),
+      /must be non-owner, non-superuser/
+    );
+    await adminPool.query(
+      `REVOKE UPDATE ON ${quoteIdentifier(schema)}.lex_frame_store_migrations FROM ${quoteIdentifier(runtimeRole)}`
+    );
+
+    if (liveIdentity.rows[0].server_version_num >= 160000) {
+      step = "reject-inherited-protected-owner";
+      const protectedOwner = await adminPool.query<{ owner_name: string }>(
+        `SELECT owner.rolname AS owner_name
+           FROM pg_catalog.pg_class relation
+           JOIN pg_catalog.pg_namespace namespace ON namespace.oid = relation.relnamespace
+           JOIN pg_catalog.pg_roles owner ON owner.oid = relation.relowner
+          WHERE namespace.nspname = $1 AND relation.relname = 'lex_frame_store_recovery_operations'`,
+        [schema]
+      );
+      assert.ok(protectedOwner.rows[0]?.owner_name);
+      await adminPool.query(
+        `CREATE ROLE ${quoteIdentifier(inheritedOwnerRole)} NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOREPLICATION NOBYPASSRLS`
+      );
+      escapeRolesCreated.add(inheritedOwnerRole);
+      await adminPool.query(`
+        ALTER TABLE ${quoteIdentifier(schema)}.lex_frame_store_recovery_operations OWNER TO ${quoteIdentifier(inheritedOwnerRole)};
+        GRANT ${quoteIdentifier(inheritedOwnerRole)} TO ${quoteIdentifier(runtimeRole)} WITH INHERIT TRUE, SET FALSE;
+      `);
+      await assert.rejects(() => stores[0]!.store.getFrameCount(), /unsafe role/);
+      await adminPool.query(`
+        REVOKE ${quoteIdentifier(inheritedOwnerRole)} FROM ${quoteIdentifier(runtimeRole)};
+        ALTER TABLE ${quoteIdentifier(schema)}.lex_frame_store_recovery_operations OWNER TO ${quoteIdentifier(protectedOwner.rows[0].owner_name)};
+        DROP ROLE ${quoteIdentifier(inheritedOwnerRole)};
+      `);
+      escapeRolesCreated.delete(inheritedOwnerRole);
+
+      step = "reject-admin-option-regrant";
+      await adminPool.query(
+        `CREATE ROLE ${quoteIdentifier(adminEscapeRole)} NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOREPLICATION NOBYPASSRLS`
+      );
+      escapeRolesCreated.add(adminEscapeRole);
+      await adminPool.query(`
+        GRANT UPDATE ON ${quoteIdentifier(schema)}.lex_frame_store_recovery_assignments TO ${quoteIdentifier(adminEscapeRole)};
+        GRANT ${quoteIdentifier(adminEscapeRole)} TO ${quoteIdentifier(runtimeRole)} WITH ADMIN TRUE, INHERIT FALSE, SET FALSE;
+      `);
+      await assert.rejects(() => stores[0]!.store.getFrameCount(), /unsafe role/);
+      await adminPool.query(`
+        REVOKE ${quoteIdentifier(adminEscapeRole)} FROM ${quoteIdentifier(runtimeRole)};
+        DROP OWNED BY ${quoteIdentifier(adminEscapeRole)};
+        DROP ROLE ${quoteIdentifier(adminEscapeRole)};
+      `);
+      escapeRolesCreated.delete(adminEscapeRole);
+    }
 
     const collisionFrame = {
       id: "shared-frame-id",
@@ -1393,6 +1462,7 @@ export async function runLex3PostgresDogfoodCanary(
       cleanup.runtimeRoleDropped = absent.rows[0]?.role_exists === false;
       await adminPool.end().catch(() => undefined);
     }
+    if (process.cwd() !== originalWorkingDirectory) process.chdir(originalWorkingDirectory);
     removeVerifiedHostTemporaryRoot(registryRoot);
     removeVerifiedHostTemporaryRoot(exportRoot);
     cleanup.registryFixturesRemoved = !existsSync(registryRoot);

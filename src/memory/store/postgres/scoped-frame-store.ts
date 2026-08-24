@@ -81,7 +81,8 @@ interface RuntimeBoundaryRow extends QueryResultRow {
   role_is_superuser: boolean;
   role_can_create_roles: boolean;
   role_bypasses_rls: boolean;
-  role_owns_frames: boolean;
+  role_owns_protected_relation: boolean;
+  role_can_mutate_protected_ledger: boolean;
   role_can_set_unsafe_role: boolean;
   role_can_create_in_schema: boolean;
   rls_enabled: boolean;
@@ -432,7 +433,29 @@ class ScopedTransactionRunner {
         role.rolsuper AS role_is_superuser,
         role.rolcreaterole AS role_can_create_roles,
         role.rolbypassrls AS role_bypasses_rls,
-        frames.relowner = role.oid AS role_owns_frames,
+        EXISTS (
+          SELECT 1
+          FROM pg_catalog.pg_class AS current_protected_relation
+          JOIN pg_catalog.pg_namespace AS current_protected_namespace
+            ON current_protected_namespace.oid = current_protected_relation.relnamespace
+          WHERE current_protected_namespace.nspname = $1
+            AND current_protected_relation.relname = ANY($2::text[])
+            AND current_protected_relation.relowner = role.oid
+        ) AS role_owns_protected_relation,
+        EXISTS (
+          SELECT 1
+          FROM pg_catalog.pg_class AS current_protected_relation
+          JOIN pg_catalog.pg_namespace AS current_protected_namespace
+            ON current_protected_namespace.oid = current_protected_relation.relnamespace
+          WHERE current_protected_namespace.nspname = $1
+            AND current_protected_relation.relname = ANY($2::text[])
+            AND current_protected_relation.relname <> 'frames'
+            AND pg_catalog.has_table_privilege(
+              CURRENT_USER,
+              current_protected_relation.oid,
+              'INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER'
+            )
+        ) AS role_can_mutate_protected_ledger,
         EXISTS (
           SELECT 1
           FROM pg_catalog.pg_roles AS reachable_role
@@ -440,6 +463,12 @@ class ScopedTransactionRunner {
             AND CASE
               WHEN current_setting('server_version_num')::integer >= 160000
                 THEN pg_catalog.pg_has_role(CURRENT_USER, reachable_role.oid, 'SET')
+                  OR pg_catalog.pg_has_role(CURRENT_USER, reachable_role.oid, 'USAGE')
+                  OR pg_catalog.pg_has_role(
+                    CURRENT_USER,
+                    reachable_role.oid,
+                    'MEMBER WITH ADMIN OPTION'
+                  )
               ELSE pg_catalog.pg_has_role(CURRENT_USER, reachable_role.oid, 'MEMBER')
             END
             AND (
@@ -492,12 +521,13 @@ class ScopedTransactionRunner {
       (boundary.role_is_superuser ||
         boundary.role_can_create_roles ||
         boundary.role_bypasses_rls ||
-        boundary.role_owns_frames ||
+        boundary.role_owns_protected_relation ||
+        boundary.role_can_mutate_protected_ledger ||
         boundary.role_can_set_unsafe_role ||
         boundary.role_can_create_in_schema)
     ) {
       throw new Error(
-        "PostgreSQL FrameStore runtime role must be non-owner, non-superuser, must not CREATEROLE or BYPASSRLS, must not be able to SET ROLE to an unsafe role, and must not have effective schema CREATE privilege"
+        "PostgreSQL FrameStore runtime role must be non-owner, non-superuser, must not CREATEROLE or BYPASSRLS, must not own or mutate protected ledgers, must not inherit from or SET ROLE to an unsafe role, and must not have effective schema CREATE privilege"
       );
     }
   }

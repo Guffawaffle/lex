@@ -268,6 +268,12 @@ async function assertReadOnlyRuntimeRole(
           AND CASE
           WHEN current_setting('server_version_num')::integer >= 160000
               THEN pg_catalog.pg_has_role(CURRENT_USER, reachable_role.oid, 'SET')
+                OR pg_catalog.pg_has_role(CURRENT_USER, reachable_role.oid, 'USAGE')
+                OR pg_catalog.pg_has_role(
+                  CURRENT_USER,
+                  reachable_role.oid,
+                  'MEMBER WITH ADMIN OPTION'
+                )
             ELSE pg_catalog.pg_has_role(CURRENT_USER, reachable_role.oid, 'MEMBER')
           END
           AND (
@@ -318,7 +324,7 @@ async function assertReadOnlyRuntimeRole(
     boundary.role_can_create_in_schema
   ) {
     throw new Error(
-      "PostgreSQL canonical authority requires a read-only non-owner runtime role without CREATEROLE, a SET ROLE path to an unsafe role, or effective schema CREATE privilege."
+      "PostgreSQL canonical authority requires a read-only non-owner runtime role without CREATEROLE, an inherited or SET ROLE path to an unsafe role, or effective schema CREATE privilege."
     );
   }
 }

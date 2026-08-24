@@ -44,5 +44,7 @@ describe("Lex 3 PostgreSQL dogfood canary host paths", () => {
     assert.doesNotMatch(canarySource, /(?:mkdirSync|rmSync)\([^\n]*wslFixtureRoot/);
     assert.match(canarySource, /removeVerifiedHostTemporaryRoot\(registryRoot\)/);
     assert.match(canarySource, /removeVerifiedHostTemporaryRoot\(exportRoot\)/);
+    assert.match(canarySource, /process\.chdir\(dirname\(registryRoot\)\)/);
+    assert.match(canarySource, /process\.chdir\(originalWorkingDirectory\)/);
   });
 });
