@@ -4,7 +4,7 @@ Ecosystem 3.1 is a compatibility release train across the Lex toolset. It is not
 version. Each repository selects semver from its own reviewed user-visible delta, while the release
 manifest records the exact set proven to work together.
 
-Lex selects package version 4.0.1 as the corrective release for the 4.0 line, whose Node 20-to-24
+Lex selects package version 4.0.2 as the corrective release for the 4.0 line, whose Node 20-to-24
 support-floor change is breaking under Lex's public compatibility policy. Lex-MCP preserves exact
 major/version alignment with Lex.
 Neither package version renames the Ecosystem 3.1 train.
@@ -150,30 +150,18 @@ local state to manufacture a dependent lock.
 
 ## Human-only checkpoints
 
-An agent may prepare commits, run gates, pack artifacts, perform dry runs, verify public metadata,
-and print the next command. The authenticated maintainer performs non-dry-run npm publication,
-signed tag creation/push, and protected deployment approval.
+An agent may prepare commits, run gates, pack artifacts, perform dry runs, and verify public
+metadata. The authenticated maintainer creates and pushes signed annotated tags and performs any
+protected environment or Registry approvals. Lex non-dry-run npm publication is delegated only to
+the reviewed `release.yml` job through npm Trusted Publishing and GitHub OIDC.
 
-Before any npm publication, the maintainer runs:
-
-```bash
-npm whoami
-npm access list packages smartergpt --json
-git status --short
-git rev-parse HEAD
-```
-
-The expected npm identity is `guffawaffle`. The worktree must be clean and `HEAD` must equal the
-reviewed release commit recorded in the candidate manifest.
-
-For Lex 4.0.1, download the `npm-candidate-<commit>` artifact from the reviewed release workflow,
-verify both the tarball and `release-candidate.json` with `gh attestation verify` constrained to
-`Guffawaffle/lex/.github/workflows/release.yml` and the reviewed source digest, run
-`node scripts/verify-release-candidate.mjs --check-only`, and publish the exact retained file:
-
-```bash
-npm publish ./smartergpt-lex-4.0.1.tgz --access public
-```
+For Lex 4.0.2, an explicit `publish: true` dispatch from the exact current `main` builds the
+`npm-candidate-<commit>` artifact, verifies its service-record digest and receipt, runs the Windows
+packed-consumer gate, and publishes that exact retained file with provenance. Verify both the
+tarball and `release-candidate.json` with `gh attestation verify` constrained to
+`Guffawaffle/lex/.github/workflows/release.yml` and the reviewed source digest. After Lex-MCP is
+public, the signed tag lane deterministically rebuilds and attests the candidate, verifies its
+signed receipt and exact public integrity, and only then creates the GitHub release.
 
 Other repositories must follow their own artifact-bound release checklist. Where that checklist
 has not yet defined a retained artifact, the applicable access command remains:

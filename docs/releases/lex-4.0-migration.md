@@ -1,14 +1,14 @@
 # Lex 4.0 migration and recovery guide
 
-Lex 4.0.1 is the current Lex package candidate in the **Ecosystem 3.1** compatibility train. The
+Lex 4.0.2 is the current Lex package candidate in the **Ecosystem 3.1** compatibility train. The
 train name and package version serve different purposes: Ecosystem 3.1 identifies the
-cross-repository set, while `@smartergpt/lex@4.0.1` records Lex's current corrective candidate
+cross-repository set, while `@smartergpt/lex@4.0.2` records Lex's current corrective candidate
 contract.
 
 This is the canonical operator and agent path from `@smartergpt/lex@3.0.1` to
-`@smartergpt/lex@4.0.1`. It covers the CLI, embedded package consumers, SQLite and
-PostgreSQL stores, and the matching `@smartergpt/lex-mcp@4.0.1` transport. Lex 4.0.0 established
-the major compatibility boundary; 4.0.1 is the reviewed patch candidate for that same boundary.
+`@smartergpt/lex@4.0.2`. It covers the CLI, embedded package consumers, SQLite and
+PostgreSQL stores, and the matching `@smartergpt/lex-mcp@4.0.2` transport. Lex 4.0.0 established
+the major compatibility boundary; 4.0.2 is the reviewed patch candidate for that same boundary.
 
 ## Why this is a major release
 
@@ -18,14 +18,14 @@ previously supported runtime is breaking under Semantic Versioning even though m
 Lex APIs remain source-compatible.
 
 Ecosystem 3.1 is not a promise that every package has version 3.1. Lex and Lex-MCP currently use
-4.0.1; the other components use independently reviewed versions recorded in the
+4.0.2; the other components use independently reviewed versions recorded in the
 [Ecosystem 3.1 manifest](../../releases/ecosystem-3.1.json).
 
 ### Compatibility classification
 
 | Change since 3.0.1 | Classification | SemVer consequence |
 | --- | --- | --- |
-| Supported Node range changes from `>=20 <25` to `>=24` | Breaking runtime-support change | Requires Lex 4.x; the current exact pair is Lex 4.0.1 and Lex-MCP 4.0.1 |
+| Supported Node range changes from `>=20 <25` to `>=24` | Breaking runtime-support change | Requires Lex 4.x; the current exact pair is Lex 4.0.2 and Lex-MCP 4.0.2 |
 | KnowledgeFrame v1 contract, compiler, snapshot storage, context, and public provider exports | Additive public contract | Minor-capable on its own |
 | Scoped behavioral-store contract and SQLite/PostgreSQL implementations | Additive public contract with explicitly versioned boundaries | Minor-capable on its own |
 | Ecosystem 3.1 manifest/schema and release validator | Additive release contract | Minor-capable on its own |
@@ -43,9 +43,9 @@ operators may still have local configuration pointing at it.
 This guide supports:
 
 - an application, repository dependency, or global CLI already pinned to
-  `@smartergpt/lex@4.0.0` and moving forward to the corrective 4.0.1 release;
+  `@smartergpt/lex@4.0.0` and moving forward to the corrective 4.0.2 release;
 - an MCP host using `@smartergpt/lex-mcp@4.0.0` and moving to the exact matching
-  4.0.1 transport after it is public;
+  4.0.2 transport after it is public;
 - an application, repository dependency, or global CLI pinned to
   `@smartergpt/lex@3.0.1`;
 - an MCP host using `@smartergpt/lex-mcp@3.0.1`;
@@ -63,7 +63,7 @@ established without guessing, stop and open a bounded migration issue.
 
 Operators already on the exact public 4.0.0 packages may keep their proven Node 24,
 workspace, authority, and store configuration. They still refresh both package pins,
-verify the 4.0.1 integrity values, rerun transport and read-only store acceptance, and
+verify the 4.0.2 integrity values, rerun transport and read-only store acceptance, and
 must not infer completion from the incomplete 4.0.0 tag/GitHub-release state.
 
 ## Safety invariants
@@ -123,12 +123,12 @@ Do not install from a branch, workspace link, mutable local tarball, or an assum
 `latest` tag. Wait until both exact public artifacts are visible:
 
 ```bash
-npm view @smartergpt/lex@4.0.1 version engines dist.integrity --json
-npm view @smartergpt/lex-mcp@4.0.1 version engines dependencies dist.integrity --json
+npm view @smartergpt/lex@4.0.2 version engines dist.integrity --json
+npm view @smartergpt/lex-mcp@4.0.2 version engines dependencies dist.integrity --json
 ```
 
 The results must report Node `>=24`, the reviewed integrity values, and an exact
-Lex-MCP dependency on `@smartergpt/lex@4.0.1`. Compare them with the sealed or
+Lex-MCP dependency on `@smartergpt/lex@4.0.2`. Compare them with the sealed or
 candidate release receipt; do not paste mutable `latest` output into evidence as the
 only proof.
 
@@ -187,7 +187,7 @@ does not add an unproven upper ceiling.
 Update the reviewed consumer lock from the public artifact:
 
 ```bash
-npm install --save-exact @smartergpt/lex@4.0.1
+npm install --save-exact @smartergpt/lex@4.0.2
 npm ls --depth=0 @smartergpt/lex
 ```
 
@@ -201,7 +201,7 @@ are not supported compatibility surfaces.
 If the CLI is intentionally installed globally:
 
 ```bash
-npm install --global @smartergpt/lex@4.0.1
+npm install --global @smartergpt/lex@4.0.2
 lex --version
 lex --help
 ```
@@ -227,7 +227,7 @@ Use an exact version during migration:
 
 ```toml
 command = "npx"
-args = ["--yes", "@smartergpt/lex-mcp@4.0.1"]
+args = ["--yes", "@smartergpt/lex-mcp@4.0.2"]
 ```
 
 For JSON-based hosts:
@@ -235,7 +235,7 @@ For JSON-based hosts:
 ```json
 {
   "command": "npx",
-  "args": ["--yes", "@smartergpt/lex-mcp@4.0.1"]
+  "args": ["--yes", "@smartergpt/lex-mcp@4.0.2"]
 }
 ```
 
@@ -255,7 +255,7 @@ For a Codex TOML configuration, forward the already-present parent variable by n
 ```toml
 [mcp_servers.lex]
 command = "npx"
-args = ["--yes", "@smartergpt/lex-mcp@4.0.1"]
+args = ["--yes", "@smartergpt/lex-mcp@4.0.2"]
 env_vars = ["LEX_POSTGRES_PASSWORD"]
 
 [mcp_servers.lex.env]
@@ -296,8 +296,8 @@ Acceptance has two layers. Stop at the first failure.
 First verify package identity and CLI startup:
 
 ```bash
-npx --yes --package @smartergpt/lex@4.0.1 lex --version
-npx --yes --package @smartergpt/lex@4.0.1 lex --help
+npx --yes --package @smartergpt/lex@4.0.2 lex --version
+npx --yes --package @smartergpt/lex@4.0.2 lex --help
 ```
 
 Then send only MCP initialization, its notification, and `tools/list`:
@@ -307,7 +307,7 @@ printf '%s\n' \
   '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"lex-migration-check","version":"1.0.0"}}}' \
   '{"jsonrpc":"2.0","method":"notifications/initialized"}' \
   '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}' |
-  npx --yes @smartergpt/lex-mcp@4.0.1
+  npx --yes @smartergpt/lex-mcp@4.0.2
 ```
 
 Success means initialization and `tools/list` return JSON-RPC responses and
@@ -330,7 +330,7 @@ For an existing SQLite store, substitute the one operator-reviewed absolute path
 ```bash
 LEX_STORE=sqlite \
 LEX_DB_PATH=/absolute/reviewed/path/to/memory.db \
-npx --yes --package @smartergpt/lex@4.0.1 \
+npx --yes --package @smartergpt/lex@4.0.2 \
   lex --json context --project-root /absolute/reviewed/workspace --limit 1 --max-tokens 200
 ```
 
@@ -339,7 +339,7 @@ credential-free URL and separately injected password:
 
 ```bash
 LEX_STORE=postgres \
-npx --yes --package @smartergpt/lex@4.0.1 \
+npx --yes --package @smartergpt/lex@4.0.2 \
   lex --json context --project-root /absolute/reviewed/workspace --limit 1 --max-tokens 200
 ```
 
@@ -364,7 +364,7 @@ acceptance check.
 | --- | --- | --- | --- |
 | npm reports `EBADENGINE`, or Node is below 24 | Runtime is outside Lex 4 support | Keep 3.0.1 installed or upgrade that surface to Node 24; do not bypass engine checks | “Lex 4 was not started because this host is below its supported runtime floor.” |
 | Native module reports a Node ABI or `NODE_MODULE_VERSION` mismatch | SQLite native binding was installed for another Node or OS | Reinstall/rebuild dependencies under Node 24 on that same surface; rerun `check-sqlite` where available | “The package runtime is mismatched; no Frame-store repair is indicated.” |
-| `LEX_MCP_LEGACY_ENTRYPOINT_REMOVED` | Host still uses a removed duplicate transport | Preserve environment routing and switch only to exact `@smartergpt/lex-mcp@4.0.1` | “Lex refused an unsafe legacy launch path before accessing the store; this is not data loss.” |
+| `LEX_MCP_LEGACY_ENTRYPOINT_REMOVED` | Host still uses a removed duplicate transport | Preserve environment routing and switch only to exact `@smartergpt/lex-mcp@4.0.2` | “Lex refused an unsafe legacy launch path before accessing the store; this is not data loss.” |
 | Windows build fails because `chmod` is unavailable | The checkout predates the cross-platform postbuild helper or is not the reviewed candidate | Stop; verify the exact candidate commit and rerun from a clean Node 24 install. Do not hand-edit packed output to manufacture a pass | “The source build used a stale Unix-only postbuild path; no package or store recovery was attempted.” |
 | PostgreSQL SCRAM says the password must be a string, or authentication fails after the launcher change | The MCP child may not receive the separately injected password, or routing/credentials are wrong | Confirm host, port, database, user, and secret pass-through by name; restart the MCP host; never expose the value | “The canonical client reached PostgreSQL without usable authentication; no database recovery was attempted.” |
 | Expected PostgreSQL service is stopped or a different port responds | Store routing is not proven | Stop; have the operator restore the intended service/configuration through its runbook | “Lex did not probe alternate databases because the approved target was unavailable.” |
@@ -372,16 +372,16 @@ acceptance check.
 | SQLite hard read-only reports missing file, active journal/WAL, encryption, or `STORE_UNAVAILABLE` | A coherent detached read-only snapshot cannot be proven | Keep writers paused; use the established backup/snapshot process or validate with the existing 3.0.1 operator path | “Lex failed closed rather than touching a live or unreadable SQLite store.” |
 | Store schema is older, newer, or structurally unsupported | 4.0 cannot safely read it in acceptance mode | Do not run repair or force migration; preserve evidence and open a store-specific migration issue | “Acceptance found an unsupported schema and made no changes.” |
 | Quarantined legacy Frames exist or recovery planning is required | Ownership cannot be inferred safely | Use the separately authorized, redacted inventory and zero-write plan; require an operator-approved manifest before any apply step | “Lex preserved ambiguous Frames and refused to guess ownership.” |
-| MCP initialization or `tools/list` fails | Package, protocol, or launcher configuration is wrong before store use | Restore the operator's exact 4.0.0 or 3.0.1 baseline MCP command, or fix the reviewed 4.0.1 configuration; keep the store paused | “Transport acceptance failed before any store-backed tool was called.” |
+| MCP initialization or `tools/list` fails | Package, protocol, or launcher configuration is wrong before store use | Restore the operator's exact 4.0.0 or 3.0.1 baseline MCP command, or fix the reviewed 4.0.2 configuration; keep the store paused | “Transport acceptance failed before any store-backed tool was called.” |
 | npm integrity or exact dependency differs from the release receipt | Artifact is not the reviewed candidate | Stop installation and investigate registry/lock provenance | “The downloaded identity was not the approved release, so execution was refused.” |
-| A dependent lock still resolves Lex 3.0.1 or different 4.0.1 bytes | The dependency was not refreshed from the verified public Lex artifact | Regenerate only that dependent lock from exact public 4.0.1, verify `sha512-` integrity, and rerun packed-consumer gates | “The dependent candidate was stale and was stopped before publication.” |
-| `@smartergpt/lex@4.0.1` or matching Lex-MCP is absent | Release train has not reached that publication step | Remain on the operator's exact 4.0.0 or 3.0.1 baseline; do not substitute a branch, unreviewed tarball, or `latest` | “The reviewed public artifact is not available yet.” |
+| A dependent lock still resolves Lex 3.0.1 or different 4.0.2 bytes | The dependency was not refreshed from the verified public Lex artifact | Regenerate only that dependent lock from exact public 4.0.2, verify `sha512-` integrity, and rerun packed-consumer gates | “The dependent candidate was stale and was stopped before publication.” |
+| `@smartergpt/lex@4.0.2` or matching Lex-MCP is absent | Release train has not reached that publication step | Remain on the operator's exact 4.0.0 or 3.0.1 baseline; do not substitute a branch, unreviewed tarball, or `latest` | “The reviewed public artifact is not available yet.” |
 | Lex is public but its tag, Lex-MCP, GitHub release, or Registry entry is incomplete | The immutable release train stopped between publication transitions | Continue from observed state: do not republish Lex; repair the dependent candidate or retry the failed tag/release/Registry step | “The published Lex artifact remains valid; only the incomplete downstream transition will be retried.” |
 | Native Windows or another downstream packed consumer fails | The release has not met cross-surface acceptance | Stop the train, preserve the exact package/integrity and first failure, and fix forward in the owning repository before tags or sealing | “The public candidate did not satisfy its downstream native contract, so later release steps were withheld.” |
 
 ## Rollback boundaries
 
-If 4.0.1 has performed only the package/transport checks and hard read-only `context`,
+If 4.0.2 has performed only the package/transport checks and hard read-only `context`,
 rollback is configuration-only. Restore the exact 4.0.0 baseline for an operator who
 started on 4.0.0; restore 3.0.1 only when that was the reviewed baseline or a separately
 approved major-version rollback:
@@ -406,23 +406,23 @@ assume that reinstalling 3.0.1 reverses database state:
 - use the PostgreSQL deployment's reviewed snapshot/schema recovery procedure; and
 - prefer a reviewed forward fix when a published artifact or migration is at fault.
 
-npm package versions and pushed Git tags are immutable. If published 4.0.1 bytes or
+npm package versions and pushed Git tags are immutable. If published 4.0.2 bytes or
 metadata are wrong, stop the release train and publish a reviewed patch; never
-republish or overwrite 4.0.1.
+republish or overwrite 4.0.2.
 
 ## Ecosystem 3.1 order
 
 The release and downstream migration order follows actual dependency direction:
 
-1. publish and verify `@smartergpt/lex@4.0.1`;
+1. publish and verify `@smartergpt/lex@4.0.2`;
 2. refresh dependent locks from that public artifact and verify integrity;
 3. publish and verify the manifest-selected LexSona release;
 4. publish and verify the manifest-selected LexRunner release in both LexSona-off and
    selected-LexSona modes;
 5. complete AXF provider conformance and the STFC-Mod shadow proof without adding Lex
    as an AXF runtime dependency;
-6. publish `@smartergpt/lex-mcp@4.0.1` last with an exact
-   `@smartergpt/lex@4.0.1` dependency;
+6. publish `@smartergpt/lex-mcp@4.0.2` last with an exact
+   `@smartergpt/lex@4.0.2` dependency;
 7. create and verify signed tags and non-draft GitHub releases;
 8. approve and verify the protected Lex-MCP Registry publication;
 9. rerun native consumers against public artifacts; and
@@ -431,48 +431,26 @@ The release and downstream migration order follows actual dependency direction:
 Do not reverse an edge, manufacture a dependent lock from unpublished local state, or
 guess versions that remain unresolved in the draft manifest.
 
-The Lex tag-triggered GitHub release downloads the same attested candidate bundle used at the
-human publication boundary. It fails closed unless the retained receipt and tarball match both the
-tag commit and the immutable public npm `dist.integrity`; a fresh rebuild or wrong-byte npm
-publication cannot produce a green GitHub release.
+The Lex tag-triggered release fails closed unless its deterministic candidate receipt and tarball
+match the signed tag, current main, authorized signer fingerprints, and immutable public npm
+`dist.integrity`; a wrong-byte npm publication cannot produce a green GitHub release.
 
 ## Human-only publication boundary
 
-Agents may prepare a release commit, run gates, pack and inspect a tarball, perform
-dry runs, verify public metadata, and print the next command. The authenticated
-maintainer performs non-dry-run npm publication, signed tag creation/push, and
-protected deployment approval.
+Agents may prepare a release commit, run gates, pack and inspect a tarball, perform dry runs, and
+verify public metadata. An explicitly selected `publish: true` workflow dispatch verifies the exact
+current main commit, retained artifact ID/digest, receipt, Windows packed consumer, and remote main
+before npm Trusted Publishing is allowed. After Lex-MCP is public, the authenticated maintainer
+creates and pushes the signed annotated tag and performs protected environment or Registry
+approvals. The tag workflow verifies the exact current main, tag and commit signer fingerprints,
+candidate artifact ID/digest, receipt, Windows packed consumer, remote identity, and immutable
+public npm integrity; it does not publish npm bytes.
 
-Immediately before publishing Lex, the maintainer—not an agent—runs:
-
-```powershell
-npm whoami
-npm access list packages smartergpt --json
-git status --short
-$commit = git rev-parse HEAD
-$bundle = "<downloaded GitHub attestation bundle>"
-gh attestation verify ./smartergpt-lex-4.0.1.tgz `
-  --repo Guffawaffle/lex `
-  --signer-workflow Guffawaffle/lex/.github/workflows/release.yml `
-  --source-digest $commit `
-  --deny-self-hosted-runners `
-  --bundle $bundle
-gh attestation verify ./release-candidate.json `
-  --repo Guffawaffle/lex `
-  --signer-workflow Guffawaffle/lex/.github/workflows/release.yml `
-  --source-digest $commit `
-  --deny-self-hosted-runners `
-  --bundle $bundle
-node scripts/verify-release-candidate.mjs --check-only
-npm publish ./smartergpt-lex-4.0.1.tgz --access public
-```
-
-The expected npm identity is `guffawaffle`; the worktree must be clean and `HEAD` must
-equal the reviewed release commit. After publication:
+After workflow publication, verify the public artifact independently:
 
 ```powershell
 $receipt = Get-Content ./release-candidate.json -Raw | ConvertFrom-Json
-$public = npm view @smartergpt/lex@4.0.1 version engines dist.integrity --json |
+$public = npm view @smartergpt/lex@4.0.2 version engines dist.integrity --json |
   ConvertFrom-Json
 if ($public.dist.integrity -ne $receipt.artifact.integrity) { throw "Integrity mismatch" }
 ```

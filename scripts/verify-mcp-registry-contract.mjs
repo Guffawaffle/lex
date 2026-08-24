@@ -8,7 +8,7 @@
  *
  * Usage:
  *   node scripts/verify-mcp-registry-contract.mjs
- *   node scripts/verify-mcp-registry-contract.mjs --version 4.0.1 \
+ *   node scripts/verify-mcp-registry-contract.mjs --version 4.0.2 \
  *     --schema /tmp/server.schema.json --core-metadata /tmp/lex.json \
  *     --wrapper-metadata /tmp/lex-mcp.json
  */

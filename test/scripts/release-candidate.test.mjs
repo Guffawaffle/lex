@@ -45,11 +45,22 @@ function createFixture() {
   );
   fs.writeFileSync(tarballPath, "candidate bytes");
   const receipt = {
-    schemaVersion: "lex-release-candidate-v1",
+    schemaVersion: "lex-release-candidate-v2",
     artifactStatus: "prepared",
     acceptanceStatus: "external-required",
     package: { name: "@smartergpt/lex", version: "4.0.1" },
-    source: { commit, worktreeClean: true },
+    source: {
+      commit,
+      validatedMain: commit,
+      releaseIdentity: {
+        tag: "v4.0.1",
+        tagObject: "b".repeat(40),
+        targetCommit: commit,
+        tagSigner: "A".repeat(40),
+        commitSigner: "B".repeat(40),
+      },
+      worktreeClean: true,
+    },
     artifact: {
       name: "@smartergpt/lex",
       version: "4.0.1",
@@ -71,6 +82,14 @@ test("release candidate receipt is bound to the exact retained tarball bytes", (
       fixture.tarballPath
     );
     assertPreparedCandidate(fixture.receipt);
+    fixture.receipt.source.releaseIdentity.targetCommit = "c".repeat(40);
+    writeCandidateReceipt(fixture.root, fixture.receiptPath, fixture.receipt);
+    assert.throws(
+      () => loadAndVerifyReleaseCandidate(fixture.root, fixture.receiptPath),
+      /main or signed-tag identity/
+    );
+    fixture.receipt.source.releaseIdentity.targetCommit = commit;
+    writeCandidateReceipt(fixture.root, fixture.receiptPath, fixture.receipt);
     assert.throws(() => assertArtifactVerified(fixture.receipt), /has not completed/);
 
     fixture.receipt.artifactStatus = "verified";

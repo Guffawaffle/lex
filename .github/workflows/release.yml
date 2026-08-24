@@ -7,95 +7,149 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Version to release (e.g., 0.1.0)"
+        description: "Candidate version from package.json (for example, 4.0.2)"
         required: true
         type: string
+      publish:
+        description: "Publish the verified candidate to npm after protected-environment approval"
+        required: true
+        default: false
+        type: boolean
 
 permissions:
   contents: read
 
 jobs:
-  validate-tag:
-    name: Validate Release Tag
+  validate-identity:
+    name: Validate release identity
     runs-on: ubuntu-latest
+    outputs:
+      commit_signer: ${{ steps.identity.outputs.commit_signer }}
+      main_snapshot: ${{ steps.identity.outputs.main_snapshot }}
+      source_commit: ${{ steps.identity.outputs.source_commit }}
+      tag_object: ${{ steps.identity.outputs.tag_object }}
+      tag_signer: ${{ steps.identity.outputs.tag_signer }}
     steps:
-      - name: Harden Runner
-        uses: step-security/harden-runner@v2
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2
         with:
           egress-policy: audit
           disable-sudo: true
 
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
+          persist-credentials: false
 
-      - name: Validate release identity
+      - name: Validate package, ref, and main identity
+        id: identity
         env:
           EVENT_NAME: ${{ github.event_name }}
           RELEASE_TAG: ${{ github.ref_name }}
           REQUESTED_VERSION: ${{ inputs.version }}
+          TRUSTED_GPG_KEYS: ${{ secrets.TRUSTED_GPG_KEYS }}
+          TRUSTED_COMMIT_FINGERPRINTS: ${{ vars.TRUSTED_COMMIT_FINGERPRINTS }}
+          TRUSTED_RELEASE_FINGERPRINTS: ${{ vars.TRUSTED_RELEASE_FINGERPRINTS }}
+        shell: bash
         run: |
+          set -euo pipefail
           PACKAGE_VERSION=$(node -p "require('./package.json').version")
-          if [ "$EVENT_NAME" = "push" ]; then
-            if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || [ "$RELEASE_TAG" != "v$PACKAGE_VERSION" ]; then
-              echo "❌ Tag $RELEASE_TAG does not exactly match package v$PACKAGE_VERSION"
+          git fetch --no-tags origin main
+          MAIN_SNAPSHOT=$(git rev-parse origin/main)
+          printf 'main_snapshot=%s\nsource_commit=%s\n' "$MAIN_SNAPSHOT" "$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            if [ "$GITHUB_REF" != "refs/heads/main" ] || [ "$GITHUB_SHA" != "$MAIN_SNAPSHOT" ]; then
+              echo "Candidate dispatch must target the current origin/main tip"
               exit 1
             fi
-          elif [[ ! "$REQUESTED_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || [ "$REQUESTED_VERSION" != "$PACKAGE_VERSION" ]; then
-            echo "❌ Requested version does not exactly match package $PACKAGE_VERSION"
+            if [[ ! "$REQUESTED_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || [ "$REQUESTED_VERSION" != "$PACKAGE_VERSION" ]; then
+              echo "Requested version does not exactly match package $PACKAGE_VERSION"
+              exit 1
+            fi
+            exit 0
+          fi
+          if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || [ "$RELEASE_TAG" != "v$PACKAGE_VERSION" ]; then
+            echo "Tag $RELEASE_TAG does not exactly match package v$PACKAGE_VERSION"
             exit 1
           fi
-
-      - name: Verify tag is signed
-        if: github.event_name == 'push'
-        env:
-          RELEASE_TAG: ${{ github.ref_name }}
-          TRUSTED_GPG_KEYS: ${{ secrets.TRUSTED_GPG_KEYS }}
-        run: |
-          if [ -z "$TRUSTED_GPG_KEYS" ]; then
-            echo "❌ TRUSTED_GPG_KEYS is required to verify release tags"
+          if [ "$(git cat-file -t "refs/tags/$RELEASE_TAG")" != "tag" ]; then
+            echo "Release tag must be annotated"
+            exit 1
+          fi
+          TAG_OBJECT=$(git rev-parse "refs/tags/$RELEASE_TAG")
+          TARGET=$(git rev-list -n 1 "$RELEASE_TAG")
+          if [ "$TARGET" != "$GITHUB_SHA" ] || [ "$TARGET" != "$MAIN_SNAPSHOT" ]; then
+            echo "Release tag must target the exact current origin/main tip"
+            exit 1
+          fi
+          printf 'tag_object=%s\n' "$TAG_OBJECT" >> "$GITHUB_OUTPUT"
+          node scripts/verify-release-tag.mjs "$RELEASE_TAG" "$TARGET"
+          if [ -z "$TRUSTED_GPG_KEYS" ] || [ -z "$TRUSTED_RELEASE_FINGERPRINTS" ] || [ -z "$TRUSTED_COMMIT_FINGERPRINTS" ]; then
+            echo "TRUSTED_GPG_KEYS, TRUSTED_RELEASE_FINGERPRINTS, and TRUSTED_COMMIT_FINGERPRINTS are required"
             exit 1
           fi
           echo "$TRUSTED_GPG_KEYS" | base64 -d | gpg --import
-          git verify-tag "$RELEASE_TAG"
-          echo "✅ Tag signature verified"
+          node scripts/verify-release-signatures.mjs \
+            "$RELEASE_TAG" \
+            "$TARGET" \
+            "$TRUSTED_RELEASE_FINGERPRINTS" \
+            "$TRUSTED_COMMIT_FINGERPRINTS"
 
-  build-and-test:
-    name: Build & Test for Release
-    needs: validate-tag
+  build-candidate:
+    name: Build, verify, and retain candidate
+    needs: validate-identity
     runs-on: ubuntu-latest
     permissions:
       attestations: write
       contents: read
       id-token: write
+    outputs:
+      artifact-id: ${{ steps.upload.outputs.artifact-id }}
+      artifact-digest: ${{ steps.upload.outputs.artifact-digest }}
     steps:
-      - name: Harden Runner
-        uses: step-security/harden-runner@v2
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2
         with:
           egress-policy: audit
           disable-sudo: true
 
-      - uses: actions/checkout@v7
-
-      - uses: actions/setup-node@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          node-version: "24"
-          registry-url: "https://registry.npmjs.org"
-          cache: "npm"
+          persist-credentials: false
 
-      - name: Install dependencies (hermetic)
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "24.14.1"
+          registry-url: "https://registry.npmjs.org"
+          cache: npm
+
+      - name: Pin npm used for candidate bytes
+        run: npm install --global npm@11.11.0
+
+      - name: Install dependencies without lifecycle scripts
         run: npm ci --ignore-scripts
 
       - name: Build native dependencies
         run: npm rebuild better-sqlite3-multiple-ciphers
 
-      - name: Build package
-        run: npm run build
-
-      - name: Run all tests
-        run: npm run test:all
+      - name: Run the full gate
+        run: |
+          npm run check-sqlite
+          npm run validate-schemas
+          npm run validate-docs
+          npm run check:node-runtime
+          npm run check:ecosystem-release
+          npm run check:mcp-registry-contract
+          npm run ci:full
 
       - name: Create and verify commit-bound release candidate
+        env:
+          LEX_RELEASE_COMMIT_SIGNER: ${{ needs.validate-identity.outputs.commit_signer }}
+          LEX_RELEASE_EVENT: ${{ github.event_name }}
+          LEX_RELEASE_MAIN_SNAPSHOT: ${{ needs.validate-identity.outputs.main_snapshot }}
+          LEX_RELEASE_TAG: ${{ github.ref_name }}
+          LEX_RELEASE_TAG_OBJECT: ${{ needs.validate-identity.outputs.tag_object }}
+          LEX_RELEASE_TAG_SIGNER: ${{ needs.validate-identity.outputs.tag_signer }}
         run: npm run release:candidate
 
       - name: Attest retained candidate and receipt
@@ -111,77 +165,283 @@ jobs:
           ATTESTATION_BUNDLE: ${{ steps.attest-candidate.outputs.bundle-path }}
         run: cp "$ATTESTATION_BUNDLE" ./release-candidate.attestation.jsonl
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v6
+      - name: Upload immutable candidate evidence
+        id: upload
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: npm-candidate-${{ github.sha }}
           path: |
             smartergpt-lex-*.tgz
             release-candidate.json
             release-candidate.attestation.jsonl
-          retention-days: 7
+          retention-days: 30
           if-no-files-found: error
 
-  # NOTE: npm publish is done manually (2FA required) from the exact retained candidate.
-  # Verify release-candidate.json, then publish its smartergpt-lex-*.tgz file directly.
-
-  create-github-release:
-    name: Create GitHub Release
-    needs: build-and-test
-    if: github.event_name == 'push'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
+  smoke-windows:
+    name: Smoke exact candidate on Windows
+    needs: build-candidate
+    runs-on: windows-latest
     steps:
-      - name: Harden Runner
-        uses: step-security/harden-runner@v2
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2
         with:
           egress-policy: audit
           disable-sudo: true
 
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          fetch-depth: 0
+          persist-credentials: false
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
-          node-version: "24"
+          node-version: "24.14.1"
           registry-url: "https://registry.npmjs.org"
+          cache: npm
 
-      - name: Download the attested candidate
-        uses: actions/download-artifact@v8
+      - name: Pin npm used by the packed consumer
+        run: npm install --global npm@11.11.0
+
+      - name: Install consumer verification dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Download exact candidate by immutable ID
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
-          name: npm-candidate-${{ github.sha }}
+          artifact-ids: ${{ needs.build-candidate.outputs.artifact-id }}
           path: .
 
-      - name: Bind the tag release to the published npm bytes
+      - name: Verify receipt and run normal-lifecycle packed smoke
+        shell: pwsh
         run: |
           node scripts/verify-release-candidate.mjs --check-only
-          node scripts/verify-published-candidate.mjs
+          node scripts/consumer-smoke-test.mjs --candidate release-candidate.json
 
-      - name: Generate changelog
-        id: changelog
+  publish-npm:
+    name: Publish exact candidate to npm
+    needs:
+      - validate-identity
+      - build-candidate
+      - smoke-windows
+    if: github.event_name == 'workflow_dispatch' && inputs.publish == true
+    runs-on: ubuntu-latest
+    environment: npm-release
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2
+        with:
+          egress-policy: audit
+          disable-sudo: true
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "24.14.1"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Pin trusted-publishing npm
+        run: npm install --global npm@11.11.0
+
+      - name: Verify immutable artifact service record
         env:
-          RELEASE_TAG: ${{ github.ref_name }}
+          ARTIFACT_ID: ${{ needs.build-candidate.outputs.artifact-id }}
+          ARTIFACT_DIGEST: ${{ needs.build-candidate.outputs.artifact-digest }}
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
         run: |
-          # Generate changelog between this tag and previous tag
-          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
-          if [ -n "$PREV_TAG" ]; then
-            echo "Generating changelog from $PREV_TAG to $RELEASE_TAG"
-            git log "$PREV_TAG..$RELEASE_TAG" --pretty=format:"- %s (%h)" > CHANGELOG.txt
-          else
-            echo "First release - listing all commits"
-            git log --pretty=format:"- %s (%h)" > CHANGELOG.txt
+          set -euo pipefail
+          readarray -t FACTS < <(gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$ARTIFACT_ID" --jq '[.name, .digest, (.expired | tostring), (.workflow_run.id | tostring)] | .[]')
+          if [ "${FACTS[0]}" != "npm-candidate-$GITHUB_SHA" ] || [ "${FACTS[1]}" != "sha256:$ARTIFACT_DIGEST" ] || [ "${FACTS[2]}" != "false" ] || [ "${FACTS[3]}" != "$GITHUB_RUN_ID" ]; then
+            echo "Candidate artifact is not bound to this workflow run and commit"
+            exit 1
           fi
 
-      - name: Create Release
-        uses: softprops/action-gh-release@v3
+      - name: Download exact candidate by immutable ID
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          artifact-ids: ${{ needs.build-candidate.outputs.artifact-id }}
+          path: .
+
+      - name: Verify candidate receipt and validated main
+        env:
+          MAIN_SNAPSHOT: ${{ needs.validate-identity.outputs.main_snapshot }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/verify-release-candidate.mjs --check-only
+          RECEIPT_COMMIT=$(node -p "require('./release-candidate.json').source.commit")
+          RECEIPT_MAIN=$(node -p "require('./release-candidate.json').source.validatedMain")
+          RECEIPT_RELEASE_IDENTITY=$(node -p "String(require('./release-candidate.json').source.releaseIdentity)")
+          if [ "$RECEIPT_COMMIT" != "$GITHUB_SHA" ] || [ "$RECEIPT_MAIN" != "$MAIN_SNAPSHOT" ] || [ "$MAIN_SNAPSHOT" != "$GITHUB_SHA" ] || [ "$RECEIPT_RELEASE_IDENTITY" != "null" ]; then
+            echo "Candidate receipt or validated main does not match the release commit"
+            exit 1
+          fi
+
+      - name: Re-verify current main before npm publish
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          OBSERVED_MAIN=$(git rev-parse FETCH_HEAD)
+          if [ "$OBSERVED_MAIN" != "$GITHUB_SHA" ]; then
+            echo "Current main changed after candidate identity validation"
+            exit 1
+          fi
+
+      - name: Publish through npm trusted publishing
+        shell: bash
+        run: |
+          set -euo pipefail
+          TARBALL=$(node -p "require('./release-candidate.json').artifact.filename")
+          EXPECTED=$(node -p "require('./release-candidate.json').artifact.integrity")
+          NAME=$(node -p "require('./release-candidate.json').package.name")
+          VERSION=$(node -p "require('./release-candidate.json').package.version")
+          OBSERVED=$(npm view "$NAME@$VERSION" dist.integrity 2>/dev/null || true)
+          if [ -z "$OBSERVED" ]; then
+            npm publish "$TARBALL" --access public --provenance
+          elif [ "$OBSERVED" = "$EXPECTED" ]; then
+            echo "$NAME@$VERSION is already published with the exact retained integrity; continuing recovery"
+          else
+            echo "$NAME@$VERSION already exists with different immutable bytes"
+            exit 1
+          fi
+
+      - name: Verify published integrity
+        shell: bash
+        run: |
+          set -euo pipefail
+          EXPECTED=$(node -p "require('./release-candidate.json').artifact.integrity")
+          NAME=$(node -p "require('./release-candidate.json').package.name")
+          VERSION=$(node -p "require('./release-candidate.json').package.version")
+          for attempt in {1..12}; do
+            OBSERVED=$(npm view "$NAME@$VERSION" dist.integrity 2>/dev/null || true)
+            if [ "$OBSERVED" = "$EXPECTED" ]; then
+              node scripts/verify-published-candidate.mjs
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "Published integrity did not converge to the retained candidate"
+          exit 1
+
+  create-github-release:
+    name: Verify public candidate and create GitHub release
+    needs:
+      - validate-identity
+      - build-candidate
+      - smoke-windows
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: write
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2
+        with:
+          egress-policy: audit
+          disable-sudo: true
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "24.14.1"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Pin verification npm
+        run: npm install --global npm@11.11.0
+
+      - name: Verify immutable artifact service record
+        env:
+          ARTIFACT_ID: ${{ needs.build-candidate.outputs.artifact-id }}
+          ARTIFACT_DIGEST: ${{ needs.build-candidate.outputs.artifact-digest }}
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          readarray -t FACTS < <(gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$ARTIFACT_ID" --jq '[.name, .digest, (.expired | tostring), (.workflow_run.id | tostring)] | .[]')
+          if [ "${FACTS[0]}" != "npm-candidate-$GITHUB_SHA" ] || [ "${FACTS[1]}" != "sha256:$ARTIFACT_DIGEST" ] || [ "${FACTS[2]}" != "false" ] || [ "${FACTS[3]}" != "$GITHUB_RUN_ID" ]; then
+            echo "Candidate artifact is not bound to this workflow run and commit"
+            exit 1
+          fi
+
+      - name: Download exact candidate by immutable ID
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          artifact-ids: ${{ needs.build-candidate.outputs.artifact-id }}
+          path: .
+
+      - name: Verify signed candidate receipt and release source
+        env:
+          COMMIT_SIGNER: ${{ needs.validate-identity.outputs.commit_signer }}
+          MAIN_SNAPSHOT: ${{ needs.validate-identity.outputs.main_snapshot }}
+          TAG_OBJECT: ${{ needs.validate-identity.outputs.tag_object }}
+          TAG_SIGNER: ${{ needs.validate-identity.outputs.tag_signer }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/verify-release-candidate.mjs --check-only
+          RECEIPT_COMMIT=$(node -p "require('./release-candidate.json').source.commit")
+          RECEIPT_MAIN=$(node -p "require('./release-candidate.json').source.validatedMain")
+          RECEIPT_TAG_OBJECT=$(node -p "require('./release-candidate.json').source.releaseIdentity.tagObject")
+          RECEIPT_TAG_SIGNER=$(node -p "require('./release-candidate.json').source.releaseIdentity.tagSigner")
+          RECEIPT_COMMIT_SIGNER=$(node -p "require('./release-candidate.json').source.releaseIdentity.commitSigner")
+          if [ "$RECEIPT_COMMIT" != "$GITHUB_SHA" ] || [ "$RECEIPT_MAIN" != "$MAIN_SNAPSHOT" ] || [ "$MAIN_SNAPSHOT" != "$GITHUB_SHA" ] || [ "$RECEIPT_TAG_OBJECT" != "$TAG_OBJECT" ] || [ "$RECEIPT_TAG_SIGNER" != "$TAG_SIGNER" ] || [ "$RECEIPT_COMMIT_SIGNER" != "$COMMIT_SIGNER" ]; then
+            echo "Candidate receipt or signed release identity does not match the release commit"
+            exit 1
+          fi
+
+      - name: Verify immutable public npm integrity
+        shell: bash
+        run: |
+          set -euo pipefail
+          EXPECTED=$(node -p "require('./release-candidate.json').artifact.integrity")
+          NAME=$(node -p "require('./release-candidate.json').package.name")
+          VERSION=$(node -p "require('./release-candidate.json').package.version")
+          OBSERVED=$(npm view "$NAME@$VERSION" dist.integrity 2>/dev/null || true)
+          if [ "$OBSERVED" != "$EXPECTED" ]; then
+            echo "$NAME@$VERSION is absent or does not match the signed-tag candidate"
+            exit 1
+          fi
+          node scripts/verify-published-candidate.mjs
+
+      - name: Re-verify remote release identity before GitHub release
+        env:
+          TAG_OBJECT: ${{ needs.validate-identity.outputs.tag_object }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          readarray -t REMOTE < <(git ls-remote origin "refs/tags/$GITHUB_REF_NAME" "refs/tags/$GITHUB_REF_NAME^{}")
+          OBSERVED_OBJECT=$(printf '%s\n' "${REMOTE[@]}" | awk -v ref="refs/tags/$GITHUB_REF_NAME" '$2 == ref { print $1 }')
+          OBSERVED_TARGET=$(printf '%s\n' "${REMOTE[@]}" | awk -v ref="refs/tags/$GITHUB_REF_NAME^{}" '$2 == ref { print $1 }')
+          git fetch --no-tags origin main
+          OBSERVED_MAIN=$(git rev-parse FETCH_HEAD)
+          if [ "$OBSERVED_OBJECT" != "$TAG_OBJECT" ] || [ "$OBSERVED_TARGET" != "$GITHUB_SHA" ] || [ "$OBSERVED_MAIN" != "$GITHUB_SHA" ]; then
+            echo "Remote release tag or current main changed after public-integrity verification"
+            exit 1
+          fi
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3
         with:
           tag_name: ${{ github.ref_name }}
           name: Release ${{ github.ref_name }}
-          body_path: CHANGELOG.txt
           draft: false
           prerelease: false
           generate_release_notes: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          files: |
+            smartergpt-lex-*.tgz
+            release-candidate.json
+            release-candidate.attestation.jsonl
+          fail_on_unmatched_files: true

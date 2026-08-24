@@ -105,7 +105,7 @@ export function loadAndVerifyReleaseCandidate(repoRoot, receiptPath) {
   const receipt = JSON.parse(
     readRegularRootFile(repoRoot, receiptPath, "Release candidate receipt").toString("utf8")
   );
-  if (receipt.schemaVersion !== "lex-release-candidate-v1") {
+  if (receipt.schemaVersion !== "lex-release-candidate-v2") {
     throw new Error("Release candidate receipt has an unsupported schema version");
   }
   if (
@@ -115,6 +115,22 @@ export function loadAndVerifyReleaseCandidate(repoRoot, receiptPath) {
     !Array.isArray(receipt.gates)
   ) {
     throw new Error("Release candidate receipt package, source, or gate identity is invalid");
+  }
+  const oid = /^[0-9a-f]{40}$/;
+  const fingerprint = /^[0-9A-F]{40}$/;
+  const source = receipt.source;
+  if (
+    (source.validatedMain !== null &&
+      (!oid.test(source.validatedMain ?? "") || source.validatedMain !== source.commit)) ||
+    (source.releaseIdentity !== null &&
+      (source.validatedMain === null ||
+        source.releaseIdentity?.tag !== `v${receipt.package.version}` ||
+        !oid.test(source.releaseIdentity?.tagObject ?? "") ||
+        source.releaseIdentity?.targetCommit !== source.commit ||
+        !fingerprint.test(source.releaseIdentity?.tagSigner ?? "") ||
+        !fingerprint.test(source.releaseIdentity?.commitSigner ?? "")))
+  ) {
+    throw new Error("Release candidate main or signed-tag identity is invalid");
   }
   if (
     !["prepared", "verified", "failed"].includes(receipt.artifactStatus) ||

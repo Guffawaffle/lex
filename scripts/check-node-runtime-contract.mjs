@@ -79,7 +79,7 @@ export function runtimeContractErrors(snapshot) {
     if (claims.length > 0) errors.push(`${path} contains an unsupported runtime selection`);
     if (
       text.includes("actions/setup-node") &&
-      !/node-version:\s*(?:["']24["']|\$\{\{\s*matrix\.node\s*\}\})/.test(text)
+      !/node-version:\s*(?:["']24(?:\.\d+\.\d+)?["']|\$\{\{\s*matrix\.node\s*\}\})/.test(text)
     ) {
       errors.push(`${path} uses actions/setup-node without an explicit Node 24 selection`);
     }

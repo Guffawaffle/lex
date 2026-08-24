@@ -33,6 +33,22 @@ function assertSourceIdentity(commit) {
   }
 }
 
+function releaseSourceIdentity(commit) {
+  const validatedMain = process.env.LEX_RELEASE_MAIN_SNAPSHOT || null;
+  const event = process.env.LEX_RELEASE_EVENT;
+  const releaseIdentity =
+    event === "push"
+      ? {
+          tag: process.env.LEX_RELEASE_TAG,
+          tagObject: process.env.LEX_RELEASE_TAG_OBJECT,
+          targetCommit: commit,
+          tagSigner: process.env.LEX_RELEASE_TAG_SIGNER,
+          commitSigner: process.env.LEX_RELEASE_COMMIT_SIGNER,
+        }
+      : null;
+  return { commit, validatedMain, releaseIdentity, worktreeClean: true };
+}
+
 function parsePackResult(output) {
   const jsonStart = output.indexOf("[");
   const jsonEnd = output.lastIndexOf("]") + 1;
@@ -109,11 +125,11 @@ if (
 }
 
 const receipt = {
-  schemaVersion: "lex-release-candidate-v1",
+  schemaVersion: "lex-release-candidate-v2",
   artifactStatus: "prepared",
   acceptanceStatus: "external-required",
   package: { name: packageJson.name, version: packageJson.version },
-  source: { commit, worktreeClean: true },
+  source: releaseSourceIdentity(commit),
   artifact: {
     name: packEntry.name,
     version: packEntry.version,

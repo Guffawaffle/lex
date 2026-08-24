@@ -206,28 +206,28 @@ for (const required of [
 }
 
 if (
-  releaseChecklist?.includes("human maintainer") &&
-  releaseChecklist.includes("npm publish ./smartergpt-lex-4.0.1.tgz --access public") &&
+  releaseChecklist?.includes("npm Trusted Publishing") &&
+  releaseChecklist.includes("npm-release") &&
   releaseChecklist.includes("release-candidate.json") &&
-  releaseChecklist.includes("gh attestation verify") &&
-  !releaseChecklist.includes("triggers automated npm publish")
+  releaseChecklist.includes("authorized tag and commit signer fingerprints") &&
+  releaseChecklist.includes("No long-lived npm write token")
 ) {
-  pass("RELEASE.md preserves the human-only npm publication gate");
+  pass("RELEASE.md binds npm publication to the reviewed trusted-publishing workflow");
 } else {
-  error("RELEASE.md must describe manual npm publication and reject obsolete automation claims");
+  error("RELEASE.md must describe the identity-bound npm Trusted Publishing path");
 }
 
 if (
   packageJson.scripts?.release === "node scripts/manual-publish-boundary.mjs" &&
   packageJson.scripts?.["release:dry-run"] === "npm run release:candidate" &&
   packageJson.scripts?.["release:candidate"]?.includes("verify-release-candidate.mjs") &&
-  manualPublishBoundary?.includes("LEX_NPM_PUBLISH_REQUIRES_HUMAN") &&
-  manualPublishBoundary.includes("gh attestation verify") &&
-  manualPublishBoundary.includes("npm publish ./smartergpt-lex-4.0.1.tgz --access public")
+  manualPublishBoundary?.includes("LEX_NPM_PUBLISH_REQUIRES_TRUSTED_WORKFLOW") &&
+  manualPublishBoundary.includes("signed annotated v4.0.2 tag") &&
+  manualPublishBoundary.includes("npm Trusted Publishing")
 ) {
-  pass("Package scripts hard-stop automated publication and preserve an agent-safe dry run");
+  pass("Package scripts hard-stop local publication and preserve an agent-safe dry run");
 } else {
-  error("Package scripts must separate the human publish boundary from the agent-safe dry run");
+  error("Package scripts must separate trusted workflow publication from the agent-safe dry run");
 }
 
 if (
