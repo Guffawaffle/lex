@@ -8,7 +8,9 @@ contract.
 This is the canonical operator and agent path from `@smartergpt/lex@3.0.1` to
 `@smartergpt/lex@4.0.2`. It covers the CLI, embedded package consumers, SQLite and
 PostgreSQL stores, and the matching `@smartergpt/lex-mcp@4.0.2` transport. Lex 4.0.0 established
-the major compatibility boundary; 4.0.2 is the reviewed patch candidate for that same boundary.
+the major compatibility boundary. The immutable core-only 4.0.1 publication has no matching public
+Lex-MCP package, signed release, or sealed ecosystem record; 4.0.2 is the reviewed patch candidate
+that restores the coordinated boundary.
 
 ## Why this is a major release
 
@@ -44,6 +46,8 @@ This guide supports:
 
 - an application, repository dependency, or global CLI already pinned to
   `@smartergpt/lex@4.0.0` and moving forward to the corrective 4.0.2 release;
+- an application, repository dependency, or global CLI already pinned to the immutable
+  core-only `@smartergpt/lex@4.0.1` publication and moving forward to the coordinated 4.0.2 pair;
 - an MCP host using `@smartergpt/lex-mcp@4.0.0` and moving to the exact matching
   4.0.2 transport after it is public;
 - an application, repository dependency, or global CLI pinned to
@@ -61,10 +65,12 @@ unreviewed trusted-host composition as a direct upgrade. First identify its pack
 versions, selected store contract, workspace, and authority model. If those cannot be
 established without guessing, stop and open a bounded migration issue.
 
-Operators already on the exact public 4.0.0 packages may keep their proven Node 24,
-workspace, authority, and store configuration. They still refresh both package pins,
-verify the 4.0.2 integrity values, rerun transport and read-only store acceptance, and
-must not infer completion from the incomplete 4.0.0 tag/GitHub-release state.
+Operators already on the exact public 4.0.0 packages or core-only 4.0.1 package may keep their
+proven Node 24, workspace, authority, and store configuration. They still refresh both package
+pins, verify the 4.0.2 integrity values, rerun transport and read-only store acceptance, and must
+not infer completion from the incomplete 4.0.0 or core-only 4.0.1 public state. The 3.0.1 values in
+the sealed Ecosystem manifest remain the last sealed ecosystem baseline; they are not a claim about
+the current npm `latest` tag.
 
 ## Safety invariants
 
@@ -375,19 +381,21 @@ acceptance check.
 | MCP initialization or `tools/list` fails | Package, protocol, or launcher configuration is wrong before store use | Restore the operator's exact 4.0.0 or 3.0.1 baseline MCP command, or fix the reviewed 4.0.2 configuration; keep the store paused | “Transport acceptance failed before any store-backed tool was called.” |
 | npm integrity or exact dependency differs from the release receipt | Artifact is not the reviewed candidate | Stop installation and investigate registry/lock provenance | “The downloaded identity was not the approved release, so execution was refused.” |
 | A dependent lock still resolves Lex 3.0.1 or different 4.0.2 bytes | The dependency was not refreshed from the verified public Lex artifact | Regenerate only that dependent lock from exact public 4.0.2, verify `sha512-` integrity, and rerun packed-consumer gates | “The dependent candidate was stale and was stopped before publication.” |
-| `@smartergpt/lex@4.0.2` or matching Lex-MCP is absent | Release train has not reached that publication step | Remain on the operator's exact 4.0.0 or 3.0.1 baseline; do not substitute a branch, unreviewed tarball, or `latest` | “The reviewed public artifact is not available yet.” |
+| `@smartergpt/lex@4.0.2` or matching Lex-MCP is absent | Release train has not reached that publication step | Remain on the operator's exact prior state: the coordinated 4.0.0 or 3.0.1 pair, or core-only 4.0.1 with its separately recorded prior MCP package; do not invent a 4.0.1 pair or substitute a branch, unreviewed tarball, or `latest` | “The reviewed public artifact is not available yet.” |
 | Lex is public but its tag, Lex-MCP, GitHub release, or Registry entry is incomplete | The immutable release train stopped between publication transitions | Continue from observed state: do not republish Lex; repair the dependent candidate or retry the failed tag/release/Registry step | “The published Lex artifact remains valid; only the incomplete downstream transition will be retried.” |
 | Native Windows or another downstream packed consumer fails | The release has not met cross-surface acceptance | Stop the train, preserve the exact package/integrity and first failure, and fix forward in the owning repository before tags or sealing | “The public candidate did not satisfy its downstream native contract, so later release steps were withheld.” |
 
 ## Rollback boundaries
 
-If 4.0.2 has performed only the package/transport checks and hard read-only `context`,
-rollback is configuration-only. Restore the exact 4.0.0 baseline for an operator who
-started on 4.0.0; restore 3.0.1 only when that was the reviewed baseline or a separately
-approved major-version rollback:
+If 4.0.2 has performed only the package/transport checks and hard read-only `context`, rollback is
+configuration-only. Restore the exact coordinated 4.0.0 baseline for an operator who started on
+4.0.0. For an operator who started on core-only 4.0.1, restore that exact core integrity and the
+separately recorded prior MCP package without representing them as a coordinated 4.0.1 pair.
+Restore 3.0.1 only when that was the reviewed baseline or a separately approved major-version
+rollback:
 
 1. stop the 4.0 CLI/MCP/application process;
-2. restore the operator's exact reviewed 4.0.0 or 3.0.1 package pin and MCP command;
+2. restore the operator's exact reviewed prior core pin and independently recorded MCP command;
 3. reinstall native dependencies for the active Node/OS if required;
 4. rerun that baseline's non-mutating startup checks; and
 5. resume writers only after workspace and store routing match the baseline.
@@ -434,6 +442,8 @@ guess versions that remain unresolved in the draft manifest.
 The Lex tag-triggered release fails closed unless its deterministic candidate receipt and tarball
 match the signed tag, current main, authorized signer fingerprints, and immutable public npm
 `dist.integrity`; a wrong-byte npm publication cannot produce a green GitHub release.
+The same lane requires the exact public Lex-MCP dependency edge, and an active repository ruleset
+prevents release-tag update or deletion.
 
 ## Human-only publication boundary
 

@@ -29,8 +29,13 @@ The Lex tag is `v<version>`. Do not push a tag before both exact npm packages re
 Registry workflow are public.
 
 Lex and Lex-MCP 4.0.0 are already public, but their corresponding signed tags and GitHub releases
-were not completed. Version 4.0.2 is a reviewed forward correction: do not create late 4.0.0 tags,
-republish 4.0.0, or treat the incomplete 4.0.0 release metadata as evidence for this candidate.
+were not completed. Lex 4.0.1 is also immutable and is currently the npm `latest` core package at
+integrity `sha512-4IcwHGJg0yOstrpa60iUv01Mj00LcKYjfA6bgD0DJuAYSc7ZBObjP2dRyP/MxlijNKFHDYRuaevks+5dDW1HuA==`;
+there is no matching public Lex-MCP 4.0.1, signed release, or sealed ecosystem record. Version 4.0.2
+is the reviewed forward correction: do not create late 4.0.0/4.0.1 tags, republish either version,
+or treat either incomplete public state as evidence for this candidate. The 3.0.1 values retained in
+the sealed Ecosystem manifest are the last sealed ecosystem baseline, not the current npm registry
+state.
 
 ## Candidate identity
 
@@ -120,12 +125,17 @@ publication authority. A build-only dispatch keeps `publish: false`.
 
 After both npm packages are public, the tag-triggered GitHub release lane additionally verifies the
 annotated tag object and embedded name, authorized tag and commit signer fingerprints, current
-remote main, and exact public npm integrity. It has no npm publication authority.
+remote main, exact public npm integrity, and the public Lex-MCP 4.0.2 dependency edge. Release tags
+are protected against update and deletion by the active repository tag ruleset. The lane has no npm
+publication authority.
 
 The workflow publishes the exact retained `smartergpt-lex-4.0.2.tgz` with provenance. It never
 repacks, and recovery continues only when an existing public 4.0.2 integrity exactly equals the
-receipt. `npm run release` remains a hard stop so a local agent or maintainer shell cannot bypass
-the protected workflow dispatch.
+receipt and npm's verified SLSA attestation binds it to this repository, the protected
+`release.yml` dispatch, current `main`, and the exact reviewed commit. Different immutable bytes or
+missing/mismatched provenance are hard failures requiring a new version and a fresh review.
+`npm run release` remains a hard stop so a local agent or maintainer shell cannot bypass the
+protected workflow dispatch.
 
 Verify the immutable public artifact:
 

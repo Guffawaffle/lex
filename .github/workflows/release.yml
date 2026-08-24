@@ -19,6 +19,10 @@ on:
 permissions:
   contents: read
 
+env:
+  GH_VERIFY_VERSION: "2.89.0"
+  GH_VERIFY_SHA256: "d0422caade520530e76c1c558da47daebaa8e1203d6b7ff10ad7d6faba3490d8"
+
 jobs:
   validate-identity:
     name: Validate release identity
@@ -247,7 +251,16 @@ jobs:
           registry-url: "https://registry.npmjs.org"
 
       - name: Pin trusted-publishing npm
-        run: npm install --global npm@11.11.0
+        run: npm install --global npm@11.12.1
+
+      - name: Install verified GitHub attestation CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL "https://github.com/cli/cli/releases/download/v${GH_VERIFY_VERSION}/gh_${GH_VERIFY_VERSION}_linux_amd64.tar.gz" -o gh.tar.gz
+          echo "${GH_VERIFY_SHA256}  gh.tar.gz" | sha256sum -c -
+          tar xzf gh.tar.gz
+          echo "$PWD/gh_${GH_VERIFY_VERSION}_linux_amd64/bin" >> "$GITHUB_PATH"
 
       - name: Verify immutable artifact service record
         env:
@@ -284,7 +297,7 @@ jobs:
             exit 1
           fi
 
-      - name: Re-verify current main before npm publish
+      - name: Publish through npm trusted publishing
         shell: bash
         run: |
           set -euo pipefail
@@ -294,20 +307,15 @@ jobs:
             echo "Current main changed after candidate identity validation"
             exit 1
           fi
-
-      - name: Publish through npm trusted publishing
-        shell: bash
-        run: |
-          set -euo pipefail
-          TARBALL=$(node -p "require('./release-candidate.json').artifact.filename")
           EXPECTED=$(node -p "require('./release-candidate.json').artifact.integrity")
           NAME=$(node -p "require('./release-candidate.json').package.name")
           VERSION=$(node -p "require('./release-candidate.json').package.version")
+          TARBALL=$(node -p "require('node:path').resolve(require('./release-candidate.json').artifact.filename)")
           OBSERVED=$(npm view "$NAME@$VERSION" dist.integrity 2>/dev/null || true)
           if [ -z "$OBSERVED" ]; then
             npm publish "$TARBALL" --access public --provenance
           elif [ "$OBSERVED" = "$EXPECTED" ]; then
-            echo "$NAME@$VERSION is already published with the exact retained integrity; continuing recovery"
+            echo "$NAME@$VERSION has the exact retained integrity; recovery still requires verified workflow provenance"
           else
             echo "$NAME@$VERSION already exists with different immutable bytes"
             exit 1
@@ -320,16 +328,53 @@ jobs:
           EXPECTED=$(node -p "require('./release-candidate.json').artifact.integrity")
           NAME=$(node -p "require('./release-candidate.json').package.name")
           VERSION=$(node -p "require('./release-candidate.json').package.version")
+          TARBALL=$(node -p "require('node:path').resolve(require('./release-candidate.json').artifact.filename)")
           for attempt in {1..12}; do
             OBSERVED=$(npm view "$NAME@$VERSION" dist.integrity 2>/dev/null || true)
             if [ "$OBSERVED" = "$EXPECTED" ]; then
               node scripts/verify-published-candidate.mjs
-              exit 0
+              break
             fi
             sleep 5
           done
-          echo "Published integrity did not converge to the retained candidate"
-          exit 1
+          if [ "$OBSERVED" != "$EXPECTED" ]; then
+            echo "Published integrity did not converge to the retained candidate"
+            exit 1
+          fi
+          AUDIT_DIR=$(mktemp -d)
+          cd "$AUDIT_DIR"
+          npm init --yes >/dev/null
+          npm install --ignore-scripts --no-audit --no-fund --save-exact "$NAME@$VERSION"
+          npm audit signatures --json --include-attestations > provenance-audit.json
+          node "$GITHUB_WORKSPACE/scripts/verify-npm-provenance.mjs" \
+            --audit provenance-audit.json \
+            --name "$NAME" \
+            --version "$VERSION" \
+            --integrity "$EXPECTED" \
+            --repository "https://github.com/$GITHUB_REPOSITORY" \
+            --workflow .github/workflows/release.yml \
+            --ref refs/heads/main \
+            --commit "$GITHUB_SHA" \
+            --bundle-output provenance.bundle.json
+          gh attestation verify "$TARBALL" \
+            --bundle provenance.bundle.json \
+            --repo "$GITHUB_REPOSITORY" \
+            --cert-identity "https://github.com/$GITHUB_REPOSITORY/.github/workflows/release.yml@refs/heads/main" \
+            --cert-oidc-issuer https://token.actions.githubusercontent.com \
+            --source-ref refs/heads/main \
+            --source-digest "$GITHUB_SHA" \
+            --signer-digest "$GITHUB_SHA" \
+            --deny-self-hosted-runners \
+            --digest-alg sha512 \
+            --predicate-type https://slsa.dev/provenance/v1 \
+            --format json > github-verification.json
+          node --input-type=module -e '
+            import { readFileSync } from "node:fs";
+            const verified = JSON.parse(readFileSync("github-verification.json", "utf8"));
+            if (!Array.isArray(verified) || verified.length !== 1) {
+              throw new Error("expected exactly one certificate-bound npm provenance result");
+            }
+          '
 
   create-github-release:
     name: Verify public candidate and create GitHub release
@@ -360,7 +405,16 @@ jobs:
           registry-url: "https://registry.npmjs.org"
 
       - name: Pin verification npm
-        run: npm install --global npm@11.11.0
+        run: npm install --global npm@11.12.1
+
+      - name: Install verified GitHub attestation CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL "https://github.com/cli/cli/releases/download/v${GH_VERIFY_VERSION}/gh_${GH_VERIFY_VERSION}_linux_amd64.tar.gz" -o gh.tar.gz
+          echo "${GH_VERIFY_SHA256}  gh.tar.gz" | sha256sum -c -
+          tar xzf gh.tar.gz
+          echo "$PWD/gh_${GH_VERIFY_VERSION}_linux_amd64/bin" >> "$GITHUB_PATH"
 
       - name: Verify immutable artifact service record
         env:
@@ -415,6 +469,72 @@ jobs:
             exit 1
           fi
           node scripts/verify-published-candidate.mjs
+
+      - name: Verify public npm workflow provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          EXPECTED=$(node -p "require('./release-candidate.json').artifact.integrity")
+          NAME=$(node -p "require('./release-candidate.json').package.name")
+          VERSION=$(node -p "require('./release-candidate.json').package.version")
+          TARBALL=$(node -p "require('node:path').resolve(require('./release-candidate.json').artifact.filename)")
+          AUDIT_DIR=$(mktemp -d)
+          cd "$AUDIT_DIR"
+          npm init --yes >/dev/null
+          npm install --ignore-scripts --no-audit --no-fund --save-exact "$NAME@$VERSION"
+          npm audit signatures --json --include-attestations > provenance-audit.json
+          node "$GITHUB_WORKSPACE/scripts/verify-npm-provenance.mjs" \
+            --audit provenance-audit.json \
+            --name "$NAME" \
+            --version "$VERSION" \
+            --integrity "$EXPECTED" \
+            --repository "https://github.com/$GITHUB_REPOSITORY" \
+            --workflow .github/workflows/release.yml \
+            --ref refs/heads/main \
+            --commit "$GITHUB_SHA" \
+            --bundle-output provenance.bundle.json
+          gh attestation verify "$TARBALL" \
+            --bundle provenance.bundle.json \
+            --repo "$GITHUB_REPOSITORY" \
+            --cert-identity "https://github.com/$GITHUB_REPOSITORY/.github/workflows/release.yml@refs/heads/main" \
+            --cert-oidc-issuer https://token.actions.githubusercontent.com \
+            --source-ref refs/heads/main \
+            --source-digest "$GITHUB_SHA" \
+            --signer-digest "$GITHUB_SHA" \
+            --deny-self-hosted-runners \
+            --digest-alg sha512 \
+            --predicate-type https://slsa.dev/provenance/v1 \
+            --format json > github-verification.json
+          node --input-type=module -e '
+            import { readFileSync } from "node:fs";
+            const verified = JSON.parse(readFileSync("github-verification.json", "utf8"));
+            if (!Array.isArray(verified) || verified.length !== 1) {
+              throw new Error("expected exactly one certificate-bound npm provenance result");
+            }
+          '
+
+      - name: Verify the exact public Lex-MCP dependency edge
+        shell: bash
+        run: |
+          set -euo pipefail
+          WRAPPER_NAME=$(node -p "require('./server.json').packages[0].identifier")
+          WRAPPER_VERSION=$(node -p "require('./server.json').packages[0].version")
+          LEX_VERSION=$(node -p "require('./package.json').version")
+          npm view "$WRAPPER_NAME@$WRAPPER_VERSION" version engines dependencies dist.integrity --json > lex-mcp-public.json
+          EXPECTED_WRAPPER_NAME="$WRAPPER_NAME" EXPECTED_WRAPPER_VERSION="$WRAPPER_VERSION" EXPECTED_LEX_VERSION="$LEX_VERSION" node --input-type=module -e '
+            import { readFileSync } from "node:fs";
+            const observed = JSON.parse(readFileSync("lex-mcp-public.json", "utf8"));
+            if (
+              observed.version !== process.env.EXPECTED_WRAPPER_VERSION ||
+              observed.dependencies?.["@smartergpt/lex"] !== process.env.EXPECTED_LEX_VERSION ||
+              observed.engines?.node !== ">=24" ||
+              !/^sha512-/.test(observed.dist?.integrity ?? "")
+            ) {
+              throw new Error(
+                `${process.env.EXPECTED_WRAPPER_NAME}@${process.env.EXPECTED_WRAPPER_VERSION} does not expose the exact reviewed Lex dependency edge`
+              );
+            }
+          '
 
       - name: Re-verify remote release identity before GitHub release
         env:

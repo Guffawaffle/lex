@@ -161,7 +161,10 @@ packed-consumer gate, and publishes that exact retained file with provenance. Ve
 tarball and `release-candidate.json` with `gh attestation verify` constrained to
 `Guffawaffle/lex/.github/workflows/release.yml` and the reviewed source digest. After Lex-MCP is
 public, the signed tag lane deterministically rebuilds and attests the candidate, verifies its
-signed receipt and exact public integrity, and only then creates the GitHub release.
+signed receipt, exact public integrity, and the public Lex-MCP dependency edge, and only then
+creates the GitHub release. The npm publication and recovery lanes additionally require verified
+SLSA provenance bound to the protected `release.yml` dispatch and exact source commit. An active
+repository ruleset prevents release-tag update or deletion.
 
 Other repositories must follow their own artifact-bound release checklist. Where that checklist
 has not yet defined a retained artifact, the applicable access command remains:

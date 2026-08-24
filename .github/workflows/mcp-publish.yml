@@ -1,8 +1,8 @@
 name: Publish to MCP Registry
 
-# SECURITY: Runs only from a signed release tag or a recovery dispatch that
-# checks out that same immutable tag. The protected publish job requires
-# reviewer approval before it can use the DNS key.
+# SECURITY: Runs only from an immutable signed release tag or a recovery dispatch
+# from current main that selects that same tag. The protected publish job repeats
+# source, signer, public-package, and remote identity checks after approval.
 on:
   push:
     tags:
@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Published coordinated release version (for example, 3.0.0)"
+        description: "Published coordinated release version (for example, 4.0.2)"
         required: true
         type: string
       dry_run:
@@ -26,81 +26,128 @@ env:
   MCP_PUBLISHER_VERSION: "1.7.9"
   MCP_PUBLISHER_SHA256: "ab128162b0616090b47cf245afe0a23f3ef08936fdce19074f5ba0a4469281ac"
 
-# MINIMAL PERMISSIONS: No id-token needed for DNS auth (uses private key signing)
 permissions:
   contents: read
 
 jobs:
-  # Job 1: Validate (no protected environment - runs on all triggers)
   validate:
-    name: Validate server.json
+    name: Validate immutable release authority
     runs-on: ubuntu-latest
     outputs:
-      version: ${{ steps.version.outputs.version }}
-      should_publish: ${{ steps.check.outputs.should_publish }}
+      commit_signer: ${{ steps.authority.outputs.commit_signer }}
+      main_snapshot: ${{ steps.authority.outputs.main_snapshot }}
+      should_publish: ${{ steps.authority.outputs.should_publish }}
+      tag_name: ${{ steps.authority.outputs.tag_name }}
+      tag_object: ${{ steps.authority.outputs.tag_object }}
+      tag_signer: ${{ steps.authority.outputs.tag_signer }}
+      target_commit: ${{ steps.authority.outputs.target_commit }}
+      version: ${{ steps.authority.outputs.version }}
     steps:
-      - name: Harden Runner
-        uses: step-security/harden-runner@v2
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2
         with:
           egress-policy: audit
           disable-sudo: true
 
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
-          ref: ${{ github.event_name == 'workflow_dispatch' && format('v{0}', inputs.version) || github.sha }}
+          persist-credentials: false
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
-          node-version: "24"
-          cache: "npm"
+          node-version: "24.14.1"
+          cache: npm
 
-      - name: Install dependencies (hermetic)
-        run: npm ci --ignore-scripts
-      - name: Resolve and validate release version
-        id: version
-        run: |
-          if [ "${{ github.event_name }}" = "push" ]; then
-            VERSION="${GITHUB_REF_NAME#v}"
-          else
-            VERSION="${{ inputs.version }}"
-          fi
-
-          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "❌ Invalid release version: $VERSION"
-            echo "Expected: {major}.{minor}.{patch}"
-            exit 1
-          fi
-          PACKAGE_VERSION=$(jq -r '.version' package.json)
-          if [ "$VERSION" != "$PACKAGE_VERSION" ]; then
-            echo "❌ Version mismatch: requested $VERSION, package.json $PACKAGE_VERSION"
-            exit 1
-          fi
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "✅ Release version: $VERSION"
-
-      - name: Verify selected signed release tag
+      - name: Validate selected tag, current main, and authorized signers
+        id: authority
         env:
+          EVENT_NAME: ${{ github.event_name }}
+          REQUESTED_VERSION: ${{ inputs.version }}
+          REQUESTED_DRY_RUN: ${{ inputs.dry_run }}
+          RELEASE_REF: ${{ github.ref }}
+          RELEASE_REF_NAME: ${{ github.ref_name }}
           TRUSTED_GPG_KEYS: ${{ secrets.TRUSTED_GPG_KEYS }}
+          TRUSTED_COMMIT_FINGERPRINTS: ${{ vars.TRUSTED_COMMIT_FINGERPRINTS }}
+          TRUSTED_RELEASE_FINGERPRINTS: ${{ vars.TRUSTED_RELEASE_FINGERPRINTS }}
+        shell: bash
         run: |
-          VERSION="${{ steps.version.outputs.version }}"
-          TAG="v${VERSION}"
-          if [ -z "$TRUSTED_GPG_KEYS" ]; then
-            echo "❌ TRUSTED_GPG_KEYS is required to verify release tags"
+          set -euo pipefail
+          PACKAGE_VERSION=$(node -p "require('./package.json').version")
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            VERSION="$REQUESTED_VERSION"
+            if [ "$RELEASE_REF" != "refs/heads/main" ]; then
+              echo "Recovery dispatch must run from main"
+              exit 1
+            fi
+          else
+            VERSION="${RELEASE_REF_NAME#v}"
+          fi
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || [ "$VERSION" != "$PACKAGE_VERSION" ]; then
+            echo "Release version must exactly match package.json"
             exit 1
           fi
+          TAG="v$VERSION"
+          if [ "$EVENT_NAME" = "push" ] && { [ "$RELEASE_REF" != "refs/tags/$TAG" ] || [ "$RELEASE_REF_NAME" != "$TAG" ]; }; then
+            echo "Tag push identity does not match the selected version"
+            exit 1
+          fi
+          if [ -z "$TRUSTED_GPG_KEYS" ] || [ -z "$TRUSTED_RELEASE_FINGERPRINTS" ] || [ -z "$TRUSTED_COMMIT_FINGERPRINTS" ]; then
+            echo "Release keys and exact signer allowlists are required"
+            exit 1
+          fi
+
+          git fetch --no-tags origin main
+          MAIN_SNAPSHOT=$(git rev-parse FETCH_HEAD)
+          if [ "$EVENT_NAME" = "workflow_dispatch" ] && [ "$GITHUB_SHA" != "$MAIN_SNAPSHOT" ]; then
+            echo "Recovery dispatch must target the current origin/main tip"
+            exit 1
+          fi
+          readarray -t REMOTE < <(git ls-remote origin "refs/tags/$TAG" "refs/tags/$TAG^{}")
+          REMOTE_OBJECT=$(printf '%s\n' "${REMOTE[@]}" | awk -v ref="refs/tags/$TAG" '$2 == ref { print $1 }')
+          REMOTE_TARGET=$(printf '%s\n' "${REMOTE[@]}" | awk -v ref="refs/tags/$TAG^{}" '$2 == ref { print $1 }')
+          if [[ ! "$REMOTE_OBJECT" =~ ^[a-f0-9]{40}$ ]] || [[ ! "$REMOTE_TARGET" =~ ^[a-f0-9]{40}$ ]]; then
+            echo "Remote release tag must be one exact annotated tag object"
+            exit 1
+          fi
+          git fetch --force origin "refs/tags/$TAG:refs/tags/$TAG"
+          TAG_OBJECT=$(git rev-parse "refs/tags/$TAG")
+          TARGET=$(git rev-list -n 1 "$TAG")
+          if [ "$(git cat-file -t "refs/tags/$TAG")" != "tag" ] || [ "$TAG_OBJECT" != "$REMOTE_OBJECT" ] || [ "$TARGET" != "$REMOTE_TARGET" ] || [ "$TARGET" != "$MAIN_SNAPSHOT" ]; then
+            echo "Release tag object, target, or current main identity differs"
+            exit 1
+          fi
+          if [ "$EVENT_NAME" = "push" ] && [ "$TARGET" != "$GITHUB_SHA" ]; then
+            echo "Tag push target differs from the workflow source commit"
+            exit 1
+          fi
+
+          GNUPGHOME=$(mktemp -d)
+          export GNUPGHOME
           echo "$TRUSTED_GPG_KEYS" | base64 -d | gpg --import
-          if ! git rev-parse --verify "${TAG}^{tag}" >/dev/null 2>&1; then
-            echo "❌ ${TAG} must be an annotated tag"
-            exit 1
+          node scripts/verify-release-tag.mjs "$TAG" "$TARGET"
+          node scripts/verify-release-signatures.mjs \
+            "$TAG" \
+            "$TARGET" \
+            "$TRUSTED_RELEASE_FINGERPRINTS" \
+            "$TRUSTED_COMMIT_FINGERPRINTS"
+
+          SHOULD_PUBLISH=false
+          if [ "$EVENT_NAME" = "push" ] || [ "$REQUESTED_DRY_RUN" = "false" ]; then
+            SHOULD_PUBLISH=true
           fi
-          git verify-tag "$TAG"
-          echo "✅ Verified signed release tag: $TAG"
+          printf 'version=%s\ntag_name=%s\ntag_object=%s\ntarget_commit=%s\nmain_snapshot=%s\nshould_publish=%s\n' \
+            "$VERSION" "$TAG" "$TAG_OBJECT" "$TARGET" "$MAIN_SNAPSHOT" "$SHOULD_PUBLISH" >> "$GITHUB_OUTPUT"
+
+      - name: Install dependencies without lifecycle scripts
+        run: npm ci --ignore-scripts
 
       - name: Verify manifest, published packages, and schema
+        env:
+          VERSION: ${{ steps.authority.outputs.version }}
+        shell: bash
         run: |
-          VERSION="${{ steps.version.outputs.version }}"
+          set -euo pipefail
           curl -fsSL "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json" -o /tmp/mcp-server.schema.json
           npm view "@smartergpt/lex@${VERSION}" --json > /tmp/lex-core-package.json
           npm view "@smartergpt/lex-mcp@${VERSION}" --json > /tmp/lex-mcp-package.json
@@ -110,31 +157,12 @@ jobs:
             --core-metadata /tmp/lex-core-package.json \
             --wrapper-metadata /tmp/lex-mcp-package.json
 
-      - name: Check if should publish
-        id: check
-        run: |
-          if [ "${{ github.event_name }}" = "push" ]; then
-            echo "should_publish=true" >> $GITHUB_OUTPUT
-          elif [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.dry_run }}" = "false" ]; then
-            echo "should_publish=true" >> $GITHUB_OUTPUT
-          else
-            echo "should_publish=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Dry Run Summary
+      - name: Dry-run summary
         if: github.event_name == 'workflow_dispatch' && inputs.dry_run == 'true'
         run: |
-          echo "🧪 Dry run complete - manifest and published package contract are valid"
-          echo "ℹ️  To publish:"
-          echo "   - Re-run this workflow with dry_run=false, OR"
-          echo "   - Push the signed release tag after both npm packages are published"
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### MCP Registry Validation (Dry Run)" >> $GITHUB_STEP_SUMMARY
-          echo "🧪 Dry run completed - validation only" >> $GITHUB_STEP_SUMMARY
-          echo "📦 Version: \`${{ steps.version.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "🔗 Server: \`dev.smartergpt/lex\`" >> $GITHUB_STEP_SUMMARY
+          echo "### MCP Registry validation (dry run)" >> "$GITHUB_STEP_SUMMARY"
+          echo "Validated immutable signed tag and exact public package contract for ${{ steps.authority.outputs.tag_name }}." >> "$GITHUB_STEP_SUMMARY"
 
-  # Job 2: Publish (protected environment - requires reviewer approval)
   publish:
     name: Publish to MCP Registry
     runs-on: ubuntu-latest
@@ -142,48 +170,123 @@ jobs:
     if: needs.validate.outputs.should_publish == 'true'
     environment: mcp-publish
     steps:
-      - name: Harden Runner
-        uses: step-security/harden-runner@v2
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2
         with:
           egress-policy: audit
           disable-sudo: true
 
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
-          ref: ${{ github.event_name == 'workflow_dispatch' && format('v{0}', inputs.version) || github.sha }}
+          persist-credentials: false
+          ref: ${{ needs.validate.outputs.target_commit }}
 
-      - name: Confirm immutable release checkout
-        run: |
-          echo "Checked out the immutable release tag."
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "24.14.1"
+          cache: npm
 
-      - name: Download mcp-publisher
+      - name: Install dependencies without lifecycle scripts
+        run: npm ci --ignore-scripts
+
+      - name: Re-verify held authority and public package contract
+        env:
+          HELD_COMMIT_SIGNER: ${{ needs.validate.outputs.commit_signer }}
+          HELD_MAIN: ${{ needs.validate.outputs.main_snapshot }}
+          HELD_TAG: ${{ needs.validate.outputs.tag_name }}
+          HELD_TAG_OBJECT: ${{ needs.validate.outputs.tag_object }}
+          HELD_TAG_SIGNER: ${{ needs.validate.outputs.tag_signer }}
+          HELD_TARGET: ${{ needs.validate.outputs.target_commit }}
+          VERSION: ${{ needs.validate.outputs.version }}
+          TRUSTED_GPG_KEYS: ${{ secrets.TRUSTED_GPG_KEYS }}
+          TRUSTED_COMMIT_FINGERPRINTS: ${{ vars.TRUSTED_COMMIT_FINGERPRINTS }}
+          TRUSTED_RELEASE_FINGERPRINTS: ${{ vars.TRUSTED_RELEASE_FINGERPRINTS }}
+        shell: bash
         run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          OBSERVED_MAIN=$(git rev-parse FETCH_HEAD)
+          readarray -t REMOTE < <(git ls-remote origin "refs/tags/$HELD_TAG" "refs/tags/$HELD_TAG^{}")
+          OBSERVED_OBJECT=$(printf '%s\n' "${REMOTE[@]}" | awk -v ref="refs/tags/$HELD_TAG" '$2 == ref { print $1 }')
+          OBSERVED_TARGET=$(printf '%s\n' "${REMOTE[@]}" | awk -v ref="refs/tags/$HELD_TAG^{}" '$2 == ref { print $1 }')
+          git fetch --force origin "refs/tags/$HELD_TAG:refs/tags/$HELD_TAG"
+          if [ "$(git rev-parse HEAD)" != "$HELD_TARGET" ] || [ "$OBSERVED_MAIN" != "$HELD_MAIN" ] || [ "$OBSERVED_MAIN" != "$HELD_TARGET" ] || [ "$OBSERVED_OBJECT" != "$HELD_TAG_OBJECT" ] || [ "$OBSERVED_TARGET" != "$HELD_TARGET" ]; then
+            echo "Held release authority changed during protected-environment approval"
+            exit 1
+          fi
+          if [ "$(git cat-file -t "refs/tags/$HELD_TAG")" != "tag" ] || [ "$(git rev-parse "refs/tags/$HELD_TAG")" != "$HELD_TAG_OBJECT" ]; then
+            echo "Held release tag is not the exact annotated tag object"
+            exit 1
+          fi
+          if [ "$(node -p "require('./package.json').version")" != "$VERSION" ] || [ "$(node -p "require('./server.json').version")" != "$VERSION" ]; then
+            echo "Held checkout package or Registry manifest version differs"
+            exit 1
+          fi
+
+          GNUPGHOME=$(mktemp -d)
+          export GNUPGHOME
+          echo "$TRUSTED_GPG_KEYS" | base64 -d | gpg --import
+          node scripts/verify-release-tag.mjs "$HELD_TAG" "$HELD_TARGET"
+          SIGNER_OUTPUTS="$RUNNER_TEMP/reverified-signers"
+          GITHUB_OUTPUT="$SIGNER_OUTPUTS" node scripts/verify-release-signatures.mjs \
+            "$HELD_TAG" \
+            "$HELD_TARGET" \
+            "$TRUSTED_RELEASE_FINGERPRINTS" \
+            "$TRUSTED_COMMIT_FINGERPRINTS"
+          OBSERVED_TAG_SIGNER=$(awk -F= '$1 == "tag_signer" { print $2 }' "$SIGNER_OUTPUTS")
+          OBSERVED_COMMIT_SIGNER=$(awk -F= '$1 == "commit_signer" { print $2 }' "$SIGNER_OUTPUTS")
+          if [ "$OBSERVED_TAG_SIGNER" != "$HELD_TAG_SIGNER" ] || [ "$OBSERVED_COMMIT_SIGNER" != "$HELD_COMMIT_SIGNER" ]; then
+            echo "Reverified signer identity differs from the held authority tuple"
+            exit 1
+          fi
+
+          curl -fsSL "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json" -o /tmp/mcp-server.schema.json
+          npm view "@smartergpt/lex@${VERSION}" --json > /tmp/lex-core-package.json
+          npm view "@smartergpt/lex-mcp@${VERSION}" --json > /tmp/lex-mcp-package.json
+          node scripts/verify-mcp-registry-contract.mjs \
+            --version "$VERSION" \
+            --schema /tmp/mcp-server.schema.json \
+            --core-metadata /tmp/lex-core-package.json \
+            --wrapper-metadata /tmp/lex-mcp-package.json
+
+      - name: Download verified mcp-publisher
+        shell: bash
+        run: |
+          set -euo pipefail
           curl -fsSL "https://github.com/modelcontextprotocol/registry/releases/download/v${MCP_PUBLISHER_VERSION}/mcp-publisher_linux_amd64.tar.gz" -o mcp-publisher.tar.gz
           echo "${MCP_PUBLISHER_SHA256}  mcp-publisher.tar.gz" | sha256sum -c -
           tar xzf mcp-publisher.tar.gz
           chmod +x mcp-publisher
 
-      # DNS Authentication with Ed25519 private key
-      # SECURITY: Private key is never echoed; uses proper quoting
-      - name: Authenticate with MCP Registry (DNS)
+      - name: Authenticate, re-check remote authority, and publish
         env:
+          HELD_MAIN: ${{ needs.validate.outputs.main_snapshot }}
+          HELD_TAG: ${{ needs.validate.outputs.tag_name }}
+          HELD_TAG_OBJECT: ${{ needs.validate.outputs.tag_object }}
+          HELD_TARGET: ${{ needs.validate.outputs.target_commit }}
           MCP_REGISTRY_PRIVATE_KEY_HEX: ${{ secrets.MCP_REGISTRY_PRIVATE_KEY_HEX }}
+        shell: bash
         run: |
-          echo "🔐 Authenticating with DNS verification (smartergpt.dev)..."
-          ./mcp-publisher login dns --domain "smartergpt.dev" --private-key "${MCP_REGISTRY_PRIVATE_KEY_HEX}"
-          echo "✅ Authentication successful"
-
-      - name: Publish to MCP Registry
-        run: |
-          echo "🚀 Publishing to MCP Registry..."
+          set -euo pipefail
+          ./mcp-publisher login dns --domain "smartergpt.dev" --private-key "$MCP_REGISTRY_PRIVATE_KEY_HEX"
+          git fetch --no-tags origin main
+          OBSERVED_MAIN=$(git rev-parse FETCH_HEAD)
+          readarray -t REMOTE < <(git ls-remote origin "refs/tags/$HELD_TAG" "refs/tags/$HELD_TAG^{}")
+          OBSERVED_OBJECT=$(printf '%s\n' "${REMOTE[@]}" | awk -v ref="refs/tags/$HELD_TAG" '$2 == ref { print $1 }')
+          OBSERVED_TARGET=$(printf '%s\n' "${REMOTE[@]}" | awk -v ref="refs/tags/$HELD_TAG^{}" '$2 == ref { print $1 }')
+          if [ "$OBSERVED_MAIN" != "$HELD_MAIN" ] || [ "$OBSERVED_MAIN" != "$HELD_TARGET" ] || [ "$OBSERVED_OBJECT" != "$HELD_TAG_OBJECT" ] || [ "$OBSERVED_TARGET" != "$HELD_TARGET" ]; then
+            echo "Remote release authority changed immediately before Registry publication"
+            exit 1
+          fi
           ./mcp-publisher publish
-          echo "✅ Published successfully to registry.modelcontextprotocol.io"
 
-      - name: Verify live registry entry
+      - name: Verify live Registry entry
         env:
           VERSION: ${{ needs.validate.outputs.version }}
+        shell: bash
         run: |
+          set -euo pipefail
           for attempt in {1..12}; do
             if node scripts/verify-mcp-registry-publication.mjs --version "$VERSION"; then
               exit 0
@@ -191,21 +294,13 @@ jobs:
             echo "Registry entry not visible yet (attempt $attempt/12); retrying in 5 seconds..."
             sleep 5
           done
-          echo "❌ Published registry entry did not become the latest version in time"
+          echo "Published Registry entry did not become visible in time"
           exit 1
 
       - name: Summary
         if: always()
         run: |
-          echo "### MCP Registry Publication Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          if [ "${{ github.event_name }}" = "push" ]; then
-            echo "✅ Triggered by release tag: \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "✅ Manual publish completed" >> $GITHUB_STEP_SUMMARY
-          fi
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "📦 Version: \`${{ needs.validate.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "📋 Registry: MCP Registry (registry.modelcontextprotocol.io)" >> $GITHUB_STEP_SUMMARY
-          echo "🔗 Server: \`dev.smartergpt/lex\`" >> $GITHUB_STEP_SUMMARY
-          echo "🔑 Auth: DNS (smartergpt.dev TXT record)" >> $GITHUB_STEP_SUMMARY
+          echo "### MCP Registry publication" >> "$GITHUB_STEP_SUMMARY"
+          echo "Version: ${{ needs.validate.outputs.version }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Signed tag: ${{ needs.validate.outputs.tag_name }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Source commit: ${{ needs.validate.outputs.target_commit }}" >> "$GITHUB_STEP_SUMMARY"

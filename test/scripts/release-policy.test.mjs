@@ -14,7 +14,9 @@ import {
 } from "../../scripts/verify-release-signatures.mjs";
 
 const verifier = path.resolve("scripts/verify-release-tag.mjs");
+const provenanceVerifier = path.resolve("scripts/verify-npm-provenance.mjs");
 const workflowPath = path.resolve(".github/workflows/release.yml");
+const mcpWorkflowPath = path.resolve(".github/workflows/mcp-publish.yml");
 
 function git(cwd, args) {
   const result = spawnSync("git", args, { cwd, encoding: "utf8" });
@@ -43,12 +45,148 @@ test("release workflow separates npm publication from signed-tag release creatio
   );
   assert.match(publishJob, /environment: npm-release/);
   assert.match(publishJob, /npm publish "\$TARBALL" --access public --provenance/);
+  assert.match(publishJob, /OBSERVED_MAIN.*npm publish/s);
   assert.match(publishJob, /RECEIPT_RELEASE_IDENTITY.*!= "null"/s);
+  assert.match(publishJob, /npm audit signatures --json --include-attestations/);
+  assert.match(publishJob, /verify-npm-provenance\.mjs/);
 
   assert.match(releaseJob, /if: github\.event_name == 'push'/);
   assert.match(releaseJob, /Verify immutable public npm integrity/);
+  assert.match(releaseJob, /Verify the exact public Lex-MCP dependency edge/);
+  assert.match(releaseJob, /dependencies\?\.\["@smartergpt\/lex"\]/);
+  assert.match(releaseJob, /Verify public npm workflow provenance/);
   assert.match(releaseJob, /softprops\/action-gh-release@[0-9a-f]{40}/);
   assert.doesNotMatch(releaseJob, /npm publish/);
+});
+
+test("npm provenance policy binds package bytes to the protected source workflow", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "lex-npm-provenance-"));
+  try {
+    const integrity = `sha512-${Buffer.from("a".repeat(128), "hex").toString("base64")}`;
+    const statement = {
+      predicateType: "https://slsa.dev/provenance/v1",
+      subject: [
+        {
+          name: "pkg:npm/%40smartergpt/lex@4.0.2",
+          digest: { sha512: "a".repeat(128) },
+        },
+      ],
+      predicate: {
+        buildDefinition: {
+          buildType: "https://slsa-framework.github.io/github-actions-buildtypes/workflow/v1",
+          externalParameters: {
+            workflow: {
+              repository: "https://github.com/Guffawaffle/lex",
+              path: ".github/workflows/release.yml",
+              ref: "refs/heads/main",
+            },
+          },
+          internalParameters: { github: { event_name: "workflow_dispatch" } },
+          resolvedDependencies: [
+            {
+              uri: "git+https://github.com/Guffawaffle/lex@refs/heads/main",
+              digest: { gitCommit: "b".repeat(40) },
+            },
+          ],
+        },
+        runDetails: { builder: { id: "https://github.com/actions/runner/github-hosted" } },
+      },
+    };
+    const audit = {
+      invalid: [],
+      missing: [],
+      verified: [
+        {
+          name: "@smartergpt/lex",
+          version: "4.0.2",
+          registry: "https://registry.npmjs.org/",
+          attestationBundles: [
+            {
+              predicateType: "https://slsa.dev/provenance/v1",
+              bundle: {
+                dsseEnvelope: {
+                  payload: Buffer.from(JSON.stringify(statement)).toString("base64"),
+                },
+              },
+            },
+          ],
+        },
+      ],
+    };
+    const auditPath = path.join(root, "audit.json");
+    await writeFile(auditPath, JSON.stringify(audit));
+    const args = [
+      provenanceVerifier,
+      "--audit",
+      auditPath,
+      "--name",
+      "@smartergpt/lex",
+      "--version",
+      "4.0.2",
+      "--integrity",
+      integrity,
+      "--repository",
+      "https://github.com/Guffawaffle/lex",
+      "--workflow",
+      ".github/workflows/release.yml",
+      "--ref",
+      "refs/heads/main",
+      "--commit",
+      "b".repeat(40),
+    ];
+    assert.equal(spawnSync(process.execPath, args, { encoding: "utf8" }).status, 0);
+
+    statement.predicate.buildDefinition.resolvedDependencies[0].digest.gitCommit = "c".repeat(40);
+    audit.verified[0].attestationBundles[0].bundle.dsseEnvelope.payload = Buffer.from(
+      JSON.stringify(statement)
+    ).toString("base64");
+    await writeFile(auditPath, JSON.stringify(audit));
+    const rejected = spawnSync(process.execPath, args, { encoding: "utf8" });
+    assert.notEqual(rejected.status, 0);
+    assert.match(rejected.stderr, /expected source commit/);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("MCP Registry workflow repeats exact signed authority at the protected boundary", async () => {
+  const workflow = await readFile(mcpWorkflowPath, "utf8");
+  const uses = [...workflow.matchAll(/^\s*(?:-\s+)?uses:\s*([^\s#]+)/gmu)].map((match) => match[1]);
+  assert.ok(uses.length >= 6);
+  for (const action of uses) {
+    assert.match(action, /@[a-f0-9]{40}$/u, `${action} is not pinned to an exact commit`);
+  }
+  for (const checkout of workflow.matchAll(
+    /uses: actions\/checkout@[a-f0-9]{40}([\s\S]*?)(?=\n\s*- (?:name:|uses:)|$)/gu
+  )) {
+    assert.match(checkout[1], /persist-credentials: false/u);
+  }
+  for (const output of [
+    "version",
+    "tag_name",
+    "tag_object",
+    "target_commit",
+    "main_snapshot",
+    "tag_signer",
+    "commit_signer",
+    "should_publish",
+  ]) {
+    assert.ok(
+      workflow.includes(`      ${output}: \${{ steps.authority.outputs.${output} }}`),
+      `${output} is missing from the held authority tuple`
+    );
+  }
+  assert.match(workflow, /ref: \$\{\{ needs\.validate\.outputs\.target_commit \}\}/u);
+  assert.equal((workflow.match(/verify-release-tag\.mjs/gu) ?? []).length, 2);
+  assert.equal((workflow.match(/verify-release-signatures\.mjs/gu) ?? []).length, 2);
+  assert.ok((workflow.match(/verify-mcp-registry-contract\.mjs/gu) ?? []).length >= 2);
+  assert.ok((workflow.match(/TRUSTED_RELEASE_FINGERPRINTS/gu) ?? []).length >= 4);
+  assert.ok((workflow.match(/TRUSTED_COMMIT_FINGERPRINTS/gu) ?? []).length >= 4);
+
+  const finalStep = workflow.slice(
+    workflow.indexOf("Authenticate, re-check remote authority, and publish")
+  );
+  assert.match(finalStep, /mcp-publisher login[\s\S]*git ls-remote[\s\S]*mcp-publisher publish/u);
 });
 
 test("release tag policy rejects an annotated tag object aliased under another ref", async () => {
