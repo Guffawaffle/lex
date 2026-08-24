@@ -18,6 +18,7 @@ const provenanceVerifier = path.resolve("scripts/verify-npm-provenance.mjs");
 const lexMcpVerifier = path.resolve("scripts/verify-lex-mcp-public.mjs");
 const workflowPath = path.resolve(".github/workflows/release.yml");
 const mcpWorkflowPath = path.resolve(".github/workflows/mcp-publish.yml");
+const packagePath = path.resolve("package.json");
 
 function git(cwd, args) {
   const result = spawnSync("git", args, { cwd, encoding: "utf8" });
@@ -70,6 +71,17 @@ test("release workflow separates npm publication from signed-tag release creatio
     assert.doesNotMatch(installer, /-o gh\.tar\.gz/u);
     assert.doesNotMatch(installer, /echo "\$PWD\//u);
   }
+});
+
+test("full CI builds runtime artifacts before tests execute the packed CLI", async () => {
+  const packageJson = JSON.parse(await readFile(packagePath, "utf8"));
+  const commands = packageJson.scripts["ci:full"].split(" && ");
+  const buildIndex = commands.indexOf("npm run build");
+  const testIndex = commands.indexOf("npm test");
+
+  assert.ok(buildIndex >= 0, "ci:full must build runtime artifacts");
+  assert.ok(testIndex >= 0, "ci:full must run the default test suite");
+  assert.ok(buildIndex < testIndex, "ci:full must build dist before CLI tests execute it");
 });
 
 test("public Lex-MCP policy reads npm's dotted integrity field", async () => {
