@@ -300,7 +300,7 @@ rather than reconstructing them from ambient environment variables.
 
 ## Project status
 
-**Current Version:** `4.0.2`
+**Current Version:** `4.0.3`
 
 Lex 4 provides explicit runtime identity and authority, scope-bound Frame stores, PostgreSQL
 row-level security support, and trusted-host composition while retaining the local SQLite

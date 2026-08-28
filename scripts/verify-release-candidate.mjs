@@ -12,7 +12,6 @@ import {
   writeCandidateReceipt,
 } from "./release-candidate.mjs";
 import { executeReleaseGate, notRunReleaseGate } from "./release-gate-runner.mjs";
-import { resolveNpmInvocation } from "./run-npm.mjs";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const receiptPath = path.join(repoRoot, candidateReceiptFilename);
@@ -55,7 +54,6 @@ if (candidate.receipt.artifactStatus === "verified") {
 assertPreparedCandidate(candidate.receipt);
 assertPackMetadata(candidate);
 
-const npm = resolveNpmInvocation();
 const definitions = [
   {
     name: "pack-guard",
@@ -71,9 +69,10 @@ const definitions = [
   },
   {
     name: "npm-publish-dry-run",
-    command: npm.command,
-    args: [...npm.prefixArgs, "publish", candidate.tarballPath, "--dry-run", "--access", "public"],
-    evidence: "npm accepted the exact retained tarball for public publication in dry-run mode",
+    command: process.execPath,
+    args: [path.join(repoRoot, "scripts", "verify-npm-publishability.mjs")],
+    evidence:
+      "npm accepted the absent candidate in dry-run mode or exposed the exact retained integrity",
   },
 ];
 

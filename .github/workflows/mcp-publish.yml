@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Published coordinated release version (for example, 4.0.2)"
+        description: "Published coordinated release version (for example, 4.0.3)"
         required: true
         type: string
       dry_run:
@@ -25,6 +25,7 @@ on:
 env:
   MCP_PUBLISHER_VERSION: "1.7.9"
   MCP_PUBLISHER_SHA256: "ab128162b0616090b47cf245afe0a23f3ef08936fdce19074f5ba0a4469281ac"
+  MCP_REGISTRY_SCHEMA_SHA256: "3fba09590c99f61735d234822279f4223fab9e300c0a81e81c91ab62a4114de0"
 
 permissions:
   contents: read
@@ -149,6 +150,7 @@ jobs:
         run: |
           set -euo pipefail
           curl -fsSL "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json" -o /tmp/mcp-server.schema.json
+          echo "${MCP_REGISTRY_SCHEMA_SHA256}  /tmp/mcp-server.schema.json" | sha256sum -c -
           npm view "@smartergpt/lex@${VERSION}" --json > /tmp/lex-core-package.json
           npm view "@smartergpt/lex-mcp@${VERSION}" --json > /tmp/lex-mcp-package.json
           node scripts/verify-mcp-registry-contract.mjs \
@@ -242,6 +244,7 @@ jobs:
           fi
 
           curl -fsSL "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json" -o /tmp/mcp-server.schema.json
+          echo "${MCP_REGISTRY_SCHEMA_SHA256}  /tmp/mcp-server.schema.json" | sha256sum -c -
           npm view "@smartergpt/lex@${VERSION}" --json > /tmp/lex-core-package.json
           npm view "@smartergpt/lex-mcp@${VERSION}" --json > /tmp/lex-mcp-package.json
           node scripts/verify-mcp-registry-contract.mjs \
@@ -258,6 +261,7 @@ jobs:
           echo "${MCP_PUBLISHER_SHA256}  mcp-publisher.tar.gz" | sha256sum -c -
           tar xzf mcp-publisher.tar.gz
           chmod +x mcp-publisher
+          ./mcp-publisher validate server.json
 
       - name: Authenticate, re-check remote authority, and publish
         env:

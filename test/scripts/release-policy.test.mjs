@@ -1,9 +1,12 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import Ajv from "ajv";
+import addFormats from "ajv-formats";
 
 import {
   formatGitHubSignerOutputs,
@@ -12,6 +15,7 @@ import {
   requireAuthorizedSignature,
   writeGitHubSignerOutputs,
 } from "../../scripts/verify-release-signatures.mjs";
+import { classifyPublishedIntegrity } from "../../scripts/verify-npm-publishability.mjs";
 
 const verifier = path.resolve("scripts/verify-release-tag.mjs");
 const provenanceVerifier = path.resolve("scripts/verify-npm-provenance.mjs");
@@ -19,6 +23,11 @@ const lexMcpVerifier = path.resolve("scripts/verify-lex-mcp-public.mjs");
 const workflowPath = path.resolve(".github/workflows/release.yml");
 const mcpWorkflowPath = path.resolve(".github/workflows/mcp-publish.yml");
 const packagePath = path.resolve("package.json");
+const serverManifestPath = path.resolve("server.json");
+const registrySchemaPath = path.resolve(
+  "scripts/schemas/mcp-registry-server-2025-12-11.schema.json"
+);
+const registrySchemaSha256 = "3fba09590c99f61735d234822279f4223fab9e300c0a81e81c91ab62a4114de0";
 
 function git(cwd, args) {
   const result = spawnSync("git", args, { cwd, encoding: "utf8" });
@@ -82,6 +91,69 @@ test("full CI builds runtime artifacts before tests execute the packed CLI", asy
   assert.ok(buildIndex >= 0, "ci:full must build runtime artifacts");
   assert.ok(testIndex >= 0, "ci:full must run the default test suite");
   assert.ok(buildIndex < testIndex, "ci:full must build dist before CLI tests execute it");
+});
+
+test("pinned MCP Registry schema accepts 100 description characters and rejects 101", async () => {
+  const schemaBytes = await readFile(registrySchemaPath);
+  assert.equal(createHash("sha256").update(schemaBytes).digest("hex"), registrySchemaSha256);
+  const schema = JSON.parse(schemaBytes);
+  const manifest = JSON.parse(await readFile(serverManifestPath, "utf8"));
+  const ajv = new Ajv({ allErrors: true, strict: false });
+  addFormats(ajv);
+  const validate = ajv.compile(schema);
+
+  assert.equal(validate(manifest), true, JSON.stringify(validate.errors));
+  assert.ok(manifest.description.length <= 100);
+  assert.equal(validate({ ...manifest, description: "a".repeat(100) }), true);
+  assert.equal(validate({ ...manifest, description: "a".repeat(101) }), false);
+  assert.ok(validate.errors?.some((error) => error.keyword === "maxLength"));
+});
+
+test("npm candidate recovery accepts only absent or exact public integrity", () => {
+  const identity = "@smartergpt/lex@4.0.3";
+  const expectedIntegrity = "sha512-reviewed";
+  assert.equal(
+    classifyPublishedIntegrity({
+      status: 0,
+      stdout: JSON.stringify(expectedIntegrity),
+      stderr: "",
+      expectedIntegrity,
+      identity,
+    }),
+    "exact"
+  );
+  assert.equal(
+    classifyPublishedIntegrity({
+      status: 1,
+      stdout: "",
+      stderr: "npm error code E404",
+      expectedIntegrity,
+      identity,
+    }),
+    "absent"
+  );
+  assert.throws(
+    () =>
+      classifyPublishedIntegrity({
+        status: 0,
+        stdout: JSON.stringify("sha512-different"),
+        stderr: "",
+        expectedIntegrity,
+        identity,
+      }),
+    /different from the retained candidate/
+  );
+  assert.throws(
+    () =>
+      classifyPublishedIntegrity({
+        status: 1,
+        stdout: "",
+        stderr: "network timeout",
+        expectedIntegrity,
+        identity,
+      }),
+    /Could not determine/
+  );
 });
 
 test("public Lex-MCP policy reads npm's dotted integrity field", async () => {

@@ -1,5 +1,15 @@
 # Changelog
 
+## 4.0.3
+
+### Patch Changes
+
+- Validate the MCP Registry manifest against the pinned `2025-12-11` schema in local, CI, and
+  release gates; shorten the Registry description to its 100-character contract; and make signed-tag
+  candidate verification accept an already-public package only when its integrity exactly matches the
+  retained candidate. This supersedes the partial 4.0.2 release, whose npm artifact and signed tag are
+  valid but whose GitHub release and MCP Registry publication did not complete.
+
 ## 4.0.2
 
 ### Patch Changes

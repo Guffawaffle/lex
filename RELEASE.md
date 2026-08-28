@@ -1,7 +1,7 @@
 # Lex package release checklist
 
 This is the release checklist for `@smartergpt/lex`. The current coordinated release is
-**Lex 4.0.2 in the Ecosystem 3.1 train**.
+**Lex 4.0.3 in the Ecosystem 3.1 train**.
 
 Use these documents as the release authority:
 
@@ -31,21 +31,28 @@ Registry workflow are public.
 Lex and Lex-MCP 4.0.0 are already public, but their corresponding signed tags and GitHub releases
 were not completed. Lex 4.0.1 is also immutable and is currently the npm `latest` core package at
 integrity `sha512-4IcwHGJg0yOstrpa60iUv01Mj00LcKYjfA6bgD0DJuAYSc7ZBObjP2dRyP/MxlijNKFHDYRuaevks+5dDW1HuA==`;
-there is no matching public Lex-MCP 4.0.1, signed release, or sealed ecosystem record. Version 4.0.2
+there is no matching public Lex-MCP 4.0.1, signed release, or sealed ecosystem record. Version 4.0.3
 is the reviewed forward correction: do not create late 4.0.0/4.0.1 tags, republish either version,
 or treat either incomplete public state as evidence for this candidate. The 3.0.1 values retained in
 the sealed Ecosystem manifest are the last sealed ecosystem baseline, not the current npm registry
 state.
 
+Lex and Lex-MCP 4.0.2 have valid public npm artifacts and valid signed immutable tags. Lex-MCP also
+has a GitHub release. Lex 4.0.2 does not have a GitHub release or MCP Registry entry: its tag run
+exposed an already-public dry-run defect and a 109-character Registry description that exceeded the
+schema's 100-character limit. Do not rewrite either tag or publish corrected 4.0.2 metadata from a
+different commit. Version 4.0.3 supersedes that partial state with schema-bound validation and an
+exact-integrity recovery path.
+
 ## Candidate identity
 
-For Lex 4.0.2, these values must agree:
+For Lex 4.0.3, these values must agree:
 
-- `package.json` and the package-lock root: `@smartergpt/lex@4.0.2`;
-- `server.json`: `dev.smartergpt/lex@4.0.2`, transporting
-  `@smartergpt/lex-mcp@4.0.2`;
-- Ecosystem 3.1 manifest Lex and Lex-MCP targets: `4.0.2`;
-- README and changelog current release: `4.0.2`;
+- `package.json` and the package-lock root: `@smartergpt/lex@4.0.3`;
+- `server.json`: `dev.smartergpt/lex@4.0.3`, transporting
+  `@smartergpt/lex-mcp@4.0.3`;
+- Ecosystem 3.1 manifest Lex and Lex-MCP targets: `4.0.3`;
+- README and changelog current release: `4.0.3`;
 - Node engine: exactly `>=24`, with no speculative upper bound.
 
 Run:
@@ -57,7 +64,7 @@ npm run check:mcp-registry-contract
 npm run validate-docs
 ```
 
-`npm run check:release-drift` is a post-tag audit. It is expected to report the missing `v4.0.2`
+`npm run check:release-drift` is a post-tag audit. It is expected to report the missing `v4.0.3`
 tag while an untagged candidate is under review.
 
 ## Candidate gates
@@ -125,12 +132,12 @@ publication authority. A build-only dispatch keeps `publish: false`.
 
 After both npm packages are public, the tag-triggered GitHub release lane additionally verifies the
 annotated tag object and embedded name, authorized tag and commit signer fingerprints, current
-remote main, exact public npm integrity, and the public Lex-MCP 4.0.2 dependency edge. Release tags
+remote main, exact public npm integrity, and the public Lex-MCP 4.0.3 dependency edge. Release tags
 are protected against update and deletion by the active repository tag ruleset. The lane has no npm
 publication authority.
 
-The workflow publishes the exact retained `smartergpt-lex-4.0.2.tgz` with provenance. It never
-repacks, and recovery continues only when an existing public 4.0.2 integrity exactly equals the
+The workflow publishes the exact retained `smartergpt-lex-4.0.3.tgz` with provenance. It never
+repacks, and recovery continues only when an existing public 4.0.3 integrity exactly equals the
 receipt and npm's verified SLSA attestation binds it to this repository, the protected
 `release.yml` dispatch, current `main`, and the exact reviewed commit. Different immutable bytes or
 missing/mismatched provenance are hard failures requiring a new version and a fresh review.
@@ -141,7 +148,7 @@ Verify the immutable public artifact:
 
 ```powershell
 $receipt = Get-Content ./release-candidate.json -Raw | ConvertFrom-Json
-$public = npm view @smartergpt/lex@4.0.2 version engines dist.integrity --json |
+$public = npm view @smartergpt/lex@4.0.3 version engines dist.integrity --json |
   ConvertFrom-Json
 if ($public.dist.integrity -ne $receipt.artifact.integrity) {
   throw "Published npm integrity does not match the attested candidate"
@@ -155,12 +162,12 @@ successful publish exit code as the sole identity proof.
 
 After Lex is public:
 
-1. refresh and verify each dependent lock from public `@smartergpt/lex@4.0.2`;
+1. refresh and verify each dependent lock from public `@smartergpt/lex@4.0.3`;
 2. complete the manifest-selected LexSona, LexRunner, AXF, and STFC-Mod proofs;
-3. publish exact `@smartergpt/lex-mcp@4.0.2` from its own reviewed checkout;
+3. publish exact `@smartergpt/lex-mcp@4.0.3` from its own reviewed checkout;
 4. verify both public npm artifacts and their exact dependency edge;
-5. create, verify, and push the signed Lex `v4.0.2` tag;
-6. create, verify, and push the signed Lex-MCP `v4.0.2` tag;
+5. create, verify, and push the signed Lex `v4.0.3` tag;
+6. create, verify, and push the signed Lex-MCP `v4.0.3` tag;
 7. verify both non-draft GitHub releases;
 8. approve and verify the protected MCP Registry publication; and
 9. rerun native downstream acceptance before sealing the manifest.

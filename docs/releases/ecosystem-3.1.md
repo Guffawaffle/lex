@@ -4,10 +4,14 @@ Ecosystem 3.1 is a compatibility release train across the Lex toolset. It is not
 version. Each repository selects semver from its own reviewed user-visible delta, while the release
 manifest records the exact set proven to work together.
 
-Lex selects package version 4.0.2 as the corrective release for the 4.0 line, whose Node 20-to-24
+Lex selects package version 4.0.3 as the corrective release for the 4.0 line, whose Node 20-to-24
 support-floor change is breaking under Lex's public compatibility policy. Lex-MCP preserves exact
 major/version alignment with Lex.
 Neither package version renames the Ecosystem 3.1 train.
+
+The public 4.0.2 npm pair and signed tags remain valid, but Lex 4.0.2 did not complete its GitHub
+release or MCP Registry publication. The train advances to 4.0.3 rather than rewriting that
+immutable partial release.
 
 The canonical machine-readable draft is [`releases/ecosystem-3.1.json`](../../releases/ecosystem-3.1.json).
 Its schema is
@@ -155,7 +159,7 @@ metadata. The authenticated maintainer creates and pushes signed annotated tags 
 protected environment or Registry approvals. Lex non-dry-run npm publication is delegated only to
 the reviewed `release.yml` job through npm Trusted Publishing and GitHub OIDC.
 
-For Lex 4.0.2, an explicit `publish: true` dispatch from the exact current `main` builds the
+For Lex 4.0.3, an explicit `publish: true` dispatch from the exact current `main` builds the
 `npm-candidate-<commit>` artifact, verifies its service-record digest and receipt, runs the Windows
 packed-consumer gate, and publishes that exact retained file with provenance. Verify both the
 tarball and `release-candidate.json` with `gh attestation verify` constrained to

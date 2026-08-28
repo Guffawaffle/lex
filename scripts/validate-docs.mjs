@@ -222,7 +222,7 @@ if (
   packageJson.scripts?.["release:dry-run"] === "npm run release:candidate" &&
   packageJson.scripts?.["release:candidate"]?.includes("verify-release-candidate.mjs") &&
   manualPublishBoundary?.includes("LEX_NPM_PUBLISH_REQUIRES_TRUSTED_WORKFLOW") &&
-  manualPublishBoundary.includes("signed annotated v4.0.2 tag") &&
+  manualPublishBoundary.includes(`signed annotated v${currentVersion} tag`) &&
   manualPublishBoundary.includes("npm Trusted Publishing")
 ) {
   pass("Package scripts hard-stop local publication and preserve an agent-safe dry run");

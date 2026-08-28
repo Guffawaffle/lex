@@ -15,6 +15,7 @@
 
 import Ajv from "ajv";
 import addFormats from "ajv-formats";
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -46,7 +47,10 @@ function assert(condition, message) {
 
 const lexPackage = readJson(resolve(rootDir, "package.json"));
 const expectedVersion = option("--version") ?? lexPackage.version;
-const schemaPath = option("--schema");
+const schemaPath =
+  option("--schema") ??
+  resolve(rootDir, "scripts", "schemas", "mcp-registry-server-2025-12-11.schema.json");
+const expectedSchemaSha256 = "3fba09590c99f61735d234822279f4223fab9e300c0a81e81c91ab62a4114de0";
 const coreMetadataPath = option("--core-metadata");
 const wrapperMetadataPath = option("--wrapper-metadata");
 
@@ -91,8 +95,15 @@ assert(
   "server.json treats LEX_POSTGRES_PASSWORD as secret"
 );
 
-if (schemaPath) {
-  const schema = readJson(resolve(schemaPath));
+const resolvedSchemaPath = resolve(schemaPath);
+const schemaBytes = readFileSync(resolvedSchemaPath);
+const schemaSha256 = createHash("sha256").update(schemaBytes).digest("hex");
+assert(
+  schemaSha256 === expectedSchemaSha256,
+  `MCP Registry schema has pinned SHA-256 ${expectedSchemaSha256}`
+);
+if (schemaSha256 === expectedSchemaSha256) {
+  const schema = JSON.parse(schemaBytes.toString("utf8"));
   const ajv = new Ajv({ allErrors: true, strict: false });
   addFormats(ajv);
   const validate = ajv.compile(schema);
