@@ -132,6 +132,45 @@ export async function exerciseScopedFrameStoreConformance(
   assert.equal(await store.deleteFrame(moduleLimitOther), true);
   assert.equal(await store.deleteFrame(moduleLimitMatch), true);
 
+  const hyphenTarget = `${prefix}-hyphen-target`;
+  const hyphenDecoy = `${prefix}-hyphen-decoy`;
+  await store.saveFrames([
+    {
+      id: hyphenTarget,
+      timestamp: "2026-07-18T11:56:00.000Z",
+      branch: "feature/hyphen-search",
+      module_scope: ["target/search"],
+      summary_caption: "Target compound reference",
+      reference_point: "aligned-stack-dogfood-2026-08-28",
+      status_snapshot: { next_action: "verify exact compound search" },
+    },
+    {
+      id: hyphenDecoy,
+      timestamp: "2026-07-18T11:55:00.000Z",
+      branch: "feature/hyphen-search",
+      module_scope: ["other/search"],
+      summary_caption: "Prefix-only compound decoy",
+      reference_point: "aligned-stack-dogfooding-2026-08-28",
+      status_snapshot: { next_action: "remain excluded" },
+    },
+  ]);
+  assert.deepEqual(
+    (
+      await store.searchFrames({
+        query: "aligned-stack-dogfood-2026-08-28",
+        exact: true,
+        moduleScope: ["target/search"],
+      })
+    ).map(({ id }) => id),
+    [hyphenTarget]
+  );
+  assert.deepEqual(
+    (await store.searchFrames({ query: "aligned stack dogfood", exact: true })).map(({ id }) => id),
+    [hyphenTarget]
+  );
+  assert.equal(await store.deleteFrame(hyphenDecoy), true);
+  assert.equal(await store.deleteFrame(hyphenTarget), true);
+
   const batch = await store.saveFrames([
     {
       id: recent,

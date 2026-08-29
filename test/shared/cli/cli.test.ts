@@ -389,6 +389,55 @@ test("CLI: lex recall with --json outputs JSON", () => {
   }
 });
 
+test("CLI: lex recall preserves exact hyphenated reference semantics", () => {
+  setupTest();
+  try {
+    const remember = (referencePoint: string, summary: string) =>
+      JSON.parse(
+        execFileSync(
+          process.execPath,
+          [
+            lexBin,
+            "--json",
+            "remember",
+            "--reference-point",
+            referencePoint,
+            "--summary",
+            summary,
+            "--next",
+            "Verify exact compound recall",
+            "--modules",
+            "ui/admin-panel",
+          ],
+          { encoding: "utf-8", env: getTestEnv() }
+        ).trim()
+      );
+    const target = remember("aligned-stack-dogfood-2026-08-28", "Exact compound target");
+    remember("aligned-stack-dogfooding-2026-08-28", "Prefix-only decoy");
+
+    const recall = (query: string) =>
+      JSON.parse(
+        execFileSync(process.execPath, [lexBin, "--json", "recall", query, "--exact"], {
+          encoding: "utf-8",
+          env: getTestEnv(),
+        }).trim()
+      );
+    const hyphenated = recall("aligned-stack-dogfood-2026-08-28");
+    const tokenized = recall("aligned stack dogfood");
+
+    assert.deepEqual(
+      hyphenated.map((entry: { frame: { id: string } }) => entry.frame.id),
+      [target.data.frame_id]
+    );
+    assert.deepEqual(
+      tokenized.map((entry: { frame: { id: string } }) => entry.frame.id),
+      [target.data.frame_id]
+    );
+  } finally {
+    cleanup();
+  }
+});
+
 test("CLI: lex check with no violations exits with 0", () => {
   setupTest();
   try {
