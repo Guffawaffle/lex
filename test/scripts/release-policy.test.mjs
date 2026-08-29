@@ -110,7 +110,7 @@ test("pinned MCP Registry schema accepts 100 description characters and rejects 
 });
 
 test("npm candidate recovery accepts only absent or exact public integrity", () => {
-  const identity = "@smartergpt/lex@4.0.3";
+  const identity = "@smartergpt/lex@4.0.4";
   const expectedIntegrity = "sha512-reviewed";
   assert.equal(
     classifyPublishedIntegrity({

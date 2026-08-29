@@ -1,5 +1,11 @@
 # Changelog
 
+## 4.0.4
+
+### Patch Changes
+
+- 96f14bd: Preserve exact hyphenated and compound reference-point recall across PostgreSQL and SQLite without weakening scoped filters or exact-token semantics.
+
 ## 4.0.3
 
 ### Patch Changes
