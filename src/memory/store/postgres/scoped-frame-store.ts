@@ -32,7 +32,6 @@ import {
   type ScopedFrameStoreBinder,
   type ScopedFrameUpdate,
 } from "../scoped-frame-store.js";
-import { normalizeSearchTerms } from "../search-utils.js";
 import { durableFrameMetadata, parseDurableFrameMetadata } from "../durable-frame-metadata.js";
 import {
   migratePostgresFrameStore,
@@ -40,6 +39,7 @@ import {
   POSTGRES_FRAME_STORE_SCHEMA_VERSION,
   type PostgresFrameStoreMigrationPlan,
 } from "./migrations.js";
+import { buildPostgresTextSearchQuery } from "./search-query.js";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const SCOPE_PREDICATE = `
@@ -276,13 +276,6 @@ function scopedFrameValues(scope: AuthorizedScopeV1, frame: Frame): FrameValue[]
 
 function scopeValues(scope: AuthorizedScopeV1): string[] {
   return [scope.tenantId, scope.workspaceId, scope.principalId];
-}
-
-function toPostgresTsQuery(criteria: ScopedFrameSearchCriteria): string | null {
-  const terms = normalizeSearchTerms(criteria).map((term) =>
-    term.prefix ? `${term.value}:*` : term.value
-  );
-  return terms.length === 0 ? null : terms.join(criteria.mode === "any" ? " | " : " & ");
 }
 
 interface ParsedPostgresLocation {
@@ -688,8 +681,14 @@ class BoundPostgresFrameStore implements ScopedFrameStore {
         values.push(value);
         return `$${values.length}`;
       };
-      const tsquery = toPostgresTsQuery(criteria);
-      if (tsquery) clauses.push(`search_vector @@ to_tsquery('simple', ${add(tsquery)})`);
+      const textSearch = buildPostgresTextSearchQuery(criteria);
+      if (textSearch) {
+        clauses.push(
+          `search_vector @@ (` +
+            `to_tsquery('simple', ${add(textSearch.normalizedTsQuery)}) || ` +
+            `plainto_tsquery('simple', ${add(textSearch.rawPlainQuery)}))`
+        );
+      }
       if (criteria.moduleScope?.length) {
         clauses.push(`module_scope && ${add(criteria.moduleScope)}::text[]`);
       }

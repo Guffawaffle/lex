@@ -245,6 +245,14 @@ describe("PostgresScopedFrameStoreBackend", () => {
     const scopedQueries = dataQueries(pool);
     assert.ok(scopedQueries.length >= 16);
     for (const query of scopedQueries) assertExplicitScope(query);
+    const search = scopedQueries.find(({ sql }) => sql.includes("search_vector @@"));
+    assert.ok(search);
+    assert.match(
+      search.sql,
+      /search_vector @@ \(to_tsquery\('simple', \$4\) \|\| plainto_tsquery\('simple', \$5\)\)/
+    );
+    assert.deepEqual(search.values.slice(3), ["scope:*", "scope"]);
+    assert.equal(search.sql.includes("scope:*"), false);
     const settings = pool.queries.filter(({ sql }) => sql.includes("set_config('lex.tenant_id'"));
     assert.equal(settings.length, 14);
     assert.ok(

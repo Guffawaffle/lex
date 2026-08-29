@@ -163,6 +163,65 @@ function frameStoreContract(
       );
     });
 
+    test("preserves exact compound-reference search parity", async () => {
+      const target = frame(`${name}-hyphen-target`, "2026-01-06T00:00:00.000Z", {
+        reference_point: "aligned-stack-dogfood-2026-08-28",
+        summary_caption: "Target compound reference",
+        keywords: [],
+        status_snapshot: { next_action: "verify target" },
+      });
+      const dogfoodingDecoy = frame(`${name}-hyphen-decoy`, "2026-01-07T00:00:00.000Z", {
+        reference_point: "aligned-stack-dogfooding-2026-08-28",
+        summary_caption: "Prefix-only decoy",
+        keywords: [],
+        status_snapshot: { next_action: "exclude decoy" },
+      });
+      const ticket = frame(`${name}-ticket-target`, "2026-01-08T00:00:00.000Z", {
+        reference_point: "AX-001",
+        summary_caption: "Ticket target",
+        keywords: [],
+        status_snapshot: { next_action: "verify ticket" },
+      });
+      const ticketDecoy = frame(`${name}-ticket-decoy`, "2026-01-09T00:00:00.000Z", {
+        reference_point: "AX-002",
+        summary_caption: "Ticket decoy",
+        keywords: [],
+        status_snapshot: { next_action: "exclude ticket decoy" },
+      });
+      const uuid = "0db4dc19-4dbb-4313-8816-2d8e12bb0cef";
+      const uuidTarget = frame(`${name}-uuid-target`, "2026-01-10T00:00:00.000Z", {
+        reference_point: uuid,
+        summary_caption: "UUID target",
+        keywords: [],
+        status_snapshot: { next_action: "verify UUID" },
+      });
+      await store.saveFrames([target, dogfoodingDecoy, ticket, ticketDecoy, uuidTarget]);
+
+      const hyphenated = await store.searchFrames({ query: target.reference_point, exact: true });
+      assert.deepEqual(
+        hyphenated.map(({ id }) => id),
+        [target.id]
+      );
+
+      const tokenized = await store.searchFrames({ query: "aligned stack dogfood", exact: true });
+      assert.deepEqual(
+        tokenized.map(({ id }) => id),
+        [target.id]
+      );
+
+      const exactTicket = await store.searchFrames({ query: "AX-001", exact: true });
+      assert.deepEqual(
+        exactTicket.map(({ id }) => id),
+        [ticket.id]
+      );
+
+      const exactUuid = await store.searchFrames({ query: uuid, exact: true });
+      assert.deepEqual(
+        exactUuid.map(({ id }) => id),
+        [uuidTarget.id]
+      );
+    });
+
     test("combines module, user, and time filters", async () => {
       await store.saveFrames([
         frame(`${name}-filter-old`, "2026-02-01T00:00:00.000Z", {

@@ -15,12 +15,12 @@ import type { Frame, FrameStatusSnapshot, FrameSpendMetadata } from "../../frame
 import { Frame as FrameSchema } from "../../frames/types.js";
 import { type PostgresSchemaTargetV1 } from "../../../shared/runtime-scope/postgres-schema.js";
 import { durableFrameMetadata, parseDurableFrameMetadata } from "../durable-frame-metadata.js";
-import { normalizeSearchTerms } from "../search-utils.js";
 import {
   createPostgresCompatibilitySchemaTarget,
   migratePostgresCompatibilityFrameStore,
   POSTGRES_COMPATIBILITY_FRAME_STORE_SCHEMA_VERSION,
 } from "./compatibility-migrations.js";
+import { buildPostgresTextSearchQuery } from "./search-query.js";
 
 interface PaginationCursor {
   timestamp: string;
@@ -203,15 +203,6 @@ function compatibilityIdentity(location: string, schema: string): string {
   return postgresIdentity(
     `${location}|schema=${schema}|contract=compat-v${POSTGRES_COMPATIBILITY_FRAME_STORE_SCHEMA_VERSION}`
   );
-}
-
-/** Translate the existing FTS5 normalization contract to a PostgreSQL tsquery. */
-function toPostgresTsQuery(criteria: FrameSearchCriteria): string | null {
-  const terms = normalizeSearchTerms(criteria).map((term) =>
-    term.prefix ? `${term.value}:*` : term.value
-  );
-  if (terms.length === 0) return null;
-  return terms.join(criteria.mode === "any" ? " | " : " & ");
 }
 
 /** PostgreSQL-backed implementation of the complete FrameStore contract. */
@@ -421,8 +412,14 @@ export class PostgresFrameStore implements FrameStore {
       return `$${values.length}`;
     };
 
-    const tsquery = toPostgresTsQuery(criteria);
-    if (tsquery) clauses.push(`search_vector @@ to_tsquery('simple', ${add(tsquery)})`);
+    const textSearch = buildPostgresTextSearchQuery(criteria);
+    if (textSearch) {
+      clauses.push(
+        `search_vector @@ (` +
+          `to_tsquery('simple', ${add(textSearch.normalizedTsQuery)}) || ` +
+          `plainto_tsquery('simple', ${add(textSearch.rawPlainQuery)}))`
+      );
+    }
     if (criteria.moduleScope?.length) {
       clauses.push(`module_scope && ${add(criteria.moduleScope)}::text[]`);
     }

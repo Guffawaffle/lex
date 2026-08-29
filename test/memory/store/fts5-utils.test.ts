@@ -93,6 +93,13 @@ describe("normalizeFTS5Query", () => {
       assert.strictEqual(normalizeFTS5Query("AX-001"), "AX* 001*");
     });
 
+    it("full dated dogfood reference", () => {
+      assert.strictEqual(
+        normalizeFTS5Query("aligned-stack-dogfood-2026-08-28", true),
+        "aligned stack dogfood 2026 08 28"
+      );
+    });
+
     it("merge-weave workflow", () => {
       assert.strictEqual(normalizeFTS5Query("merge-weave"), "merge* weave*");
     });
