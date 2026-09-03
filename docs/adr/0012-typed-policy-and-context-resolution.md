@@ -278,7 +278,8 @@ type PolicyDeclarationSourceEvidenceV1 = {
 ```
 
 Every `revision` and `declarationRevision` is a positive safe integer. Repository-relative paths use
-`/`, contain no empty, `.`, or `..` segments, no backslash or NUL, and do not begin with `/`.
+`/`, contain no empty, `.`, or `..` segments, no backslash or NUL, and do not begin with `/` or a
+Windows drive designator matching `[A-Za-z]:`.
 `PolicyDeclarationSourceEvidenceV1` is ingestion metadata constructed from separately supplied raw
 bytes and the declaration parsed from them; it is never embedded in those bytes. Slice 1A1 hashes
 raw bytes and validates already-constructed values. Slice 1A2 owns format-specific raw parsing and
