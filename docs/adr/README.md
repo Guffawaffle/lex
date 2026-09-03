@@ -22,6 +22,7 @@ This directory contains Architecture Decision Records for Lex. Each ADR document
 | 0009 | [MCP Tool Naming Convention](./0009-mcp-tool-naming-convention.md) | Accepted | 2025-12-28 |
 | 0010 | [MCP Registry Namespace Strategy](./0010-mcp-registry-namespace.md) | Accepted | 2025-12-31 |
 | 0011 | [Trusted Runtime Scope and Authority Boundary](./0011-trusted-runtime-scope-and-authority.md) | Accepted | 2026-07-17 |
+| 0012 | [Typed Policy and Context Resolution](./0012-typed-policy-and-context-resolution.md) | Proposed | 2026-09-03 |
 
 ## Conventions
 
