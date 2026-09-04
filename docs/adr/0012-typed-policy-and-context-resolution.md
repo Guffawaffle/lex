@@ -1,6 +1,6 @@
 # ADR-0012: Typed Policy and Context Resolution
 
-- Status: **Proposed**
+- Status: **Accepted**
 - Date: 2026-09-03
 - Authors: Guff, Codex, Lex
 - Tracking epic: [#832](https://github.com/Guffawaffle/lex/issues/832)
