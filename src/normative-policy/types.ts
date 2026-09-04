@@ -526,6 +526,25 @@ export const PolicyRuleV1Schema = withPolicyJsonInput(
         message: "recommend and prefer rules may carry only prompt_guidance and audit intents",
       });
     }
+
+    if (rule.activationCondition.type === "operation_requested") {
+      const requestedOperationId = rule.activationCondition.operationId;
+      const propositions =
+        rule.kind === "prefer" ? rule.orderedAlternatives : ([rule.proposition] as const);
+      propositions.forEach((proposition, index) => {
+        if (proposition.operationId !== requestedOperationId) {
+          context.addIssue({
+            code: "custom",
+            path:
+              rule.kind === "prefer"
+                ? ["orderedAlternatives", index, "operationId"]
+                : ["proposition", "operationId"],
+            message:
+              "operation_requested operationId must match every proposition operationId in V1",
+          });
+        }
+      });
+    }
   })
 );
 export type PolicyRuleV1 = z.infer<typeof PolicyRuleV1Schema>;
@@ -794,11 +813,13 @@ export const PolicyRuleSemanticDigestPreimageV1Schema = withPolicyJsonInput(
       };
       const result = PolicyRuleV1Schema.safeParse(ruleLike);
       if (!result.success) {
-        context.addIssue({
-          code: "custom",
-          path: ["enforcementIntents"],
-          message: "enforcementIntents are incompatible with the statement modality",
-        });
+        for (const issue of result.error.issues) {
+          const path =
+            issue.path[0] === "proposition" || issue.path[0] === "orderedAlternatives"
+              ? ["statement", ...issue.path]
+              : issue.path;
+          context.addIssue({ code: "custom", path, message: issue.message });
+        }
       }
     })
 );
@@ -892,17 +913,18 @@ export type PolicyDeclarationSourceEvidenceBindingResultV1 = z.infer<
   typeof PolicyDeclarationSourceEvidenceBindingResultV1Schema
 >;
 
-const MatchingPolicyDeclarationAuthorityBindingResultV1Schema = z
+const MatchingPolicyDeclarationAuthorityDecisionBindingResultV1Schema = z
   .object({
-    matches: z.literal(true),
+    bindingMatches: z.literal(true),
+    decisionStatus: z.enum(["authorized", "unauthorized", "unknown"]),
     declarationDigest: PolicyDeclarationDigestV1Schema,
     declarationAuthorityDecisionDigest: PolicyDeclarationAuthorityDecisionDigestV1Schema,
     authorizesExecution: z.literal(false),
   })
   .strict();
-const MismatchingPolicyDeclarationAuthorityBindingResultV1Schema = z
+const MismatchingPolicyDeclarationAuthorityDecisionBindingResultV1Schema = z
   .object({
-    matches: z.literal(false),
+    bindingMatches: z.literal(false),
     reason: z.enum([
       "decision_digest_mismatch",
       "declaration_digest_mismatch",
@@ -916,12 +938,12 @@ const MismatchingPolicyDeclarationAuthorityBindingResultV1Schema = z
   })
   .strict();
 
-export const PolicyDeclarationAuthorityBindingResultV1Schema = withPolicyJsonInput(
-  z.discriminatedUnion("matches", [
-    MatchingPolicyDeclarationAuthorityBindingResultV1Schema,
-    MismatchingPolicyDeclarationAuthorityBindingResultV1Schema,
+export const PolicyDeclarationAuthorityDecisionBindingResultV1Schema = withPolicyJsonInput(
+  z.discriminatedUnion("bindingMatches", [
+    MatchingPolicyDeclarationAuthorityDecisionBindingResultV1Schema,
+    MismatchingPolicyDeclarationAuthorityDecisionBindingResultV1Schema,
   ])
 );
-export type PolicyDeclarationAuthorityBindingResultV1 = z.infer<
-  typeof PolicyDeclarationAuthorityBindingResultV1Schema
+export type PolicyDeclarationAuthorityDecisionBindingResultV1 = z.infer<
+  typeof PolicyDeclarationAuthorityDecisionBindingResultV1Schema
 >;

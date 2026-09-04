@@ -2,7 +2,7 @@ import { strict as assert } from "node:assert";
 import { describe, test } from "node:test";
 
 import {
-  PolicyDeclarationAuthorityBindingResultV1Schema,
+  PolicyDeclarationAuthorityDecisionBindingResultV1Schema,
   PolicyDeclarationAuthorityDecisionPayloadV1Schema,
   PolicyDeclarationDigestPreimageV1Schema,
   PolicyDeclarationSourceEvidenceBindingResultV1Schema,
@@ -190,12 +190,41 @@ describe("normative-policy structural authority boundary", () => {
       false
     );
     assert.equal(
-      PolicyDeclarationAuthorityBindingResultV1Schema.safeParse({
-        matches: false,
+      PolicyDeclarationAuthorityDecisionBindingResultV1Schema.safeParse({
+        bindingMatches: false,
         reason: "decision_digest_mismatch",
         authorizesExecution: true,
       }).success,
       false
+    );
+    assert.equal(
+      PolicyDeclarationAuthorityDecisionBindingResultV1Schema.safeParse({
+        matches: false,
+        reason: "decision_digest_mismatch",
+        authorizesExecution: false,
+      }).success,
+      false,
+      "the ambiguous pre-freeze discriminator must not remain accepted"
+    );
+    assert.equal(
+      PolicyDeclarationAuthorityDecisionBindingResultV1Schema.safeParse({
+        bindingMatches: true,
+        declarationDigest: DIGEST,
+        declarationAuthorityDecisionDigest: DIGEST,
+        authorizesExecution: false,
+      }).success,
+      false,
+      "a matching binding must expose the bound decision status"
+    );
+    assert.equal(
+      PolicyDeclarationAuthorityDecisionBindingResultV1Schema.safeParse({
+        bindingMatches: false,
+        reason: "decision_digest_mismatch",
+        decisionStatus: "authorized",
+        authorizesExecution: false,
+      }).success,
+      false,
+      "a mismatching binding must not expose an unbound decision status"
     );
 
     const declaration = PolicyDeclarationV1Schema.parse(declarationInput());

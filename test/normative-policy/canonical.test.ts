@@ -4,8 +4,9 @@ import { createRequire } from "node:module";
 import { describe, test } from "node:test";
 
 import { canonicalizeJson } from "../../src/normative-policy/canonical-json.js";
+import * as normativePolicyPublic from "../../src/normative-policy/index.js";
 import {
-  checkPolicyDeclarationAuthorityBindingV1,
+  checkPolicyDeclarationAuthorityDecisionBindingV1,
   checkPolicyDeclarationSourceEvidenceBindingV1,
   computePolicyDeclarationAuthorityDecisionDigestV1,
   computePolicyDeclarationDigestV1,
@@ -213,15 +214,25 @@ describe("normative-policy source evidence binding", () => {
   });
 });
 
-describe("normative-policy declaration authority binding", () => {
+describe("normative-policy declaration authority-decision binding", () => {
+  test("exports the decision-specific API without the ambiguous pre-freeze alias", () => {
+    assert.equal(
+      typeof normativePolicyPublic.checkPolicyDeclarationAuthorityDecisionBindingV1,
+      "function"
+    );
+    assert.equal("checkPolicyDeclarationAuthorityBindingV1" in normativePolicyPublic, false);
+    assert.equal("PolicyDeclarationAuthorityBindingResultV1Schema" in normativePolicyPublic, false);
+  });
+
   test("matches internally consistent records without treating integrity as authority", () => {
     const declaration = goldenDeclaration();
     const payload = authorityPayload();
 
     assert.deepEqual(
-      checkPolicyDeclarationAuthorityBindingV1(declaration, wrapAuthorityPayload(payload)),
+      checkPolicyDeclarationAuthorityDecisionBindingV1(declaration, wrapAuthorityPayload(payload)),
       {
-        matches: true,
+        bindingMatches: true,
+        decisionStatus: "authorized",
         declarationDigest: EXPECTED_DECLARATION_DIGEST,
         declarationAuthorityDecisionDigest: EXPECTED_DECISION_DIGEST,
         authorizesExecution: false,
@@ -241,23 +252,45 @@ describe("normative-policy declaration authority binding", () => {
       reason: "authority_unavailable",
       evidenceRefs: [],
     });
-    const unknownResult = checkPolicyDeclarationAuthorityBindingV1(
-      declaration,
-      wrapAuthorityPayload(unknownPayload)
-    );
-    assert.equal(unknownResult.matches, true);
-    assert.equal(unknownResult.authorizesExecution, false);
+    const unauthorizedPayload = PolicyDeclarationAuthorityDecisionPayloadV1Schema.parse({
+      schemaVersion: 1,
+      declarationDigest: EXPECTED_DECLARATION_DIGEST,
+      issuerPrincipalId: "00000000-0000-4000-8000-000000000001",
+      authorityDomainId: "example.domain",
+      requiredAuthoringCapabilityId: "policy.author",
+      evaluatedAt: "2026-09-03T12:00:00.000Z",
+      validUntil: "2026-09-03T12:05:00.000Z",
+      authorizesExecution: false,
+      status: "unauthorized",
+      authorityVersion: "authority-v1",
+      reason: "scope_unauthorized",
+      evidenceRefs: [],
+    });
+
+    for (const nonAuthorizedPayload of [unauthorizedPayload, unknownPayload]) {
+      const result = checkPolicyDeclarationAuthorityDecisionBindingV1(
+        declaration,
+        wrapAuthorityPayload(nonAuthorizedPayload)
+      );
+      assert.equal(result.bindingMatches, true);
+      if (!result.bindingMatches) assert.fail("expected internally bound decision");
+      assert.equal(result.decisionStatus, nonAuthorizedPayload.status);
+      assert.equal(result.authorizesExecution, false);
+    }
   });
 
   test("uses the fixed mismatch precedence", () => {
     const declaration = goldenDeclaration();
     const validPayload = authorityPayload();
     const wrongDigestDecision = wrapAuthorityPayload(validPayload, OTHER_DECISION_DIGEST);
-    assert.deepEqual(checkPolicyDeclarationAuthorityBindingV1(declaration, wrongDigestDecision), {
-      matches: false,
-      reason: "decision_digest_mismatch",
-      authorizesExecution: false,
-    });
+    assert.deepEqual(
+      checkPolicyDeclarationAuthorityDecisionBindingV1(declaration, wrongDigestDecision),
+      {
+        bindingMatches: false,
+        reason: "decision_digest_mismatch",
+        authorizesExecution: false,
+      }
+    );
 
     const cases = [
       {
@@ -286,11 +319,11 @@ describe("normative-policy declaration authority binding", () => {
 
     for (const fixture of cases) {
       assert.deepEqual(
-        checkPolicyDeclarationAuthorityBindingV1(
+        checkPolicyDeclarationAuthorityDecisionBindingV1(
           declaration,
           wrapAuthorityPayload(fixture.payload)
         ),
-        { matches: false, reason: fixture.reason, authorizesExecution: false }
+        { bindingMatches: false, reason: fixture.reason, authorizesExecution: false }
       );
     }
   });
@@ -322,9 +355,12 @@ describe("normative-policy declaration authority binding", () => {
     const payload = authorityPayload({ declarationDigest });
 
     assert.deepEqual(
-      checkPolicyDeclarationAuthorityBindingV1(relatedDeclaration, wrapAuthorityPayload(payload)),
+      checkPolicyDeclarationAuthorityDecisionBindingV1(
+        relatedDeclaration,
+        wrapAuthorityPayload(payload)
+      ),
       {
-        matches: false,
+        bindingMatches: false,
         reason: "relation_authority_capability_missing",
         authorizesExecution: false,
       }

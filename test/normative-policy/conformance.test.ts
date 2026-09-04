@@ -153,6 +153,10 @@ describe("normative-policy conformance fixtures", () => {
       fixture("require-public-managed-route").declaration,
       STFC_MANAGED_ROUTE_CONFORMANCE_DECLARATION_V1
     );
+    assert.match(
+      fixture("require-public-managed-route").requirement,
+      /named public managed capability route; implementation qualification is an independent admission condition/
+    );
     assert.equal(declaration.authorizesExecution, false);
   });
 
@@ -183,6 +187,7 @@ describe("normative-policy conformance fixtures", () => {
       policyEffect: "affirmative_allowance_only",
     });
     assert.equal(rule.relations.length, 0);
+    assert.match(candidate.requirement, /its absence is not a global prohibition/);
   });
 
   test("contains no credential fields or bearer/secret-looking fixture values", () => {

@@ -261,7 +261,8 @@ export const NORMATIVE_POLICY_CONFORMANCE_FIXTURES = deepFreeze([
   {
     schemaVersion: 1,
     id: "permit-cycle-policy-only",
-    requirement: "A permit is an affirmative policy allowance and never effect authority.",
+    requirement:
+      "A permit is an affirmative allowance only where explicitly consulted; its absence is not a global prohibition and it is never effect authority.",
     focusRuleId: policyId("fixture.stfc.lifecycle.cycle.permit-operation"),
     focusModality: "permit",
     declaration: SYNTHETIC_PERMIT_CONFORMANCE_DECLARATION_V1,
@@ -297,7 +298,8 @@ export const NORMATIVE_POLICY_CONFORMANCE_FIXTURES = deepFreeze([
   {
     schemaVersion: 1,
     id: "require-public-managed-route",
-    requirement: "A requested cycle requires the qualified public managed route.",
+    requirement:
+      "A requested cycle requires the named public managed capability route; implementation qualification is an independent admission condition.",
     focusRuleId: policyId("stfc.lifecycle.cycle.require-public-managed-route"),
     focusModality: "require",
     declaration: STFC_MANAGED_ROUTE_CONFORMANCE_DECLARATION_V1,

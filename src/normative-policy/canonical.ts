@@ -7,7 +7,7 @@ import {
   PolicyDeclarationAuthorityDecisionV1Schema,
   PolicyDeclarationSourceEvidenceV1Schema,
   PolicyDeclarationV1Schema,
-  type PolicyDeclarationAuthorityBindingResultV1,
+  type PolicyDeclarationAuthorityDecisionBindingResultV1,
   type PolicyDeclarationAuthorityDecisionDigestPreimageV1,
   type PolicyDeclarationAuthorityDecisionDigestV1,
   type PolicyDeclarationAuthorityDecisionPayloadV1,
@@ -183,13 +183,14 @@ export function checkPolicyDeclarationSourceEvidenceBindingV1(
 
 /**
  * Check internal declaration/decision binding with the contract's fixed
- * failure precedence. A match is not proof that the decision is trusted,
- * current, or authorized.
+ * failure precedence. A successful binding reports the decision's status so
+ * callers cannot treat binding alone as authorization. It is not proof that
+ * the decision is trusted or current.
  */
-export function checkPolicyDeclarationAuthorityBindingV1(
+export function checkPolicyDeclarationAuthorityDecisionBindingV1(
   declarationInput: PolicyDeclarationV1,
   decisionInput: PolicyDeclarationAuthorityDecisionV1
-): PolicyDeclarationAuthorityBindingResultV1 {
+): PolicyDeclarationAuthorityDecisionBindingResultV1 {
   const declaration = PolicyDeclarationV1Schema.parse(declarationInput);
   const decision = PolicyDeclarationAuthorityDecisionV1Schema.parse(decisionInput);
   const declarationAuthorityDecisionDigest = computePolicyDeclarationAuthorityDecisionDigestV1(
@@ -198,7 +199,7 @@ export function checkPolicyDeclarationAuthorityBindingV1(
 
   if (declarationAuthorityDecisionDigest !== decision.declarationAuthorityDecisionDigest) {
     return {
-      matches: false,
+      bindingMatches: false,
       reason: "decision_digest_mismatch",
       authorizesExecution: false,
     };
@@ -207,21 +208,21 @@ export function checkPolicyDeclarationAuthorityBindingV1(
   const declarationDigest = computePolicyDeclarationDigestV1(declaration);
   if (declarationDigest !== decision.payload.declarationDigest) {
     return {
-      matches: false,
+      bindingMatches: false,
       reason: "declaration_digest_mismatch",
       authorizesExecution: false,
     };
   }
   if (declaration.issuer.principalId !== decision.payload.issuerPrincipalId) {
     return {
-      matches: false,
+      bindingMatches: false,
       reason: "issuer_principal_mismatch",
       authorizesExecution: false,
     };
   }
   if (declaration.issuer.authorityDomainId !== decision.payload.authorityDomainId) {
     return {
-      matches: false,
+      bindingMatches: false,
       reason: "authority_domain_mismatch",
       authorizesExecution: false,
     };
@@ -231,7 +232,7 @@ export function checkPolicyDeclarationAuthorityBindingV1(
     decision.payload.requiredAuthoringCapabilityId
   ) {
     return {
-      matches: false,
+      bindingMatches: false,
       reason: "required_authoring_capability_mismatch",
       authorizesExecution: false,
     };
@@ -241,7 +242,7 @@ export function checkPolicyDeclarationAuthorityBindingV1(
     const grantedCapabilities = new Set(decision.payload.grantedAuthoringCapabilities);
     if (!grantedCapabilities.has(declaration.issuer.requiredAuthoringCapabilityId)) {
       return {
-        matches: false,
+        bindingMatches: false,
         reason: "granted_authoring_capability_missing",
         authorizesExecution: false,
       };
@@ -256,7 +257,7 @@ export function checkPolicyDeclarationAuthorityBindingV1(
     );
     if (relationCapabilityMissing) {
       return {
-        matches: false,
+        bindingMatches: false,
         reason: "relation_authority_capability_missing",
         authorizesExecution: false,
       };
@@ -264,7 +265,8 @@ export function checkPolicyDeclarationAuthorityBindingV1(
   }
 
   return {
-    matches: true,
+    bindingMatches: true,
+    decisionStatus: decision.payload.status,
     declarationDigest,
     declarationAuthorityDecisionDigest,
     authorizesExecution: false,

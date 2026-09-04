@@ -77,12 +77,14 @@ credentials, bearer tokens, grants, leases, or live capability handles. Their se
 carry literal `authorizesExecution: false` where an aggregate might otherwise be mistaken for an
 execution token.
 
-A `permit` rule is an affirmative policy-layer allowance for its proposition within its
-authenticated issuer and resolved scope. It does not request or require the proposition, bind a
-capability, or mint an `AuthorityGrant`. It cannot defeat an applicable `forbid` without an explicit
-authorized override relationship, and an unknown permit cannot enable admission. A routing
-requirement constrains an operation only after the operation is requested; it does not require the
-operation to occur and does not depend on effect authority already existing.
+V1 policy is not globally closed-world. Absence of a `permit` does not itself prohibit an operation;
+a permit participates in admission only where an explicit enforcement contract requires affirmative
+policy allowance. A `permit` has no inherent precedence over `forbid` and cannot defeat one merely
+by being a permit. Only a separately valid, authority-validated `overrides` relation may suppress
+the exact target forbid. A permit does not request or require its proposition, bind a capability, or
+mint an `AuthorityGrant`; an unknown permit never enables admission. A routing requirement
+constrains an operation only after the operation is requested; it does not require the operation to
+occur and does not depend on effect authority already existing.
 
 ### 4. Declarations group atomic, modality-specific rules
 
@@ -102,6 +104,14 @@ The initial proposition vocabulary is closed and reference-based:
 - `{ type: "operation", operationId }`; or
 - `{ type: "operation_route", operationId, route }`, where route is exactly
   `{ type: "capability", capabilityId }` or `{ type: "route_class", routeClassId }`.
+
+Route-class membership used in mandatory evaluation is trusted resolver input derived from
+qualification-backed capability metadata or another protected classifier bound to the selected
+route implementation and lifecycle proposal. A declaration or lifecycle proposal cannot
+self-assert security-relevant route-class membership. Missing, unverified, or contradictory
+membership is `unknown` and follows mandatory fail-closed behavior. A capability proposition names
+the required capability route only; qualification of the selected implementation is a separate
+admission condition and is not encoded by `PolicyPropositionV1`.
 
 The initial scope vocabulary is `global`, `tenant`, `workspace`, `repository`, or
 `workspace_repository`, using the corresponding canonical trusted-runtime-scope IDs. Free-text
@@ -284,6 +294,11 @@ Windows drive designator matching `[A-Za-z]:`.
 bytes and the declaration parsed from them; it is never embedded in those bytes. Slice 1A1 hashes
 raw bytes and validates already-constructed values. Slice 1A2 owns format-specific raw parsing and
 must reject invalid UTF-8 and duplicate JSON or YAML mapping keys before constructing a value.
+Slice 1A2 may initially advertise JSON alone. Any advertised YAML input uses a separately frozen,
+deterministic YAML 1.2 JSON-compatible profile: exactly one document, string mapping keys,
+JSON-compatible scalar/container values, and no aliases or anchors, merge keys, custom tags,
+parser-specific implicit timestamps, non-string keys, non-JSON scalars, or additional documents.
+YAML support never implies unrestricted YAML semantics.
 Source-evidence construction and verification recompute both the raw-byte digest and declaration
 digest; mismatches are rejected. A structurally valid source-evidence object is attribution data,
 not proof that its locator or bytes came from a trusted source.
@@ -292,6 +307,26 @@ All relation targets are version-pinned. The compiler must resolve the exact
 `declarationId`/`declarationRevision` pair and reject the relation unless the target rule's computed
 semantic digest equals `expectedSemanticDigest`. Reusing a declaration ID and revision for a
 different declaration digest is an input conflict. V1 has no floating relation references.
+
+V1 relations are directed, exact-target, and non-transitive. The Slice 1A2 compiler rejects
+self-relations, more than one relation type from one rule to the same exact target, and every
+directed relation cycle, including mixed-type cycles. `refines` is additive in V1: it records
+authority-validated lineage but neither suppresses nor replaces its target, and both rules remain
+independently effective. `overrides` is the only relation that may suppress its exact target, and a
+non-conflicting override has no resolution effect beyond its explanation trace. Suppression occurs
+only while the source and target declarations are authenticated, both rules are applicable and
+active, and the protected verifier has independently validated relation-specific authority for the
+exact relation type, source, target, authority domain, and scope. An inactive, unknown, or
+unauthorized source never suppresses a target. V1 infers neither an override nor transitive
+precedence from proposition shape, modality, scope, file location, or another relation. Any
+simultaneous mandatory conflict remaining after valid exact-target suppression is diagnosed
+deterministically and cannot produce successful policy admission.
+
+A mandatory source rule cannot participate in successful admission unless every `depends_on` edge
+resolves to its authenticated, digest-pinned exact target. Missing or unauthorized targets and
+dependencies with unknown applicability or activation fail closed. Slice 1A1 validates the closed
+serialized relation shapes; Slice 1A2 owns whole-graph validation, and Slice 1A3 owns authenticated
+applicability, activation, conflict, and suppression outcomes.
 
 `rules` is a semantic set normalized by `ruleId`; rule order in source is not semantic. `relations`
 is a semantic set sorted by canonical bytes. `enforcementIntents` is a semantic set sorted by the
@@ -377,15 +412,26 @@ For an authorized decision, `revocationEvidence.observedAt` is no later than `ev
 an authorized decision matches its declaration only when `grantedAuthoringCapabilities` contains
 both `requiredAuthoringCapabilityId` and every distinct `requiredAuthorityCapabilityId` named by a
 `refines` or `overrides` relation. The issuer principal, domain, and required capability must equal
-the declaration fields whose digest is bound. The protected verifier owns the meaning of
-`sourceAttestationDigest`; Lex does not derive it from a caller-provided reference. That ownership
-covers the attestation preimage and its domain semantics;
+the declaration fields whose digest is bound. Grant membership is necessary but not sufficient.
+The protected authority verifier independently determines whether each authored
+`requiredAuthorityCapabilityId` is valid authority for the exact relation type, source, target,
+authority domain, and scope. A declaration cannot choose the meaning or sufficiency of an authority
+capability. The protected verifier owns the meaning of `sourceAttestationDigest`; Lex does not
+derive it from a caller-provided reference. That ownership covers the attestation preimage and its
+domain semantics;
 the exchanged value still uses the contract's lowercase `sha256:<64-hex>` wire form. Lex computes
 `declarationAuthorityDecisionDigest` over the exact closed
 `PolicyDeclarationAuthorityDecisionDigestPreimageV1`, excluding the result field, using its
 declaration-authority-decision domain. A consumer recomputes this digest before accepting the
 record. The later resolver's protected port, not TypeScript structural assignability, decides
 whether a correctly shaped record is trusted.
+
+Before accepting an `authorized` decision, the protected verifier must establish the complete
+binding chain: exact raw source bytes to a successfully bound `PolicyDeclarationSourceEvidenceV1`,
+including its source locator, `sourceContentDigest`, and `declarationDigest`; that evidence to the
+authenticated source attestation named by the decision; and that attestation to the exact
+`PolicyDeclarationAuthorityDecisionV1`. A missing or mismatched join fails closed. The two pure
+pairwise binding checks do not authenticate inputs or establish this trusted join.
 
 The digest is unkeyed integrity, not authenticity. A caller-constructed `authorized` object remains
 untrusted even when its digest recomputes. The trusted resolver port must validate its provenance,
@@ -415,15 +461,16 @@ function checkPolicyDeclarationSourceEvidenceBindingV1(
   evidence: PolicyDeclarationSourceEvidenceV1,
 ): PolicyDeclarationSourceEvidenceBindingResultV1;
 
-type PolicyDeclarationAuthorityBindingResultV1 =
+type PolicyDeclarationAuthorityDecisionBindingResultV1 =
   | {
-      matches: true;
+      bindingMatches: true;
+      decisionStatus: "authorized" | "unauthorized" | "unknown";
       declarationDigest: PolicyDeclarationDigestV1;
       declarationAuthorityDecisionDigest: PolicyDeclarationAuthorityDecisionDigestV1;
       authorizesExecution: false;
     }
   | {
-      matches: false;
+      bindingMatches: false;
       reason:
         | "decision_digest_mismatch"
         | "declaration_digest_mismatch"
@@ -435,10 +482,10 @@ type PolicyDeclarationAuthorityBindingResultV1 =
       authorizesExecution: false;
     };
 
-function checkPolicyDeclarationAuthorityBindingV1(
+function checkPolicyDeclarationAuthorityDecisionBindingV1(
   declaration: PolicyDeclarationV1,
   decision: PolicyDeclarationAuthorityDecisionV1,
-): PolicyDeclarationAuthorityBindingResultV1;
+): PolicyDeclarationAuthorityDecisionBindingResultV1;
 ```
 
 Both functions first parse to normalized strict values. The source check recomputes source then
@@ -449,9 +496,11 @@ closed shape, scalars, timestamp ordering, authorized revocation-observation tim
 invariants, but deliberately does not enforce either grant-membership rule without the declaration;
 the binding check owns both corresponding mismatch reasons. Grant-membership checks run only when
 `status` is `authorized`; an internally consistent `unauthorized` or `unknown` record can return
-`matches: true` without grants. A matching result proves only internal binding. It does not
-authenticate either input, check currentness, change decision status, or authorize execution; those
-remain responsibilities of the later protected verifier port.
+`bindingMatches: true` without grants. A successful result therefore returns the exact
+`decisionStatus` and forces callers to keep binding separate from status. A matching result proves
+only internal binding. It does not authenticate either input, check currentness, change decision
+status, validate the authored capability's sufficiency, establish the full source-attestation join,
+or authorize execution; those remain responsibilities of the later protected verifier port.
 
 ### 5. Scope applicability and runtime activation are separate
 
@@ -462,6 +511,11 @@ Activation is independently `active`, `dormant`, or `unknown`. It is evaluated a
 lifecycle proposal only after the applicable policy is known. V1 activation is either `always` or
 an exact named `operation_requested` condition. It never asks whether effect authority has already
 been granted; policy resolution therefore does not depend on a later authority decision.
+
+V1 reserves cross-operation conditionals rather than accepting them accidentally. When activation
+is `operation_requested`, its `operationId` must equal every proposition operation ID in the rule,
+including every ordered alternative of `prefer`; the strict rule schema rejects a mismatch.
+`always` adds no request filter, but it never synthesizes an operation request or effect authority.
 
 Unknown applicability or activation for `require` or `forbid` is never silently treated as not
 applicable. Native lifecycle admission remains indeterminate or blocked until the required inputs
@@ -491,6 +545,8 @@ V1 uses an RFC 8785 JCS-compatible profile after strict schema validation:
 - schema integers remain integers and numbers use RFC 8785 / ECMAScript serialization;
 - object keys are sorted by unsigned UTF-16 code units, never locale collation;
 - parsed strings receive no implicit Unicode normalization;
+- strings and object-property names containing unpaired UTF-16 surrogate code units are rejected
+  before canonicalization;
 - ordered arrays retain order, while fields explicitly declared semantic sets reject duplicates and
   are sorted by their specified key or canonical bytes before JCS serialization;
 - `null` remains distinct from an absent optional field;
@@ -683,13 +739,15 @@ Verified public-STFC workspace facts make the declaration applicable. It contain
 with activation `operation_requested(stfc.runtime.cycle)`:
 
 1. `stfc.lifecycle.cycle.require-public-managed-route` (`require`) requires the proposed operation
-   route to be the qualified public managed-cycle capability.
+   route to name the public managed-cycle capability.
 2. `stfc.lifecycle.cycle.forbid-manual-fallback` (`forbid`) prohibits a manual lifecycle route.
 3. `stfc.lifecycle.cycle.forbid-private-fallback` (`forbid`) prohibits a private lifecycle route.
 
 With no cycle request, the rules are dormant and create no duty. On a request, they activate before
-effect authority is evaluated. Missing qualified public routing makes the required proposition
-unsatisfied and blocks policy/capability admission; the two prohibitions prevent fallback. Missing
+effect authority is evaluated. Missing the named public capability route makes the required
+proposition unsatisfied; unverified route-class membership follows mandatory unknown behavior, and
+the two prohibitions prevent fallback. Qualification of the selected implementation is an
+independent admission condition and is not supplied by the proposition. Missing qualification or
 Attempt-bound authority independently denies the effect even if the requested route satisfies
 policy.
 
@@ -706,8 +764,10 @@ Slice 1A is delivered in independently reviewable increments:
 
 1. strict declaration, atomic statement, scope, activation, external declaration-authority-decision,
    and digest contracts, canonicalization, and five-modal conformance fixtures;
-2. compiler, strict `CompiledPolicyV1`, and stable diagnostics;
-3. resolver and effective snapshots;
+2. profiled raw-source parsing, exact relation-graph validation, compiler, strict
+   `CompiledPolicyV1`, and stable diagnostics;
+3. protected authority/evidence-chain verification, trusted route classification and qualification
+   inputs, applicability/activation/conflict resolution, and effective snapshots;
 4. Codex and Copilot target profiles, controlled renderers, shadow artifacts, and receipts; and
 5. the downstream public STFC declaration and shadow dogfood proof.
 
@@ -761,8 +821,12 @@ Slice 1 does not:
 - The exact public STFC declaration format and repository path.
 - The protected declaration-authority verifier port while LexThority lacks a native Windows checkout;
   the declaration/decision data separation is fixed here.
-- The full conflict and override algebra beyond the fixed rules that precedence is never implicit,
-  permit never defeats forbid, and refinement/override relationships name authenticated authority.
+- The conflict and override algebra beyond the minimum V1 relation semantics fixed above, including
+  any additional resolver-recognized conflict predicates. Exact-target behavior, non-transitivity,
+  authenticated relation authority, additive refinement, and fail-closed unresolved mandatory
+  conflicts are not deferred.
+- Whether Slice 1A2 initially advertises JSON alone or also the restricted YAML profile fixed above.
+- A future contract for intentionally cross-operation activation conditions; V1 rejects them.
 - The exact security-relevant fact keys and verification profiles for STFC workspace identity.
 - The enforcement-realization vocabulary used in projection receipts.
 - Per-target handling of unknown mandatory conditionals.

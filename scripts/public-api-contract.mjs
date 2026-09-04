@@ -33,6 +33,7 @@ export const PUBLIC_EXPORT_CONTRACT = Object.freeze([
     anchors: [
       "NORMATIVE_POLICY_CONTRACT_VERSION",
       "PolicyDeclarationV1Schema",
+      "checkPolicyDeclarationAuthorityDecisionBindingV1",
       "computePolicyDeclarationDigestV1",
     ],
   },

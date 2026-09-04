@@ -22,6 +22,7 @@ import {
   PolicyDeclarationV1Schema,
   PolicyLogicalIdV1Schema,
   PolicyNormativeStatementV1Schema,
+  PolicyRuleRelationV1Schema,
   PolicyRuleSemanticDigestPreimageV1Schema,
   PolicyRuleV1Schema,
   PolicyScopeV1Schema,
@@ -111,7 +112,10 @@ function validDeclarationInput() {
             target: relationTarget,
             requiredAuthorityCapabilityId: "policy.override",
           },
-          { type: "depends_on", target: relationTarget },
+          {
+            type: "depends_on",
+            target: { ...relationTarget, ruleId: "base.prerequisite" },
+          },
         ],
       },
       ruleFor("permit", ["audit", "capability_gate"], "example.m-permit"),
@@ -343,6 +347,34 @@ describe("normative-policy v1 declarations", () => {
     );
   });
 
+  test("pins all three closed relation wire variants before graph compilation", () => {
+    const target = {
+      declarationId: "base.policy",
+      declarationRevision: 1,
+      ruleId: "base.rule",
+      expectedSemanticDigest: semanticDigest,
+    };
+
+    assert.deepEqual(PolicyRuleRelationV1Schema.parse({ type: "depends_on", target }), {
+      type: "depends_on",
+      target,
+    });
+    for (const type of ["refines", "overrides"] as const) {
+      assert.deepEqual(
+        PolicyRuleRelationV1Schema.parse({
+          type,
+          target,
+          requiredAuthorityCapabilityId: `policy.${type}`,
+        }),
+        { type, target, requiredAuthorityCapabilityId: `policy.${type}` }
+      );
+    }
+    assert.equal(
+      PolicyRuleRelationV1Schema.safeParse({ type: "supersedes", target }).success,
+      false
+    );
+  });
+
   test("enforces the modality-to-enforcement matrix", () => {
     const all = [
       "prompt_guidance",
@@ -380,6 +412,39 @@ describe("normative-policy v1 declarations", () => {
     for (const kind of ["require", "forbid", "permit", "recommend", "prefer"] as const) {
       assert.equal(PolicyRuleV1Schema.safeParse(ruleFor(kind, [])).success, false, kind);
     }
+  });
+
+  test("reserves cross-operation activation conditions in V1", () => {
+    const matching = {
+      ...ruleFor("require", ["audit"]),
+      activationCondition: { type: "operation_requested", operationId: "example.operation" },
+    };
+    assert.equal(PolicyRuleV1Schema.safeParse(matching).success, true);
+    assert.equal(
+      PolicyRuleV1Schema.safeParse({
+        ...matching,
+        activationCondition: { type: "operation_requested", operationId: "other.operation" },
+      }).success,
+      false
+    );
+
+    const mismatchedPreference = {
+      ...ruleFor("prefer", ["audit"]),
+      activationCondition: { type: "operation_requested", operationId: "example.operation" },
+      orderedAlternatives: [
+        operationRoute("route.first", "example.operation"),
+        operationRoute("route.second", "other.operation"),
+      ],
+    };
+    assert.equal(PolicyRuleV1Schema.safeParse(mismatchedPreference).success, false);
+    assert.equal(
+      PolicyRuleV1Schema.safeParse({
+        ...mismatchedPreference,
+        activationCondition: { type: "always" },
+      }).success,
+      true,
+      "always activation does not impose an operation-request filter"
+    );
   });
 
   test("keeps preference order significant while normalizing only declared sets", () => {
@@ -637,6 +702,29 @@ describe("normative-policy v1 digest preimages", () => {
       }).success,
       false
     );
+  });
+
+  test("reports cross-operation semantic-preimage mismatches at the proposition", () => {
+    const result = PolicyRuleSemanticDigestPreimageV1Schema.safeParse({
+      canonicalizationVersion: POLICY_CANONICALIZATION_VERSION_V1,
+      schemaVersion: 1,
+      statement: { kind: "require", proposition: operation("example.operation") },
+      activationCondition: { type: "operation_requested", operationId: "other.operation" },
+      enforcementIntents: ["capability_gate"],
+    });
+    assert.equal(result.success, false);
+    if (!result.success) {
+      assert.deepEqual(
+        result.error.issues.map(({ path, message }) => ({ path, message })),
+        [
+          {
+            path: ["statement", "proposition", "operationId"],
+            message:
+              "operation_requested operationId must match every proposition operationId in V1",
+          },
+        ]
+      );
+    }
   });
 
   test("uses the exact authority-decision preimage and excludes the result digest", () => {
