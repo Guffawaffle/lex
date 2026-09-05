@@ -1,3 +1,26 @@
+import type {
+  PolicyImmutableV1,
+  PolicyExceptionOverlayV1,
+  PolicyResolutionRequestV1,
+  PolicyVerificationEvidenceV1,
+  PolicyResolverVerificationV1,
+  PolicySnapshotPreimageV1,
+  EffectivePolicySnapshotV1,
+} from "./resolver-data.js";
+export type {
+  PolicyImmutableV1,
+  PolicyExceptionOverlayV1,
+  PolicyResolutionRequestV1,
+  PolicyVerificationEvidenceV1,
+  PolicyResolverVerificationV1,
+  PolicySnapshotPreimageV1,
+  EffectivePolicySnapshotV1,
+  PolicyVerifiedRelationV1,
+  PolicyResolverDiagnosticV1,
+  PolicyRuleResolutionV1,
+  PolicyRelationResolutionV1,
+  PolicyConflictV1,
+} from "./resolver-data.js";
 import { createHash } from "node:crypto";
 import { z } from "zod";
 
@@ -26,10 +49,6 @@ import {
 } from "./types.js";
 
 export const POLICY_RESOLVER_VERSION_V1 = "lex:normative-policy:resolver:v1" as const;
-
-export type PolicyImmutableV1<T> = T extends string | number | boolean | null | undefined
-  ? T
-  : { readonly [K in keyof T]: PolicyImmutableV1<T[K]> };
 
 export function freezeResolutionValue<T>(value: T): PolicyImmutableV1<T> {
   if (value !== null && typeof value === "object") {
@@ -71,7 +90,7 @@ export function resolutionDigest(domain: string, value: unknown): string {
     .digest("hex")}`;
 }
 
-export const PolicyExceptionOverlayV1Schema = closed(
+export const PolicyExceptionOverlayV1Schema: z.ZodType<PolicyExceptionOverlayV1> = closed(
   z
     .object({
       schemaVersion: z.literal(1),
@@ -96,7 +115,6 @@ export const PolicyExceptionOverlayV1Schema = closed(
         ctx.addIssue({ code: "custom", message: "Exception expiry must follow issuance" });
     })
 ).transform(freezeResolutionValue);
-export type PolicyExceptionOverlayV1 = z.infer<typeof PolicyExceptionOverlayV1Schema>;
 export function computePolicyExceptionOverlayDigestV1(value: PolicyExceptionOverlayV1): string {
   return resolutionDigest(
     "lex:normative-policy:exception:v1",
@@ -113,7 +131,7 @@ const base64 = z
       Buffer.from(value, "base64").toString("base64") === value,
     "Expected canonical base64"
   );
-export const PolicyResolutionRequestV1Schema = closed(
+export const PolicyResolutionRequestV1Schema: z.ZodType<PolicyResolutionRequestV1> = closed(
   z
     .object({
       schemaVersion: z.literal(1),
@@ -140,7 +158,6 @@ export const PolicyResolutionRequestV1Schema = closed(
         ctx.addIssue({ code: "custom", message: "Unbound raw source" });
     })
 ).transform(freezeResolutionValue);
-export type PolicyResolutionRequestV1 = z.infer<typeof PolicyResolutionRequestV1Schema>;
 export function computePolicyResolutionRequestDigestV1(value: PolicyResolutionRequestV1): string {
   return resolutionDigest(
     "lex:normative-policy:resolution-request:v1",
@@ -155,7 +172,7 @@ const validity = z.discriminatedUnion("type", [
     .object({ type: z.literal("revalidate_at_use"), revalidatedAt: IsoDateTimeV1Schema.nullable() })
     .strict(),
 ]);
-export const PolicyVerificationEvidenceV1Schema = closed(
+export const PolicyVerificationEvidenceV1Schema: z.ZodType<PolicyVerificationEvidenceV1> = closed(
   z
     .object({
       ref: NonBearerReferenceV1Schema,
@@ -167,7 +184,6 @@ export const PolicyVerificationEvidenceV1Schema = closed(
     })
     .strict()
 ).transform(freezeResolutionValue);
-export type PolicyVerificationEvidenceV1 = z.infer<typeof PolicyVerificationEvidenceV1Schema>;
 const evidence = setOf(PolicyVerificationEvidenceV1Schema);
 const relation = z
   .object({
@@ -177,7 +193,6 @@ const relation = z
     requiredAuthorityCapabilityId: CapabilityIdV1Schema,
   })
   .strict();
-export type PolicyVerifiedRelationV1 = z.infer<typeof relation>;
 const declarationVerification = z
   .object({
     declarationDigest: PolicyDeclarationDigestV1Schema,
@@ -238,7 +253,7 @@ const overlayVerification = z
   })
   .strict();
 
-export const PolicyResolverVerificationV1Schema = closed(
+export const PolicyResolverVerificationV1Schema: z.ZodType<PolicyResolverVerificationV1> = closed(
   z
     .object({
       schemaVersion: z.literal(1),
@@ -256,7 +271,6 @@ export const PolicyResolverVerificationV1Schema = closed(
     })
     .strict()
 ).transform(freezeResolutionValue);
-export type PolicyResolverVerificationV1 = z.infer<typeof PolicyResolverVerificationV1Schema>;
 
 /** Installed by protected host code, never supplied through resolution request data.
  * Implementations authenticate provenance and all exact joins described in the resolver guide.
@@ -291,7 +305,6 @@ const diagnostic = z
     overlayId: PolicyLogicalIdV1Schema.nullable(),
   })
   .strict();
-export type PolicyResolverDiagnosticV1 = PolicyImmutableV1<z.infer<typeof diagnostic>>;
 const ruleResult = z
   .object({
     target: PolicyRuleTargetV1Schema,
@@ -303,7 +316,6 @@ const ruleResult = z
     disposition: z.enum(["effective", "inactive", "untrusted", "unknown", "suppressed"]),
   })
   .strict();
-export type PolicyRuleResolutionV1 = z.infer<typeof ruleResult>;
 const trace = z
   .object({
     source: PolicyRuleTargetV1Schema,
@@ -321,7 +333,6 @@ const trace = z
     ]),
   })
   .strict();
-export type PolicyRelationResolutionV1 = z.infer<typeof trace>;
 const conflict = z
   .object({
     left: PolicyRuleTargetV1Schema,
@@ -329,9 +340,8 @@ const conflict = z
     status: z.enum(["conflict", "unknown"]),
   })
   .strict();
-export type PolicyConflictV1 = z.infer<typeof conflict>;
 
-export const PolicySnapshotPreimageV1Schema = closed(
+export const PolicySnapshotPreimageV1Schema: z.ZodType<PolicySnapshotPreimageV1> = closed(
   z
     .object({
       schemaVersion: z.literal(1),
@@ -423,14 +433,13 @@ export const PolicySnapshotPreimageV1Schema = closed(
         ctx.addIssue({ code: "custom", message: "Snapshot request binding mismatch" });
     })
 ).transform(freezeResolutionValue);
-export type PolicySnapshotPreimageV1 = z.infer<typeof PolicySnapshotPreimageV1Schema>;
 export function computePolicySnapshotDigestV1(value: PolicySnapshotPreimageV1): string {
   return resolutionDigest(
     "lex:normative-policy:snapshot:v1",
     PolicySnapshotPreimageV1Schema.parse(value)
   );
 }
-export const EffectivePolicySnapshotV1Schema = closed(
+export const EffectivePolicySnapshotV1Schema: z.ZodType<EffectivePolicySnapshotV1> = closed(
   z
     .object({
       payload: PolicySnapshotPreimageV1Schema,
@@ -444,4 +453,3 @@ export const EffectivePolicySnapshotV1Schema = closed(
         ctx.addIssue({ code: "custom", message: "Snapshot digest mismatch" });
     })
 ).transform(freezeResolutionValue);
-export type EffectivePolicySnapshotV1 = z.infer<typeof EffectivePolicySnapshotV1Schema>;
