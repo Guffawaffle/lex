@@ -218,6 +218,23 @@ function declarationTrusted(
     proof.decision
   );
   const payload = proof.decision.payload;
+  const expectedRelations = entry.declaration.rules.flatMap((rule) =>
+    rule.relations
+      .filter((relation) => relation.type !== "depends_on")
+      .map((relation) => ({
+        source: targetFor(entry, rule),
+        ...relation,
+      }))
+  );
+  // Relation capability membership is not sufficient to authenticate a
+  // declaration, even when a target happens to be dormant or out of scope.
+  if (
+    expectedRelations.length !== proof.approvedRelations.length ||
+    expectedRelations.some(
+      (relation) => !proof.approvedRelations.some((approved) => equal(approved, relation))
+    )
+  )
+    return false;
   return (
     binding.bindingMatches &&
     payload.status === "authorized" &&
@@ -311,6 +328,8 @@ function resolveVerified(
       equal(proof.target, overlay.target) &&
       equal(proof.scope, overlay.scope) &&
       proof.requiredOverrideCapabilityId === overlay.requiredOverrideCapabilityId &&
+      proof.revocationEvidence.ref === overlay.revocationEvidenceRef &&
+      current([proof.revocationEvidence], request.asOf) &&
       current(proof.evidence, request.asOf);
     if (valid) target.disposition = "suppressed";
     else add("overlay_rejected", overlay.target, null, overlay.overlayId);
@@ -346,12 +365,12 @@ function resolveVerified(
         })
       );
       let outcome: PolicyRelationResolutionV1["outcome"];
-      if (source.disposition !== "effective" || target.disposition !== "effective")
-        outcome = "inactive";
-      else if (!approved) {
+      if (!approved) {
         outcome = "unauthorized";
         add("relation_unauthorized", source.target, target.target);
-      } else if (relation.type === "refines") outcome = "additive";
+      } else if (source.disposition !== "effective" || target.disposition !== "effective")
+        outcome = "inactive";
+      else if (relation.type === "refines") outcome = "additive";
       else if (
         source.rule.kind === "permit" &&
         propositionTruth(source.rule.proposition, request, verification) !== "yes"

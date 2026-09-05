@@ -79,6 +79,7 @@ export const PolicyExceptionOverlayV1Schema = closed(
       issuer: PolicyDeclarationIssuerV1Schema,
       target: PolicyRuleTargetV1Schema,
       requiredOverrideCapabilityId: CapabilityIdV1Schema,
+      revocationEvidenceRef: NonBearerReferenceV1Schema,
       scope: PolicyScopeV1Schema,
       rationale: z
         .string()
@@ -232,6 +233,7 @@ const overlayVerification = z
     evaluatedAt: IsoDateTimeV1Schema,
     validUntil: IsoDateTimeV1Schema,
     revocation: z.enum(["not_revoked", "revoked", "unknown"]),
+    revocationEvidence: PolicyVerificationEvidenceV1Schema,
     evidence,
   })
   .strict();

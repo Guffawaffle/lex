@@ -185,6 +185,7 @@ export function verification(input: { request: PolicyResolutionRequestV1; reques
       evaluatedAt: before,
       validUntil: after,
       revocation: "not_revoked",
+      revocationEvidence: { ...evidence()[0], ref: overlay.revocationEvidenceRef },
       evidence: evidence(),
     })),
     authorizesExecution: false,

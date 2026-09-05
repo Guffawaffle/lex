@@ -34,7 +34,9 @@ and declaration identities, checks the decision digest/issuer/domain/capabilitie
 and checks validity at `asOf`. The verifier owns attestation semantics and provenance,
 scope authority, current revocation verification, and the sufficiency of each exact
 `refines`/`overrides` relation's authoring capability. Grant membership alone is
-insufficient. Relation approvals bind both digest-pinned endpoints and relation type.
+insufficient, including when a relation target is currently dormant or out of scope.
+Relation approvals bind both digest-pinned endpoints and relation type; the complete
+authored relation set must be approved before declaration inclusion.
 
 Verified context observations supply tenant, workspace, and repository identities.
 Every observation binds its evidence, verification profile, observer qualification,
@@ -96,6 +98,9 @@ become durable declarations or silently broaden their parent scope. V1 permits
 identical scopes, narrowing a global parent, or narrowing a workspace/repository
 parent to a matching workspace-repository pair. Other containment needs an explicit
 future contract rather than inferred cross-tenant membership.
+The overlay's `revocationEvidenceRef` must match the proof's separate
+`revocationEvidence` record, whose qualification and freshness are checked independently
+of the other approval evidence.
 
 The immutable snapshot binds compiler/resolver/canonicalization versions, explicit
 `asOf`, the request digest, compiled declaration/source evidence, normalized verifier

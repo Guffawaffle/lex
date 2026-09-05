@@ -469,6 +469,41 @@ describe("exact relations and mandatory closure", () => {
     const advisory = override("recommend");
     blocked(await resolve(request([advisory.from, advisory.to])));
   });
+  test("relation-specific authority is required even when the exact target is out of scope", async () => {
+    const to = {
+      ...declaration("target.policy"),
+      scope: { type: "workspace", workspaceId: "00000000-0000-4000-8000-000000000099" },
+    };
+    const from = declaration("source.policy");
+    const value = {
+      ...from,
+      rules: [
+        {
+          ...from.rules[0],
+          relations: [
+            {
+              type: "refines",
+              target: target(to as ReturnType<typeof declaration>),
+              requiredAuthorityCapabilityId: "policy.refine",
+            },
+          ],
+        },
+      ],
+    };
+    const result = await resolve(request([value, to]), (v) => {
+      v.declarations.forEach((entry) => {
+        entry.approvedRelations = [];
+      });
+      return v;
+    });
+    blocked(result);
+    assert.equal(
+      result.payload.rules.find((rule) => rule.target.declarationId === "source.policy")
+        ?.declarationTrusted,
+      false
+    );
+    assert(codes(result).includes("relation_unauthorized"));
+  });
   test("non-conflicting override has trace only", async () => {
     const to = declaration("target.policy");
     const from = declaration("source.policy");
@@ -627,6 +662,7 @@ describe("bounded overlays and deterministic snapshots", () => {
       issuer: parent.issuer,
       target: target(parent),
       requiredOverrideCapabilityId: "policy.exception",
+      revocationEvidenceRef: "revocation:exception",
       scope: parent.scope,
       rationale: "Synthetic bounded test exception",
       issuedAt: before,
@@ -694,6 +730,27 @@ describe("bounded overlays and deterministic snapshots", () => {
     assert(
       !PolicyExceptionOverlayV1Schema.safeParse({ ...input.overlays[0], expiresAt: undefined })
         .success
+    );
+  });
+  test("exception revocation evidence has its own exact reference and freshness checks", async () => {
+    blocked(
+      await resolve(excepted(), (v) => {
+        v.overlays[0].revocationEvidence.ref = "revocation:other";
+        return v;
+      })
+    );
+    blocked(
+      await resolve(excepted(), (v) => {
+        v.overlays[0].revocationEvidence.validity.validUntil = asOf;
+        return v;
+      })
+    );
+    const input = excepted();
+    assert(
+      !PolicyExceptionOverlayV1Schema.safeParse({
+        ...input.overlays[0],
+        revocationEvidenceRef: undefined,
+      }).success
     );
   });
   test("semantic sets normalize order but reject duplicates; snapshot tampering fails", async () => {
