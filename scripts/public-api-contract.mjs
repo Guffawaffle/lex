@@ -28,6 +28,16 @@ export const PUBLIC_EXPORT_CONTRACT = Object.freeze([
     anchors: ["RUNTIME_SCOPE_CONTRACT_VERSION", "resolveRuntimeScope"],
   },
   {
+    subpath: "./normative-policy",
+    purpose: "Typed normative policy contracts, canonicalization, and conformance fixtures",
+    anchors: [
+      "NORMATIVE_POLICY_CONTRACT_VERSION",
+      "PolicyDeclarationV1Schema",
+      "checkPolicyDeclarationAuthorityDecisionBindingV1",
+      "computePolicyDeclarationDigestV1",
+    ],
+  },
+  {
     subpath: "./errors",
     purpose: "AXError schemas, codes, and hints",
     anchors: ["AXErrorSchema", "LEX_ERROR_CODES"],

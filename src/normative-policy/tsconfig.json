@@ -1,0 +1,11 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "rootDir": ".",
+    "outDir": "../../dist/normative-policy"
+  },
+  "references": [{ "path": "../shared/runtime-scope" }],
+  "include": ["*.ts"],
+  "exclude": ["node_modules", "dist", "*.test.ts"]
+}

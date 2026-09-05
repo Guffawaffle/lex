@@ -22,6 +22,7 @@ and compiles imports for every declaration path.
 | `@smartergpt/lex/cli-output` | Structured CLI output helpers |
 | `@smartergpt/lex/types` | Shared Frame and policy types and validators |
 | `@smartergpt/lex/runtime-scope` | Trusted identity, authority, binding, and diagnostics |
+| `@smartergpt/lex/normative-policy` | Typed normative policy contracts, canonicalization, and conformance fixtures |
 | `@smartergpt/lex/errors` | AXError schemas, codes, and hints |
 | `@smartergpt/lex/policy` | Policy loading and validation |
 | `@smartergpt/lex/atlas` | Legacy compatibility barrel for Policy Neighborhood, Frame Graph, and Code Index |
@@ -49,10 +50,10 @@ and compiles imports for every declaration path.
 | `@smartergpt/lex/schemas/profile.schema.json` | Lex profile JSON Schema |
 
 The export path itself is stable once declared. Individual symbols may carry a narrower explicit
-status: `@smartergpt/lex/lexsona` and Code Index persistence currently identify experimental
-behavior in their source contracts. Consumers should not infer full behavioral stabilization from
-path availability alone; promoting or breaking those experimental symbols still requires an
-explicit contract decision and release note.
+status: `@smartergpt/lex/normative-policy`, `@smartergpt/lex/lexsona`, and Code Index persistence
+currently identify experimental behavior in their source contracts. Consumers should not infer
+full behavioral stabilization from path availability alone; promoting or breaking those
+experimental symbols still requires an explicit contract decision and release note.
 
 The `atlas` package path is a compatibility umbrella, not one subsystem. Its current symbol
 families and migration order are classified in the

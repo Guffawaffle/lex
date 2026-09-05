@@ -26,6 +26,10 @@
       "types": "./dist/shared/runtime-scope/index.d.ts",
       "import": "./dist/shared/runtime-scope/index.js"
     },
+    "./normative-policy": {
+      "types": "./dist/normative-policy/index.d.ts",
+      "import": "./dist/normative-policy/index.js"
+    },
     "./errors": {
       "types": "./dist/shared/errors/index.d.ts",
       "import": "./dist/shared/errors/index.js"
