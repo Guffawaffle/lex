@@ -273,6 +273,7 @@ semver-governed; consumers should not import undeclared `dist/` or source paths.
 | Operating SQLite or PostgreSQL | [Store Contracts](./docs/STORE_CONTRACTS.md) and [PostgreSQL Authority](./docs/POSTGRES_AUTHORITY.md) |
 | Building a trusted multi-tenant host | [Runtime Scope](./docs/RUNTIME_SCOPE_CONTRACT.md) and [PostgreSQL Scope Security](./docs/POSTGRES_SCOPE_SECURITY.md) |
 | Using the TypeScript API | [Public Package API](./docs/PUBLIC_API.md) |
+| Compiling typed normative declarations | [Normative Policy Compiler](./docs/normative-policy-compiler.md) |
 | Configuring paths or runtime behavior | [Environment Variables](./docs/ENVIRONMENT.md) |
 | Reviewing known constraints | [Limitations](./docs/LIMITATIONS.md) and [FAQ](./docs/FAQ.md) |
 | Contributing to Lex | [Contributing Guide](./CONTRIBUTING.md) |
