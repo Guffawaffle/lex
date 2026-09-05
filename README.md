@@ -115,7 +115,7 @@ Ready to test the claim? Store one non-sensitive checkpoint, start a fresh sessi
 it can continue without having the work explained again.
 
 Requires Node.js 24 or newer. Lex does not impose an unproven upper bound. Existing users should
-follow the [Lex 4.1 migration and recovery guide](docs/releases/lex-4.1-migration.md), including the
+follow the [Lex 4.2 migration and recovery guide](docs/releases/lex-4.2-migration.md), including the
 native SQLite rebuild step.
 
 This approved pilot writes one Frame to the local SQLite store under `.smartergpt/lex/`. It does
@@ -313,7 +313,7 @@ row-level security support, and trusted-host composition while retaining the loc
 workflow. Lex 4 requires Node 24 or newer and is released as part of the
 [Ecosystem 3.1 compatibility train](./docs/releases/ecosystem-3.1.md).
 
-See the [Lex 4 migration and recovery guide](./docs/releases/lex-4.1-migration.md), the
+See the [Lex 4 migration and recovery guide](./docs/releases/lex-4.2-migration.md), the
 [changelog](./CHANGELOG.md) for release history, and the
 [Lex 3 PostgreSQL isolation canary](./docs/LEX3_POSTGRES_DOGFOOD.md) for the live end-to-end
 two-tenant/five-workspace acceptance path.

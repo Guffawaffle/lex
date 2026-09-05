@@ -2,6 +2,8 @@
 
 ## 4.2.0
 
+See the [4.2 migration and recovery guide](docs/releases/lex-4.2-migration.md).
+
 ### Minor Changes
 
 - bd25374: Add JSON-only normative-policy ingestion and deterministic, non-authorizing compilation with
