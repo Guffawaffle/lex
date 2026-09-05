@@ -12,6 +12,7 @@ API. Existing root exports, CLI/MCP operations, stores, and Node `>=24` support 
 - Strict typed policy declarations and non-authorizing source/authority-decision contracts.
 - Canonical JSON, domain-separated digests, and pure source/decision binding checks.
 - Data-only STFC managed-route and synthetic-permit conformance fixtures.
+- Audited lockfile updates for `fast-uri` 3.1.7 and `qs` 6.16.0 within existing dependency ranges.
 
 The API is experimental but becomes semver-governed when published. A binding result is evidence
 about supplied inputs; it is not an effect grant. This release does not implement compilation,
