@@ -4,7 +4,7 @@ Ecosystem 3.1 is a compatibility release train across the Lex toolset. It is not
 version. Each repository selects semver from its own reviewed user-visible delta, while the release
 manifest records the exact set proven to work together.
 
-Lex selects package version 4.1.0 for the additive normative-policy contract. The 4.0 line's Node
+Lex selects package version 4.2.0 for the additive normative-policy compiler and resolver. The 4.0 line's Node
 20-to-24 support-floor change remains the existing breaking runtime baseline. Lex-MCP
 preserves exact major/version alignment with Lex.
 Neither package version renames the Ecosystem 3.1 train.
@@ -12,14 +12,15 @@ Neither package version renames the Ecosystem 3.1 train.
 The public 4.0.2 npm pair and signed tags remain valid, but Lex 4.0.2 did not complete its GitHub
 release or MCP Registry publication. The coordinated 4.0.3 pair completed npm publication, signed
 tags, non-draft GitHub releases, and Lex MCP Registry publication. Version 4.0.4 added the PostgreSQL
-compound-reference recall correction. The 4.1.0 candidate adds Slice 1A1's experimental policy
-contracts without rewriting those immutable releases; see [4.1 release notes](./lex-4.1.md).
+compound-reference recall correction. The released 4.1.0 pair added Slice 1A1's experimental policy
+contracts. The 4.2.0 candidate combines Slices 1A2 and 1A3 without rewriting those immutable
+releases; see [4.2 release notes](./lex-4.2.md).
 
 The canonical machine-readable draft is [`releases/ecosystem-3.1.json`](../../releases/ecosystem-3.1.json).
 Its schema is
 [`canon/schemas/ecosystem-release-v1.schema.json`](../../canon/schemas/ecosystem-release-v1.schema.json).
 Lex consumers migrate through the
-[Lex 4.1 migration and recovery guide](./lex-4.1-migration.md). The
+[Lex 4.2 migration and recovery guide](./lex-4.2-migration.md). The
 [delete-first documentation inventory](./ecosystem-3.1-documentation-inventory.md) records current
 owners, historical boundaries, and bounded follow-up cleanup.
 
@@ -161,7 +162,7 @@ metadata. The authenticated maintainer creates and pushes signed annotated tags 
 protected environment or Registry approvals. Lex non-dry-run npm publication is delegated only to
 the reviewed `release.yml` job through npm Trusted Publishing and GitHub OIDC.
 
-For Lex 4.1.0, an explicit `publish: true` dispatch from the exact current `main` builds the
+For Lex 4.2.0, an explicit `publish: true` dispatch from the exact current `main` builds the
 `npm-candidate-<commit>` artifact, verifies its service-record digest and receipt, runs the Windows
 packed-consumer gate, and publishes that exact retained file with provenance. Verify both the
 tarball and `release-candidate.json` with `gh attestation verify` constrained to
