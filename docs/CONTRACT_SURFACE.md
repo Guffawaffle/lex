@@ -104,9 +104,11 @@ binding. A successful result reports `decisionStatus`; callers must still requir
 trusted, current `authorized` decision through the protected verifier path. Binding success for an
 `unauthorized` or `unknown` decision never admits policy.
 
-The Slice 1A1 surface validates already-constructed values and exact raw bytes. Format-specific raw
-parsing, compilation, applicability and activation resolution, target projection, and live effect
-enforcement are separate later boundaries. See
+The surface includes bounded JSON parsing and compilation, protected applicability/activation
+resolution, and non-authorizing effective snapshots. Slice 1A4 adds
+[`projectPolicyV1` and verifiable shadow receipts](./normative-policy-projections.md) for explicit
+Codex and Copilot profiles. Those adapters do not install instructions or enforce policy. Live effect
+enforcement remains separate. See
 [ADR-0012](./adr/0012-typed-policy-and-context-resolution.md) for the frozen contract and delivery
 sequence.
 
