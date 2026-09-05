@@ -158,6 +158,7 @@ function propositionTruth(
   request: PolicyResolutionRequestV1,
   verification: PolicyResolverVerificationV1 | null
 ): Truth {
+  if (request.proposal.operationPresence === "absent") return "no";
   if (request.proposal.operationId === null) return "unknown";
   if (request.proposal.operationId !== proposition.operationId) return "no";
   if (proposition.type === "operation") return "yes";
@@ -276,11 +277,13 @@ function resolveVerified(
       const activation =
         rule.activationCondition.type === "always"
           ? "active"
-          : request.proposal.operationId === null
-            ? "unknown"
-            : request.proposal.operationId === rule.activationCondition.operationId
-              ? "active"
-              : "dormant";
+          : request.proposal.operationPresence === "absent"
+            ? "dormant"
+            : request.proposal.operationId === null
+              ? "unknown"
+              : request.proposal.operationId === rule.activationCondition.operationId
+                ? "active"
+                : "dormant";
       const disposition = !trusted
         ? "untrusted"
         : scope === "unknown" || activation === "unknown"
