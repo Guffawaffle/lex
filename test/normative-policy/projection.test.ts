@@ -171,18 +171,11 @@ test("target capability loss rejects instead of silently dropping mandatory sema
   }
 });
 test("inactive rules stay resolution records and do not become active instructions", async () => {
-  const original = declaration();
-  const req = request([
-    {
-      ...original,
-      rules: [
-        {
-          ...original.rules[0],
-          activationCondition: { type: "operation_requested", operationId: "different.operation" },
-        },
-      ],
-    },
-  ]);
+  const original = request();
+  const req = {
+    ...original,
+    proposal: { ...original.proposal, operationId: "different.operation" },
+  };
   const value = await createPolicyResolverV1({
     version: "test.verifier.v1",
     verify: verification,
