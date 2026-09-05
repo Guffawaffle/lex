@@ -1,5 +1,19 @@
 # Changelog
 
+## 4.1.0
+
+### Minor Changes
+
+See the [4.1 migration and recovery guide](docs/releases/lex-4.1-migration.md).
+
+- 1c6feb1: Add the experimental typed normative-policy contract, canonicalization, binding checks, and
+  data-only conformance fixtures.
+
+### Patch Changes
+
+- Refresh locked `fast-uri` to 3.1.7 and `qs` to 6.16.0 to resolve the dependency audit findings
+  discovered during 4.1.0 release verification.
+
 ## 4.0.4
 
 ### Patch Changes

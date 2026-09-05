@@ -7,16 +7,18 @@
     "url": "https://github.com/Guffawaffle/lex",
     "source": "github"
   },
-  "version": "4.0.4",
+  "version": "4.1.0",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "@smartergpt/lex-mcp",
-      "version": "4.0.4",
+      "version": "4.1.0",
       "transport": {
         "type": "stdio"
       },
-      "runtimes": ["node"],
+      "runtimes": [
+        "node"
+      ],
       "environmentVariables": [
         {
           "name": "LEX_WORKSPACE_ROOT",
