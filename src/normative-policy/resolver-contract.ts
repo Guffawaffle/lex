@@ -143,11 +143,25 @@ export const PolicyResolutionRequestV1Schema: z.ZodType<PolicyResolutionRequestV
       overlays: setOf(PolicyExceptionOverlayV1Schema, (value) => value.overlayId),
       proposal: z
         .object({
+          operationPresence: z.literal("absent").optional(),
           operationId: PolicyLogicalIdV1Schema.nullable(),
           capabilityId: CapabilityIdV1Schema.nullable(),
           implementationDigest: ContentDigestV1Schema.nullable(),
         })
-        .strict(),
+        .strict()
+        .superRefine((proposal, ctx) => {
+          if (
+            proposal.operationPresence === "absent" &&
+            (proposal.operationId !== null ||
+              proposal.capabilityId !== null ||
+              proposal.implementationDigest !== null)
+          )
+            ctx.addIssue({
+              code: "custom",
+              message:
+                "An absent operation cannot contain operation, capability, or implementation selection",
+            });
+        }),
       asOf: IsoDateTimeV1Schema,
       evidenceRefs: setOf(NonBearerReferenceV1Schema),
     })

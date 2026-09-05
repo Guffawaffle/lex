@@ -45,6 +45,8 @@ export type PolicyResolutionRequestV1 = PolicyImmutableV1<{
   rawSources: { declarationDigest: PolicyDeclarationDigestV1; base64: string }[];
   overlays: PolicyExceptionOverlayV1[];
   proposal: {
+    /** Explicitly confirmed absence. Omission preserves the existing null-is-unknown meaning. */
+    operationPresence?: "absent";
     operationId: PolicyLogicalIdV1 | null;
     capabilityId: CapabilityId | null;
     implementationDigest: ContentDigest | null;

@@ -53,6 +53,13 @@ an implementation, and qualification cannot invent membership. Neither produces
 an effect grant. An incomplete operation proposal produces unknown activation for
 request-conditional rules; `always` is active without inventing a request.
 
+An explicitly confirmed absence uses `proposal.operationPresence: "absent"` with
+all three selection fields (`operationId`, `capabilityId`, `implementationDigest`)
+set to `null`. Request-conditional rules are dormant in this case. Without this
+optional field, `operationId: null` retains its existing unknown meaning and digest.
+An absent operation does not satisfy an unconditional required operation, disable
+an `always` condition, establish workspace facts, or provide effect authority.
+
 ### Conflict and relation semantics
 
 Resolution preserves applicability, activation, declaration trust, and proposition
