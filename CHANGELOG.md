@@ -1,5 +1,14 @@
 # Changelog
 
+## 4.1.0
+
+### Minor Changes
+
+See the [4.1 migration and recovery guide](docs/releases/lex-4.1-migration.md).
+
+- 1c6feb1: Add the experimental typed normative-policy contract, canonicalization, binding checks, and
+  data-only conformance fixtures.
+
 ## 4.0.4
 
 ### Patch Changes
