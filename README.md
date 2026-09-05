@@ -301,7 +301,12 @@ rather than reconstructing them from ambient environment variables.
 
 ## Project status
 
-**Current Version:** `4.1.0`
+**Current Version:** `4.2.0`
+
+Lex 4.2 combines the library-only normative-policy compiler and resolver. See the
+[4.2 release notes](./docs/releases/lex-4.2.md) and
+[migration guide](./docs/releases/lex-4.2-migration.md). Candidate metadata is not
+publication evidence; retain verified 4.1.0 runtimes until the exact new pair is verified.
 
 Lex 4 provides explicit runtime identity and authority, scope-bound Frame stores, PostgreSQL
 row-level security support, and trusted-host composition while retaining the local SQLite

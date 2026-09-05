@@ -1,5 +1,16 @@
 # Changelog
 
+## 4.2.0
+
+### Minor Changes
+
+- bd25374: Add JSON-only normative-policy ingestion and deterministic, non-authorizing compilation with
+  closed compiled records, exact relation-graph validation, and stable diagnostics. No resolver,
+  authority evaluation, host installation, or live effect behavior is introduced.
+- 758ab1f: Add the library-only normative policy resolver, protected verifier contract,
+  bounded exception overlays, and deterministic non-authorizing effective snapshots.
+  Release this increment together with the merged Slice 1A2 compiler.
+
 ## 4.1.0
 
 ### Minor Changes
