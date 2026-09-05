@@ -832,8 +832,8 @@ Slice 1 does not:
 - Any future YAML advertisement; Slice 1A2 implements only the bounded JSON profile.
 - A future contract for intentionally cross-operation activation conditions; V1 rejects them.
 - The exact security-relevant fact keys and verification profiles for STFC workspace identity.
-- The enforcement-realization vocabulary used in projection receipts.
-- Per-target handling of unknown mandatory conditionals.
+- Future enforcement realizations beyond the Slice 1A4 `unenforced` shadow contract;
+  both initial target profiles reject unknown mandatory conditionals.
 - Ownership and package direction for the pure context linker.
 - `AgentInstance` semantics and cardinality.
 - Live broker, revocation, fencing, receipt, and verification protocols.
