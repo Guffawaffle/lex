@@ -28,3 +28,23 @@ Receipt verification rerenders from explicit source inputs to detect stale sourc
 altered profiles, forged receipts and hand editing. No clock, build ID, filesystem,
 provider or ambient model participates. Generated Markdown is not declaration JSON
 and must never round-trip into canonical source ingestion.
+
+## Public API
+
+Import from `@smartergpt/lex/normative-policy`. `projectPolicyV1` accepts an inert
+closed request with `schemaVersion: 1`, `snapshot`, `targetProfile`, and the explicit
+`omitAdvisoryRules` set (empty for exact rendering). Use
+`CODEX_POLICY_PROJECTION_TARGET_V1` or `COPILOT_POLICY_PROJECTION_TARGET_V1`.
+An unsupported profile rejects the entire projection rather than dropping a rule.
+Only recommendation/preference material may be omitted; permits are preserved too.
+
+A successful result contains `artifact` and `receipt`. A failure contains closed
+diagnostics and no partial artifact. `PolicyProjectionReceiptV1Schema` checks the
+closed receipt shape; it does not authenticate provenance. Call
+`verifyPolicyProjectionV1(request, artifact, receipt)` with current independently
+obtained source inputs to verify binding. Digest equality is not an authority grant.
+
+The two checked-in target goldens are synthetic fixtures, not installed consumer
+instructions. Tests cover cross-process byte identity and rejection of stale input,
+edited text, forged receipts, unsupported targets, mandatory uncertainty/omission,
+and advisory strengthening.

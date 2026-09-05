@@ -3,6 +3,7 @@ export * from "./canonical.js";
 export * from "./conformance.js";
 export * from "./compiler.js";
 export * from "./types.js";
+export * from "./projection.js";
 export { createPolicyResolverV1 } from "./resolver.js";
 export {
   POLICY_RESOLVER_VERSION_V1,

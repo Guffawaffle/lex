@@ -680,6 +680,10 @@ workspace prohibition is authored as policy, not represented as an immortal exce
 
 ### 9. Projection fidelity and enforcement are separate
 
+Slice 1A4 freezes the initial target choices in
+[the shadow projection decision record](../normative-policy-projections.md): both
+targets report `unenforced` and reject unknown mandatory conditions.
+
 The semantic projection flow is:
 
 ```text
