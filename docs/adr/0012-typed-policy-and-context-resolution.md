@@ -819,13 +819,13 @@ Slice 1 does not:
 ## Deferred decisions
 
 - The exact public STFC declaration format and repository path.
-- The protected declaration-authority verifier port while LexThority lacks a native Windows checkout;
-  the declaration/decision data separation is fixed here.
-- The conflict and override algebra beyond the minimum V1 relation semantics fixed above, including
-  any additional resolver-recognized conflict predicates. Exact-target behavior, non-transitivity,
+- The production implementation and protected installation of the declaration-authority verifier
+  while LexThority lacks a native Windows checkout. The library port and resolver conflict predicates
+  are fixed by the [Slice 1A3 decision freeze](../normative-policy-resolver.md); synthetic test
+  verification is not a production authority provider. Exact-target behavior, non-transitivity,
   authenticated relation authority, additive refinement, and fail-closed unresolved mandatory
-  conflicts are not deferred.
-- Whether Slice 1A2 initially advertises JSON alone or also the restricted YAML profile fixed above.
+  conflicts remain mandatory.
+- Any future YAML advertisement; Slice 1A2 implements only the bounded JSON profile.
 - A future contract for intentionally cross-operation activation conditions; V1 rejects them.
 - The exact security-relevant fact keys and verification profiles for STFC workspace identity.
 - The enforcement-realization vocabulary used in projection receipts.
