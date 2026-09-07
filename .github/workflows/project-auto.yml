@@ -26,7 +26,7 @@ jobs:
       # PUBLIC Lex OSS board (Lex repo only): label `project:lex-oss` and NOT `internal-only`
       - name: Add to Lex OSS project (public)
         if: |
-          github.repository == 'Guffawaffle/lex' &&
+          github.repository == 'SmarterGPT/lex' &&
           contains(join(fromJson(toJson(github.event.*)).labels.*.name, ','), 'project:lex-oss') &&
           !contains(join(fromJson(toJson(github.event.*)).labels.*.name, ','), 'internal-only')
         uses: actions/add-to-project@v2.0.0
