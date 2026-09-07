@@ -33,7 +33,7 @@ Before committing, ensure:
 
 ```bash
 # Clone the repository
-git clone https://github.com/Guffawaffle/lex.git
+git clone https://github.com/SmarterGPT/lex.git
 cd lex
 
 # Install dependencies
@@ -673,8 +673,8 @@ throw new Error("Module not found");
 - **Conflict Resolution**: [CONFLICT_RESOLUTION.md](./CONFLICT_RESOLUTION.md)
 - **Security Policy**: [SECURITY.md](./SECURITY.md)
 - **Release Process**: [RELEASE.md](./RELEASE.md)
-- **Issues**: [GitHub Issues](https://github.com/Guffawaffle/lex/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/Guffawaffle/lex/discussions)
+- **Issues**: [GitHub Issues](https://github.com/SmarterGPT/lex/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/SmarterGPT/lex/discussions)
 
 ---
 

@@ -135,7 +135,7 @@ the lockfile, `server.json`, current docs, workflows, and generated artifacts to
 
 ## Trusted npm publication
 
-The npm package must configure `Guffawaffle/lex`, workflow `release.yml`, and GitHub environment
+The npm package must configure `SmarterGPT/lex`, workflow `release.yml`, and GitHub environment
 `npm-release` as its Trusted Publisher. An explicit `publish: true` dispatch validates the exact
 current `origin/main` commit, immutable Actions artifact ID/digest, receipt identity, Windows
 packed-consumer result, and remote main identity before it exchanges GitHub OIDC for npm

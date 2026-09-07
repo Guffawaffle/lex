@@ -4,7 +4,7 @@
   "title": "Lex",
   "description": "Episodic memory, Frames, Policy Neighborhoods, and policy enforcement for AI agents.",
   "repository": {
-    "url": "https://github.com/Guffawaffle/lex",
+    "url": "https://github.com/SmarterGPT/lex",
     "source": "github"
   },
   "version": "4.2.0",

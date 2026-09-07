@@ -215,16 +215,16 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Guffawaffle/lex.git"
+    "url": "git+https://github.com/SmarterGPT/lex.git"
   },
   "publishConfig": {
     "tag": "latest",
     "access": "public"
   },
   "bugs": {
-    "url": "https://github.com/Guffawaffle/lex/issues"
+    "url": "https://github.com/SmarterGPT/lex/issues"
   },
-  "homepage": "https://github.com/Guffawaffle/lex#readme",
+  "homepage": "https://github.com/SmarterGPT/lex#readme",
   "engines": {
     "node": ">=24"
   },
