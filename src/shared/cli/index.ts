@@ -4,7 +4,7 @@
  * Routes commands to appropriate handlers and handles global flags.
  */
 
-import { Command } from "commander";
+import { Command, InvalidArgumentError } from "commander";
 import { remember, type RememberOptions } from "./remember.js";
 import { recall, type RecallOptions } from "./recall.js";
 import { check, type CheckOptions } from "./check.js";
@@ -212,7 +212,17 @@ export function createProgram(programOptions: CreateProgramOptionsV1 = {}): Comm
     )
     .option("-q, --query <text>", "Search query (alternative to positional argument)")
     .option("--list [limit]", "List recent frames (optionally limit to N results)", parseInt)
-    .option("--fold-radius <number>", "Fold radius for Policy Neighborhood context", parseInt)
+    .option(
+      "--fold-radius <number>",
+      "Non-negative integer fold radius (0 = seed modules only; default: 1)",
+      (value: string) => {
+        const radius = Number(value);
+        if (!/^\d+$/.test(value) || !Number.isSafeInteger(radius)) {
+          throw new InvalidArgumentError("Fold radius must be a non-negative safe integer.");
+        }
+        return radius;
+      }
+    )
     .option("--auto-radius", "Auto-tune radius based on token limits")
     .option(
       "--max-tokens <number>",
@@ -241,7 +251,7 @@ export function createProgram(programOptions: CreateProgramOptionsV1 = {}): Comm
       const searchQuery = query || cmdOptions.query;
       const options: RecallOptions = {
         list: cmdOptions.list,
-        foldRadius: cmdOptions.foldRadius || 1,
+        foldRadius: cmdOptions.foldRadius ?? 1,
         autoRadius: cmdOptions.autoRadius || false,
         maxTokens: cmdOptions.maxTokens,
         showCacheStats: cmdOptions.cacheStats || false,
