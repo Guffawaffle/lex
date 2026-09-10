@@ -48,6 +48,14 @@ export async function recall(
   options: RecallOptions = {},
   frameStore?: FrameStore
 ): Promise<void> {
+  if (
+    options.foldRadius !== undefined &&
+    (!Number.isSafeInteger(options.foldRadius) || options.foldRadius < 0)
+  ) {
+    output.error("Error: Fold radius must be a non-negative safe integer.");
+    process.exitCode = 2;
+    return;
+  }
   // If no store is provided, create a default one (which we'll need to close)
   const store = frameStore ?? createFrameStore();
   const ownsStore = frameStore === undefined;
@@ -357,13 +365,13 @@ async function generateAtlasFrameWithAutoTune(
       return {
         atlasFrame: null,
         actualRadius: 0,
-        requestedRadius: options.foldRadius || 1,
+        requestedRadius: options.foldRadius ?? 1,
         tokens: 0,
         autoTuned: false,
       };
     }
 
-    const requestedRadius = options.foldRadius || 1;
+    const requestedRadius = options.foldRadius ?? 1;
 
     // Auto-tune radius if enabled
     if (options.autoRadius && options.maxTokens) {
@@ -408,7 +416,7 @@ async function generateAtlasFrameWithAutoTune(
     return {
       atlasFrame: null,
       actualRadius: 0,
-      requestedRadius: options.foldRadius || 1,
+      requestedRadius: options.foldRadius ?? 1,
       tokens: 0,
       autoTuned: false,
     };
